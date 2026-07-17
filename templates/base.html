@@ -35,18 +35,11 @@
       </div>
     </div>
   </nav>
-  {% block ticker %}
-  <div class="dgl-ticker py-2">
-    <div class="container d-flex align-items-center gap-3">
-      <span class="dgl-live-badge">EN VIVO</span>
-      <div class="flex-grow-1 text-truncate">
-        <span class="dot">●</span> <b>Soto</b> 2-4, HR, 3 CI
-        &nbsp;<span class="dot">●</span> <b>J. Ramírez</b> 3-5, 2B, 2 CA
-        &nbsp;<span class="dot">●</span> <b>Tatis Jr.</b> jonrón #21
-      </div>
-    </div>
-  </div>
-  {% endblock %}
+  {% comment %}
+  Live ticker: intentionally empty until a data-driven, season-aware component feeds it
+  (Fase 6). No hardcoded fake live data ships to staging/prod.
+  {% endcomment %}
+  {% block ticker %}{% endblock %}
 </header>
 
 {% block content %}{% endblock %}

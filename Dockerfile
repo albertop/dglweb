@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
-# Dev/CI image for the dglweb website (Django + Wagtail) on Python 3.13.
-# (Prod hardening — slim image without dev deps — comes in Fase 8.)
+# DEV / CI image for the dglweb website (Django + Wagtail) on Python 3.13.
+# It installs dev deps and defaults to dev settings + runserver — NOT for production.
+# The prod image (runtime deps only, config.settings.prod, `collectstatic`, gunicorn,
+# fail-loud on missing secrets) is built separately in Fase 8 (prod hardening).
 FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -23,4 +25,5 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+# Dev server by default (this is a dev/CI image). Compose overrides the command anyway.
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

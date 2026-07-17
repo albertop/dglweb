@@ -42,17 +42,23 @@
   Django en la **Fase 1**.
 - **✅ Done:** el dueño **aprobó** el layout/estilo. Fase 0 cerrada.
 
-## Fase 1 — Fundaciones / esqueleto
+## Fase 1 — Fundaciones / esqueleto — ✅ COMPLETADA (2026-07-16)
 
-- **Meta:** un sitio Django+Wagtail **desplegable en staging**, vacío pero con todo el andamiaje.
-- **Entrega:**
-  - Proyecto Django+Wagtail con la estructura de `library-guidelines.md`; Postgres; Docker.
-  - Settings por entorno (dev/prod), secrets por env con fallo-ruidoso.
-  - **CI verde:** ruff (line-120, ANN/N) + mypy (strict + django-stubs, gradual) + pytest (TDD).
-  - **Shell de UI = integrar el mock aprobado (Fase 0)** como templates base de Django.
-  - Entorno **staging** operativo.
-  - (Aquí también) **alinear el proxy** a 3.13 + convención (restructura, mypy strict gradual).
-- **Done when:** el mock corre como sitio Django en staging, CI verde, un test de humo pasa.
+- **Meta:** un sitio Django+Wagtail **desplegable**, vacío pero con todo el andamiaje.
+- **Entregado:**
+  - ✅ Proyecto Django+Wagtail con la estructura de `library-guidelines.md`; Postgres; Docker
+    (`docker-compose`: web + db). Corre en **Python 3.13 dentro de Docker** (host tiene 3.14).
+  - ✅ Settings por entorno (base/dev/prod), secrets por env con fallo-ruidoso.
+  - ✅ **CI verde:** ruff (line-120, ANN/N) + mypy (**strict + django-stubs**) + pytest (TDD).
+    Corre local (`make check`) **y en GitHub Actions** (repo privado `albertop/dglweb`).
+  - ✅ **Shell de UI = mock (Fase 0) integrado** como templates Django (`base.html` + `home.html`).
+  - ✅ 3 smoke tests, 100% cobertura. Wagtail admin en `/cms/`.
+- **Staging:** por ahora = **stack local de Docker** (el VPS está intocado hasta el big-bang);
+  se formaliza más cerca del lanzamiento.
+- **🟡 Sub-item — proxy `mlb-api`:** ✅ **bumpeado a Python 3.13** (Dockerfile + pyproject), ✅
+  line-120, ✅ **git en repo propio + CI de GitHub Actions**, ✅ 294 tests verdes en 3.13. Diferido
+  (gradual, per estándar): **restructura a `src/`** y **mypy strict completo** (hoy lenient).
+- **✅ Done when:** mock corre como sitio Django ✅, CI verde ✅, smoke tests pasan ✅.
 
 ## Fase 2 — Fundación de datos: tabla maestra + CRUD admin
 

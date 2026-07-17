@@ -95,7 +95,8 @@ USE_I18N = True
 USE_TZ = True
 
 # --- Static files (served by WhiteNoise in prod) ---
-STATIC_URL = "static/"
+# Leading slash so assets resolve from the site root on nested paths (e.g. /cms/login/).
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STORAGES = {
