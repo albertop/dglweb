@@ -22,6 +22,9 @@ select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "SIM", "RUF"]
 "tests/**" = ["ANN"]
 "manage.py" = ["ANN"]
 "**/migrations/**" = ["ALL"]
+# Wagtail admin config classes use mutable class attrs (list_display, items, …) by design.
+"**/viewsets.py" = ["RUF012"]
+"**/wagtail_hooks.py" = ["RUF012"]
 
 # ---------------------------------------------------------------------------
 # pytest / pytest-django

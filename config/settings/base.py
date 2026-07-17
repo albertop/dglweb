@@ -22,6 +22,8 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 # --- Applications ---
 INSTALLED_APPS = [
     "dglweb.core",
+    "dglweb.players",
+    "dglweb.backoffice",
     # Wagtail
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",

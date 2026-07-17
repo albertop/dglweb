@@ -60,12 +60,22 @@
   (gradual, per estándar): **restructura a `src/`** y **mypy strict completo** (hoy lenient).
 - **✅ Done when:** mock corre como sitio Django ✅, CI verde ✅, smoke tests pasan ✅.
 
-## Fase 2 — Fundación de datos: tabla maestra + CRUD admin
+## Fase 2 — Backoffice + tabla maestra (CRUD de players)
 
-- **Meta:** la **autoridad de "quién es dominicano"** operativa.
-- **Entrega:** modelo `players` (tabla maestra en Postgres) + **página CRUD** en el admin;
-  `birthCountry` de MLB solo como input/semilla.
-- **Done when:** el admin gestiona los ~970 jugadores en staging (con tests).
+- **Meta:** la **autoridad de "quién es dominicano"** operativa, dentro de una **sección de
+  backoffice extensible** para administradores.
+- **⭐ Decisión de dimensionamiento (dueño):** el CRUD de players **NO es el único** back-office;
+  vendrán más (sobre todo con los scrapers). Por eso se monta una **sección "Backoffice"** en el
+  admin de Wagtail (`SnippetViewSetGroup`) donde este CRUD es el **primero**; los siguientes se
+  añaden al mismo grupo sin reestructurar. (El admin de Wagtail ES el backoffice — no reinventar.)
+- **Entrega:**
+  - App `backoffice` que registra el grupo de menú "Backoffice" en el admin.
+  - App `players` con el modelo `Player` (tabla maestra en Postgres) + `PlayerViewSet` (CRUD:
+    lista, búsqueda, filtros). `birthCountry` de MLB = **input/semilla, no la regla**; estar en la
+    tabla = es dominicano (curado por admin).
+  - Permisos: solo **administrators** gestionan la tabla.
+  - Comando de seed inicial (fuente por definir — dato del dueño) para poblar ~970.
+- **Done when:** el admin gestiona jugadores en la sección Backoffice (con tests); CI verde.
 
 ## Fase 3 — Pipeline de datos: scrapers en marcha (ANTES del backfill)
 
