@@ -1,0 +1,191 @@
+/*
+ * Dominicanos en Grandes Ligas — mockup theme (Fase 0)
+ * Sober, data-forward, responsive. Built on Bootstrap 5.
+ * NOTE: this becomes the seed for the Django base template styles.
+ */
+
+:root {
+  --dgl-navy: #0b1f3a;      /* top bar / footer */
+  --dgl-navy-2: #12294b;
+  --dgl-red: #ce1126;       /* RD flag red — LIVE / hot only */
+  --dgl-blue: #1f4e9b;      /* accent / links */
+  --dgl-ink: #1a1d21;       /* body text */
+  --dgl-muted: #6b7280;
+  --dgl-line: #e5e7eb;
+  --dgl-bg: #f6f7f9;
+  --dgl-card: #ffffff;
+}
+
+body {
+  background: var(--dgl-bg);
+  color: var(--dgl-ink);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+}
+
+a { color: var(--dgl-blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---------- Top bar / nav ---------- */
+.dgl-topbar { background: var(--dgl-navy); }
+.dgl-brand { font-weight: 800; letter-spacing: -0.02em; color: #fff; line-height: 1; }
+.dgl-brand small { display: block; font-weight: 500; font-size: .62rem; letter-spacing: .18em;
+  text-transform: uppercase; color: #9db4d6; }
+.dgl-topbar .form-control { background: #0e2646; border-color: #23406e; color: #fff; }
+.dgl-topbar .form-control::placeholder { color: #8ea6c8; }
+.dgl-navlink { color: #cdd8ea !important; font-weight: 600; font-size: .9rem; }
+.dgl-navlink:hover, .dgl-navlink.active { color: #fff !important; }
+
+/* ---------- Cintillo / live ticker ---------- */
+.dgl-ticker {
+  background: var(--dgl-navy-2);
+  border-top: 1px solid #1c3a5e; border-bottom: 2px solid var(--dgl-red);
+  color: #e8eef7; font-size: .84rem; overflow: hidden; white-space: nowrap;
+}
+.dgl-ticker .dot { color: var(--dgl-red); }
+.dgl-ticker b { color: #fff; }
+.dgl-live-badge {
+  background: var(--dgl-red); color: #fff; font-weight: 700; font-size: .68rem;
+  letter-spacing: .1em; padding: .15rem .45rem; border-radius: 3px;
+}
+
+/* ---------- Page title (h1) ---------- */
+.dgl-page-title {
+  font-weight: 800; font-size: 3rem; line-height: 1.05; letter-spacing: -.03em;
+  color: var(--dgl-ink); margin-bottom: .4rem;
+}
+@media (max-width: 575px) { .dgl-page-title { font-size: 2.1rem; } }
+
+/* ---------- Section titles ---------- */
+.dgl-section-title {
+  font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em;
+  border-left: 4px solid var(--dgl-red); padding-left: .6rem; margin-bottom: 1rem;
+}
+
+/* ---------- Cards / articles ---------- */
+.card { border-color: var(--dgl-line); }
+.dgl-hero { overflow: hidden; }
+.dgl-hero .dgl-thumb { height: 260px; }
+.dgl-thumb {
+  background: linear-gradient(135deg, var(--dgl-navy), var(--dgl-blue));
+  color: #cfe0ff; display: flex; align-items: center; justify-content: center;
+  font-size: .8rem; letter-spacing: .12em; text-transform: uppercase;
+}
+.dgl-kicker { color: var(--dgl-red); font-weight: 700; font-size: .72rem;
+  letter-spacing: .12em; text-transform: uppercase; }
+.dgl-article-title { font-weight: 750; letter-spacing: -.01em; color: var(--dgl-ink); }
+a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
+.dgl-meta { color: var(--dgl-muted); font-size: .8rem; }
+.dgl-tag {
+  display: inline-block; background: #eef1f6; color: var(--dgl-blue);
+  font-size: .72rem; font-weight: 600; padding: .1rem .4rem; border-radius: 3px;
+}
+
+/* ---------- Scoreboard (pizarra) ---------- */
+.dgl-panel { background: var(--dgl-card); border: 1px solid var(--dgl-line); border-radius: .5rem; }
+.dgl-game { border-bottom: 1px solid var(--dgl-line); }
+.dgl-game:last-child { border-bottom: 0; }
+.dgl-game .team { font-weight: 600; }
+.dgl-game .score { font-weight: 800; font-variant-numeric: tabular-nums; }
+.dgl-dom { color: var(--dgl-blue); font-weight: 700; }  /* dominican highlight */
+.dgl-final { color: var(--dgl-muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+
+/* ---------- Destacados de la jornada ---------- */
+.dgl-standout { border-bottom: 1px solid var(--dgl-line); }
+.dgl-standout:last-child { border-bottom: 0; }
+.dgl-standout .name { font-weight: 700; }
+.dgl-standout .team { color: var(--dgl-muted); font-size: .72rem; }
+.dgl-standout .line { color: var(--dgl-blue); font-weight: 600; font-size: .82rem;
+  font-variant-numeric: tabular-nums; }
+.dgl-group-label { color: var(--dgl-muted); font-size: .72rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; }
+
+/* ---------- Leaders widget ---------- */
+.dgl-leader { font-variant-numeric: tabular-nums; }
+.dgl-leader .rank { color: var(--dgl-muted); width: 1.2rem; display: inline-block; }
+.dgl-leader .val { font-weight: 800; }
+
+/* ---------- Ad slots ---------- */
+.dgl-ad {
+  background: repeating-linear-gradient(45deg, #eef0f3, #eef0f3 10px, #e7eaee 10px, #e7eaee 20px);
+  border: 1px dashed #c7ccd3; color: #97a0ab; font-size: .72rem; letter-spacing: .12em;
+  text-transform: uppercase; display: flex; align-items: center; justify-content: center;
+  border-radius: .4rem;
+}
+.dgl-ad-leader { height: 90px; }
+.dgl-ad-rect { height: 250px; }
+
+/* ---------- Article prose (readable serif body) ---------- */
+.dgl-prose {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 1.15rem; line-height: 1.72; color: #24272c; letter-spacing: 0;
+}
+.dgl-prose p { margin-bottom: 1.15rem; }
+.dgl-prose h2 {
+  font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 800; font-size: 1.25rem;
+  letter-spacing: -.02em; margin: 2rem 0 .9rem;
+}
+.dgl-prose a { color: var(--dgl-blue); font-weight: 600; }
+.dgl-lead { font-size: 1.28rem; line-height: 1.55; color: #3a3f47; }
+.dgl-pullquote {
+  border-left: 4px solid var(--dgl-red); padding: .2rem 0 .2rem 1.1rem; margin: 1.6rem 0;
+  font-style: italic; font-size: 1.25rem; color: #2a2e34;
+}
+/* embedded blocks (StreamField vibe): captions stay monospace */
+.dgl-embed { border: 1px solid var(--dgl-line); border-radius: .5rem; overflow: hidden; margin: 1.6rem 0; }
+.dgl-embed-cap {
+  background: #f3f5f8; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .72rem;
+  color: var(--dgl-muted); padding: .45rem .8rem; letter-spacing: .04em; text-transform: uppercase;
+}
+.dgl-stats-table { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .82rem;
+  font-variant-numeric: tabular-nums; }
+.dgl-stats-table th { color: var(--dgl-muted); font-weight: 700; }
+
+/* ---------- Player page ---------- */
+.dgl-player-hero {
+  background: linear-gradient(135deg, var(--dgl-navy), var(--dgl-navy-2));
+  color: #fff; border-radius: .6rem;
+}
+.dgl-avatar {
+  width: 96px; height: 96px; border-radius: .5rem; background: #1c3a5e; color: #9db4d6;
+  display: flex; align-items: center; justify-content: center; font-size: 1.7rem; font-weight: 800;
+}
+.dgl-badge-rd {
+  background: var(--dgl-red); color: #fff; font-size: .66rem; font-weight: 700;
+  letter-spacing: .08em; padding: .14rem .45rem; border-radius: 3px;
+}
+.dgl-player-hero .k { font-size: .68rem; color: #9db4d6; text-transform: uppercase; letter-spacing: .08em; }
+.dgl-statbox .v { font-size: 1.35rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+
+/* ---------- Leaders / leaderboards ---------- */
+.dgl-rank { color: var(--dgl-muted); width: 1.6rem; display: inline-block; text-align: right; }
+.dgl-rank-1 { color: var(--dgl-red); font-weight: 800; }
+.dgl-lead-name { font-weight: 700; }
+.dgl-lead-val { font-weight: 800; font-variant-numeric: tabular-nums; }
+.nav-tabs .nav-link { font-weight: 700; color: var(--dgl-muted); font-size: .9rem; }
+.nav-tabs .nav-link.active { color: var(--dgl-navy); border-bottom-color: var(--dgl-red); }
+.dgl-pill {
+  background: #eef1f6; color: var(--dgl-blue); border: 1px solid var(--dgl-line);
+  border-radius: 20px; padding: .22rem .8rem; font-size: .78rem; font-weight: 700; cursor: pointer;
+  font-family: inherit;
+}
+.dgl-pill:hover { border-color: var(--dgl-blue); }
+.dgl-pill.active { background: var(--dgl-navy); color: #fff; border-color: var(--dgl-navy); }
+.dgl-seg .dgl-pill.active { background: var(--dgl-red); border-color: var(--dgl-red); }
+
+/* ---------- Footer ---------- */
+.dgl-footer { background: var(--dgl-navy); color: #b9c6db; }
+.dgl-footer a { color: #cdd8ea; }
+.dgl-footer h6 { color: #fff; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; }
+
+/* ---------- Search results (typeahead mock) ---------- */
+.dgl-search-wrap { position: relative; }
+.dgl-search-results {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 30; background: #fff;
+  border: 1px solid var(--dgl-line); border-radius: 0 0 .4rem .4rem; box-shadow: 0 8px 20px rgba(0,0,0,.12);
+}
+.dgl-search-results a { display: block; padding: .5rem .75rem; color: var(--dgl-ink); border-bottom: 1px solid #f0f2f5; }
+.dgl-search-results a:hover { background: #f3f6fb; text-decoration: none; }
+.dgl-search-results small { color: var(--dgl-muted); }

@@ -1,0 +1,55 @@
+[project]
+name = "dglweb"
+version = "0.1.0"
+description = "Dominicanos en Grandes Ligas — website (Django + Wagtail)."
+requires-python = ">=3.13"
+
+# ---------------------------------------------------------------------------
+# Ruff — lint + format (see docs/CODING_STANDARDS.md)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+extend-exclude = ["**/migrations/**"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Django settings use star-imports and re-order intentionally.
+"config/settings/*" = ["F403", "F405", "E402"]
+# Tests and manage.py don't need full annotations on every callable.
+"tests/**" = ["ANN"]
+"manage.py" = ["ANN"]
+"**/migrations/**" = ["ALL"]
+
+# ---------------------------------------------------------------------------
+# pytest / pytest-django
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.dev"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+addopts = "-v --strict-markers --tb=short --cov=dglweb --cov-report=term-missing"
+
+# ---------------------------------------------------------------------------
+# mypy — strict, with the Django plugin (see library-guidelines.md).
+# Tightened gradually; Wagtail is untyped so its imports are ignored.
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["mypy_django_plugin.main"]
+exclude = ["migrations/"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings.dev"
+
+[[tool.mypy.overrides]]
+module = ["wagtail.*", "modelcluster.*", "taggit.*", "environ.*"]
+ignore_missing_imports = true
+
+# Tests are not a public interface; don't require return annotations on every test.
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false

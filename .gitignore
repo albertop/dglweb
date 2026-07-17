@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Env / secrets
+.env
+
+# Django
+staticfiles/
+media/
+*.sqlite3
+
+# OS / editor
+.DS_Store
+Thumbs.db

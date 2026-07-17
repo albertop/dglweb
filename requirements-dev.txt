@@ -1,0 +1,9 @@
+# Dev/test dependencies. Installed on top of runtime in dev/CI images.
+-r requirements.txt
+pytest>=8.3
+pytest-django>=4.9
+pytest-cov>=5.0
+ruff>=0.15
+mypy>=1.13
+django-stubs[compatible-mypy]>=5.1
+factory-boy>=3.3

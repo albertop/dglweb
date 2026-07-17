@@ -1,0 +1,171 @@
+<!doctype html>
+<!-- Dominicanos en Grandes Ligas — PLAYER page mockup (Fase 0). BBRef-style, mono/data. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Juan Soto — Dominicanos en Grandes Ligas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/mockup.css?v=2" rel="stylesheet">
+</head>
+<body>
+
+<header class="dgl-topbar">
+  <nav class="navbar navbar-expand-lg py-2">
+    <div class="container">
+      <a class="navbar-brand dgl-brand me-3" href="index.html">Dominicanos en Grandes Ligas</a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+        <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="nav">
+        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" onsubmit="return false">
+          <input class="form-control form-control-sm" type="search" placeholder="🔎 Buscar jugador… (ej. Soto)">
+        </form>
+        <ul class="navbar-nav ms-auto align-items-lg-center">
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="index.html">Inicio</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="#">Artículos</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="leaders.html">Líderes</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink active" href="player.html">Jugadores</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-sm btn-outline-light" href="#">Entrar</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <div class="dgl-ticker py-2">
+    <div class="container d-flex align-items-center gap-3">
+      <span class="dgl-live-badge">EN VIVO</span>
+      <div class="flex-grow-1 text-truncate">
+        <span class="dot">●</span> <b>Soto</b> 2-4, HR, 3 CI
+        &nbsp;<span class="dot">●</span> <b>J. Ramírez</b> 3-5, 2B, 2 CA
+        &nbsp;<span class="dot">●</span> <b>Tatis Jr.</b> jonrón #21
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container my-4">
+
+  <!-- Player hero -->
+  <div class="dgl-player-hero p-4 mb-4">
+    <div class="d-flex flex-wrap align-items-center gap-4">
+      <div class="dgl-avatar">JS</div>
+      <div class="flex-grow-1">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="dgl-badge-rd">🇩🇴 RD</span>
+          <span class="k">OF · New York Yankees · #22</span>
+        </div>
+        <h1 class="dgl-page-title mb-1" style="color:#fff">Juan Soto</h1>
+        <div class="k">Batea: Zurdo · Lanza: Zurdo · 1.91 m, 101 kg ·
+          Nac. 25 oct 1998, Santo Domingo, RD · Debut: 2018</div>
+      </div>
+      <!-- key stats -->
+      <div class="d-flex gap-4 text-center">
+        <div class="dgl-statbox"><div class="v">.291</div><div class="k">AVG</div></div>
+        <div class="dgl-statbox"><div class="v">34</div><div class="k">HR</div></div>
+        <div class="dgl-statbox"><div class="v">.441</div><div class="k">OBP</div></div>
+        <div class="dgl-statbox"><div class="v">.438</div><div class="k">wOBA</div></div>
+        <div class="dgl-statbox"><div class="v">6.1</div><div class="k">WAR</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ranking note among Dominicans -->
+  <div class="dgl-panel p-3 mb-4">
+    <span class="dgl-kicker">Entre dominicanos</span>
+    <span class="ms-2">#3 en <b>OBP</b> de por vida · #1 en <b>wOBA</b> activo · Top-10 histórico en
+      <b>BB%</b> · <a href="leaders.html">ver líderes →</a></span>
+  </div>
+
+  <!-- Stats en TABS (extensible: agregar un tab no alarga la página hacia abajo) -->
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#p-std">Bateo · Estándar</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#p-adv">Bateo · Avanzado</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#p-fld">Fildeo</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#p-splits">Splits</button></li>
+  </ul>
+  <div class="tab-content">
+
+  <div class="tab-pane fade show active" id="p-std">
+  <!-- Standard batting -->
+  <section class="dgl-panel mb-4">
+    <h2 class="dgl-section-title px-3 pt-3" style="font-size:1rem">Bateo — Estándar</h2>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        <thead><tr>
+          <th class="ps-3">Año</th><th>Eq</th><th>J</th><th>VB</th><th>H</th><th>X2B</th><th>HR</th>
+          <th>CI</th><th>BB</th><th>K</th><th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="ps-3">2022</td><td>WSN/SD</td><td>153</td><td>493</td><td>117</td><td>25</td><td>27</td><td>62</td><td>135</td><td>96</td><td>.242</td><td>.401</td><td class="pe-3">.452</td></tr>
+          <tr><td class="ps-3">2023</td><td>SD</td><td>162</td><td>568</td><td>156</td><td>32</td><td>35</td><td>109</td><td>132</td><td>129</td><td>.275</td><td>.410</td><td class="pe-3">.519</td></tr>
+          <tr><td class="ps-3">2024</td><td>NYY</td><td>157</td><td>576</td><td>166</td><td>31</td><td>41</td><td>109</td><td>129</td><td>119</td><td>.288</td><td>.419</td><td class="pe-3">.569</td></tr>
+          <tr><td class="ps-3"><b>2026</b></td><td>NYY</td><td>96</td><td>337</td><td>98</td><td>19</td><td>34</td><td>78</td><td>84</td><td>71</td><td><b>.291</b></td><td><b>.441</b></td><td class="pe-3"><b>.611</b></td></tr>
+          <tr style="border-top:2px solid var(--dgl-navy)"><td class="ps-3"><b>Carrera</b></td><td>—</td><td><b>1024</b></td><td>3402</td><td>982</td><td>190</td><td>229</td><td>642</td><td>801</td><td>642</td><td><b>.288</b></td><td><b>.421</b></td><td class="pe-3"><b>.541</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  </div><!-- /p-std -->
+
+  <div class="tab-pane fade" id="p-adv">
+  <!-- Advanced / sabermetric -->
+  <section class="dgl-panel mb-4">
+    <h2 class="dgl-section-title px-3 pt-3" style="font-size:1rem">Bateo — Avanzado / Sabermétrico</h2>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        <thead><tr>
+          <th class="ps-3">Año</th><th>wOBA</th><th>xwOBA</th><th>wRC+</th><th>BB%</th><th>K%</th>
+          <th>ISO</th><th>BABIP</th><th>OPS+</th><th class="pe-3">WAR</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="ps-3">2022</td><td>.383</td><td>.402</td><td>145</td><td>19.4</td><td>13.8</td><td>.210</td><td>.257</td><td>146</td><td class="pe-3">4.0</td></tr>
+          <tr><td class="ps-3">2023</td><td>.393</td><td>.401</td><td>155</td><td>18.0</td><td>17.6</td><td>.244</td><td>.303</td><td>153</td><td class="pe-3">5.5</td></tr>
+          <tr><td class="ps-3">2024</td><td>.419</td><td>.428</td><td>178</td><td>18.1</td><td>16.7</td><td>.281</td><td>.299</td><td>180</td><td class="pe-3">7.9</td></tr>
+          <tr><td class="ps-3"><b>2026</b></td><td><b>.438</b></td><td>.451</td><td><b>189</b></td><td>19.9</td><td>14.5</td><td>.320</td><td>.291</td><td>192</td><td class="pe-3"><b>6.1</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="dgl-meta px-3 py-2 border-top">Fuente: mlb-proxy + cálculo propio · métricas
+      sabermétricas · <a href="#">glosario</a></div>
+  </section>
+  </div><!-- /p-adv -->
+
+  <div class="tab-pane fade" id="p-fld">
+    <div class="dgl-panel p-4 text-center dgl-meta">Fildeo · <b>próximamente</b> — este tab
+      albergará las tablas de defensa (Fldpct, A, E, DP, OAA…) sin alargar la página.</div>
+  </div>
+  <div class="tab-pane fade" id="p-splits">
+    <div class="dgl-panel p-4 text-center dgl-meta">Splits · <b>próximamente</b> — vs. zurdos/
+      derechos, casa/ruta, por mes, con corredores en posición de anotar…</div>
+  </div>
+
+  </div><!-- /tab-content -->
+
+</main>
+
+<footer class="dgl-footer pt-4 pb-3 mt-5">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-5">
+        <div class="dgl-brand mb-2">Dominicanos en Grandes Ligas</div>
+        <p class="small mb-0" style="max-width:32ch">Estadísticas y sabermetría del béisbol de las
+          Grandes Ligas, vistas a través del lente dominicano.</p>
+      </div>
+      <div class="col-6 col-md-3"><h6>Secciones</h6>
+        <ul class="list-unstyled small"><li><a href="#">Artículos</a></li>
+          <li><a href="leaders.html">Líderes</a></li><li><a href="player.html">Jugadores</a></li></ul></div>
+      <div class="col-6 col-md-4"><h6>Legal</h6>
+        <ul class="list-unstyled small"><li><a href="#">Política de privacidad</a></li>
+          <li><a href="#">Términos de servicio</a></li><li><a href="#">Cookies</a></li></ul></div>
+    </div>
+    <hr style="border-color:#25406b">
+    <div class="small text-center" style="color:#8ea6c8">© 2026 dominicanosengrandesligas.com</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

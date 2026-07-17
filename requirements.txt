@@ -1,0 +1,7 @@
+# Runtime dependencies (production). Pinned to majors that support Python 3.13.
+Django>=5.1,<5.2
+wagtail>=6.3,<6.5
+psycopg[binary]>=3.2
+django-environ>=0.11
+whitenoise>=6.7
+gunicorn>=23.0

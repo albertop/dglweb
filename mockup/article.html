@@ -1,0 +1,164 @@
+<!doctype html>
+<!-- Dominicanos en Grandes Ligas — ARTICLE mockup (Fase 0). Hybrid type: mono UI + serif body. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>El salto de Juan Soto — Dominicanos en Grandes Ligas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/mockup.css?v=2" rel="stylesheet">
+</head>
+<body>
+
+<!-- ============ TOP BAR / NAV ============ -->
+<header class="dgl-topbar">
+  <nav class="navbar navbar-expand-lg py-2">
+    <div class="container">
+      <a class="navbar-brand dgl-brand me-3" href="index.html">
+        Dominicanos en Grandes Ligas
+      </a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+        <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="nav">
+        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" onsubmit="return false">
+          <input class="form-control form-control-sm" type="search" placeholder="🔎 Buscar jugador… (ej. Soto)">
+        </form>
+        <ul class="navbar-nav ms-auto align-items-lg-center">
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="index.html">Inicio</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink active" href="#">Artículos</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="leaders.html">Líderes</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="player.html">Jugadores</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-sm btn-outline-light" href="#">Entrar</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <div class="dgl-ticker py-2">
+    <div class="container d-flex align-items-center gap-3">
+      <span class="dgl-live-badge">EN VIVO</span>
+      <div class="flex-grow-1 text-truncate">
+        <span class="dot">●</span> <b>Soto</b> 2-4, HR, 3 CI
+        &nbsp;<span class="dot">●</span> <b>J. Ramírez</b> 3-5, 2B, 2 CA
+        &nbsp;<span class="dot">●</span> <b>Tatis Jr.</b> jonrón #21
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container my-4">
+  <div class="row justify-content-center">
+    <article class="col-lg-8">
+
+      <!-- Article header -->
+      <div class="dgl-kicker mb-2">Sabermetría</div>
+      <h1 class="dgl-article-title mb-3" style="font-size:2.7rem;line-height:1.1;letter-spacing:-.03em">
+        El salto de Juan Soto: qué dice su wOBA sobre el mejor bateador dominicano de la década
+      </h1>
+      <div class="dgl-meta mb-3">
+        Por <b>A. Perdomo</b> · 16 jul 2026 · 8 min de lectura
+        &nbsp; <a href="player.html" class="dgl-tag">#JuanSoto</a>
+        <span class="dgl-tag">#wOBA</span> <span class="dgl-tag">#PlateDiscipline</span>
+      </div>
+
+      <!-- Hero -->
+      <div class="dgl-embed">
+        <div class="dgl-thumb" style="height:300px">Gráfico · wOBA de Soto por temporada (2018–2026)</div>
+        <div class="dgl-embed-cap">Fig. 1 — wOBA por temporada · Fuente: mlb-proxy / cálculo propio</div>
+      </div>
+
+      <!-- Body (readable serif) -->
+      <div class="dgl-prose">
+        <p class="dgl-lead">Cuando hablamos del mejor bateador dominicano de la última década, la
+          conversación suele quedarse en los jonrones. Pero hay una métrica que cuenta la historia
+          completa mucho mejor: el <a href="#">wOBA</a>.</p>
+
+        <p>El <em>weighted On-Base Average</em> pondera cada evento ofensivo por su valor real de
+          carreras. A diferencia del promedio o del OPS, no trata a todos los hits por igual: un
+          jonrón vale lo que vale, y una base por bolas también suma. Para un bateador con la
+          paciencia de Soto, esto cambia todo el panorama.</p>
+
+        <h2>La disciplina que no se ve en la caja</h2>
+
+        <p>Soto camina más que casi cualquier dominicano en la historia moderna. Su tasa de bases
+          por bolas lo ubica en un territorio que, entre peloteros de República Dominicana, solo
+          han pisado un puñado de nombres. Y eso, traducido a wOBA, lo pone por encima de rivales
+          que aparentan mejores números "tradicionales".</p>
+
+        <div class="dgl-pullquote">
+          "El wOBA no premia el ruido; premia el valor. Y pocos dominicanos han generado tanto
+          valor por aparición al plato como Soto."
+        </div>
+
+        <p>La siguiente tabla compara su temporada actual con las mejores campañas dominicanas por
+          wOBA en el siglo XXI:</p>
+
+        <!-- Embedded stat table (monospace) -->
+        <div class="dgl-embed">
+          <div class="dgl-embed-cap">Tabla 1 — Mejores temporadas dominicanas por wOBA (siglo XXI)</div>
+          <table class="table table-sm mb-0 dgl-stats-table">
+            <thead>
+              <tr><th class="ps-3">Jugador</th><th>Año</th><th>PA</th><th>wOBA</th><th>OBP</th><th class="pe-3">HR</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="ps-3">Juan Soto</td><td>2026</td><td>612</td><td><b>.438</b></td><td>.441</td><td class="pe-3">34</td></tr>
+              <tr><td class="ps-3">Vladimir Guerrero Jr.</td><td>2021</td><td>698</td><td>.419</td><td>.401</td><td class="pe-3">48</td></tr>
+              <tr><td class="ps-3">David Ortiz</td><td>2007</td><td>667</td><td>.415</td><td>.445</td><td class="pe-3">35</td></tr>
+              <tr><td class="ps-3">Manny Ramírez</td><td>2000</td><td>562</td><td>.421</td><td>.457</td><td class="pe-3">38</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>El contraste es claro: Soto no lidera en jonrones, pero su combinación de embase y poder
+          lo coloca en la cima del valor ofensivo. Y si el histórico es tu referencia, esa
+          conversación merece hacerse <a href="leaders.html">con los líderes dominicanos de todos
+          los tiempos</a>, no contra la liga entera.</p>
+
+        <p>El resto de la temporada dirá si sostiene el paso. Pero la tendencia, medida con la vara
+          correcta, apunta a algo histórico.</p>
+      </div>
+
+      <hr class="my-4">
+      <div class="dgl-meta">Etiquetas:
+        <span class="dgl-tag">#JuanSoto</span> <span class="dgl-tag">#wOBA</span>
+        <span class="dgl-tag">#Sabermetría</span> <span class="dgl-tag">#Bateo</span></div>
+
+    </article>
+  </div>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="dgl-footer pt-4 pb-3 mt-5">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-5">
+        <div class="dgl-brand mb-2">Dominicanos en Grandes Ligas</div>
+        <p class="small mb-0" style="max-width:32ch">Estadísticas y sabermetría del béisbol de las
+          Grandes Ligas, vistas a través del lente dominicano.</p>
+      </div>
+      <div class="col-6 col-md-3">
+        <h6>Secciones</h6>
+        <ul class="list-unstyled small">
+          <li><a href="#">Artículos</a></li><li><a href="leaders.html">Líderes</a></li>
+          <li><a href="player.html">Jugadores</a></li>
+        </ul>
+      </div>
+      <div class="col-6 col-md-4">
+        <h6>Legal</h6>
+        <ul class="list-unstyled small">
+          <li><a href="#">Política de privacidad</a></li><li><a href="#">Términos de servicio</a></li>
+          <li><a href="#">Cookies</a></li>
+        </ul>
+      </div>
+    </div>
+    <hr style="border-color:#25406b">
+    <div class="small text-center" style="color:#8ea6c8">© 2026 dominicanosengrandesligas.com</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

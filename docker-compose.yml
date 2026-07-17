@@ -1,0 +1,32 @@
+# Local dev stack for dglweb: Django+Wagtail (web) + PostgreSQL (db).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dglweb
+      POSTGRES_USER: dglweb
+      POSTGRES_PASSWORD: dglweb
+    volumes:
+      - dglweb_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dglweb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DATABASE_URL: postgres://dglweb:dglweb@db:5432/dglweb
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  dglweb_pgdata:

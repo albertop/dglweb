@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- Dominicanos en Grandes Ligas — LEADERS page (Fase 0). Interactive selector: 1 table at a time. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Líderes dominicanos — Dominicanos en Grandes Ligas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/mockup.css?v=2" rel="stylesheet">
+</head>
+<body>
+
+<header class="dgl-topbar">
+  <nav class="navbar navbar-expand-lg py-2">
+    <div class="container">
+      <a class="navbar-brand dgl-brand me-3" href="index.html">Dominicanos en Grandes Ligas</a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+        <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="nav">
+        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" onsubmit="return false">
+          <input class="form-control form-control-sm" type="search" placeholder="🔎 Buscar jugador… (ej. Soto)">
+        </form>
+        <ul class="navbar-nav ms-auto align-items-lg-center">
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="index.html">Inicio</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="#">Artículos</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink active" href="leaders.html">Líderes</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="player.html">Jugadores</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-sm btn-outline-light" href="#">Entrar</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <div class="dgl-ticker py-2">
+    <div class="container d-flex align-items-center gap-3">
+      <span class="dgl-live-badge">EN VIVO</span>
+      <div class="flex-grow-1 text-truncate">
+        <span class="dot">●</span> <b>Soto</b> 2-4, HR, 3 CI
+        &nbsp;<span class="dot">●</span> <b>J. Ramírez</b> 3-5, 2B, 2 CA
+        &nbsp;<span class="dot">●</span> <b>Tatis Jr.</b> jonrón #21
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container my-4">
+
+  <h1 class="dgl-page-title">Líderes dominicanos</h1>
+  <p class="dgl-meta mb-4" style="max-width:70ch">Rankings calculados <b>solo entre peloteros
+    dominicanos</b> — algo imposible de filtrar en Baseball Reference. Elige categoría, métrica y
+    si quieres de por vida o por temporada.</p>
+
+  <!-- Category tabs -->
+  <ul class="nav nav-tabs mb-3" id="catTabs">
+    <li class="nav-item"><button class="nav-link active" data-cat="bateo">Bateo</button></li>
+    <li class="nav-item"><button class="nav-link" data-cat="pitcheo">Pitcheo</button></li>
+    <li class="nav-item"><button class="nav-link" data-cat="fildeo">Fildeo</button></li>
+  </ul>
+
+  <!-- Controls: type toggle + metric pills -->
+  <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+    <div class="dgl-seg d-flex gap-1">
+      <button class="dgl-pill active" data-type="carrera">De por vida</button>
+      <button class="dgl-pill" data-type="temporada">Por temporada</button>
+    </div>
+    <div class="vr d-none d-sm-block"></div>
+    <div id="pills" class="d-flex flex-wrap gap-2"></div>
+  </div>
+
+  <!-- Single leaderboard -->
+  <section class="dgl-panel" style="max-width:560px">
+    <h2 id="lbTitle" class="dgl-section-title px-3 pt-3" style="font-size:.95rem"></h2>
+    <table class="table table-sm table-striped mb-0 dgl-stats-table">
+      <tbody id="lbBody"></tbody>
+    </table>
+  </section>
+
+  <div class="dgl-meta mt-3">Datos de ejemplo · en el sitio final cada categoría tendrá todas sus
+    métricas · <a href="#">ver glosario</a></div>
+
+</main>
+
+<footer class="dgl-footer pt-4 pb-3 mt-5">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-5">
+        <div class="dgl-brand mb-2">Dominicanos en Grandes Ligas</div>
+        <p class="small mb-0" style="max-width:32ch">Estadísticas y sabermetría del béisbol de las
+          Grandes Ligas, vistas a través del lente dominicano.</p>
+      </div>
+      <div class="col-6 col-md-3"><h6>Secciones</h6>
+        <ul class="list-unstyled small"><li><a href="#">Artículos</a></li>
+          <li><a href="leaders.html">Líderes</a></li><li><a href="player.html">Jugadores</a></li></ul></div>
+      <div class="col-6 col-md-4"><h6>Legal</h6>
+        <ul class="list-unstyled small"><li><a href="#">Política de privacidad</a></li>
+          <li><a href="#">Términos de servicio</a></li><li><a href="#">Cookies</a></li></ul></div>
+    </div>
+    <hr style="border-color:#25406b">
+    <div class="small text-center" style="color:#8ea6c8">© 2026 dominicanosengrandesligas.com</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Mock leaderboard data. In the real site this comes from Postgres (precalculado).
+const DATA = {
+  bateo: { label: "Bateo", metrics: {
+    HR:   { name: "Jonrones (HR)",
+      carrera:   [["Albert Pujols","",703],["Sammy Sosa","",609],["Manny Ramírez","",555],["David Ortiz","",541],["Adrián Beltré","",477]],
+      temporada: [["Sammy Sosa","1998",66],["Sammy Sosa","2001",64],["Sammy Sosa","1999",63],["David Ortiz","2006",54],["Alfonso Soriano","2006",46]] },
+    AVG:  { name: "Promedio (AVG)",
+      carrera:   [["Vladimir Guerrero","",".318"],["Manny Ramírez","",".312"],["Albert Pujols","",".296"],["Robinson Canó","",".301"],["David Ortiz","",".286"]],
+      temporada: [["Rico Carty","1970",".366"],["Manny Ramírez","2002",".349"],["Vladimir Guerrero","2000",".345"],["Julio Franco","1991",".341"],["Robinson Canó","2013",".314"]] },
+    wOBA: { name: "wOBA (sabermétrica)",
+      carrera:   [["Albert Pujols","",".400"],["Manny Ramírez","",".398"],["David Ortiz","",".385"],["Juan Soto","",".402"],["Vladimir Guerrero","",".390"]],
+      temporada: [["Juan Soto","2026",".438"],["Manny Ramírez","2000",".421"],["Vladimir Guerrero","2021",".419"],["David Ortiz","2007",".415"],["Sammy Sosa","2001",".410"]] },
+  }},
+  pitcheo: { label: "Pitcheo", metrics: {
+    K:    { name: "Ponches (K)",
+      carrera:   [["Pedro Martínez","",3154],["Bartolo Colón","",2535],["Juan Marichal","",2303],["Ervin Santana","",1764],["Johnny Cueto","",1652]],
+      temporada: [["Pedro Martínez","1999",313],["Pedro Martínez","1997",305],["Juan Marichal","1963",248],["Ervin Santana","2011",220],["Bartolo Colón","2000",212]] },
+    W:    { name: "Victorias (G)",
+      carrera:   [["Bartolo Colón","",247],["Juan Marichal","",243],["Pedro Martínez","",219],["Ervin Santana","",150],["Johnny Cueto","",145]],
+      temporada: [["Juan Marichal","1968",26],["Juan Marichal","1963",25],["Pedro Martínez","1999",23],["Bartolo Colón","2005",21],["Ubaldo Jiménez","2010",19]] },
+    ERA:  { name: "Efectividad (ERA)",
+      carrera:   [["Juan Marichal","","2.89"],["Pedro Martínez","","2.93"],["Johnny Cueto","","3.44"],["Bartolo Colón","","4.12"],["Ervin Santana","","4.09"]],
+      temporada: [["Pedro Martínez","2000","1.74"],["Pedro Martínez","1997","1.90"],["Juan Marichal","1969","2.10"],["Johnny Cueto","2014","2.25"],["Pedro Martínez","2002","2.26"]] },
+  }},
+  fildeo: { label: "Fildeo", metrics: {
+    Fldpct: { name: "% de Fildeo (Fldpct)",
+      carrera:   [["Adrián Beltré","",".968"],["Robinson Canó","",".988"],["Plácido Polanco","",".991"],["Miguel Tejada","",".974"],["Rafael Furcal","",".976"]],
+      temporada: [["Plácido Polanco","2007","1.000"],["Robinson Canó","2010",".996"],["Adrián Beltré","2016",".986"],["Miguel Tejada","2007",".984"],["Rafael Furcal","2006",".983"]] },
+    DP:     { name: "Dobles plays (DP)",
+      carrera:   [["Robinson Canó","",1554],["Miguel Tejada","",1487],["Adrián Beltré","",1211],["Plácido Polanco","",1031],["Rafael Furcal","",922]],
+      temporada: [["Miguel Tejada","2005",130],["Robinson Canó","2011",128],["Plácido Polanco","2007",115],["Rafael Furcal","2006",110],["Adrián Beltré","2004",107]] },
+  }},
+};
+
+let state = { cat: "bateo", type: "carrera", metric: "HR" };
+
+function renderPills() {
+  const metrics = DATA[state.cat].metrics;
+  const keys = Object.keys(metrics);
+  if (!keys.includes(state.metric)) state.metric = keys[0];
+  document.getElementById("pills").innerHTML = keys.map(k =>
+    `<button class="dgl-pill ${k === state.metric ? "active" : ""}" data-metric="${k}">${k}</button>`
+  ).join("");
+}
+
+function renderBoard() {
+  const m = DATA[state.cat].metrics[state.metric];
+  const rows = m[state.type];
+  document.getElementById("lbTitle").textContent =
+    m.name + " · " + (state.type === "carrera" ? "de por vida" : "por temporada");
+  document.getElementById("lbBody").innerHTML = rows.map((r, i) => {
+    const year = r[1] ? `<span class="text-muted">${r[1]}</span>` : "";
+    return `<tr>
+      <td><span class="dgl-rank ${i === 0 ? "dgl-rank-1" : ""}">${i + 1}</span> ${r[0]}</td>
+      <td class="text-muted">${r[1] || ""}</td>
+      <td class="text-end dgl-lead-val pe-3">${r[2]}</td>
+    </tr>`;
+  }).join("");
+}
+
+function render() { renderPills(); renderBoard(); }
+
+document.getElementById("catTabs").addEventListener("click", e => {
+  const btn = e.target.closest("[data-cat]"); if (!btn) return;
+  document.querySelectorAll("#catTabs .nav-link").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  state.cat = btn.dataset.cat; render();
+});
+document.querySelector(".dgl-seg").addEventListener("click", e => {
+  const btn = e.target.closest("[data-type]"); if (!btn) return;
+  document.querySelectorAll(".dgl-seg .dgl-pill").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  state.type = btn.dataset.type; renderBoard();
+});
+document.getElementById("pills").addEventListener("click", e => {
+  const btn = e.target.closest("[data-metric]"); if (!btn) return;
+  state.metric = btn.dataset.metric; render();
+});
+
+render();
+</script>
+</body>
+</html>

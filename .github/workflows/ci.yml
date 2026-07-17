@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality-gate:
+    name: lint + types + tests
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: dglweb
+          POSTGRES_USER: dglweb
+          POSTGRES_PASSWORD: dglweb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dglweb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Matches config.settings.dev; points at the CI Postgres service.
+      DATABASE_URL: postgres://dglweb:dglweb@localhost:5432/dglweb
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Mypy (types)
+        run: mypy .
+
+      - name: Pytest (tests)
+        run: pytest
