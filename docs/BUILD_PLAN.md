@@ -83,7 +83,10 @@
 - **Notas para fases siguientes:**
   - El dev server corre **PostgreSQL 18**; la imagen local de Postgres es la 16 (`pg_dump` entre
     ambas no es compatible — usar `\copy`). Alinear versiones antes de staging/prod.
-  - Wagtail **6.4.2** instalado; hay **7.4.2** disponible — evaluar el upgrade antes de la Fase 5.
+  - **Stack movido a LTS (2026-07-21):** Django 5.1 → **5.2 LTS** y Wagtail 6.4 → **7.4 LTS**.
+    Ambas versiones viejas estaban **fuera de soporte** (Django 5.1 EOL dic-2025, Wagtail 6.4 EOL
+    ago-2025). Se hizo ahora, con la superficie Wagtail mínima (un modelo + un viewset), y no
+    después de la Fase 5. Cero migraciones propias; gate verde. Ver `library-guidelines.md`.
   - **Pendiente de Fase 5:** restringir el Backoffice al rol *administrators* (hoy es solo
     superusuario, que es el default seguro).
 

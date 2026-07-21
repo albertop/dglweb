@@ -12,10 +12,19 @@
 ## 0. Versiones (verificar al implementar)
 
 - **Python 3.13** (unificado en todo el proyecto).
-- **Django 5.1+** (5.1 es la primera versión con soporte oficial de 3.13).
-- **Wagtail 6.3+** (soporte de Django 5.1 / Python 3.13).
-- Fijar versiones en `requirements.txt` y actualizarlo siempre que se agregue una dependencia
-  (regla del estándar). Preferir rangos mayores estables (`Django>=5.1,<5.2`).
+- **Política: solo LTS.** Es la consecuencia directa del Principio #0 (resiliencia > features) en
+  un proyecto de tiempo limitado: una versión LTS trae ~3 años de parches de seguridad, así que se
+  actualiza **una vez cada par de años**, no cada trimestre. Las versiones no-LTS de Django duran
+  ~8 meses de soporte principal — eso es una tarea de mantenimiento recurrente que no queremos.
+- **Django 5.2 LTS** (parches hasta **abr-2028**). *No* subir a 6.0: no es LTS.
+- **Wagtail 7.4 LTS** (soporte hasta **nov-2027**). Exige Django ≥ 5.2.
+- Fijar versiones en `requirements.txt` con rango de major estable (`Django>=5.2,<6.0`) y
+  actualizarlo siempre que se agregue una dependencia (regla del estándar).
+- **Cuándo actualizar:** apenas la versión instalada quede fuera de soporte, y **lo antes posible
+  dentro de la fase** — el costo del salto crece con la superficie de código que lo toca. El salto
+  6.4→7.4 se hizo en la Fase 2 (un modelo + un viewset) justamente por eso.
+- **Chequeo rápido de soporte:** `djangoproject.com/download/` y el
+  [release schedule de Wagtail](https://github.com/wagtail/wagtail/wiki/Release-schedule).
 
 ---
 

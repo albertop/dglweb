@@ -1,6 +1,11 @@
 # Runtime dependencies (production). Pinned to majors that support Python 3.13.
-Django>=5.1,<5.2
-wagtail>=6.3,<6.5
+#
+# LTS-only policy (Principio #0: resiliencia > features). Both lines below are LTS, so the
+# next forced upgrade is late 2027 — not every few months:
+#   Django  5.2 LTS  -> security fixes until April 2028   (6.0 is NOT LTS: mainstream ends Aug 2026)
+#   Wagtail 7.4 LTS  -> supported until November 2027     (requires Django >= 5.2)
+Django>=5.2,<6.0
+wagtail>=7.4,<7.5
 psycopg[binary]>=3.2
 django-environ>=0.11
 whitenoise>=6.7
