@@ -143,3 +143,20 @@ def test_every_field_has_a_spanish_admin_label() -> None:
     }
 
     assert english_defaults == {}, f"campos sin etiqueta en español: {sorted(english_defaults)}"
+
+
+@pytest.mark.django_db
+def test_names_sort_the_spanish_way_not_byte_wise() -> None:
+    """Guards the Postgres image: musl (alpine) collates byte-wise and buries accented names.
+
+    Under byte ordering "Félix" lands *after* "Freddy" (É is a multibyte sequence above "r"),
+    which readers would see in every sorted list on the site. glibc sorts it as a dictionary does.
+    """
+    Player.objects.create(**_other_player(player_id=1, dgl_id="fel01", full_name="Félix Bautista"))
+    Player.objects.create(**_other_player(player_id=2, dgl_id="fre01", full_name="Freddy Peralta"))
+    Player.objects.create(**_other_player(player_id=3, dgl_id="pen01", full_name="Francisco Peña"))
+    Player.objects.create(**_other_player(player_id=4, dgl_id="per01", full_name="Francisco Pérez"))
+
+    names = list(Player.objects.order_by("full_name").values_list("full_name", flat=True))
+
+    assert names == ["Félix Bautista", "Francisco Peña", "Francisco Pérez", "Freddy Peralta"]

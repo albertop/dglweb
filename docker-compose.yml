@@ -1,13 +1,22 @@
 # Local dev stack for dglweb: Django+Wagtail (web) + PostgreSQL (db).
 services:
   db:
-    image: postgres:16-alpine
+    # Must match the data server (10.0.0.39) and CI: same major everywhere, so tests run on
+    # what production runs on and pg_dump/pg_restore work across environments.
+    #
+    # NOT -alpine: musl reports en_US.utf8 but collates byte-wise, so "Félix" sorts after
+    # "Freddy" and "Peña" after "Pérez" — wrong for Spanish names, and visible to readers in
+    # every sorted list. The Debian image uses glibc, like the server. Verified by comparing
+    # md5(string_agg(full_name ORDER BY full_name)) against 10.0.0.39.
+    image: postgres:18
     environment:
       POSTGRES_DB: dglweb
       POSTGRES_USER: dglweb
       POSTGRES_PASSWORD: dglweb
     volumes:
-      - dglweb_pgdata:/var/lib/postgresql/data
+      # Postgres 18+ wants a single mount at /var/lib/postgresql (data goes in a versioned
+      # subdirectory), which is what makes an in-place `pg_upgrade --link` possible later.
+      - dglweb_pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dglweb"]
       interval: 5s
