@@ -100,6 +100,25 @@
   (schema managed) pobladas/actualizadas vía ORM; degradación elegante si el proxy falla.
 - **Done when:** los scrapers actualizan stats en schedule, observable en staging (con tests que
   mockean el proxy en los bordes).
+- **Progreso (batting, 2026-07-21):**
+  - `dglweb/mlb/client.py`: cliente del proxy — una sola excepción, reintentos solo en 5xx/timeout.
+  - `mlb_batting` (75 col.), capa de mapeo y ligas por **id** (no por nombre: el mismo endpoint
+    escribe la liga de 3 formas). Descarga por temporada + `import_batting` idempotente.
+  - **Test de paridad** (`parity_batting` + `dglweb/stats/parity.py`): compara contra un extracto
+    de `dbo.mlbBatting`. Conteos exactos, sabermétricas con tolerancia (MLB recalcula WAR).
+  - **Paridad 2024 verificada: 106/106 filas, 0 faltantes, todos los conteos exactos.** Las
+    únicas diferencias son esperadas y correctas: (a) WAR difiere en decimales por recálculo
+    retroactivo de MLB; (b) `pos` — el origen usa `primaryPosition` (del jugador), nosotros la
+    posición jugada esa temporada; (c) 13 lanzadores con `wOBA`/`wRC+` en NULL porque el proxy
+    **no manda esas claves** para ellos (el origen tiene 0 por `replace_na`; NULL es más honesto).
+- **📌 Pendiente de batting antes de cerrar la fase:**
+  - **~15 columnas de tasa sin poblar.** El proxy sí trae varias directas (AVG, OBP, SLG, OPS,
+    BABIP, ISO, ABpHR, BBpK) — mapearlas es fácil. Un puñado son **calculadas en R** (RC, EqA,
+    BsR, GrossProdAvg, TotalAVG) → decidir con el dueño: portar las fórmulas o dejarlas NULL.
+    Las derivables (RunsProduced=R+RBI-HR, PApSO=PA/SO) se calculan al vuelo.
+  - **`pos`:** ¿usamos `primaryPosition` (como el origen) o la posición de la temporada?
+  - Bitácora de ejecuciones + contenedor programado (aplica a todos los scrapers).
+  - Repetir el patrón para **pitching y fielding** (regular + postemporada).
 
 ## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador
 
