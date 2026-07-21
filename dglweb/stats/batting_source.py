@@ -21,6 +21,7 @@ name, never the `KCA`/`LAN` code the source table stores.
 from typing import Any
 
 from dglweb.mlb.client import MlbProxyClient
+from dglweb.stats.derive import derived_rates
 from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM, league_code, team_code
 from dglweb.stats.mapping import map_advanced, map_regular, map_sabermetrics
 
@@ -98,6 +99,7 @@ def _row(
     advanced: dict[str, Any],
     sabermetrics: dict[str, Any],
 ) -> dict[str, Any]:
+    counts = {**map_regular(regular), **map_advanced(advanced)}
     return {
         "player_id": player_id,
         "season": season,
@@ -105,8 +107,8 @@ def _row(
         "team": team,
         "league": league,
         "pos": pos,
-        **map_regular(regular),
-        **map_advanced(advanced),
+        **counts,
+        **derived_rates(counts),  # rate stats from the counts, not from the proxy's strings
         **map_sabermetrics(sabermetrics),
     }
 

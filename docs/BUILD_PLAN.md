@@ -111,11 +111,16 @@
     retroactivo de MLB; (b) `pos` — el origen usa `primaryPosition` (del jugador), nosotros la
     posición jugada esa temporada; (c) 13 lanzadores con `wOBA`/`wRC+` en NULL porque el proxy
     **no manda esas claves** para ellos (el origen tiene 0 por `replace_na`; NULL es más honesto).
+- **Grupo 1 de tasas portado (2026-07-21, `dglweb/stats/derive.py`):** AVG, OBP, SLG, OPS,
+  BABIP, ISO, ABpHR, BBpSO, PApSO, RunsProduced. Cada fórmula **verificada contra las 120 929
+  filas de origen**: en las filas con valor real, coinciden al float. SLG/ISO salen de los
+  componentes de hits, no del `TB` almacenado (28 filas viejas tenían TB desfasado por 1).
+  Paridad 2024 con tolerancia 0.001: **106/106 filas, 0 discrepancias**. Los únicos huecos son
+  13 lanzadores con AB=0 (NULL en vez del `.000` del origen — misma regla NULL-sobre-0).
 - **📌 Pendiente de batting antes de cerrar la fase:**
-  - **~15 columnas de tasa sin poblar.** El proxy sí trae varias directas (AVG, OBP, SLG, OPS,
-    BABIP, ISO, ABpHR, BBpK) — mapearlas es fácil. Un puñado son **calculadas en R** (RC, EqA,
-    BsR, GrossProdAvg, TotalAVG) → decidir con el dueño: portar las fórmulas o dejarlas NULL.
-    Las derivables (RunsProduced=R+RBI-HR, PApSO=PA/SO) se calculan al vuelo.
+  - **Grupo 2 — 5 tasas "exóticas" de `mlbstats`** (RC/`rc3`, EqA, BsR, GrossProdAvg, TotalAVG):
+    definiciones no estándar. Decidir: ingeniería inversa contra la tabla, o el dueño pasa las
+    fórmulas de `mlbstats`.
   - **`pos`:** ¿usamos `primaryPosition` (como el origen) o la posición de la temporada?
   - Bitácora de ejecuciones + contenedor programado (aplica a todos los scrapers).
   - Repetir el patrón para **pitching y fielding** (regular + postemporada).
