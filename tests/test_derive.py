@@ -1,76 +1,80 @@
-"""Tests for the derived rate stats (Fase 3, group 1).
+"""Tests for the derived rate stats (Fase 3).
 
-The ten formulas the owner's R script computes with `mlbstats`. Each definition was verified
-against all 120 929 rows of `dbo.mlbBatting`: on rows where the source has a real value, our
-formula matches to the float; the only "differences" are era-gap and zero-denominator rows the
-source stores as 0, where we return NULL (same NULL-over-0 choice as everywhere else).
-
-The numbers below are José Ramírez 2024, checked against the source table.
+The fifteen metrics the owner's R script computes with `mlbstats`. Every counting input and every
+golden result below is the REAL José Ramírez 2024 line, read from `dbo.mlbBatting` — so these are
+parity checks against the source, not self-consistent arithmetic. Each formula was also verified
+against all 120 929 source rows (0 divergences on non-zero values).
 """
 
 import pytest
 
 from dglweb.stats.derive import derived_rates
 
-# José Ramírez 2024 counting line (already mapped to our column names).
+# José Ramírez, CLE, 2024 — the exact counting line from dbo.mlbBatting.
 JR = {
     "h": 173,
     "ab": 620,
-    "bb": 62,
-    "hbp": 3,
+    "bb": 54,
+    "hbp": 1,
     "sf": 6,
-    "so": 91,
-    "x1b": 120,
+    "so": 82,
+    "x1b": 93,
     "x2b": 39,
-    "x3b": 5,
+    "x3b": 2,
     "hr": 39,
-    "pa": 691,
+    "pa": 682,
     "r": 114,
     "rbi": 118,
+    "tb": 333,
+    "cs": 7,
+    "sb": 41,
+    "sh": 0,
+    "ibb": 12,
+    "gidp": 9,
+}
+
+# The rate/sabermetric values the source stores for that same line.
+GOLDEN = {
+    "avg": 0.27903226,
+    "obp": 0.33480176,
+    "slg": 0.5370968,
+    "ops": 0.87189853,
+    "babip": 0.26534653,
+    "iso": 0.25806451,
+    "ab_per_hr": 15.897436,
+    "bb_per_so": 0.65853661,
+    "pa_per_so": 8.3170729,
+    "runs_produced": 193,
+    "bsr": 107.42959,
+    "eq_avg": 0.90570068,
+    "gross_prod_avg": 0.73691738,
+    "rc": 107.1815,
+    "total_avg": 0.92656589,
 }
 
 
-def test_batting_average() -> None:
-    assert derived_rates(JR)["avg"] == pytest.approx(173 / 620, abs=1e-6)
-
-
-def test_slugging_uses_the_hit_components_not_stored_tb() -> None:
-    """The 28 source rows where TB was off by one proved SLG comes from the components."""
-    total_bases = 120 + 2 * 39 + 3 * 5 + 4 * 39
-    assert derived_rates(JR)["slg"] == pytest.approx(total_bases / 620, abs=1e-6)
-
-
-def test_on_base_percentage() -> None:
-    expected = (173 + 62 + 3) / (620 + 62 + 3 + 6)
-    assert derived_rates(JR)["obp"] == pytest.approx(expected, abs=1e-6)
-
-
-def test_ops_is_obp_plus_slg() -> None:
-    rates = derived_rates(JR)
-    assert rates["ops"] == pytest.approx(rates["obp"] + rates["slg"], abs=1e-6)
-
-
-def test_babip() -> None:
-    expected = (173 - 39) / (620 - 91 - 39 + 6)
-    assert derived_rates(JR)["babip"] == pytest.approx(expected, abs=1e-6)
-
-
-def test_isolated_power() -> None:
-    expected = (39 + 2 * 5 + 3 * 39) / 620
-    assert derived_rates(JR)["iso"] == pytest.approx(expected, abs=1e-6)
-
-
-def test_ratios() -> None:
-    rates = derived_rates(JR)
-    assert rates["ab_per_hr"] == pytest.approx(620 / 39, abs=1e-6)
-    assert rates["bb_per_so"] == pytest.approx(62 / 91, abs=1e-6)
-    assert rates["pa_per_so"] == pytest.approx(691 / 91, abs=1e-6)
+@pytest.mark.parametrize("metric", sorted(GOLDEN))
+def test_matches_the_source_value(metric: str) -> None:
+    got = derived_rates(JR)[metric]
+    assert got == pytest.approx(GOLDEN[metric], rel=1e-4)
 
 
 def test_runs_produced_is_an_integer() -> None:
     rp = derived_rates(JR)["runs_produced"]
-    assert rp == 114 + 118 - 39
+    assert rp == 193
     assert isinstance(rp, int)
+
+
+def test_slugging_uses_the_hit_components_not_stored_tb() -> None:
+    """The 28 source rows where TB was off by one proved SLG follows the components."""
+    row = {**JR, "tb": 999}  # a wrong stored tb must not touch SLG
+    assert derived_rates(row)["slg"] == pytest.approx(GOLDEN["slg"], rel=1e-6)
+
+
+def test_bsr_uses_stored_tb_not_the_components() -> None:
+    """BsR/EqA/RC/TA take the stored tb — the other half of the source's own inconsistency."""
+    row = {**JR, "tb": 300}  # BsR must move with the stored tb
+    assert derived_rates(row)["bsr"] != pytest.approx(GOLDEN["bsr"], rel=1e-4)
 
 
 def test_a_zero_denominator_is_null_not_zero() -> None:
@@ -93,3 +97,25 @@ def test_a_missing_input_propagates_to_null() -> None:
 
 def test_runs_produced_null_when_an_input_is_missing() -> None:
     assert derived_rates({"r": 50, "rbi": None, "hr": 10})["runs_produced"] is None
+
+
+def test_exotic_metrics_null_when_an_input_is_missing() -> None:
+    """These take many inputs; any missing one (an old era) yields NULL, not a partial number."""
+    rates = derived_rates({"h": 100, "ab": 400, "bb": 30, "tb": 160})  # no cs, sb, hbp, ...
+
+    assert rates["bsr"] is None  # hr missing
+    assert rates["eq_avg"] is None
+    assert rates["rc"] is None
+    assert rates["total_avg"] is None
+
+
+def test_exotic_metrics_null_when_their_denominator_is_zero() -> None:
+    """A line with every input present but the divisor working out to zero -> NULL, not a crash."""
+    # ab=h=cs=gidp=0 zeroes ta's denominator; the all-zero line zeroes the others too.
+    zero = dict.fromkeys(["h", "bb", "hr", "tb", "ab", "hbp", "sb", "sh", "sf", "cs", "ibb", "gidp"], 0)
+    rates = derived_rates(zero)
+
+    assert rates["bsr"] is None
+    assert rates["eq_avg"] is None
+    assert rates["rc"] is None
+    assert rates["total_avg"] is None

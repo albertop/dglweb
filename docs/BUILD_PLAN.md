@@ -111,16 +111,18 @@
     retroactivo de MLB; (b) `pos` — el origen usa `primaryPosition` (del jugador), nosotros la
     posición jugada esa temporada; (c) 13 lanzadores con `wOBA`/`wRC+` en NULL porque el proxy
     **no manda esas claves** para ellos (el origen tiene 0 por `replace_na`; NULL es más honesto).
-- **Grupo 1 de tasas portado (2026-07-21, `dglweb/stats/derive.py`):** AVG, OBP, SLG, OPS,
-  BABIP, ISO, ABpHR, BBpSO, PApSO, RunsProduced. Cada fórmula **verificada contra las 120 929
-  filas de origen**: en las filas con valor real, coinciden al float. SLG/ISO salen de los
-  componentes de hits, no del `TB` almacenado (28 filas viejas tenían TB desfasado por 1).
-  Paridad 2024 con tolerancia 0.001: **106/106 filas, 0 discrepancias**. Los únicos huecos son
-  13 lanzadores con AB=0 (NULL en vez del `.000` del origen — misma regla NULL-sobre-0).
+- **Las 15 tasas derivadas portadas (2026-07-21, `dglweb/stats/derive.py`):**
+  - **Grupo 1 (estándar):** AVG, OBP, SLG, OPS, BABIP, ISO, ABpHR, BBpSO, PApSO, RunsProduced.
+  - **Grupo 2 (exóticas de `mlbstats`):** BsR, EqA, GrossProdAvg, RC (`rc3`), TotalAVG —
+    portadas del código fuente de `mlbstats` que pasó el dueño.
+  - **Cada fórmula verificada contra las 120 929 filas de origen**: en las filas con valor real,
+    coinciden al float (0 divergencias). Dos sutilezas que la verificación fijó: SLG/ISO/GPA
+    salen de los componentes de hits; **BsR/EqA/RC/TotalAVG usan el `TB` almacenado** (reproduce
+    una inconsistencia real del origen en 28 filas viejas donde TB difiere de los componentes).
+  - **Paridad 2024, tolerancia 0.001, las 15 columnas: 106/106 filas, 0 discrepancias.** Los
+    únicos huecos son 13 lanzadores con AB=0 → NULL en vez del `.000` del origen (regla
+    NULL-sobre-0, a propósito; el comando los marca como "sin poblar", que es correcto).
 - **📌 Pendiente de batting antes de cerrar la fase:**
-  - **Grupo 2 — 5 tasas "exóticas" de `mlbstats`** (RC/`rc3`, EqA, BsR, GrossProdAvg, TotalAVG):
-    definiciones no estándar. Decidir: ingeniería inversa contra la tabla, o el dueño pasa las
-    fórmulas de `mlbstats`.
   - **`pos`:** ¿usamos `primaryPosition` (como el origen) o la posición de la temporada?
   - Bitácora de ejecuciones + contenedor programado (aplica a todos los scrapers).
   - Repetir el patrón para **pitching y fielding** (regular + postemporada).

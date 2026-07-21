@@ -1,15 +1,19 @@
-"""Derived batting rate stats — the group-1 metrics the R pipeline computes with `mlbstats`.
+"""Derived batting rate stats — the metrics the R pipeline computes with `mlbstats`.
 
-Ported straight from the owner's script and verified against every row of `dbo.mlbBatting`:
-where the source has a real value, these match to the float. The only divergences are rows the
-source stores as 0 — old eras missing an input, or a zero denominator (a pitcher's 0 AB) —
-where we return NULL instead, the same NULL-over-0 choice made everywhere in this project. A
-missing input propagates to NULL naturally, so an era without sacrifice flies yields no OBP.
+All fifteen are ported straight from the `mlbstats` source the owner provided, and every formula
+was checked against all 120 929 rows of `dbo.mlbBatting`: where the source has a real value, they
+match to the float (0 divergences). The only differences are rows the source stores as 0 — old
+eras missing an input, or a zero denominator (a pitcher's 0 AB) — where we return NULL instead,
+the same NULL-over-0 choice made everywhere in this project. A missing input propagates to NULL
+naturally, so an era without sacrifice flies yields no OBP.
 
 Two subtleties the source verification pinned down:
 
-* **SLG/ISO come from the hit components**, not the stored `TB`: 28 old rows have a `TB` that
-  disagrees with `X1B+2·X2B+3·X3B+4·HR` by one, and the source rate follows the components.
+* **SLG and ISO come from the hit components** (`X1B+2·X2B+3·X3B+4·HR`), but **BsR, EqA, RC and
+  TotalAVG use the stored `tb`** — exactly as the R script passes its arguments. This reproduces
+  a real inconsistency in the source: 28 old rows have a `tb` that disagrees with the components
+  by one, and the two families of metrics follow different values there. GPA sits in the first
+  group (it is `1.8·OBP + SLG/4`).
 * **Denominator zero means NULL, not 0** — see above.
 """
 
@@ -27,8 +31,16 @@ def _div(numerator: int | None, denominator: int | None) -> float | None:
     return numerator / denominator
 
 
+def _times(value: int | None, factor: int) -> int | None:
+    return None if value is None else value * factor
+
+
+def _neg(value: int | None) -> int | None:
+    return None if value is None else -value
+
+
 def derived_rates(c: dict[str, Any]) -> dict[str, Any]:
-    """Compute the ten rate columns from a row's counting stats (our column names)."""
+    """Compute all fifteen derived columns from a row's counting stats (our column names)."""
     h, ab, bb, hbp, sf = c.get("h"), c.get("ab"), c.get("bb"), c.get("hbp"), c.get("sf")
     so, hr, x2b, x3b, x1b = c.get("so"), c.get("hr"), c.get("x2b"), c.get("x3b"), c.get("x1b")
 
@@ -49,12 +61,91 @@ def derived_rates(c: dict[str, Any]) -> dict[str, Any]:
         "bb_per_so": _div(bb, so),
         "pa_per_so": _div(c.get("pa"), so),
         "runs_produced": _sum(c.get("r"), c.get("rbi"), _neg(hr)),
+        # Group 2 — the exotic mlbstats formulas. These take the stored `tb` (except GPA).
+        "gross_prod_avg": None if obp is None or slg is None else 1.8 * obp + slg / 4,
+        "bsr": _bsr(h, bb, hr, c.get("tb"), ab),
+        "eq_avg": _eq_avg(h, c.get("tb"), bb, hbp, c.get("sb"), c.get("sh"), sf, ab, c.get("cs")),
+        "rc": _rc3(
+            h,
+            bb,
+            c.get("ibb"),
+            c.get("tb"),
+            ab,
+            c.get("cs"),
+            c.get("sb"),
+            hbp,
+            c.get("gidp"),
+            c.get("sh"),
+            sf,
+        ),
+        "total_avg": _total_avg(c.get("tb"), hbp, bb, c.get("sb"), ab, h, c.get("cs"), c.get("gidp")),
     }
 
 
-def _times(value: int | None, factor: int) -> int | None:
-    return None if value is None else value * factor
+def _bsr(h: int | None, bb: int | None, hr: int | None, tb: int | None, ab: int | None) -> float | None:
+    if h is None or bb is None or hr is None or tb is None or ab is None:
+        return None
+    core = (1.4 * tb - 0.6 * h - 3 * hr + 0.1 * bb) * 1.02
+    denominator = core + (ab - h)
+    return None if denominator == 0 else ((h + bb - hr) * core) / denominator + hr
 
 
-def _neg(value: int | None) -> int | None:
-    return None if value is None else -value
+def _eq_avg(
+    h: int | None,
+    tb: int | None,
+    bb: int | None,
+    hbp: int | None,
+    sb: int | None,
+    sh: int | None,
+    sf: int | None,
+    ab: int | None,
+    cs: int | None,
+) -> float | None:
+    if None in (h, tb, bb, hbp, sb, sh, sf, ab, cs):
+        return None
+    # Narrowed by the guard above; the ignore keeps the arithmetic readable rather than
+    # repeating nine `is not None` checks inline.
+    denominator = ab + bb + hbp + sh + sf + cs + sb / 3  # type: ignore[operator]
+    if denominator == 0:
+        return None
+    return (h + tb + 1.5 * (bb + hbp) + sb + sh + sf) / denominator  # type: ignore[operator]
+
+
+def _rc3(
+    h: int | None,
+    bb: int | None,
+    ibb: int | None,
+    tb: int | None,
+    ab: int | None,
+    cs: int | None,
+    sb: int | None,
+    hbp: int | None,
+    gidp: int | None,
+    sh: int | None,
+    sf: int | None,
+) -> float | None:
+    if None in (h, bb, ibb, tb, ab, cs, sb, hbp, gidp, sh, sf):
+        return None
+    denominator = ab + bb + hbp + sh + sf  # type: ignore[operator]
+    if denominator == 0:
+        return None
+    numerator = (h + bb - cs + hbp - gidp) * (tb + 0.26 * (bb - ibb + hbp)) + 0.52 * (sh + sf + sb)  # type: ignore[operator]
+    return numerator / denominator
+
+
+def _total_avg(
+    tb: int | None,
+    hbp: int | None,
+    bb: int | None,
+    sb: int | None,
+    ab: int | None,
+    h: int | None,
+    cs: int | None,
+    gidp: int | None,
+) -> float | None:
+    if None in (tb, hbp, bb, sb, ab, h, cs, gidp):
+        return None
+    denominator = ab - h + cs + gidp  # type: ignore[operator]
+    if denominator == 0:
+        return None
+    return (tb + hbp + bb + sb) / denominator  # type: ignore[operator]

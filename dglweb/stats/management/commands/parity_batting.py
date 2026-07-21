@@ -30,6 +30,9 @@ _SOURCE_RENAMES = {
     "wRCPlus": "w_rc_plus",
     "CatcherInt": "catcher_int",
     "RunsProduced": "runs_produced",
+    "TotalAVG": "total_avg",
+    "BSR": "bsr",
+    "RC": "rc",
 }
 
 
