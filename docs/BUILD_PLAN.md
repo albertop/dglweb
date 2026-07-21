@@ -122,8 +122,12 @@
   - **Paridad 2024, tolerancia 0.001, las 15 columnas: 106/106 filas, 0 discrepancias.** Los
     únicos huecos son 13 lanzadores con AB=0 → NULL en vez del `.000` del origen (regla
     NULL-sobre-0, a propósito; el comando los marca como "sin poblar", que es correcto).
+- **`pos` — decidido (opción b):** guardamos la **posición de la temporada** (viene en cada split
+  de `/api/v1/stats`, sin llamada extra), no la `primaryPosition` del origen. Es más informativa
+  para una página de jugador año por año. Diverge del origen a propósito, así que **`pos` se
+  excluye de la comparación de paridad** (si no, marcaría cada cambiado y cada OF como falso
+  positivo). El cargador ya lo hacía; no hubo cambio de descarga.
 - **📌 Pendiente de batting antes de cerrar la fase:**
-  - **`pos`:** ¿usamos `primaryPosition` (como el origen) o la posición de la temporada?
   - Bitácora de ejecuciones + contenedor programado (aplica a todos los scrapers).
   - Repetir el patrón para **pitching y fielding** (regular + postemporada).
 

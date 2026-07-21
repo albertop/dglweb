@@ -100,13 +100,25 @@ def test_a_row_we_have_but_the_source_does_not_is_reported() -> None:
     assert report.extra_rows == [(608070, 2024, 2)]
 
 
-def test_string_context_columns_must_match() -> None:
+def test_team_and_league_must_match() -> None:
     expected = [{**KEY, "team": "CLE", "league": "AL"}]
     actual = [{**KEY, "team": "CIN", "league": "AL"}]
 
     report = compare_batting(expected, actual)
 
     assert report.mismatches[0].column == "team"
+
+
+def test_position_is_not_compared() -> None:
+    """`pos` is a deliberate divergence: we store the season position, the source the primary
+    one. Comparing it would flag every traded player and every outfielder as a false mismatch."""
+    expected = [{**KEY, "pos": "LF"}]
+    actual = [{**KEY, "pos": "CF"}]
+
+    report = compare_batting(expected, actual)
+
+    assert report.ok
+    assert report.mismatches == []
 
 
 def test_the_summary_counts_everything() -> None:

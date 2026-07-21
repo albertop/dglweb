@@ -28,17 +28,22 @@ _KEY_FIELDS = ("player_id", "season", "stint")
 
 Key = tuple[int, int, int]
 
+# `pos` is not compared: we deliberately store the season position while the source stores the
+# player's primary one, so it diverges by design for traded players and outfielders. Comparing
+# it would drown real mismatches in expected noise.
+_UNCOMPARED = {"pos"}
+
 
 def _column_kinds() -> tuple[frozenset[str], frozenset[str]]:
     exact: set[str] = set()
     approx: set[str] = set()
     for f in Batting._meta.fields:
         name = "player_id" if f.name == "player" else f.name
-        if name in {"id", *_KEY_FIELDS}:
+        if name in {"id", *_KEY_FIELDS, *_UNCOMPARED}:
             continue
         if isinstance(f, models.FloatField):
             approx.add(name)
-        else:  # PositiveSmallIntegerField (counts) and CharField (team/league/pos)
+        else:  # PositiveSmallIntegerField (counts) and CharField (team/league)
             exact.add(name)
     return frozenset(exact), frozenset(approx)
 
