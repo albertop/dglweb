@@ -60,12 +60,32 @@
   (gradual, per estándar): **restructura a `src/`** y **mypy strict completo** (hoy lenient).
 - **✅ Done when:** mock corre como sitio Django ✅, CI verde ✅, smoke tests pasan ✅.
 
-## Fase 2 — Fundación de datos: tabla maestra + CRUD admin
+## Fase 2 — Fundación de datos: tabla maestra + CRUD admin — ✅ COMPLETADA (2026-07-21)
 
 - **Meta:** la **autoridad de "quién es dominicano"** operativa.
-- **Entrega:** modelo `players` (tabla maestra en Postgres) + **página CRUD** en el admin;
-  `birthCountry` de MLB solo como input/semilla.
-- **Done when:** el admin gestiona los ~970 jugadores en staging (con tests).
+- **Entregado:**
+  - **Modelo `Player`** (`dglweb/players/models.py`, tabla `dgl_master`, 28 campos) con el schema
+    **derivado de los tipos reales** de `dbo.dglMaster` en SQL Server — nada asumido. La regla de
+    autoridad y las 4 conversiones `0 → NULL` quedan documentadas en el docstring del módulo.
+  - **Migración de datos ejecutada** contra el dev server **10.0.0.39**: **984/984 filas**, con las
+    4 conversiones de centinela verificadas una por una (`yahoo_id` 143 nulos, `fangraphs_id` 3,
+    `sign_year` 1, `dom_hof_year` 55 no-nulos; cero `0` restantes).
+    `dom_players` (11 753 filas) **intacta** y reasignada a `dglweb_user`.
+  - **Loader repetible:** `manage.py import_dgl_master` (valida las 28 columnas, exige `--replace`
+    para sobrescribir, carga en una transacción).
+  - **Sección Backoffice extensible** (`dglweb/backoffice/wagtail_hooks.py`): un
+    `SnippetViewSetGroup` que es **el punto único de ensamblaje** de las herramientas de admin.
+    El CRUD de jugadores es la primera; las próximas se agregan a `items` sin tocar el menú.
+  - **CRUD de jugadores** (`dglweb/players/viewsets.py`): listado con búsqueda/filtros/orden y
+    formulario agrupado en 6 secciones, **todo en español**.
+- **Done when:** ✅ el admin gestiona los 984 jugadores; **21 tests verdes**, 99 % de cobertura,
+  ruff + ruff format + mypy strict limpios.
+- **Notas para fases siguientes:**
+  - El dev server corre **PostgreSQL 18**; la imagen local de Postgres es la 16 (`pg_dump` entre
+    ambas no es compatible — usar `\copy`). Alinear versiones antes de staging/prod.
+  - Wagtail **6.4.2** instalado; hay **7.4.2** disponible — evaluar el upgrade antes de la Fase 5.
+  - **Pendiente de Fase 5:** restringir el Backoffice al rol *administrators* (hoy es solo
+    superusuario, que es el default seguro).
 
 ## Fase 3 — Pipeline de datos: scrapers en marcha (ANTES del backfill)
 

@@ -1,0 +1,61 @@
+"""Tests for the Backoffice admin section (Fase 2)."""
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.test import Client
+from django.urls import reverse
+from wagtail.snippets.models import get_snippet_models
+
+from dglweb.players.models import Player
+from tests.test_players import RECORD
+
+LIST_URL_NAME = "wagtailsnippets_players_player:list"
+
+
+@pytest.fixture
+def admin_client(db: None) -> Client:  # pytest-django's `db` fixture is a side effect, not a value
+    get_user_model().objects.create_superuser("admin", "admin@example.com", "pw-for-tests")
+    client = Client()
+    client.login(username="admin", password="pw-for-tests")
+    return client
+
+
+def test_player_is_registered_as_a_backoffice_snippet():
+    # Registration is what puts the CRUD in the Wagtail admin.
+    assert Player in get_snippet_models()
+
+
+@pytest.mark.django_db
+def test_player_list_requires_authentication():
+    response = Client().get(reverse(LIST_URL_NAME))
+
+    assert response.status_code == 302
+    assert "/cms/login" in response.headers["Location"]
+
+
+@pytest.mark.django_db
+def test_admin_can_open_the_player_list(admin_client):
+    response = admin_client.get(reverse(LIST_URL_NAME))
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_player_list_shows_existing_players(admin_client):
+    Player.objects.create(**RECORD)
+
+    response = admin_client.get(reverse(LIST_URL_NAME))
+
+    assert b"Gibson Alba" in response.content
+
+
+@pytest.mark.django_db
+def test_admin_can_open_the_edit_form(admin_client):
+    Player.objects.create(**RECORD)
+
+    response = admin_client.get(reverse("wagtailsnippets_players_player:edit", args=[RECORD["player_id"]]))
+
+    assert response.status_code == 200
+    # The form is grouped into sections; check one heading and one external-id field.
+    assert b"IDs externos" in response.content
+    assert b"bbref_id" in response.content

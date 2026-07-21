@@ -18,6 +18,10 @@ select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "SIM", "RUF"]
 [tool.ruff.lint.per-file-ignores]
 # Django settings use star-imports and re-order intentionally.
 "config/settings/*" = ["F403", "F405", "E402"]
+# Django's `class Meta` uses mutable class attributes (ordering, indexes…) by design.
+"**/models.py" = ["RUF012"]
+# Django dictates BaseCommand.handle(*args, **options) — its Any signature can't be narrowed.
+"**/management/commands/*.py" = ["ANN401"]
 # Tests and manage.py don't need full annotations on every callable.
 "tests/**" = ["ANN"]
 "manage.py" = ["ANN"]

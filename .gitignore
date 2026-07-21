@@ -19,3 +19,4 @@ media/
 # OS / editor
 .DS_Store
 Thumbs.db
+_dgl_extract.json
