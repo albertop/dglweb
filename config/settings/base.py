@@ -23,6 +23,7 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 INSTALLED_APPS = [
     "dglweb.core",
     "dglweb.players",
+    "dglweb.stats",
     "dglweb.backoffice",
     # Wagtail
     "wagtail.contrib.forms",
@@ -108,6 +109,11 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- MLB proxy (the only upstream data source; see dglweb/mlb/client.py) ---
+MLB_PROXY_URL = env("MLB_PROXY_URL", default="http://localhost:3002")
+MLB_PROXY_API_KEY = env("MLB_PROXY_API_KEY", default="")
+MLB_PROXY_TIMEOUT = env.float("MLB_PROXY_TIMEOUT", default=20.0)
 
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"

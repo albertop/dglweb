@@ -81,8 +81,11 @@
 - **Done when:** ✅ el admin gestiona los 984 jugadores; **21 tests verdes**, 99 % de cobertura,
   ruff + ruff format + mypy strict limpios.
 - **Notas para fases siguientes:**
-  - El dev server corre **PostgreSQL 18**; la imagen local de Postgres es la 16 (`pg_dump` entre
-    ambas no es compatible — usar `\copy`). Alinear versiones antes de staging/prod.
+  - **Postgres alineado (2026-07-21):** los tres entornos usan **`postgres:18` (Debian)**.
+    Local y CI corrían `16-alpine` contra un servidor 18.4 Debian, lo que además de romper
+    `pg_dump` entre entornos ordenaba **mal los nombres en español** (musl ordena por byte:
+    "Félix" después de "Freddy"). Hay un test de regresión que lo bloquea.
+    **Regla:** la imagen de Postgres es la misma en local, CI y prod — **nunca `-alpine`**.
   - **Stack movido a LTS (2026-07-21):** Django 5.1 → **5.2 LTS** y Wagtail 6.4 → **7.4 LTS**.
     Ambas versiones viejas estaban **fuera de soporte** (Django 5.1 EOL dic-2025, Wagtail 6.4 EOL
     ago-2025). Se hizo ahora, con la superficie Wagtail mínima (un modelo + un viewset), y no
@@ -104,6 +107,18 @@
 - **Entrega:** command de **backfill** (una vez); **agregados de Líderes** (carrera + temporada)
   precalculados; **páginas de jugador (~970)** con stats **sabermétricas**; páginas de **Líderes**.
 - **Done when:** páginas de jugador y Líderes navegables en staging con histórico real.
+- **📌 Aparcado para esta fase (hallazgos de la Fase 3, NO implementar antes):**
+  - **Hace falta un mínimo de apariciones.** Sin él, los líderes de por vida en promedio los
+    encabezan relevistas de 2-de-2 (Gregory Soto y Esteban Yan en 1.000). Con un mínimo, la
+    tabla queda publicable: Vladimir Guerrero .318, Manny Ramírez .312, Mateo Alou .307. El
+    ruido está por debajo de las 1 000 PA; el top 5 es idéntico con 1 000 o con 3 000.
+  - **El mínimo de temporada debe calcularse contra los juegos del equipo**, no fijarse en 502:
+    los datos van de 1876 a 2025 e incluyen 2020 (60 juegos) y las Ligas Negras (~20).
+  - **Los 7 de Ligas Negras** (Tetelo Vargas, Horacio Martínez, Enrique Lantigua, Sijo Gómez,
+    Pedro San, Néstor Lambertus, Julio Báez — 6 de ellos en el Salón de la Fama dominicano)
+    tienen 22 filas, sin WAR ni wOBA ni conteo de lanzamientos. Lo que MLB les reconoce es una
+    astilla de su carrera real → sus páginas necesitan una nota de contexto.
+  - **Decisión pendiente del dueño:** el valor del umbral (o hacerlo configurable en backoffice).
 
 ## Fase 5 — Editorial: Wagtail (artículos + workflow + roles)
 

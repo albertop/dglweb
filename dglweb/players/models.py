@@ -15,10 +15,20 @@ Not to be confused with `dom_players` (a separate, broader table of Dominicans i
 the minors, refreshed once or twice per season, used to detect debuts and roster moves).
 """
 
+from typing import TYPE_CHECKING
+
 from django.db import models
+
+if TYPE_CHECKING:
+    from dglweb.stats.models import Batting
 
 
 class Player(models.Model):
+    # Reverse accessors are created at runtime by the related models, so django-stubs cannot
+    # see them; declaring them here is what makes `player.batting_seasons` type-check.
+    if TYPE_CHECKING:
+        batting_seasons: models.Manager["Batting"]
+
     # --- identity / external ids -------------------------------------------------
     player_id = models.PositiveIntegerField(primary_key=True, verbose_name="MLB ID")
     dgl_id = models.CharField(max_length=10, unique=True, verbose_name="DGL ID")
