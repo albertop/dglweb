@@ -65,6 +65,7 @@ class PlayerViewSet(SnippetViewSet):  # type: ignore[misc]
                 FieldPanel("sign_year"),
                 FieldPanel("sign_date"),
                 FieldPanel("dom_hof_year"),
+                FieldPanel("hof_year"),
             ],
             heading="Carrera",
         ),

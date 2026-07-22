@@ -115,6 +115,11 @@ MLB_PROXY_URL = env("MLB_PROXY_URL", default="http://localhost:3002")
 MLB_PROXY_API_KEY = env("MLB_PROXY_API_KEY", default="")
 MLB_PROXY_TIMEOUT = env.float("MLB_PROXY_TIMEOUT", default=20.0)
 
+# --- Ingest log ---
+# The IngestRun rows are a rolling operational log, not permanent data; prune anything older than
+# this so the table cannot grow without bound. `prune_ingest_log` runs daily in the scheduler.
+INGEST_LOG_RETENTION_DAYS = env.int("INGEST_LOG_RETENTION_DAYS", default=30)
+
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"
 WAGTAILSEARCH_BACKENDS = {

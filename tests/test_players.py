@@ -206,6 +206,22 @@ def test_import_rejects_missing_file(tmp_path):
         call_command("import_dgl_master", file=str(tmp_path / "no_existe.json"))
 
 
+@pytest.mark.django_db
+def test_hof_year_is_an_optional_cooperstown_field() -> None:
+    """New field: the Cooperstown induction year, separate from the Dominican HoF year."""
+    Player.objects.create(**{**RECORD, "hof_year": 2011})
+
+    assert Player.objects.get(pk=RECORD["player_id"]).hof_year == 2011
+    assert Player._meta.get_field("hof_year").null is True
+
+
+def test_hof_year_is_not_part_of_the_import_extract() -> None:
+    """It is admin-edited in the backoffice, so it must not be a required extract column."""
+    from dglweb.players.management.commands.import_dgl_master import EXPECTED_FIELDS
+
+    assert "hof_year" not in EXPECTED_FIELDS
+
+
 def test_every_field_has_a_spanish_admin_label() -> None:
     """The backoffice is Spanish; Django's auto-generated labels ("Firstname") are not."""
     english_defaults = {

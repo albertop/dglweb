@@ -71,6 +71,9 @@ class Player(models.Model):
     sign_year = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Año de firma")
     sign_date = models.DateField(null=True, blank=True, verbose_name="Fecha de firma")
     dom_hof_year = models.PositiveIntegerField(null=True, blank=True, verbose_name="Año Salón de la Fama RD")
+    # Cooperstown (MLB Hall of Fame) induction year. Not in the SQL Server extract — the admin
+    # fills it by hand in the backoffice, so it is not part of `import_dgl_master`'s columns.
+    hof_year = models.PositiveIntegerField(null=True, blank=True, verbose_name="Año Salón de la Fama (Cooperstown)")
 
     class Meta:
         db_table = "dgl_master"

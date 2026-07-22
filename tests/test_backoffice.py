@@ -62,6 +62,9 @@ def test_admin_can_open_the_edit_form(admin_client):
     # The form is grouped into sections; check one heading and one external-id field.
     assert b"IDs externos" in response.content
     assert b"bbref_id" in response.content
+    # The Cooperstown HoF year is editable in the form (its field and Spanish label render).
+    assert b"hof_year" in response.content
+    assert b"Cooperstown" in response.content
 
 
 @pytest.mark.django_db
