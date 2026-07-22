@@ -182,8 +182,18 @@
     Los huecos son NULL-sobre-0 (stats de catcher en no-catchers, tasas indefinidas).
   - `import_fielding`/`update_fielding` + `parity_fielding`; `update_fielding` en el scheduler
     (6:30am). Loader y paridad generalizados para aceptar la llave por-posición.
-- **📌 Pendiente para cerrar la fase:** **postemporada** de batting/pitching/fielding (`gameType=P`,
-  tablas `*Post`) — ya sobre el motor probado. La temporada regular (los 3 grupos) está completa.
+- **Postemporada de batting portada (2026-07-22) — `mlb_batting_post`:**
+  - **Llave `(player, season, round)`** con rondas **DS/WC/LCS/WS** (gameType `D`/`F`/`L`/`W`).
+    Verificado: 0 duplicados; sin stint/XXX/llamadas por jugador (un equipo por ronda). 59 columnas
+    = conteos + tasas derivadas (grupos 1 y 2) + batted-ball; **sin sabermetrics** (el script solo
+    usa season+seasonAdvanced). Reusa `map_regular`/`map_advanced`/`derived_rates` (se descartan los
+    extras `age/roe/gidp_opp` que la fuente no tiene).
+  - **`batting_post_source.py`** itera las 4 rondas con `gameType` — resuelve **FIX-7** para post.
+    Loader/paridad/ingest reusados con la llave por ronda. `update_batting_post` en el scheduler.
+  - **Paridad 2013 (David Ortiz incluido, tol. 0.001): 26/26 filas, 0 discrepancias.** WS de Ortiz
+    .688 idéntico a la fuente. Huecos = NULL-sobre-0 (denominador cero).
+- **📌 Pendiente para cerrar la fase:** **postemporada de pitching y fielding** (tablas
+  `mlbPitchingPost`/`mlbFieldingPost`) — mismo patrón que batting post, sobre el motor probado.
 
 ## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador
 

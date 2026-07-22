@@ -178,3 +178,58 @@ def test_parity_fielding_reports_a_missing_row_by_position_key(
 def test_parity_fielding_missing_file(player: Player, fetched_fielding: list[dict[str, Any]]) -> None:
     with pytest.raises(CommandError, match="no existe"):
         call_command("parity_fielding", "--expected", "/nope/missing.json")
+
+
+# --- parity_batting_post (keyed by player, season, round) -----------------------------
+
+
+@pytest.fixture
+def fetched_post(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+
+    def fake_fetch(client: object, season: int, player_ids: set[int]) -> list[dict[str, Any]]:
+        return [r for r in rows if r["season"] == season]
+
+    monkeypatch.setattr("dglweb.stats.management.commands.parity_batting_post.fetch_season", fake_fetch)
+    return rows
+
+
+@pytest.mark.django_db
+def test_parity_batting_post_ok(player: Player, fetched_post: list[dict[str, Any]], tmp_path: Path) -> None:
+    # The post extract is aliased to our field names already (no rename in the command).
+    source = {"player_id": PID, "season": 2013, "round": "WS", "h": 11, "hr": 2}
+    fetched_post.append({"player_id": PID, "season": 2013, "round": "WS", "h": 11, "hr": 2})
+
+    call_command("parity_batting_post", "--expected", _extract(tmp_path, [source]))
+
+
+@pytest.mark.django_db
+def test_parity_batting_post_raises_on_mismatch(
+    player: Player, fetched_post: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    source = {"player_id": PID, "season": 2013, "round": "WS", "h": 11}
+    fetched_post.append({"player_id": PID, "season": 2013, "round": "WS", "h": 10})
+
+    with pytest.raises(CommandError, match="diferencias"):
+        call_command("parity_batting_post", "--expected", _extract(tmp_path, [source]))
+
+
+@pytest.mark.django_db
+def test_parity_batting_post_reports_a_missing_round(
+    player: Player, fetched_post: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    # Source has a DS row the port did not produce -> missing by (player, season, round).
+    fetched_post.append({"player_id": PID, "season": 2013, "round": "WS", "h": 11})
+
+    with pytest.raises(CommandError, match="diferencias"):
+        call_command(
+            "parity_batting_post",
+            "--expected",
+            _extract(
+                tmp_path,
+                [
+                    {"player_id": PID, "season": 2013, "round": "WS", "h": 11},
+                    {"player_id": PID, "season": 2013, "round": "DS", "h": 5},
+                ],
+            ),
+        )

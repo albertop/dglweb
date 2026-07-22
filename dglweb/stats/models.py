@@ -438,3 +438,95 @@ class Fielding(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} {self.season} {self.pos} {self.team}".strip()
+
+
+class BattingPost(models.Model):
+    """One postseason batting line: a player's stats in one round of one season.
+
+    Source `dbo.mlbBattingPost` (59 columns). Keyed by **round**, not stint:
+    **(player, season, round)** with round in {DS, WC, LCS, WS}. A player is on one team per round,
+    so there is no `XXX` combined row and no per-team stints (the whole traded-player machinery of
+    `Batting` is absent here). The owner's post script uses only `season` + `seasonAdvanced`, so
+    there is **no sabermetrics block** — the columns are the counts, the derived rates (the same
+    15 `mlbstats` formulas as regular batting) and the batted-ball stats. Same NULL-over-0 rule.
+    """
+
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name="batting_post_seasons", db_column="player_id"
+    )
+    season = models.PositiveSmallIntegerField()
+    round = models.CharField(max_length=3, help_text="DS, WC, LCS o WS.")
+
+    team = models.CharField(max_length=3, null=True, blank=True)
+    league = models.CharField(max_length=2, null=True, blank=True)
+    pos = models.CharField(max_length=2, null=True, blank=True)
+
+    # --- counting stats ----------------------------------------------------------
+    g = models.PositiveSmallIntegerField(null=True, blank=True)
+    pa = models.PositiveSmallIntegerField(null=True, blank=True)
+    ab = models.PositiveSmallIntegerField(null=True, blank=True)
+    r = models.PositiveSmallIntegerField(null=True, blank=True)
+    h = models.PositiveSmallIntegerField(null=True, blank=True)
+    x1b = models.PositiveSmallIntegerField(null=True, blank=True)
+    x2b = models.PositiveSmallIntegerField(null=True, blank=True)
+    x3b = models.PositiveSmallIntegerField(null=True, blank=True)
+    hr = models.PositiveSmallIntegerField(null=True, blank=True)
+    xbh = models.PositiveSmallIntegerField(null=True, blank=True)
+    rbi = models.PositiveSmallIntegerField(null=True, blank=True)
+    sb = models.PositiveSmallIntegerField(null=True, blank=True)
+    cs = models.PositiveSmallIntegerField(null=True, blank=True)
+    bb = models.PositiveSmallIntegerField(null=True, blank=True)
+    so = models.PositiveSmallIntegerField(null=True, blank=True)
+    ibb = models.PositiveSmallIntegerField(null=True, blank=True)
+    nibb = models.PositiveSmallIntegerField(null=True, blank=True)
+    hbp = models.PositiveSmallIntegerField(null=True, blank=True)
+    sh = models.PositiveSmallIntegerField(null=True, blank=True)
+    sf = models.PositiveSmallIntegerField(null=True, blank=True)
+    gidp = models.PositiveSmallIntegerField(null=True, blank=True)
+    pitches = models.PositiveSmallIntegerField(null=True, blank=True)
+    tb = models.PositiveSmallIntegerField(null=True, blank=True)
+    lob = models.PositiveSmallIntegerField(null=True, blank=True)
+    catcher_int = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # --- derived rates (same mlbstats formulas as regular batting) ----------------
+    avg = models.FloatField(null=True, blank=True)
+    obp = models.FloatField(null=True, blank=True)
+    slg = models.FloatField(null=True, blank=True)
+    ops = models.FloatField(null=True, blank=True)
+    ab_per_hr = models.FloatField(null=True, blank=True)
+    babip = models.FloatField(null=True, blank=True)
+    bb_per_so = models.FloatField(null=True, blank=True)
+    bsr = models.FloatField(null=True, blank=True)
+    eq_avg = models.FloatField(null=True, blank=True)
+    gross_prod_avg = models.FloatField(null=True, blank=True)
+    iso = models.FloatField(null=True, blank=True)
+    pa_per_so = models.FloatField(null=True, blank=True)
+    rc = models.FloatField(null=True, blank=True)
+    runs_produced = models.PositiveSmallIntegerField(null=True, blank=True)
+    total_avg = models.FloatField(null=True, blank=True)
+
+    # --- batted ball --------------------------------------------------------------
+    air_outs = models.PositiveSmallIntegerField(null=True, blank=True)
+    ground_outs = models.PositiveSmallIntegerField(null=True, blank=True)
+    fly_outs = models.PositiveSmallIntegerField(null=True, blank=True)
+    pop_outs = models.PositiveSmallIntegerField(null=True, blank=True)
+    line_outs = models.PositiveSmallIntegerField(null=True, blank=True)
+    fly_hits = models.PositiveSmallIntegerField(null=True, blank=True)
+    pop_hits = models.PositiveSmallIntegerField(null=True, blank=True)
+    line_hits = models.PositiveSmallIntegerField(null=True, blank=True)
+    ground_hits = models.PositiveSmallIntegerField(null=True, blank=True)
+    total_swings = models.PositiveSmallIntegerField(null=True, blank=True)
+    swing_and_misses = models.PositiveSmallIntegerField(null=True, blank=True)
+    balls_in_play = models.PositiveSmallIntegerField(null=True, blank=True)
+    walk_offs = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mlb_batting_post"
+        ordering = ["player", "season", "round"]
+        verbose_name = "línea de bateo (postemporada)"
+        verbose_name_plural = "líneas de bateo (postemporada)"
+        constraints = [models.UniqueConstraint(fields=["player", "season", "round"], name="unique_batting_post_line")]
+        indexes = [models.Index(fields=["season"], name="mlb_batting_post_season_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.player} {self.season} {self.round} {self.team or ''}".strip()
