@@ -79,3 +79,102 @@ def test_refuses_with_an_empty_master_table(fetched: list[dict[str, Any]], tmp_p
 
     with pytest.raises(CommandError, match="dgl_master"):
         call_command("parity_batting", "--expected", _extract(tmp_path, [source]))
+
+
+# --- parity_pitching ------------------------------------------------------------------
+
+
+@pytest.fixture
+def fetched_pitching(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+
+    def fake_fetch(client: object, season: int, player_ids: set[int]) -> list[dict[str, Any]]:
+        return [r for r in rows if r["season"] == season]
+
+    monkeypatch.setattr("dglweb.stats.management.commands.parity_pitching.fetch_season", fake_fetch)
+    return rows
+
+
+@pytest.mark.django_db
+def test_parity_pitching_ok(player: Player, fetched_pitching: list[dict[str, Any]], tmp_path: Path) -> None:
+    source = {"player_id": PID, "season": 2008, "stint": 1, "so": 47, "era": 3.47}
+    fetched_pitching.append({"player_id": PID, "season": 2008, "stint": 1, "so": 47, "era": 3.47})
+
+    call_command("parity_pitching", "--expected", _extract(tmp_path, [source]))
+
+
+@pytest.mark.django_db
+def test_parity_pitching_raises_on_mismatch(
+    player: Player, fetched_pitching: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    source = {"player_id": PID, "season": 2008, "stint": 1, "so": 47}
+    fetched_pitching.append({"player_id": PID, "season": 2008, "stint": 1, "so": 40})
+
+    with pytest.raises(CommandError, match="diferencias"):
+        call_command("parity_pitching", "--expected", _extract(tmp_path, [source]))
+
+
+@pytest.mark.django_db
+def test_parity_pitching_missing_file(player: Player, fetched_pitching: list[dict[str, Any]]) -> None:
+    with pytest.raises(CommandError, match="no existe"):
+        call_command("parity_pitching", "--expected", "/nope/missing.json")
+
+
+@pytest.mark.django_db
+def test_parity_pitching_empty_master(fetched_pitching: list[dict[str, Any]], tmp_path: Path) -> None:
+    source = {"player_id": PID, "season": 2008, "stint": 1, "so": 47}
+
+    with pytest.raises(CommandError, match="dgl_master"):
+        call_command("parity_pitching", "--expected", _extract(tmp_path, [source]))
+
+
+# --- parity_fielding (keyed by player, season, team, pos) ------------------------------
+
+
+@pytest.fixture
+def fetched_fielding(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+
+    def fake_fetch(client: object, season: int, player_ids: set[int]) -> list[dict[str, Any]]:
+        return [r for r in rows if r["season"] == season]
+
+    monkeypatch.setattr("dglweb.stats.management.commands.parity_fielding.fetch_season", fake_fetch)
+    return rows
+
+
+def _fld(**kw: Any) -> dict[str, Any]:
+    return {"player_id": PID, "season": 2006, "team": "SLN", "pos": "2B", **kw}
+
+
+@pytest.mark.django_db
+def test_parity_fielding_ok(player: Player, fetched_fielding: list[dict[str, Any]], tmp_path: Path) -> None:
+    fetched_fielding.append(_fld(po=69, a=94))
+
+    call_command("parity_fielding", "--expected", _extract(tmp_path, [_fld(po=69, a=94)]))
+
+
+@pytest.mark.django_db
+def test_parity_fielding_raises_on_mismatch(
+    player: Player, fetched_fielding: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    fetched_fielding.append(_fld(po=70))
+
+    with pytest.raises(CommandError, match="diferencias"):
+        call_command("parity_fielding", "--expected", _extract(tmp_path, [_fld(po=69)]))
+
+
+@pytest.mark.django_db
+def test_parity_fielding_reports_a_missing_row_by_position_key(
+    player: Player, fetched_fielding: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    # Source has an SS line the port did not produce -> missing by (player, season, team, pos).
+    fetched_fielding.append(_fld(pos="2B", po=69))
+
+    with pytest.raises(CommandError, match="diferencias"):
+        call_command("parity_fielding", "--expected", _extract(tmp_path, [_fld(pos="2B", po=69), _fld(pos="SS", po=9)]))
+
+
+@pytest.mark.django_db
+def test_parity_fielding_missing_file(player: Player, fetched_fielding: list[dict[str, Any]]) -> None:
+    with pytest.raises(CommandError, match="no existe"):
+        call_command("parity_fielding", "--expected", "/nope/missing.json")

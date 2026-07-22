@@ -14,6 +14,18 @@ from django.utils import timezone
 
 from dglweb.stats.models import IngestRun
 
+# The traceback is kept (it is what makes a failed scrape diagnosable), but bounded so a nightly
+# failure cannot grow the row without limit. Head + tail keeps both the message and where it broke.
+_MAX_DETAIL = 12_000
+_TRUNCATED = "\n…(traceback truncado)…\n"
+
+
+def _bounded(text: str) -> str:
+    if len(text) <= _MAX_DETAIL:
+        return text
+    keep = (_MAX_DETAIL - len(_TRUNCATED)) // 2
+    return text[:keep] + _TRUNCATED + text[-keep:]
+
 
 class RunHandle:
     """Handed to the command body to report progress; `record_run` turns it into the final row."""
@@ -57,7 +69,7 @@ def record_run(command: str, scope: str) -> Iterator[RunHandle]:
         yield handle
     except Exception as exc:
         run.status = IngestRun.Status.FAILED
-        run.detail = f"{exc}\n\n{traceback.format_exc()}"
+        run.detail = _bounded(f"{exc}\n\n{traceback.format_exc()}")
         raise
     else:
         run.status = IngestRun.Status.PARTIAL if handle.failed_any else IngestRun.Status.SUCCESS

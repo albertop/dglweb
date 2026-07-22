@@ -21,14 +21,43 @@ zeros stay zero. Same lesson as the `0 -> NULL` sentinels in `dgl_master`.
 """
 
 from datetime import timedelta
+from typing import TypeVar
 
 from django.db import models
+from django.db.models import Exists, OuterRef, Q
 
 from dglweb.players.models import Player
+
+_M = TypeVar("_M", bound=models.Model)
+
+
+class SeasonTotalsQuerySet(models.QuerySet[_M]):
+    """Rows that are a season total, never a per-team breakdown — the base for leaders.
+
+    A traded player's season is stored as one row per team **plus** a `team="XXX"` total. Summing
+    every row would double-count him (Manny, Soto, Cruz…), so leaders must start here: keep the
+    `XXX` row when it exists, and the single row when it does not.
+    """
+
+    def season_totals(self) -> "SeasonTotalsQuerySet[_M]":
+        combined = self.model._default_manager.filter(player=OuterRef("player"), season=OuterRef("season"), team="XXX")
+        return self.filter(Q(team="XXX") | ~Exists(combined))
+
+
+class FieldingTotalsQuerySet(models.QuerySet[_M]):
+    """Like `SeasonTotalsQuerySet` but per position: fielding's total is per (player, season, pos)."""
+
+    def position_totals(self) -> "FieldingTotalsQuerySet[_M]":
+        combined = self.model._default_manager.filter(
+            player=OuterRef("player"), season=OuterRef("season"), pos=OuterRef("pos"), team="XXX"
+        )
+        return self.filter(Q(team="XXX") | ~Exists(combined))
 
 
 class Batting(models.Model):
     """One batting line: a player's season with one team, or his combined season total."""
+
+    objects = SeasonTotalsQuerySet.as_manager()
 
     # --- natural key -------------------------------------------------------------
     # A surrogate `id` plus a unique constraint, rather than a composite primary key: it is the
@@ -209,6 +238,8 @@ class Pitching(models.Model):
     pages, never edited by hand.
     """
 
+    objects = SeasonTotalsQuerySet.as_manager()
+
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="pitching_seasons", db_column="player_id")
     season = models.PositiveSmallIntegerField()
     stint = models.PositiveSmallIntegerField()
@@ -231,6 +262,8 @@ class Pitching(models.Model):
     hld = models.PositiveSmallIntegerField(null=True, blank=True)
 
     # --- runs allowed / basics ---------------------------------------------------
+    # `ip` is baseball notation (46.2 = 46⅔) — display/parity only, NEVER aggregate it. For any
+    # sum or rate use `outs` (below), the proxy's canonical out count: innings = outs / 3.
     ip = models.FloatField(null=True, blank=True, help_text="Entradas en notación de béisbol (46.2 = 46⅔).")
     h = models.PositiveSmallIntegerField(null=True, blank=True)
     r = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -355,6 +388,8 @@ class Fielding(models.Model):
     season-total row of each position. Same NULL-over-0 rule as the other tables.
     """
 
+    objects = FieldingTotalsQuerySet.as_manager()
+
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="fielding_seasons", db_column="player_id")
     season = models.PositiveSmallIntegerField()
     team = models.CharField(max_length=3, help_text="Código del equipo, o XXX para el total de la posición.")
@@ -371,6 +406,9 @@ class Fielding(models.Model):
     rf_per_g = models.FloatField(null=True, blank=True)
     rf_per9 = models.FloatField(null=True, blank=True)
     innings = models.FloatField(null=True, blank=True, help_text="Entradas en notación de béisbol (111.1 = 111⅓).")
+    # Canonical, additive form of `innings`. NEVER aggregate `innings` (baseball notation: .1/.2
+    # are OUTS, not decimals, so 0.2 + 0.2 != 0.4); sum `innings_outs` and divide by 3 for display.
+    innings_outs = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Entradas en outs (sumable).")
     double_plays = models.PositiveSmallIntegerField(null=True, blank=True)
     triple_plays = models.PositiveSmallIntegerField(null=True, blank=True)
     throwing_errors = models.PositiveSmallIntegerField(null=True, blank=True)

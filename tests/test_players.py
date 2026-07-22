@@ -103,7 +103,7 @@ def test_import_preserves_null_sentinels(tmp_path):
 
 
 @pytest.mark.django_db
-def test_import_refuses_to_clobber_existing_rows_without_replace(tmp_path):
+def test_import_refuses_to_clobber_existing_rows_without_a_flag(tmp_path):
     Player.objects.create(**RECORD)
     path = _write_extract(tmp_path, [RECORD])
 
@@ -112,20 +112,92 @@ def test_import_refuses_to_clobber_existing_rows_without_replace(tmp_path):
 
 
 @pytest.mark.django_db
-def test_import_replaces_rows_when_asked(tmp_path):
+def test_import_upserts_rows_when_asked(tmp_path):
     Player.objects.create(**RECORD)
     path = _write_extract(tmp_path, [{**RECORD, "full_name": "Nombre Nuevo"}])
 
-    call_command("import_dgl_master", file=str(path), replace=True)
+    call_command("import_dgl_master", file=str(path), upsert=True)
 
     assert Player.objects.get(pk=RECORD["player_id"]).full_name == "Nombre Nuevo"
 
 
 @pytest.mark.django_db
-def test_import_rejects_column_mismatch(tmp_path):
-    path = _write_extract(tmp_path, [{"player_id": 1, "columna_rara": "x"}])
+def test_upsert_never_deletes_stats(tmp_path):
+    """The whole point of FIX-1: a master reload must not cascade-delete the backfill."""
+    from dglweb.stats.models import Batting
 
-    with pytest.raises(CommandError, match="Column mismatch"):
+    player = Player.objects.create(**RECORD)
+    Batting.objects.create(player=player, season=2004, stint=1, g=156)
+    path = _write_extract(tmp_path, [{**RECORD, "full_name": "Nombre Nuevo"}])
+
+    call_command("import_dgl_master", file=str(path), upsert=True)
+
+    assert Batting.objects.count() == 1  # survived the reload
+
+
+@pytest.mark.django_db
+def test_delete_missing_removes_absent_players_without_stats(tmp_path):
+    Player.objects.create(**RECORD)
+    Player.objects.create(**_other_player())  # not in the extract below
+    path = _write_extract(tmp_path, [RECORD])
+
+    call_command("import_dgl_master", file=str(path), delete_missing=True)
+
+    assert list(Player.objects.values_list("player_id", flat=True)) == [RECORD["player_id"]]
+
+
+@pytest.mark.django_db
+def test_delete_missing_refuses_to_remove_a_player_with_stats(tmp_path):
+    from dglweb.stats.models import Batting
+
+    Player.objects.create(**RECORD)
+    other = Player.objects.create(**_other_player())
+    Batting.objects.create(player=other, season=2010, stint=1, g=10)
+    path = _write_extract(tmp_path, [RECORD])  # `other` is absent -> would be deleted
+
+    with pytest.raises(CommandError, match="stats"):
+        call_command("import_dgl_master", file=str(path), delete_missing=True)
+
+    assert Player.objects.filter(pk=other.pk).exists()  # nothing deleted
+
+
+@pytest.mark.django_db
+def test_delete_missing_with_force_removes_a_player_with_stats(tmp_path):
+    from dglweb.stats.models import Batting
+
+    Player.objects.create(**RECORD)
+    other = Player.objects.create(**_other_player())
+    Batting.objects.create(player=other, season=2010, stint=1, g=10)
+    path = _write_extract(tmp_path, [RECORD])
+
+    call_command("import_dgl_master", file=str(path), delete_missing=True, force=True)
+
+    assert not Player.objects.filter(pk=other.pk).exists()
+    assert Batting.objects.count() == 0  # cascaded, as forced
+
+
+@pytest.mark.django_db
+def test_import_rejects_column_mismatch_and_names_the_row(tmp_path):
+    path = _write_extract(tmp_path, [RECORD, {"player_id": 1, "columna_rara": "x"}])
+
+    with pytest.raises(CommandError, match="Row 1: column mismatch"):
+        call_command("import_dgl_master", file=str(path))
+
+
+@pytest.mark.django_db
+def test_import_rejects_duplicate_player_id(tmp_path):
+    path = _write_extract(tmp_path, [RECORD, {**RECORD, "dgl_id": "distinto"}])
+
+    with pytest.raises(CommandError, match="Duplicate player_id"):
+        call_command("import_dgl_master", file=str(path))
+
+
+@pytest.mark.django_db
+def test_import_rejects_duplicate_unique_id(tmp_path):
+    # Two different players sharing a bbref_id — the DB would reject it with a crude error.
+    path = _write_extract(tmp_path, [RECORD, _other_player(bbref_id=RECORD["bbref_id"])])
+
+    with pytest.raises(CommandError, match="Duplicate bbref_id"):
         call_command("import_dgl_master", file=str(path))
 
 

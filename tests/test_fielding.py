@@ -199,3 +199,12 @@ def test_a_single_team_position_is_one_row_no_xxx() -> None:
 
 def test_players_outside_the_master_table_are_ignored() -> None:
     assert fetch_season(FakeClient(RESPONSES), 2006, {999999}) == []  # type: ignore[arg-type]
+
+
+def test_innings_convert_to_a_summable_outs_column() -> None:
+    """The FIX-5 guardrail: .1/.2 are outs, so innings must not be summed as decimals."""
+    assert map_fielding({"INN": "111.1"})["innings_outs"] == 111 * 3 + 1  # 334
+    assert map_fielding({"INN": "469.2"})["innings_outs"] == 469 * 3 + 2  # 1409
+    assert map_fielding({"INN": "111.0"})["innings_outs"] == 333
+    assert map_fielding({"INN": "9"})["innings_outs"] == 27
+    assert map_fielding({})["innings_outs"] is None

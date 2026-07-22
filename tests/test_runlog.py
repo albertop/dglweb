@@ -74,3 +74,14 @@ def test_duration_is_available_after_a_run() -> None:
         pass
 
     assert IngestRun.objects.get().duration is not None
+
+
+@pytest.mark.django_db
+def test_a_huge_traceback_is_truncated() -> None:
+    with pytest.raises(ValueError), record_run("import_batting", "2024"):
+        raise ValueError("x" * 50_000)
+
+    saved = IngestRun.objects.get()
+    assert saved.status == IngestRun.Status.FAILED
+    assert len(saved.detail) < 13_000
+    assert "truncado" in saved.detail
