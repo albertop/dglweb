@@ -19,9 +19,9 @@ EXPECTED_FIELDS = (
     "player",
     "season",
     "round",
+    "pos",
     "team",
     "league",
-    "pos",
     "gp",
     "gs",
     "a",
@@ -52,7 +52,7 @@ def player(db: None) -> Player:
 
 
 def test_has_every_source_column_in_order() -> None:
-    ours = tuple(f.name for f in FieldingPost._meta.get_fields() if f.name != "id")
+    ours = tuple(f.name for f in FieldingPost._meta.get_fields() if f.name not in {"id", "pk"})
 
     assert ours == EXPECTED_FIELDS
 
@@ -79,7 +79,9 @@ def test_the_key_is_player_season_round_pos(player: Player) -> None:
 
 def test_only_the_natural_key_is_required() -> None:
     required = {
-        f.name for f in FieldingPost._meta.get_fields() if isinstance(f, models.Field) and not f.null and f.name != "id"
+        f.name
+        for f in FieldingPost._meta.get_fields()
+        if isinstance(f, models.Field) and not f.null and f.name not in {"id", "pk"}
     }
 
     assert required == {"player", "season", "round", "pos"}

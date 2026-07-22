@@ -59,9 +59,10 @@ class Batting(models.Model):
 
     objects = SeasonTotalsQuerySet.as_manager()
 
-    # --- natural key -------------------------------------------------------------
-    # A surrogate `id` plus a unique constraint, rather than a composite primary key: it is the
-    # boring option every Django tool (admin, snippets, fixtures) already understands.
+    # --- natural key (also the primary key) --------------------------------------
+    # The composite primary key IS the identity of a line: (player, season, stint). No surrogate
+    # `id` — it would be a second, meaningless key, and nothing foreign-keys to these tables. The
+    # three key columns lead the table by declaration order.
     player = models.ForeignKey(
         Player,
         on_delete=models.CASCADE,
@@ -74,6 +75,7 @@ class Batting(models.Model):
         verbose_name="Etapa",
         help_text="1..n por equipo; la más alta de la temporada es el total combinado (XXX).",
     )
+    pk = models.CompositePrimaryKey("player", "season", "stint")
 
     # --- context -----------------------------------------------------------------
     team = models.CharField(max_length=3, null=True, blank=True, verbose_name="Equipo")
@@ -167,14 +169,9 @@ class Batting(models.Model):
         ordering = ["player", "season", "stint"]
         verbose_name = "línea de bateo"
         verbose_name_plural = "líneas de bateo"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["player", "season", "stint"],
-                name="unique_batting_line",
-            )
-        ]
         indexes = [
-            # Season leaderboards and "who played in year X" scan by season.
+            # Season leaderboards and "who played in year X" scan by season (the PK index leads
+            # with player_id, so a season-only scan needs its own index).
             models.Index(fields=["season"], name="mlb_batting_season_idx"),
         ]
 
@@ -243,6 +240,7 @@ class Pitching(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="pitching_seasons", db_column="player_id")
     season = models.PositiveSmallIntegerField()
     stint = models.PositiveSmallIntegerField()
+    pk = models.CompositePrimaryKey("player", "season", "stint")
 
     team = models.CharField(max_length=3, null=True, blank=True)
     league = models.CharField(max_length=2, null=True, blank=True)
@@ -366,7 +364,6 @@ class Pitching(models.Model):
         ordering = ["player", "season", "stint"]
         verbose_name = "línea de pitcheo"
         verbose_name_plural = "líneas de pitcheo"
-        constraints = [models.UniqueConstraint(fields=["player", "season", "stint"], name="unique_pitching_line")]
         indexes = [models.Index(fields=["season"], name="mlb_pitching_season_idx")]
 
     def __str__(self) -> str:
@@ -393,8 +390,9 @@ class Fielding(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="fielding_seasons", db_column="player_id")
     season = models.PositiveSmallIntegerField()
     team = models.CharField(max_length=3, help_text="Código del equipo, o XXX para el total de la posición.")
-    league = models.CharField(max_length=2, null=True, blank=True)
     pos = models.CharField(max_length=2, verbose_name="Posición")
+    league = models.CharField(max_length=2, null=True, blank=True)
+    pk = models.CompositePrimaryKey("player", "season", "team", "pos")
 
     gp = models.PositiveSmallIntegerField(null=True, blank=True)
     gs = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -433,7 +431,6 @@ class Fielding(models.Model):
         ordering = ["player", "season", "pos", "team"]
         verbose_name = "línea de fildeo"
         verbose_name_plural = "líneas de fildeo"
-        constraints = [models.UniqueConstraint(fields=["player", "season", "team", "pos"], name="unique_fielding_line")]
         indexes = [models.Index(fields=["season"], name="mlb_fielding_season_idx")]
 
     def __str__(self) -> str:
@@ -456,6 +453,7 @@ class BattingPost(models.Model):
     )
     season = models.PositiveSmallIntegerField()
     round = models.CharField(max_length=3, help_text="DS, WC, LCS o WS.")
+    pk = models.CompositePrimaryKey("player", "season", "round")
 
     team = models.CharField(max_length=3, null=True, blank=True)
     league = models.CharField(max_length=2, null=True, blank=True)
@@ -525,7 +523,6 @@ class BattingPost(models.Model):
         ordering = ["player", "season", "round"]
         verbose_name = "línea de bateo (postemporada)"
         verbose_name_plural = "líneas de bateo (postemporada)"
-        constraints = [models.UniqueConstraint(fields=["player", "season", "round"], name="unique_batting_post_line")]
         indexes = [models.Index(fields=["season"], name="mlb_batting_post_season_idx")]
 
     def __str__(self) -> str:
@@ -546,6 +543,7 @@ class PitchingPost(models.Model):
     )
     season = models.PositiveSmallIntegerField()
     round = models.CharField(max_length=3, help_text="DS, WC, LCS o WS.")
+    pk = models.CompositePrimaryKey("player", "season", "round")
 
     team = models.CharField(max_length=3, null=True, blank=True)
     league = models.CharField(max_length=2, null=True, blank=True)
@@ -640,7 +638,6 @@ class PitchingPost(models.Model):
         ordering = ["player", "season", "round"]
         verbose_name = "línea de pitcheo (postemporada)"
         verbose_name_plural = "líneas de pitcheo (postemporada)"
-        constraints = [models.UniqueConstraint(fields=["player", "season", "round"], name="unique_pitching_post_line")]
         indexes = [models.Index(fields=["season"], name="mlb_pitching_post_season_idx")]
 
     def __str__(self) -> str:
@@ -661,9 +658,10 @@ class FieldingPost(models.Model):
     )
     season = models.PositiveSmallIntegerField()
     round = models.CharField(max_length=3, help_text="DS, WC, LCS o WS.")
+    pos = models.CharField(max_length=2, verbose_name="Posición")
+    pk = models.CompositePrimaryKey("player", "season", "round", "pos")
     team = models.CharField(max_length=3, null=True, blank=True)
     league = models.CharField(max_length=2, null=True, blank=True)
-    pos = models.CharField(max_length=2, verbose_name="Posición")
 
     gp = models.PositiveSmallIntegerField(null=True, blank=True)
     gs = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -693,9 +691,6 @@ class FieldingPost(models.Model):
         ordering = ["player", "season", "round", "pos"]
         verbose_name = "línea de fildeo (postemporada)"
         verbose_name_plural = "líneas de fildeo (postemporada)"
-        constraints = [
-            models.UniqueConstraint(fields=["player", "season", "round", "pos"], name="unique_fielding_post_line")
-        ]
         indexes = [models.Index(fields=["season"], name="mlb_fielding_post_season_idx")]
 
     def __str__(self) -> str:

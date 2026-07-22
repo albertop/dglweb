@@ -131,7 +131,7 @@ def player(db: None) -> Player:
 
 def test_has_every_expected_column_in_order() -> None:
     """The 101 source columns plus the extra raw fields the proxy offers."""
-    ours = tuple(f.name for f in Pitching._meta.get_fields() if f.name != "id")
+    ours = tuple(f.name for f in Pitching._meta.get_fields() if f.name not in {"id", "pk"})
 
     assert ours == EXPECTED_FIELDS
 
@@ -175,7 +175,9 @@ def test_stats_that_did_not_exist_in_an_era_are_null_not_zero(player: Player) ->
 
 def test_only_the_natural_key_is_required() -> None:
     required = {
-        f.name for f in Pitching._meta.get_fields() if isinstance(f, models.Field) and not f.null and f.name != "id"
+        f.name
+        for f in Pitching._meta.get_fields()
+        if isinstance(f, models.Field) and not f.null and f.name not in {"id", "pk"}
     }
 
     assert required == {"player", "season", "stint"}

@@ -26,8 +26,12 @@ _FIELDING_POST_KEY = ("player", "season", "round", "pos")
 
 
 def _update_fields(model: type[models.Model], key: tuple[str, ...]) -> list[str]:
-    """Every column except the natural key gets refreshed on conflict."""
-    return [f.name for f in model._meta.fields if f.name not in {"id", *key}]
+    """Every column except the natural key gets refreshed on conflict.
+
+    The key columns ARE the composite primary key, so they are skipped both by name and by the
+    `primary_key` guard (which also drops the virtual `CompositePrimaryKey` field itself).
+    """
+    return [f.name for f in model._meta.fields if f.name not in {"id", *key} and not f.primary_key]
 
 
 def _upsert(model: type[models.Model], rows: list[dict[str, Any]], key: tuple[str, ...]) -> int:

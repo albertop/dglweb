@@ -112,7 +112,7 @@ def player(db: None) -> Player:
 
 
 def test_has_every_source_column_in_order() -> None:
-    ours = tuple(f.name for f in PitchingPost._meta.get_fields() if f.name != "id")
+    ours = tuple(f.name for f in PitchingPost._meta.get_fields() if f.name not in {"id", "pk"})
 
     assert ours == EXPECTED_FIELDS
 
@@ -139,7 +139,9 @@ def test_the_same_player_season_and_round_cannot_repeat(player: Player) -> None:
 
 def test_only_the_natural_key_is_required() -> None:
     required = {
-        f.name for f in PitchingPost._meta.get_fields() if isinstance(f, models.Field) and not f.null and f.name != "id"
+        f.name
+        for f in PitchingPost._meta.get_fields()
+        if isinstance(f, models.Field) and not f.null and f.name not in {"id", "pk"}
     }
 
     assert required == {"player", "season", "round"}

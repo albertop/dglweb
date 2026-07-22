@@ -58,7 +58,9 @@ def test_same_position_can_repeat_across_teams_and_the_xxx_total(player: Player)
 
 def test_only_the_key_is_required() -> None:
     required = {
-        f.name for f in Fielding._meta.get_fields() if isinstance(f, models.Field) and not f.null and f.name != "id"
+        f.name
+        for f in Fielding._meta.get_fields()
+        if isinstance(f, models.Field) and not f.null and f.name not in {"id", "pk"}
     }
 
     assert required == {"player", "season", "team", "pos"}
