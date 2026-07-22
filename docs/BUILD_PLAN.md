@@ -93,7 +93,12 @@
   - **Pendiente de Fase 5:** restringir el Backoffice al rol *administrators* (hoy es solo
     superusuario, que es el default seguro).
 
-## Fase 3 — Pipeline de datos: scrapers en marcha (ANTES del backfill)
+## Fase 3 — Pipeline de datos: scrapers en marcha (ANTES del backfill) — ✅ COMPLETADA (2026-07-22)
+
+> **Las 6 tablas de stats portadas con paridad exacta** contra SQL Server: batting/pitching/fielding
+> × temporada regular/postemporada. Motor común (cliente proxy → mapeo → derive → loader idempotente
+> → bitácora → paridad), 12 comandos `import_*`/`update_*`, 6 `parity_*`, y 9 jobs en el scheduler
+> Ofelia. Cada port verificado contra un caso conocido (Beltré, Marte, Ortiz…). **267 tests, 98%.**
 
 - **Meta:** la data **se actualiza sola** (regla del dueño: pipeline vivo antes que backfill).
 - **Entrega:** scrapers como **management commands** + contenedor programado; tablas de stats
@@ -197,8 +202,11 @@
   `BAA` (reusa `pitching_mapping`/`derive_pitching`; descarta age/ab/sh_fail/sh_missed).
   `pitching_post_source.py` itera las 4 rondas con `gameType`. **Paridad 2013: 20/20 filas, 0
   discrepancias** (huecos = tasas indefinidas NULL-sobre-0). `update_pitching_post` en el scheduler.
-- **📌 Pendiente para cerrar la fase:** **postemporada de fielding** (`mlbFieldingPost`) — mismo
-  patrón, sobre el motor probado. Es la última pieza de la Fase 3.
+- **Postemporada de fielding portada (2026-07-22) — `mlb_fielding_post`, ÚLTIMA pieza de la fase:**
+  24 columnas, llave `(player, season, round, pos)`. La más simple: solo `season` → **sin UZR ni
+  sabermetrics**, sin XXX (un equipo por ronda), sin fórmulas. Reusa `map_fielding` (descarta
+  age/stolen_bases/caught_stealing/uzr), agrega `innings_outs`. **Paridad 2013: 39/39 filas, 0
+  discrepancias** (huecos = stats de catcher en no-catchers). `update_fielding_post` al scheduler.
 
 ## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador
 

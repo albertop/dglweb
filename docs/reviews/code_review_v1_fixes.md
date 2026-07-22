@@ -76,17 +76,11 @@ y testeables **sin UI**, así que conviene tenerlos listos antes de que exista e
 
 ## POSTEMPORADA — se resuelve en el próximo trabajo
 
-### [~] FIX-7 · Parametrizar `gameType` / competición (SAB-05, Media) — en progreso
-**Batting postemporada hecho:** `batting_post_source.py` itera rondas con `gameType` D/F/L/W. Falta
-replicar en pitching/fielding postemporada. El `current_season()` robusto (LIDOM cruza años) sigue
-pendiente para cuando lleguen esas competiciones.
-`_download.py:76` y `fielding_source.py:61` hardcodean `gameType=[R]`, `sportId=1`; los `update_*`
-usan `timezone.now().year`.
-- Extender `SportConfig` (o una config de competición) con `game_type` y `sport_id`; la
-  postemporada usa `gameType=[P]` y escribe en tablas `*Post`.
-- Reemplazar "año actual" por una función probada (`current_season()` / competición activa) —
-  necesaria para LIDOM (cruza años) y Spring; tests con fechas de ene/mar/jul/oct/nov.
-- *(Esto se hace naturalmente al portar la postemporada; queda registrado como parte de ese diseño.)*
+### [x] FIX-7 · Parametrizar `gameType` (SAB-05) — hecho para toda la postemporada
+Los `*_post_source.py` (batting/pitching/fielding) iteran las 4 rondas pasando `gameType` D/F/L/W.
+El regular sigue con `gameType=[R]` (correcto para temporada regular). **Pendiente:** un
+`current_season()` robusto para los `update_*` (hoy `timezone.now().year`) cuando lleguen LIDOM
+(cruza años) y Spring Training; se aborda al portar esas competiciones.
 
 ---
 

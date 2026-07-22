@@ -266,3 +266,40 @@ def test_parity_pitching_post_raises_on_mismatch(
 
     with pytest.raises(CommandError, match="diferencias"):
         call_command("parity_pitching_post", "--expected", _extract(tmp_path, [source]))
+
+
+# --- parity_fielding_post (keyed by player, season, round, pos) -----------------------
+
+
+@pytest.fixture
+def fetched_fielding_post(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+
+    def fake_fetch(client: object, season: int, player_ids: set[int]) -> list[dict[str, Any]]:
+        return [r for r in rows if r["season"] == season]
+
+    monkeypatch.setattr("dglweb.stats.management.commands.parity_fielding_post.fetch_season", fake_fetch)
+    return rows
+
+
+def _fldp(**kw: Any) -> dict[str, Any]:
+    return {"player_id": PID, "season": 2013, "round": "WS", "pos": "SS", **kw}
+
+
+@pytest.mark.django_db
+def test_parity_fielding_post_ok(player: Player, fetched_fielding_post: list[dict[str, Any]], tmp_path: Path) -> None:
+    fetched_fielding_post.append(_fldp(po=8, a=15))
+
+    call_command("parity_fielding_post", "--expected", _extract(tmp_path, [_fldp(po=8, a=15)]))
+
+
+@pytest.mark.django_db
+def test_parity_fielding_post_reports_a_missing_position(
+    player: Player, fetched_fielding_post: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    fetched_fielding_post.append(_fldp(pos="SS", po=8))
+
+    with pytest.raises(CommandError, match="diferencias"):
+        call_command(
+            "parity_fielding_post", "--expected", _extract(tmp_path, [_fldp(pos="SS", po=8), _fldp(pos="2B", po=3)])
+        )

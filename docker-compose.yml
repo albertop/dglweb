@@ -61,6 +61,8 @@ services:
       ofelia.job-exec.batting-post-daily.command: "python manage.py update_batting_post"
       ofelia.job-exec.pitching-post-daily.schedule: "0 0 7 * * *"  # 7:00am; a no-op outside Oct/Nov
       ofelia.job-exec.pitching-post-daily.command: "python manage.py update_pitching_post"
+      ofelia.job-exec.fielding-post-daily.schedule: "0 15 7 * * *"  # 7:15am; a no-op outside Oct/Nov
+      ofelia.job-exec.fielding-post-daily.command: "python manage.py update_fielding_post"
 
   # Ofelia: a lean, Docker-native cron. It reads the labels above via the Docker socket and
   # execs the command on schedule — same image, separate lifecycle, no cron files.

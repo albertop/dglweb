@@ -645,3 +645,58 @@ class PitchingPost(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} {self.season} {self.round} {self.team or ''}".strip()
+
+
+class FieldingPost(models.Model):
+    """One postseason fielding line: a player's stats at one position in one round.
+
+    Source `dbo.mlbFieldingPost` (24 columns) — the simplest table. Per position per round, keyed
+    **(player, season, round, pos)**; no `XXX` (one team per round), no `UZR` (the post script
+    fetches only `season`, not sabermetrics) and no stolen-bases/caught-stealing. No formulas.
+    `innings` is baseball notation (display); aggregate `innings_outs`.
+    """
+
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name="fielding_post_seasons", db_column="player_id"
+    )
+    season = models.PositiveSmallIntegerField()
+    round = models.CharField(max_length=3, help_text="DS, WC, LCS o WS.")
+    team = models.CharField(max_length=3, null=True, blank=True)
+    league = models.CharField(max_length=2, null=True, blank=True)
+    pos = models.CharField(max_length=2, verbose_name="Posición")
+
+    gp = models.PositiveSmallIntegerField(null=True, blank=True)
+    gs = models.PositiveSmallIntegerField(null=True, blank=True)
+    a = models.PositiveSmallIntegerField(null=True, blank=True)
+    po = models.PositiveSmallIntegerField(null=True, blank=True)
+    e = models.PositiveSmallIntegerField(null=True, blank=True)
+    chances = models.PositiveSmallIntegerField(null=True, blank=True)
+    fld_pct = models.FloatField(null=True, blank=True)
+    rf_per_g = models.FloatField(null=True, blank=True)
+    rf_per9 = models.FloatField(null=True, blank=True)
+    innings = models.FloatField(
+        null=True, blank=True, help_text="Entradas en notación de béisbol; usar innings_outs para sumar."
+    )
+    innings_outs = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Entradas en outs (sumable).")
+    double_plays = models.PositiveSmallIntegerField(null=True, blank=True)
+    triple_plays = models.PositiveSmallIntegerField(null=True, blank=True)
+    throwing_errors = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    passed_balls = models.PositiveSmallIntegerField(null=True, blank=True)
+    catcher_era = models.FloatField(null=True, blank=True)
+    catcher_int = models.PositiveSmallIntegerField(null=True, blank=True)
+    wild_pitches = models.PositiveSmallIntegerField(null=True, blank=True)
+    pickoffs = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mlb_fielding_post"
+        ordering = ["player", "season", "round", "pos"]
+        verbose_name = "línea de fildeo (postemporada)"
+        verbose_name_plural = "líneas de fildeo (postemporada)"
+        constraints = [
+            models.UniqueConstraint(fields=["player", "season", "round", "pos"], name="unique_fielding_post_line")
+        ]
+        indexes = [models.Index(fields=["season"], name="mlb_fielding_post_season_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.player} {self.season} {self.round} {self.pos} {self.team or ''}".strip()
