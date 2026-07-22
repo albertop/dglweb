@@ -192,8 +192,13 @@
     Loader/paridad/ingest reusados con la llave por ronda. `update_batting_post` en el scheduler.
   - **Paridad 2013 (David Ortiz incluido, tol. 0.001): 26/26 filas, 0 discrepancias.** WS de Ortiz
     .688 idéntico a la fuente. Huecos = NULL-sobre-0 (denominador cero).
-- **📌 Pendiente para cerrar la fase:** **postemporada de pitching y fielding** (tablas
-  `mlbPitchingPost`/`mlbFieldingPost`) — mismo patrón que batting post, sobre el motor probado.
+- **Postemporada de pitching portada (2026-07-22) — `mlb_pitching_post`:** 88 columnas, llave
+  `(player, season, round)`. Regular + advanced de pitching **sin sabermetrics ni extras**, con
+  `BAA` (reusa `pitching_mapping`/`derive_pitching`; descarta age/ab/sh_fail/sh_missed).
+  `pitching_post_source.py` itera las 4 rondas con `gameType`. **Paridad 2013: 20/20 filas, 0
+  discrepancias** (huecos = tasas indefinidas NULL-sobre-0). `update_pitching_post` en el scheduler.
+- **📌 Pendiente para cerrar la fase:** **postemporada de fielding** (`mlbFieldingPost`) — mismo
+  patrón, sobre el motor probado. Es la última pieza de la Fase 3.
 
 ## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador
 

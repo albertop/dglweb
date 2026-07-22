@@ -9,7 +9,7 @@ from typing import Any
 
 from django.db import models, transaction
 
-from dglweb.stats.models import Batting, BattingPost, Fielding, Pitching
+from dglweb.stats.models import Batting, BattingPost, Fielding, Pitching, PitchingPost
 
 # Fielding is keyed by position and postseason by round, not by the team stint of batting/pitching.
 _BATTING_PITCHING_KEY = ("player", "season", "stint")
@@ -55,3 +55,8 @@ def save_fielding_rows(rows: list[dict[str, Any]]) -> int:
 def save_batting_post_rows(rows: list[dict[str, Any]]) -> int:
     """Upsert postseason batting rows on (player, season, round); returns how many were written."""
     return _upsert(BattingPost, rows, _POST_KEY)
+
+
+def save_pitching_post_rows(rows: list[dict[str, Any]]) -> int:
+    """Upsert postseason pitching rows on (player, season, round); returns how many were written."""
+    return _upsert(PitchingPost, rows, _POST_KEY)

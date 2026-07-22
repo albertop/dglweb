@@ -233,3 +233,36 @@ def test_parity_batting_post_reports_a_missing_round(
                 ],
             ),
         )
+
+
+# --- parity_pitching_post -------------------------------------------------------------
+
+
+@pytest.fixture
+def fetched_pitching_post(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+
+    def fake_fetch(client: object, season: int, player_ids: set[int]) -> list[dict[str, Any]]:
+        return [r for r in rows if r["season"] == season]
+
+    monkeypatch.setattr("dglweb.stats.management.commands.parity_pitching_post.fetch_season", fake_fetch)
+    return rows
+
+
+@pytest.mark.django_db
+def test_parity_pitching_post_ok(player: Player, fetched_pitching_post: list[dict[str, Any]], tmp_path: Path) -> None:
+    source = {"player_id": PID, "season": 2013, "round": "WS", "so": 7, "sv": 3}
+    fetched_pitching_post.append({"player_id": PID, "season": 2013, "round": "WS", "so": 7, "sv": 3})
+
+    call_command("parity_pitching_post", "--expected", _extract(tmp_path, [source]))
+
+
+@pytest.mark.django_db
+def test_parity_pitching_post_raises_on_mismatch(
+    player: Player, fetched_pitching_post: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    source = {"player_id": PID, "season": 2013, "round": "WS", "so": 7}
+    fetched_pitching_post.append({"player_id": PID, "season": 2013, "round": "WS", "so": 6})
+
+    with pytest.raises(CommandError, match="diferencias"):
+        call_command("parity_pitching_post", "--expected", _extract(tmp_path, [source]))

@@ -22,7 +22,7 @@ from typing import Any
 
 from django.db import models
 
-from dglweb.stats.models import Batting, BattingPost, Fielding, Pitching
+from dglweb.stats.models import Batting, BattingPost, Fielding, Pitching, PitchingPost
 
 BATTING_KEY = ("player_id", "season", "stint")
 FIELDING_KEY = ("player_id", "season", "team", "pos")
@@ -56,6 +56,7 @@ BATTING_EXACT, BATTING_APPROX = _column_kinds(Batting, BATTING_KEY)
 PITCHING_EXACT, PITCHING_APPROX = _column_kinds(Pitching, BATTING_KEY)
 FIELDING_EXACT, FIELDING_APPROX = _column_kinds(Fielding, FIELDING_KEY)
 BATTING_POST_EXACT, BATTING_POST_APPROX = _column_kinds(BattingPost, POST_KEY)
+PITCHING_POST_EXACT, PITCHING_POST_APPROX = _column_kinds(PitchingPost, POST_KEY)
 
 
 @dataclass(frozen=True)
@@ -165,6 +166,19 @@ def compare_batting_post(
         key_fields=POST_KEY,
         exact=BATTING_POST_EXACT,
         approx=BATTING_POST_APPROX,
+        tolerance=tolerance,
+    )
+
+
+def compare_pitching_post(
+    expected: list[dict[str, Any]], actual: list[dict[str, Any]], *, tolerance: float = 0.05
+) -> ParityReport:
+    return compare(
+        expected,
+        actual,
+        key_fields=POST_KEY,
+        exact=PITCHING_POST_EXACT,
+        approx=PITCHING_POST_APPROX,
         tolerance=tolerance,
     )
 
