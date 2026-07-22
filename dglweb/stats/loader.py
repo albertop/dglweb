@@ -9,15 +9,19 @@ from typing import Any
 
 from django.db import models, transaction
 
-from dglweb.stats.models import Batting, Pitching
+from dglweb.stats.models import Batting, Fielding, Pitching
+
+# Fielding is keyed by position, not by team stint (see the Fielding model).
+_BATTING_PITCHING_KEY = ("player", "season", "stint")
+_FIELDING_KEY = ("player", "season", "team", "pos")
 
 
-def _update_fields(model: type[models.Model]) -> list[str]:
+def _update_fields(model: type[models.Model], key: tuple[str, ...]) -> list[str]:
     """Every column except the natural key gets refreshed on conflict."""
-    return [f.name for f in model._meta.fields if f.name not in {"id", "player", "season", "stint"}]
+    return [f.name for f in model._meta.fields if f.name not in {"id", *key}]
 
 
-def _upsert(model: type[models.Model], rows: list[dict[str, Any]]) -> int:
+def _upsert(model: type[models.Model], rows: list[dict[str, Any]], key: tuple[str, ...]) -> int:
     if not rows:
         return 0
     with transaction.atomic():
@@ -25,8 +29,8 @@ def _upsert(model: type[models.Model], rows: list[dict[str, Any]]) -> int:
         model._default_manager.bulk_create(
             [model(**row) for row in rows],
             update_conflicts=True,
-            unique_fields=["player", "season", "stint"],
-            update_fields=_update_fields(model),
+            unique_fields=list(key),
+            update_fields=_update_fields(model, key),
             batch_size=500,
         )
     return len(rows)
@@ -34,9 +38,14 @@ def _upsert(model: type[models.Model], rows: list[dict[str, Any]]) -> int:
 
 def save_batting_rows(rows: list[dict[str, Any]]) -> int:
     """Upsert batting rows on (player, season, stint); returns how many were written."""
-    return _upsert(Batting, rows)
+    return _upsert(Batting, rows, _BATTING_PITCHING_KEY)
 
 
 def save_pitching_rows(rows: list[dict[str, Any]]) -> int:
     """Upsert pitching rows on (player, season, stint); returns how many were written."""
-    return _upsert(Pitching, rows)
+    return _upsert(Pitching, rows, _BATTING_PITCHING_KEY)
+
+
+def save_fielding_rows(rows: list[dict[str, Any]]) -> int:
+    """Upsert fielding rows on (player, season, team, pos); returns how many were written."""
+    return _upsert(Fielding, rows, _FIELDING_KEY)

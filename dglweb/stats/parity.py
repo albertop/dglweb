@@ -22,25 +22,27 @@ from typing import Any
 
 from django.db import models
 
-from dglweb.stats.models import Batting, Pitching
+from dglweb.stats.models import Batting, Fielding, Pitching
 
-_KEY_FIELDS = ("player_id", "season", "stint")
+BATTING_KEY = ("player_id", "season", "stint")
+FIELDING_KEY = ("player_id", "season", "team", "pos")
+_INT_KEY_FIELDS = {"player_id", "season", "stint"}
 
-Key = tuple[int, int, int]
+Key = tuple[object, ...]
 
-# `pos` is not compared: we deliberately store the season position while the source stores the
-# player's primary one, so it diverges by design for traded players and outfielders. Comparing
-# it would drown real mismatches in expected noise.
+# For batting/pitching `pos` is not compared: we store the season position while the source stores
+# the player's primary one, so it diverges by design. For fielding `pos` is part of the key (the
+# real fielded position), so it is excluded from comparison there too, just for a different reason.
 _UNCOMPARED = {"pos"}
 
 
-def _column_kinds(model: type[models.Model]) -> tuple[frozenset[str], frozenset[str]]:
+def _column_kinds(model: type[models.Model], key: tuple[str, ...]) -> tuple[frozenset[str], frozenset[str]]:
     """Float columns compare with tolerance (MLB revises them), integer/text columns exactly."""
     exact: set[str] = set()
     approx: set[str] = set()
     for f in model._meta.fields:
         name = "player_id" if f.name == "player" else f.name
-        if name in {"id", *_KEY_FIELDS, *_UNCOMPARED}:
+        if name in {"id", *key, *_UNCOMPARED}:
             continue
         if isinstance(f, models.FloatField):
             approx.add(name)
@@ -49,8 +51,9 @@ def _column_kinds(model: type[models.Model]) -> tuple[frozenset[str], frozenset[
     return frozenset(exact), frozenset(approx)
 
 
-BATTING_EXACT, BATTING_APPROX = _column_kinds(Batting)
-PITCHING_EXACT, PITCHING_APPROX = _column_kinds(Pitching)
+BATTING_EXACT, BATTING_APPROX = _column_kinds(Batting, BATTING_KEY)
+PITCHING_EXACT, PITCHING_APPROX = _column_kinds(Pitching, BATTING_KEY)
+FIELDING_EXACT, FIELDING_APPROX = _column_kinds(Fielding, FIELDING_KEY)
 
 
 @dataclass(frozen=True)
@@ -88,8 +91,8 @@ class ParityReport:
         return " | ".join(parts)
 
 
-def _key(row: dict[str, Any]) -> Key:
-    return (int(row["player_id"]), int(row["season"]), int(row["stint"]))
+def _key(row: dict[str, Any], key_fields: tuple[str, ...]) -> Key:
+    return tuple(int(row[f]) if f in _INT_KEY_FIELDS else row[f] for f in key_fields)
 
 
 def _approx_equal(a: float, b: float, tolerance: float) -> bool:
@@ -100,17 +103,18 @@ def compare(
     expected: list[dict[str, Any]],
     actual: list[dict[str, Any]],
     *,
+    key_fields: tuple[str, ...],
     exact: frozenset[str],
     approx: frozenset[str],
     tolerance: float,
 ) -> ParityReport:
-    """Compare two row sets keyed by (player_id, season, stint)."""
+    """Compare two row sets keyed by `key_fields`."""
     report = ParityReport(rows_expected=len(expected), rows_actual=len(actual))
-    actual_by_key = {_key(row): row for row in actual}
+    actual_by_key = {_key(row, key_fields): row for row in actual}
     expected_keys = set()
 
     for exp in expected:
-        key = _key(exp)
+        key = _key(exp, key_fields)
         expected_keys.add(key)
         act = actual_by_key.get(key)
         if act is None:
@@ -121,21 +125,33 @@ def compare(
         _compare_row(key, exp, act, exact, approx, tolerance, report)
 
     report.extra_rows.extend(k for k in actual_by_key if k not in expected_keys)
-    report.missing_rows.sort()
-    report.extra_rows.sort()
+    report.missing_rows.sort(key=str)
+    report.extra_rows.sort(key=str)
     return report
 
 
 def compare_batting(
     expected: list[dict[str, Any]], actual: list[dict[str, Any]], *, tolerance: float = 0.05
 ) -> ParityReport:
-    return compare(expected, actual, exact=BATTING_EXACT, approx=BATTING_APPROX, tolerance=tolerance)
+    return compare(
+        expected, actual, key_fields=BATTING_KEY, exact=BATTING_EXACT, approx=BATTING_APPROX, tolerance=tolerance
+    )
 
 
 def compare_pitching(
     expected: list[dict[str, Any]], actual: list[dict[str, Any]], *, tolerance: float = 0.05
 ) -> ParityReport:
-    return compare(expected, actual, exact=PITCHING_EXACT, approx=PITCHING_APPROX, tolerance=tolerance)
+    return compare(
+        expected, actual, key_fields=BATTING_KEY, exact=PITCHING_EXACT, approx=PITCHING_APPROX, tolerance=tolerance
+    )
+
+
+def compare_fielding(
+    expected: list[dict[str, Any]], actual: list[dict[str, Any]], *, tolerance: float = 0.05
+) -> ParityReport:
+    return compare(
+        expected, actual, key_fields=FIELDING_KEY, exact=FIELDING_EXACT, approx=FIELDING_APPROX, tolerance=tolerance
+    )
 
 
 def _compare_row(

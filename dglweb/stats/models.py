@@ -338,3 +338,65 @@ class Pitching(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} {self.season} {self.team or ''}".strip()
+
+
+class Fielding(models.Model):
+    """One fielding line: a player's season at one position, with one team or combined (XXX).
+
+    Fielding is per **position**, not per team, so the natural key is
+    **(player, season, team, pos)** — not the (player, season, stint) of batting/pitching. The
+    owner's source table keys on a fragile `stint` counter that also carries ~178 exact-duplicate
+    rows; we drop the counter and key on what actually identifies a line (owner's decision). For a
+    player who was traded, each position has one row per team plus a combined row with `team=XXX`
+    (the season total at that position), exactly as the proxy returns it.
+
+    Source `dbo.mlbFielding`. No mlbstats formulas here — every value comes straight from the
+    proxy (fielding % included); `UZR` comes from the fielding sabermetrics and lands only on the
+    season-total row of each position. Same NULL-over-0 rule as the other tables.
+    """
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="fielding_seasons", db_column="player_id")
+    season = models.PositiveSmallIntegerField()
+    team = models.CharField(max_length=3, help_text="Código del equipo, o XXX para el total de la posición.")
+    league = models.CharField(max_length=2, null=True, blank=True)
+    pos = models.CharField(max_length=2, verbose_name="Posición")
+
+    gp = models.PositiveSmallIntegerField(null=True, blank=True)
+    gs = models.PositiveSmallIntegerField(null=True, blank=True)
+    a = models.PositiveSmallIntegerField(null=True, blank=True)
+    po = models.PositiveSmallIntegerField(null=True, blank=True)
+    e = models.PositiveSmallIntegerField(null=True, blank=True)
+    chances = models.PositiveSmallIntegerField(null=True, blank=True)
+    fld_pct = models.FloatField(null=True, blank=True)
+    rf_per_g = models.FloatField(null=True, blank=True)
+    rf_per9 = models.FloatField(null=True, blank=True)
+    innings = models.FloatField(null=True, blank=True, help_text="Entradas en notación de béisbol (111.1 = 111⅓).")
+    double_plays = models.PositiveSmallIntegerField(null=True, blank=True)
+    triple_plays = models.PositiveSmallIntegerField(null=True, blank=True)
+    throwing_errors = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # --- catcher-only ------------------------------------------------------------
+    passed_balls = models.PositiveSmallIntegerField(null=True, blank=True)
+    catcher_era = models.FloatField(null=True, blank=True)
+    catcher_int = models.PositiveSmallIntegerField(null=True, blank=True)
+    wild_pitches = models.PositiveSmallIntegerField(null=True, blank=True)
+    pickoffs = models.PositiveSmallIntegerField(null=True, blank=True)
+    stolen_bases = models.PositiveSmallIntegerField(null=True, blank=True)
+    caught_stealing = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # --- sabermetrics (season total per position only) ---------------------------
+    uzr = models.FloatField(null=True, blank=True, verbose_name="UZR")
+
+    # --- extra the proxy offers beyond the source table --------------------------
+    age = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mlb_fielding"
+        ordering = ["player", "season", "pos", "team"]
+        verbose_name = "línea de fildeo"
+        verbose_name_plural = "líneas de fildeo"
+        constraints = [models.UniqueConstraint(fields=["player", "season", "team", "pos"], name="unique_fielding_line")]
+        indexes = [models.Index(fields=["season"], name="mlb_fielding_season_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.player} {self.season} {self.pos} {self.team}".strip()

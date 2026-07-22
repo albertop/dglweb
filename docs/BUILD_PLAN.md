@@ -165,9 +165,25 @@
   **solo los crudos no derivables**: batting `age`, `roe`, `gidp_opp`; pitching `age`, `ab`
   (turnos en contra), `sh_fail`, `sh_missed`. Son aditivos (sin contraparte en el origen), así que
   **no entran en la paridad** — verificado: pitching sigue 172/172, 0 discrepancias.
-- **📌 Pendiente para cerrar la fase:** repetir el patrón para **fielding** (regular + postemporada),
-  y **postemporada** de batting/pitching — ya sobre el motor probado (descarga → mapeo → derive →
-  loader → runlog).
+- **Fielding portado (2026-07-21) — tercer y último grupo de temporada regular:**
+  - **`mlb_fielding` (26 col. + age)**, `fielding_mapping.py`. **Sin fórmulas** — todo directo del
+    proxy; UZR de sabermetrics. La única función `mlbstats` posible (`baa`) es de pitching, no aquí.
+  - **Llave limpia `(player, season, team, pos)` — decisión del dueño.** Fielding es por posición
+    (un jugador defiende varias), y el `stint` del origen es un contador de R con **~178 grupos de
+    filas duplicadas exactas**. Descartamos el contador y keyeamos por la identidad real; los
+    duplicados colapsan. Un jugador cambiado tiene por posición: fila por equipo + fila `XXX` (el
+    total de esa posición), tal como el proxy lo devuelve (el total NO se computa, viene del API).
+  - **`fielding_source.py`** (propio, no usa `_download.py` porque ese es por-equipo): el bulk da el
+    total por (jugador, posición); las per-equipo salen de la llamada por jugador (solo si cambió).
+  - **Paridad 2006 (Héctor Luna incluido, tolerancia 0.02): 312/312 filas, 0 faltantes, 0 sobrantes.**
+    Las 11 "discrepancias" son UZR donde **el origen tiene 0 y nosotros el valor real**: el merge
+    por `stint` del script R **no adjunta UZR a varias filas de jugadores cambiados** → nuestro port
+    lo arregla (adjunta por jugador+posición). Otro caso donde el port es más correcto que la fuente.
+    Los huecos son NULL-sobre-0 (stats de catcher en no-catchers, tasas indefinidas).
+  - `import_fielding`/`update_fielding` + `parity_fielding`; `update_fielding` en el scheduler
+    (6:30am). Loader y paridad generalizados para aceptar la llave por-posición.
+- **📌 Pendiente para cerrar la fase:** **postemporada** de batting/pitching/fielding (`gameType=P`,
+  tablas `*Post`) — ya sobre el motor probado. La temporada regular (los 3 grupos) está completa.
 
 ## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador
 
