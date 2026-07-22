@@ -8,7 +8,7 @@ from django.core.management.base import CommandError
 
 from dglweb.mlb.client import MlbProxyError
 from dglweb.players.models import Player
-from dglweb.stats.models import Batting
+from dglweb.stats.models import Batting, IngestRun
 from tests.test_players import RECORD
 
 
@@ -85,11 +85,14 @@ def test_a_failing_season_does_not_stop_the_others(player: Player, monkeypatch: 
 
     monkeypatch.setattr("dglweb.stats.management.commands.import_batting.fetch_season", flaky)
 
-    with pytest.raises(CommandError, match="1989"):
+    with pytest.raises(CommandError, match="bitácora"):
         call_command("import_batting", "--from", "1988", "--to", "1990")
 
-    # The good seasons still landed, and the failure is loud.
+    # The good seasons still landed, and the failure is loud — recorded, not swallowed.
     assert sorted(Batting.objects.values_list("season", flat=True)) == [1988, 1990]
+    run = IngestRun.objects.get()
+    assert run.status == IngestRun.Status.PARTIAL
+    assert "1989" in run.detail
 
 
 @pytest.mark.django_db
@@ -115,3 +118,16 @@ def test_a_season_with_no_dominicans_is_a_no_op(player: Player, fetched: list[di
     call_command("import_batting", "--season", "1901")
 
     assert Batting.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_a_successful_run_is_recorded_in_the_ingest_log(player: Player, fetched: list[dict[str, Any]]) -> None:
+    fetched.extend([_row(season=1988), _row(season=1989)])
+
+    call_command("import_batting", "--from", "1988", "--to", "1989")
+
+    run = IngestRun.objects.get()
+    assert run.command == "import_batting"
+    assert run.scope == "1988-1989"
+    assert run.status == IngestRun.Status.SUCCESS
+    assert run.rows_affected == 2

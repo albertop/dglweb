@@ -4,12 +4,15 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 from wagtail.snippets.models import get_snippet_models
 
 from dglweb.players.models import Player
+from dglweb.stats.models import IngestRun
 from tests.test_players import RECORD
 
 LIST_URL_NAME = "wagtailsnippets_players_player:list"
+RUNS_URL_NAME = "wagtailsnippets_stats_ingestrun:list"
 
 
 @pytest.fixture
@@ -59,3 +62,33 @@ def test_admin_can_open_the_edit_form(admin_client):
     # The form is grouped into sections; check one heading and one external-id field.
     assert b"IDs externos" in response.content
     assert b"bbref_id" in response.content
+
+
+@pytest.mark.django_db
+def test_ingest_run_is_registered_as_a_backoffice_snippet():
+    assert IngestRun in get_snippet_models()
+
+
+@pytest.mark.django_db
+def test_run_list_requires_authentication():
+    response = Client().get(reverse(RUNS_URL_NAME))
+
+    assert response.status_code == 302
+    assert "/cms/login" in response.headers["Location"]
+
+
+@pytest.mark.django_db
+def test_admin_sees_the_runs_with_their_status(admin_client):
+    IngestRun.objects.create(
+        command="import_batting",
+        scope="2024",
+        status=IngestRun.Status.SUCCESS,
+        started_at=timezone.now(),
+        rows_affected=106,
+    )
+
+    response = admin_client.get(reverse(RUNS_URL_NAME))
+
+    assert response.status_code == 200
+    assert b"import_batting" in response.content
+    assert b"2024" in response.content

@@ -46,6 +46,28 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    # The scraper schedule lives here as labels; the `scheduler` service reads them and runs the
+    # command inside this container (job-exec), so it inherits the DB and proxy env. Only the
+    # current season is refreshed daily; the historical backfill stays a manual import_batting.
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.batting-daily.schedule: "0 0 6 * * *"  # 6am, TZ below
+      ofelia.job-exec.batting-daily.command: "python manage.py update_batting"
+
+  # Ofelia: a lean, Docker-native cron. It reads the labels above via the Docker socket and
+  # execs the command on schedule — same image, separate lifecycle, no cron files.
+  # If the daily refresh ever grows heavy, switch to job-run (an ephemeral container) for full
+  # isolation; documented in docs/BUILD_PLAN.md.
+  scheduler:
+    image: mcuadros/ofelia:latest
+    depends_on:
+      - web
+    command: daemon --docker
+    environment:
+      TZ: America/Santo_Domingo  # so "6am" is Dominican time, not UTC
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
 
 volumes:
   dglweb_pgdata:

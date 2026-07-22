@@ -127,9 +127,24 @@
   para una página de jugador año por año. Diverge del origen a propósito, así que **`pos` se
   excluye de la comparación de paridad** (si no, marcaría cada cambiado y cada OF como falso
   positivo). El cargador ya lo hacía; no hubo cambio de descarga.
-- **📌 Pendiente de batting antes de cerrar la fase:**
-  - Bitácora de ejecuciones + contenedor programado (aplica a todos los scrapers).
-  - Repetir el patrón para **pitching y fielding** (regular + postemporada).
+- **Bitácora + scraper programado (2026-07-21) — el pipeline ya se actualiza solo:**
+  - **`IngestRun`** (`ingest_run`, genérico para todos los scrapers): registra cada corrida —
+    comando, alcance, estado (RUNNING/SUCCESS/PARTIAL/FAILED), inicio/fin, filas, detalle/error.
+    Fila RUNNING al entrar (un cuelgue es visible). Helper `record_run`
+    (`dglweb/stats/runlog.py`). Solo lectura (`default_permissions = ("view",)`): es una caja
+    negra, no se edita a mano.
+  - **Visible en el Backoffice** (`IngestRunViewSet`, sección "Ejecuciones"): lista con estado,
+    filas y duración; inspect con el detalle/error. Verificado en el navegador.
+  - **`update_batting`**: refresca la temporada actual (idempotente); es lo que corre el
+    scheduler. El backfill histórico sigue siendo `import_batting --from --to` a mano.
+  - **Ofelia** en `docker-compose` (`scheduler`): cron docker-native, lee labels del servicio
+    `web` y hace `job-exec` del comando (misma imagen, TZ America/Santo_Domingo, 6am). Verificado:
+    job `batting-daily` registrado. Si algún día el update pesa → cambiar a `job-run` (contenedor
+    efímero, aislamiento total).
+  - Upsert compartido extraído a `dglweb/stats/loader.py` (`save_batting_rows`), usado por ambos
+    comandos.
+- **📌 Pendiente para cerrar la fase:** repetir el patrón para **pitching y fielding** (regular +
+  postemporada) — ya sobre el motor probado (descarga → mapeo → derive → loader → runlog).
 
 ## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador
 

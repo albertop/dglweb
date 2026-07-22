@@ -20,6 +20,8 @@ never swung and would wreck any rate or "fewest" ranking, so they arrive here as
 zeros stay zero. Same lesson as the `0 -> NULL` sentinels in `dgl_master`.
 """
 
+from datetime import timedelta
+
 from django.db import models
 
 from dglweb.players.models import Player
@@ -144,3 +146,45 @@ class Batting(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} {self.season} {self.team or ''}".strip()
+
+
+class IngestRun(models.Model):
+    """One execution of a scraper command — the pipeline's flight recorder.
+
+    Generic on purpose: batting is the first user, but pitching, fielding and the roster scrapers
+    write the same rows. Without this, a command that has been failing every night for weeks looks
+    exactly like one that is working. A row is written on entry (RUNNING) so a hung run is visible
+    too, and `record_run` (dglweb/stats/runlog.py) closes it out.
+    """
+
+    class Status(models.TextChoices):
+        RUNNING = "running", "En curso"
+        SUCCESS = "success", "Éxito"
+        PARTIAL = "partial", "Parcial"
+        FAILED = "failed", "Falló"
+
+    command = models.CharField(max_length=50, verbose_name="Comando")
+    scope = models.CharField(max_length=100, blank=True, verbose_name="Alcance")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.RUNNING, verbose_name="Estado")
+    started_at = models.DateTimeField(verbose_name="Inicio")
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name="Fin")
+    rows_affected = models.PositiveIntegerField(default=0, verbose_name="Filas")
+    detail = models.TextField(blank=True, verbose_name="Detalle")
+
+    class Meta:
+        db_table = "ingest_run"
+        ordering = ["-started_at"]
+        verbose_name = "ejecución"
+        verbose_name_plural = "ejecuciones"
+        # A flight recorder is written by the scrapers, never by hand: only "view" exists, so no
+        # add/edit/delete permission is created and the backoffice shows it read-only.
+        default_permissions = ("view",)
+
+    def __str__(self) -> str:
+        return f"{self.command} [{self.scope}] {self.status}"
+
+    @property
+    def duration(self) -> timedelta | None:
+        if self.finished_at is None:
+            return None
+        return self.finished_at - self.started_at

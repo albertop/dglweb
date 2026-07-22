@@ -1,29 +1,26 @@
-"""Load batting seasons for the Dominican subset.
+"""Load batting seasons for the Dominican subset (historical backfill).
 
     manage.py import_batting --season 2025
     manage.py import_batting --from 1876 --to 2025
 
-Two properties matter more than speed here, because this runs unattended:
+Two properties matter more than speed here, because this can run unattended:
 
-* **Idempotent.** Rows are upserted on `(player, season, stint)`, so re-running after a failure
-  fixes the data instead of duplicating it. That is what makes a retry safe at 3am.
-* **One bad season does not sink the run.** A season that fails is reported and skipped; the
-  rest still load, and the command exits non-zero so the scheduler notices. Aborting the whole
-  backfill because 1943 timed out would be the fragile choice.
+* **Idempotent.** Rows are upserted on `(player, season, stint)` via `save_batting_rows`, so
+  re-running after a failure fixes the data instead of duplicating it.
+* **One bad season does not sink the run.** A season that fails is recorded and skipped; the rest
+  still load, the run is marked PARTIAL in the ingest log, and the command still exits non-zero so
+  a scheduler notices.
 """
 
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db import transaction
 
 from dglweb.mlb.client import MlbProxyError, build_client
 from dglweb.players.models import Player
 from dglweb.stats.batting_source import fetch_season
-from dglweb.stats.models import Batting
-
-# Every column except the natural key gets refreshed on conflict.
-_UPDATE_FIELDS = [field.name for field in Batting._meta.fields if field.name not in {"id", "player", "season", "stint"}]
+from dglweb.stats.loader import save_batting_rows
+from dglweb.stats.runlog import record_run
 
 
 class Command(BaseCommand):
@@ -43,23 +40,25 @@ class Command(BaseCommand):
 
         self.stdout.write(f"{len(player_ids)} jugadores en la tabla maestra.")
 
-        loaded = 0
-        failed: list[int] = []
-        with build_client() as client:
+        scope = f"{seasons.start}-{seasons.stop - 1}" if len(seasons) > 1 else str(seasons.start)
+        with record_run("import_batting", scope) as run, build_client() as client:
             for season in seasons:
                 try:
                     rows = fetch_season(client, season, player_ids)
                 except MlbProxyError as exc:
-                    failed.append(season)
+                    run.fail(str(season))
                     self.stderr.write(f"{season}: falló la descarga — {exc}")
                     continue
 
-                loaded += self._save(rows)
+                run.add_rows(save_batting_rows(rows))
+                run.note(f"{season}: {len(rows)} filas")
                 self.stdout.write(f"{season}: {len(rows)} filas")
 
-        self.stdout.write(self.style.SUCCESS(f"{loaded} filas cargadas."))
+            self.stdout.write(self.style.SUCCESS(f"{run.rows} filas cargadas."))
+            failed = run.failed_any
+
         if failed:
-            raise CommandError(f"temporadas sin cargar: {', '.join(str(s) for s in failed)}")
+            raise CommandError("hubo temporadas sin cargar (ver la bitácora de ejecuciones).")
 
     def _seasons(self, options: dict[str, Any]) -> range:
         if options["season"]:
@@ -71,17 +70,3 @@ class Command(BaseCommand):
         if first > last:
             raise CommandError("--from no puede ser mayor que --to.")
         return range(first, last + 1)
-
-    def _save(self, rows: list[dict[str, Any]]) -> int:
-        if not rows:
-            return 0
-
-        with transaction.atomic():
-            Batting.objects.bulk_create(
-                [Batting(**row) for row in rows],
-                update_conflicts=True,
-                unique_fields=["player", "season", "stint"],
-                update_fields=_UPDATE_FIELDS,
-                batch_size=500,
-            )
-        return len(rows)

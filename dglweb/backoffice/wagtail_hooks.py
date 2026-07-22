@@ -11,6 +11,7 @@ from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSetGroup
 
 from dglweb.players.viewsets import PlayerViewSet
+from dglweb.stats.viewsets import IngestRunViewSet
 
 
 # Wagtail ships no type stubs (see dglweb/players/viewsets.py).
@@ -18,7 +19,7 @@ class BackofficeViewSetGroup(SnippetViewSetGroup):  # type: ignore[misc]
     menu_label = "Backoffice"
     menu_icon = "cogs"
     menu_order = 800
-    items = (PlayerViewSet,)  # add future admin tools here
+    items = (PlayerViewSet, IngestRunViewSet)  # add future admin tools here
 
 
 register_snippet(BackofficeViewSetGroup)
