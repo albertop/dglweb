@@ -95,3 +95,20 @@ def test_admin_sees_the_runs_with_their_status(admin_client):
     assert response.status_code == 200
     assert b"import_batting" in response.content
     assert b"2024" in response.content
+
+
+@pytest.mark.django_db
+def test_the_runs_view_is_read_only_even_for_a_superuser(admin_client):
+    """The ingest log is machine-written; the Add view is blocked even for superusers."""
+    response = admin_client.get(reverse("wagtailsnippets_stats_ingestrun:add"))
+
+    # Wagtail denies the action (redirect to the admin home, not a 200 add form).
+    assert response.status_code == 302
+
+
+@pytest.mark.django_db
+def test_the_players_crud_stays_editable_for_a_superuser(admin_client):
+    """The read-only policy is scoped to the ingest log — the players CRUD is still editable."""
+    response = admin_client.get(reverse("wagtailsnippets_players_player:add"))
+
+    assert response.status_code == 200
