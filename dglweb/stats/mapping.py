@@ -40,10 +40,13 @@ _REGULAR_KEYS = {
     "LOB": "lob",
     "CI": "catcher_int",
     "AOuts": "air_outs",
+    "age": "age",  # extra: not in the source table, but the proxy provides it
 }
 
 _ADVANCED_KEYS = {
     "GOuts": "ground_outs",
+    "ROE": "roe",  # extra (raw): reached on error
+    "GIDP_Opp": "gidp_opp",  # extra (raw): double-play opportunities
     "FOuts": "fly_outs",
     "POuts": "pop_outs",
     "LOuts": "line_outs",

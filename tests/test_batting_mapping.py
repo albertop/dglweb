@@ -90,6 +90,14 @@ def test_strikeouts_keep_our_column_name() -> None:
     assert map_regular(REGULAR)["so"] == 37
 
 
+def test_extra_fields_beyond_the_source_are_captured() -> None:
+    """age (season), ROE and GIDP opportunities (advanced): not in the source table."""
+    assert map_regular({"age": 30})["age"] == 30
+    advanced = map_advanced({"ROE": 5, "GIDP_Opp": 125})
+    assert advanced["roe"] == 5
+    assert advanced["gidp_opp"] == 125
+
+
 def test_counting_stats_are_copied_across() -> None:
     mapped = map_regular(REGULAR)
 

@@ -114,6 +114,11 @@ EXPECTED_FIELDS = (
     "gm_li",
     "ex_li",
     "era_minus",
+    # extra fields the proxy offers beyond the source table (raw)
+    "age",
+    "ab",
+    "sh_fail",
+    "sh_missed",
 )
 
 SEASON: dict[str, object] = {"season": 2008, "stint": 1, "team": "PIT", "league": "NL", "g": 47}
@@ -124,7 +129,8 @@ def player(db: None) -> Player:
     return Player.objects.create(**RECORD)
 
 
-def test_has_every_source_column_and_no_extras() -> None:
+def test_has_every_expected_column_in_order() -> None:
+    """The 101 source columns plus the extra raw fields the proxy offers."""
     ours = tuple(f.name for f in Pitching._meta.get_fields() if f.name != "id")
 
     assert ours == EXPECTED_FIELDS

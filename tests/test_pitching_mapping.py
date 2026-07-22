@@ -165,3 +165,12 @@ def test_missing_stats_are_null() -> None:
     mapped = map_regular({"W": 4})
     assert mapped["era"] is None
     assert mapped["so"] is None
+
+
+def test_extra_fields_beyond_the_source_are_captured() -> None:
+    regular = map_regular({"age": 30, "AB": 234})
+    advanced = map_advanced({"SH_Fail": 1, "SH_Missed": 0})
+    assert regular["age"] == 30
+    assert regular["ab"] == 234  # at-bats against
+    assert advanced["sh_fail"] == 1
+    assert advanced["sh_missed"] == 0

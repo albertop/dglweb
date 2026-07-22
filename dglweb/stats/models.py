@@ -128,6 +128,11 @@ class Batting(models.Model):
     base_running = models.FloatField(null=True, blank=True, verbose_name="Corrido")
     replacement = models.FloatField(null=True, blank=True, verbose_name="Reemplazo")
 
+    # --- extra fields the proxy offers beyond the source table (raw, not derivable) ----------
+    age = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Edad")
+    roe = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="EmbErr")  # reached on error
+    gidp_opp = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="OportDP")
+
     class Meta:
         db_table = "mlb_batting"
         ordering = ["player", "season", "stint"]
@@ -316,6 +321,12 @@ class Pitching(models.Model):
     gm_li = models.FloatField(null=True, blank=True)
     ex_li = models.FloatField(null=True, blank=True)
     era_minus = models.FloatField(null=True, blank=True)
+
+    # --- extra fields the proxy offers beyond the source table (raw, not derivable) ----------
+    age = models.PositiveSmallIntegerField(null=True, blank=True)
+    ab = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Turnos al bate en contra.")
+    sh_fail = models.PositiveSmallIntegerField(null=True, blank=True)
+    sh_missed = models.PositiveSmallIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "mlb_pitching"

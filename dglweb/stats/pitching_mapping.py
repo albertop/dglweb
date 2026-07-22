@@ -65,6 +65,8 @@ _REGULAR = {
     "WHIP": "whip",
     "Winpct": "win_pct",
     "Rp9": "r_per9",
+    "AB": "ab",  # extra: at-bats against (the source uses BF)
+    "age": "age",  # extra: the player's age that season
 }
 
 _ADVANCED = {
@@ -79,6 +81,8 @@ _ADVANCED = {
     "BqRS": "bequeathed_runners_scored",
     "QS": "quality_starts",
     "GIDP_Opp": "gidp_opp",
+    "SH_Fail": "sh_fail",  # extra (raw): sacrifice hits that failed
+    "SH_Missed": "sh_missed",  # extra (raw): sacrifice hits missed
     "Swings": "total_swings",
     "SwingMiss": "swing_and_misses",
     "BIP": "balls_in_play",

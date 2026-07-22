@@ -159,6 +159,12 @@
     tiempo) → la paridad se hace contra una **temporada vieja estable**. Los huecos son 36/34 tasas
     indefinidas (win_pct sin decisiones, sb_pct sin intentos) → NULL-sobre-0, a propósito.
   - `update_pitching` agregado al scheduler Ofelia (6:15am, tras batting).
+- **Campos extra del proxy (decisión del dueño, 2026-07-21):** el API ofrece más de lo que las
+  tablas de origen guardan. La mayoría es redundante (ya lo calculamos, ej. AVG/OBP/SLG; o es un
+  ratio de columnas que ya tenemos, ej. SBpct/whiff%/per-PA → se calculan al vuelo). Se persisten
+  **solo los crudos no derivables**: batting `age`, `roe`, `gidp_opp`; pitching `age`, `ab`
+  (turnos en contra), `sh_fail`, `sh_missed`. Son aditivos (sin contraparte en el origen), así que
+  **no entran en la paridad** — verificado: pitching sigue 172/172, 0 discrepancias.
 - **📌 Pendiente para cerrar la fase:** repetir el patrón para **fielding** (regular + postemporada),
   y **postemporada** de batting/pitching — ya sobre el motor probado (descarga → mapeo → derive →
   loader → runlog).

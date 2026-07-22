@@ -88,6 +88,10 @@ EXPECTED_FIELDS = (
     "fielding",
     "base_running",
     "replacement",
+    # extra fields the proxy offers beyond the source table (raw)
+    "age",
+    "roe",
+    "gidp_opp",
 )
 
 SEASON: dict[str, object] = {"season": 2004, "stint": 1, "team": "LAN", "league": "NL", "g": 156}
@@ -98,8 +102,8 @@ def player(db: None) -> Player:
     return Player.objects.create(**RECORD)
 
 
-def test_has_every_source_column_and_no_extras() -> None:
-    """Guards against a typo or a dropped column when porting the 75 columns."""
+def test_has_every_expected_column_in_order() -> None:
+    """The 75 source columns plus the extra raw fields the proxy offers; guards typos/drops."""
     ours = tuple(f.name for f in Batting._meta.get_fields() if f.name != "id")
 
     assert ours == EXPECTED_FIELDS
