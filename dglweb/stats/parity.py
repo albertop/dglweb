@@ -22,7 +22,7 @@ from typing import Any
 
 from django.db import models
 
-from dglweb.stats.models import Batting
+from dglweb.stats.models import Batting, Pitching
 
 _KEY_FIELDS = ("player_id", "season", "stint")
 
@@ -34,10 +34,11 @@ Key = tuple[int, int, int]
 _UNCOMPARED = {"pos"}
 
 
-def _column_kinds() -> tuple[frozenset[str], frozenset[str]]:
+def _column_kinds(model: type[models.Model]) -> tuple[frozenset[str], frozenset[str]]:
+    """Float columns compare with tolerance (MLB revises them), integer/text columns exactly."""
     exact: set[str] = set()
     approx: set[str] = set()
-    for f in Batting._meta.fields:
+    for f in model._meta.fields:
         name = "player_id" if f.name == "player" else f.name
         if name in {"id", *_KEY_FIELDS, *_UNCOMPARED}:
             continue
@@ -48,7 +49,8 @@ def _column_kinds() -> tuple[frozenset[str], frozenset[str]]:
     return frozenset(exact), frozenset(approx)
 
 
-EXACT_COLUMNS, APPROX_COLUMNS = _column_kinds()
+BATTING_EXACT, BATTING_APPROX = _column_kinds(Batting)
+PITCHING_EXACT, PITCHING_APPROX = _column_kinds(Pitching)
 
 
 @dataclass(frozen=True)
@@ -94,11 +96,13 @@ def _approx_equal(a: float, b: float, tolerance: float) -> bool:
     return abs(a - b) <= tolerance
 
 
-def compare_batting(
+def compare(
     expected: list[dict[str, Any]],
     actual: list[dict[str, Any]],
     *,
-    tolerance: float = 0.05,
+    exact: frozenset[str],
+    approx: frozenset[str],
+    tolerance: float,
 ) -> ParityReport:
     """Compare two row sets keyed by (player_id, season, stint)."""
     report = ParityReport(rows_expected=len(expected), rows_actual=len(actual))
@@ -114,7 +118,7 @@ def compare_batting(
             continue
 
         report.rows_matched += 1
-        _compare_row(key, exp, act, tolerance, report)
+        _compare_row(key, exp, act, exact, approx, tolerance, report)
 
     report.extra_rows.extend(k for k in actual_by_key if k not in expected_keys)
     report.missing_rows.sort()
@@ -122,14 +126,28 @@ def compare_batting(
     return report
 
 
+def compare_batting(
+    expected: list[dict[str, Any]], actual: list[dict[str, Any]], *, tolerance: float = 0.05
+) -> ParityReport:
+    return compare(expected, actual, exact=BATTING_EXACT, approx=BATTING_APPROX, tolerance=tolerance)
+
+
+def compare_pitching(
+    expected: list[dict[str, Any]], actual: list[dict[str, Any]], *, tolerance: float = 0.05
+) -> ParityReport:
+    return compare(expected, actual, exact=PITCHING_EXACT, approx=PITCHING_APPROX, tolerance=tolerance)
+
+
 def _compare_row(
     key: Key,
     exp: dict[str, Any],
     act: dict[str, Any],
+    exact: frozenset[str],
+    approx: frozenset[str],
     tolerance: float,
     report: ParityReport,
 ) -> None:
-    for column in EXACT_COLUMNS | APPROX_COLUMNS:
+    for column in exact | approx:
         if column not in exp:
             continue
         want = exp[column]
@@ -141,7 +159,7 @@ def _compare_row(
             report.coverage_gaps[column] = report.coverage_gaps.get(column, 0) + 1
             continue
 
-        if column in APPROX_COLUMNS:
+        if column in approx:
             if not _approx_equal(float(want), float(got), tolerance):
                 report.mismatches.append(Mismatch(key, column, want, got))
         elif want != got:

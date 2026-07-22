@@ -53,6 +53,8 @@ services:
       ofelia.enabled: "true"
       ofelia.job-exec.batting-daily.schedule: "0 0 6 * * *"  # 6am, TZ below
       ofelia.job-exec.batting-daily.command: "python manage.py update_batting"
+      ofelia.job-exec.pitching-daily.schedule: "0 15 6 * * *"  # 6:15am, after batting
+      ofelia.job-exec.pitching-daily.command: "python manage.py update_pitching"
 
   # Ofelia: a lean, Docker-native cron. It reads the labels above via the Docker socket and
   # execs the command on schedule — same image, separate lifecycle, no cron files.

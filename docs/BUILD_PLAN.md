@@ -143,8 +143,25 @@
     efímero, aislamiento total).
   - Upsert compartido extraído a `dglweb/stats/loader.py` (`save_batting_rows`), usado por ambos
     comandos.
-- **📌 Pendiente para cerrar la fase:** repetir el patrón para **pitching y fielding** (regular +
-  postemporada) — ya sobre el motor probado (descarga → mapeo → derive → loader → runlog).
+- **Pitching portado (2026-07-21) — segundo grupo sobre el motor probado:**
+  - **`mlb_pitching` (101 col.)**, `pitching_mapping.py` (las tasas vienen directas del proxy como
+    strings → parseadas a float), una sola fórmula `mlbstats` (**BAA**, verificada a 0 diferencias
+    en toda la tabla), y `X1B`/`NIBB` derivados. Comandos `import_pitching` / `update_pitching`.
+  - **Diferencia clave verificada contra el origen:** pitching **NO invierte los stints** (stint 1
+    = equipo más antiguo), al revés que batting — porque el script R de pitching numera ascendente
+    y el de batting invierte. Confirmado con un cambiado viejo de cada uno (Marte 2008, Astacio 2005)
+    cruzando el orden del proxy. Es un flag por deporte (`reverse_stints`), no una suposición.
+  - **Refactor DRY:** la maquinaria de descarga (`_download.py`, parametrizada por `SportConfig`),
+    el loader (genérico sobre el modelo) y el cuerpo de los comandos (`ingest.py`) ahora se comparten
+    entre batting y pitching; **fielding solo agregará su modelo + mapeo**. Batting intacto (tests verdes).
+  - **Paridad pitching (2008–2009, tolerancia 0.02): 172/172 filas, 0 discrepancias.** Único matiz:
+    la tabla `mlbPitching` de temporadas **recientes está desactualizada** (el dueño la corrió hace
+    tiempo) → la paridad se hace contra una **temporada vieja estable**. Los huecos son 36/34 tasas
+    indefinidas (win_pct sin decisiones, sb_pct sin intentos) → NULL-sobre-0, a propósito.
+  - `update_pitching` agregado al scheduler Ofelia (6:15am, tras batting).
+- **📌 Pendiente para cerrar la fase:** repetir el patrón para **fielding** (regular + postemporada),
+  y **postemporada** de batting/pitching — ya sobre el motor probado (descarga → mapeo → derive →
+  loader → runlog).
 
 ## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador
 
