@@ -695,3 +695,163 @@ class FieldingPost(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} {self.season} {self.round} {self.pos} {self.team or ''}".strip()
+
+
+class Metric(models.Model):
+    """A leaderboard metric: one stat column of our tables, plus how to rank it.
+
+    The catalog is *generated from our own stat tables* (see `seed_metrics`), one row per rankable
+    column; nothing is invented and nothing depends on the old site's SQL Server. What makes a
+    column a *leader* — its direction, which boards it feeds, its qualifier — is configured here and
+    edited in the Backoffice. The leaders engine (`build_leaders`) reads this table.
+
+    Design borrowed from the original `dgl_stat` but cleaned up: identity is `(stat_group, column)`
+    (no per-context duplication — one HR, the engine handles seasons/career/post), and the qualifier
+    is a first-class configurable field instead of being hardcoded in SQL views.
+    """
+
+    class Group(models.TextChoices):
+        BATTING = "batting", "Bateo"
+        PITCHING = "pitching", "Pitcheo"
+        FIELDING = "fielding", "Fildeo"  # catching stats live here too (Fielding, pos='C')
+
+    class Kind(models.TextChoices):
+        CUMULATIVE = "ACU", "Acumulada"  # a count: career value = sum over seasons
+        RATE = "PRO", "Tasa"  # a rate: career value = recomputed from summed components
+
+    class Direction(models.TextChoices):
+        HIGHER = "+", "Mayor es mejor"
+        LOWER = "-", "Menor es mejor"
+
+    stat_group = models.CharField(max_length=10, choices=Group.choices, verbose_name="Grupo")
+    column = models.CharField(max_length=40, verbose_name="Columna", help_text="Campo de la tabla de stats.")
+    kind = models.CharField(max_length=3, choices=Kind.choices, verbose_name="Tipo")
+    direction = models.CharField(
+        max_length=1, choices=Direction.choices, default=Direction.HIGHER, verbose_name="Dirección"
+    )
+
+    # Which of the four leaderboards this metric feeds (the old `calc*` flags).
+    best_season = models.BooleanField(default=False, verbose_name="Mejores temporadas")
+    worst_season = models.BooleanField(default=False, verbose_name="Peores temporadas")
+    best_career = models.BooleanField(default=False, verbose_name="Mejores carreras")
+    worst_career = models.BooleanField(default=False, verbose_name="Peores carreras")
+
+    exclude_zeros = models.BooleanField(default=False, verbose_name="Excluir ceros")
+    postseason = models.BooleanField(default=False, verbose_name="Postemporada")
+
+    # Qualifier cascade, level 2 (optional per-metric override). A simple formula on aggregated
+    # columns, e.g. "PA>=502". Blank = inherit the group default (`QualifierDefault`, level 1);
+    # a season may still override it (`QualifierSeasonOverride`, level 3). Counts need no threshold.
+    qualifier_season = models.CharField(
+        max_length=100, blank=True, verbose_name="Umbral propio (temporada)", help_text="Vacío = hereda el del grupo."
+    )
+    qualifier_career = models.CharField(
+        max_length=100, blank=True, verbose_name="Umbral propio (carrera)", help_text="Vacío = hereda el del grupo."
+    )
+
+    available_from = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="Disponible desde", help_text="Primer año con dato (métricas nuevas)."
+    )
+
+    abbrev = models.CharField(max_length=40, blank=True, verbose_name="Abreviatura")
+    name_es = models.CharField(max_length=80, blank=True, verbose_name="Nombre")
+    fmt = models.CharField(max_length=10, blank=True, verbose_name="Formato", help_text='Ej. "#.000", "0.00".')
+    sort_order = models.PositiveSmallIntegerField(
+        default=0, verbose_name="Orden", help_text="Orden de despliegue en la UI (menor primero)."
+    )
+    is_active = models.BooleanField(default=False, verbose_name="Activa")
+
+    class Meta:
+        db_table = "dgl_metric"
+        ordering = ["stat_group", "sort_order", "column"]
+        verbose_name = "métrica"
+        verbose_name_plural = "métricas"
+        constraints = [models.UniqueConstraint(fields=["stat_group", "column"], name="unique_metric")]
+
+    def __str__(self) -> str:
+        return f"{self.get_stat_group_display()} · {self.abbrev or self.column}"
+
+
+class QualifierDefault(models.Model):
+    """Qualifier cascade, level 1: the default threshold for a whole stat group.
+
+    One row per group (batting -> PA, pitching -> IP, fielding -> G). Every rate metric of the group
+    inherits this unless it sets its own (`Metric.qualifier_*`, level 2) or a season overrides it
+    (`QualifierSeasonOverride`, level 3). So `PA>=502` is defined once and applies to avg/obp/slg/…
+    """
+
+    stat_group = models.CharField(max_length=10, choices=Metric.Group.choices, unique=True, verbose_name="Grupo")
+    qualifier_season = models.CharField(max_length=100, blank=True, verbose_name="Umbral (temporada)")
+    qualifier_career = models.CharField(max_length=100, blank=True, verbose_name="Umbral (carrera)")
+
+    class Meta:
+        db_table = "dgl_qualifier_default"
+        ordering = ["stat_group"]
+        verbose_name = "umbral por defecto"
+        verbose_name_plural = "umbrales por defecto"
+
+    def __str__(self) -> str:
+        return f"{self.get_stat_group_display()}: {self.qualifier_season or '—'}"
+
+
+class QualifierSeasonOverride(models.Model):
+    """Qualifier cascade, level 3: overrides a group's season threshold for one short season.
+
+    Per `(stat_group, season)`, so one row (e.g. batting/2020 -> PA>=186) applies to every rate
+    metric of the group at once. Only the season threshold is overridden — career spans many seasons.
+    """
+
+    stat_group = models.CharField(max_length=10, choices=Metric.Group.choices, verbose_name="Grupo")
+    season = models.PositiveSmallIntegerField(verbose_name="Temporada")
+    qualifier_season = models.CharField(max_length=100, verbose_name="Umbral (temporada)")
+
+    class Meta:
+        db_table = "dgl_qualifier_season_override"
+        ordering = ["-season", "stat_group"]
+        verbose_name = "override de umbral por temporada"
+        verbose_name_plural = "overrides de umbral por temporada"
+        constraints = [models.UniqueConstraint(fields=["stat_group", "season"], name="unique_group_season_qualifier")]
+
+    def __str__(self) -> str:
+        return f"{self.get_stat_group_display()} {self.season}: {self.qualifier_season}"
+
+
+class Leader(models.Model):
+    """One precomputed leaderboard row. Rebuilt from scratch by `build_leaders`.
+
+    A row belongs to a (metric, board, season?, fielding_pos?) leaderboard and gives a player's
+    value and dense rank within it. Dimensions:
+      * `board`   — best/worst x season/career (from the metric's calc flags).
+      * `season`  — the season for a *season* board; NULL for a *career* board.
+      * `fielding_pos` — the position for a fielding board (LF, CF, 1B…); NULL for batting/pitching.
+    So "PutOuts leaders for LF in 2020" = (metric=po, board=best_season, season=2020, pos=LF).
+    """
+
+    class Board(models.TextChoices):
+        BEST_SEASON = "best_season", "Mejores temporadas"
+        WORST_SEASON = "worst_season", "Peores temporadas"
+        BEST_CAREER = "best_career", "Mejores carreras"
+        WORST_CAREER = "worst_career", "Peores carreras"
+
+    metric = models.ForeignKey(Metric, on_delete=models.CASCADE, related_name="leaders", verbose_name="Métrica")
+    board = models.CharField(max_length=12, choices=Board.choices, verbose_name="Tablero")
+    season = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Temporada")
+    fielding_pos = models.CharField(max_length=2, null=True, blank=True, verbose_name="Posición")
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="leaderships", verbose_name="Jugador")
+    value = models.FloatField(verbose_name="Valor")
+    rank = models.PositiveIntegerField(verbose_name="Rango")
+
+    class Meta:
+        db_table = "dgl_leader"
+        ordering = ["metric", "board", "season", "fielding_pos", "rank"]
+        verbose_name = "líder"
+        verbose_name_plural = "líderes"
+        indexes = [
+            # The read pattern is "one leaderboard": fix metric/board/season/pos, order by rank.
+            models.Index(fields=["metric", "board", "season", "fielding_pos", "rank"], name="dgl_leader_board_idx"),
+        ]
+
+    def __str__(self) -> str:
+        where = self.season if self.season else "carrera"
+        pos = f" {self.fielding_pos}" if self.fielding_pos else ""
+        return f"{self.metric.abbrev}{pos} {where} #{self.rank}: {self.player}"
