@@ -145,9 +145,11 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* Numbers right-aligned (tabular); the first column (Temporada / Team) stays left. */
 .dgl-stats-table th, .dgl-stats-table td { text-align: right; }
 .dgl-stats-table th:first-child, .dgl-stats-table td:first-child { text-align: left; }
-/* Leadership marks: wine = led that season, deep blue = all-time (career) leader. */
-.lead-season { color: #9b2242; font-weight: 800; }
+/* Highlights, in order of importance: deep blue = all-time (career) leader, wine = led that season,
+   black bold = the player's own career-high for that stat. */
 .lead-career { color: #0f52ba; font-weight: 800; }
+.lead-season { color: #9b2242; font-weight: 800; }
+.lead-best { color: #111; font-weight: 800; }
 
 /* ---------- Player page ---------- */
 .dgl-player-hero {

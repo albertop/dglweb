@@ -9,6 +9,8 @@ URL and the other tabs are untouched.
 
 from typing import Any
 
+from django.db import models
+
 from dglweb.players.models import Player
 from dglweb.stats.models import (
     Batting,
@@ -43,6 +45,43 @@ def _leaderships(player: Player, group: str) -> tuple[set[tuple[int, str]], set[
     }
     career = {row.metric.column for row in marks if row.board == Leader.Board.BEST_CAREER}
     return season, career
+
+
+_NOT_A_STAT = {"season", "stint", "age"}
+
+
+def _personal_bests(model: type[models.Model], seasons: list[Any]) -> set[tuple[int, str]]:
+    """Per numeric column, the season(s) holding the player's own career-high (his `más alto`)."""
+    columns = [
+        field.name
+        for field in model._meta.fields
+        if isinstance(field, models.IntegerField | models.FloatField) and field.name not in _NOT_A_STAT
+    ]
+    best: set[tuple[int, str]] = set()
+    for column in columns:
+        values = [(row.season, getattr(row, column)) for row in seasons if getattr(row, column) is not None]
+        if values:
+            top = max(value for _, value in values)
+            best |= {(season, column) for season, value in values if value == top}
+    return best
+
+
+def _season_highlights(
+    model: type[models.Model], seasons: list[Any], season_leads: set[tuple[int, str]]
+) -> list[tuple[Any, dict[str, str]]]:
+    """(row, {column: css class}). Priority: season leader (wine) > personal career-high (black bold)."""
+    best = _personal_bests(model, seasons)
+    rows = []
+    for row in seasons:
+        classes: dict[str, str] = {}
+        for season, column in season_leads:
+            if season == row.season:
+                classes[column] = "lead-season"
+        for season, column in best:
+            if season == row.season and column not in classes:
+                classes[column] = "lead-best"
+        rows.append((row, classes))
+    return rows
 
 
 class PlayerTab:
@@ -80,8 +119,8 @@ class BattingTab(PlayerTab):
         season_leads, career_leads = _leaderships(player, "batting")
         career = list(BattingCareer.objects.filter(player=player).order_by("sort_order"))
         return {
-            # (row, {column: css class}) so a cell can mark itself as a season leader (wine).
-            "rows": [(s, {col: "lead-season" for (yr, col) in season_leads if yr == s.season}) for s in seasons],
+            # (row, {column: css class}): season leader (wine) > personal career-high (black).
+            "rows": _season_highlights(Batting, seasons, season_leads),
             "total": next((row for row in career if row.level == CareerLevel.TOTAL), None),
             "total_leads": {col: "lead-career" for col in career_leads},  # blue on the career row
             "teams": [row for row in career if row.level == CareerLevel.TEAM],
