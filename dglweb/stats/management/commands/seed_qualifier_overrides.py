@@ -23,10 +23,11 @@ _FULL_SCHEDULE = 162
 
 # Team games for each short season (stated explicitly; editable in the Backoffice).
 _SHORT_SEASONS: dict[int, int] = {
-    1956: 154,  # 154-game era (leaders start in 1956)
+    1956: 154,  # 154-game era (leaders start in 1956; 1961 was mixed by league -> games table, backlog)
     1957: 154,
     1958: 154,
     1959: 154,
+    1960: 154,
     1981: 107,  # players' strike (approx.)
     1994: 114,  # players' strike (approx.)
     2020: 60,  # pandemic

@@ -9,12 +9,15 @@ Evaluation is a *safe* parse of a simple formula ``FIELD OP NUMBER`` (e.g. ``PA>
 is derived from the canonical ``outs`` (never the baseball-notation ``ip``).
 """
 
+import logging
 import operator
-import re
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from dglweb.stats.formula import QUALIFIER_RE
 from dglweb.stats.models import Metric
+
+logger = logging.getLogger(__name__)
 
 _OPS: dict[str, Callable[[float, float], bool]] = {
     ">=": operator.ge,
@@ -23,7 +26,6 @@ _OPS: dict[str, Callable[[float, float], bool]] = {
     "<": operator.lt,
     "=": operator.eq,
 }
-_FORMULA = re.compile(r"^\s*([A-Za-z_]+)\s*(>=|<=|>|<|=)\s*(\d+(?:\.\d+)?)\s*$")
 
 # Lookups the engine preloads once and passes in, to avoid a query per row.
 Defaults = Mapping[str, tuple[str, str]]  # group -> (season formula, career formula)
@@ -56,10 +58,19 @@ def _field_value(group: str, field: str, row: Mapping[str, Any]) -> float | None
 
 
 def qualifies(formula: str, group: str, row: Mapping[str, Any]) -> bool:
-    """True if the row clears the threshold. A blank/unparseable formula qualifies everyone."""
-    match = _FORMULA.match(formula or "")
-    if match is None:
+    """True if the row clears the threshold.
+
+    A **blank** formula means *no threshold* (everyone qualifies). A non-blank but **unparseable**
+    formula is fail-**closed**: it qualifies no one, so a typo publishes an empty board rather than an
+    unfiltered one. (Forms reject invalid formulas via `validate_qualifier_formula`; this is defense
+    in depth for anything that reaches the builder anyway.)
+    """
+    if not formula.strip():
         return True
+    match = QUALIFIER_RE.match(formula)
+    if match is None:
+        logger.warning("Fórmula de umbral inválida %r: no califica a nadie (fail-closed).", formula)
+        return False
     field, op, threshold = match.group(1), match.group(2), float(match.group(3))
     value = _field_value(group, field, row)
     if value is None:

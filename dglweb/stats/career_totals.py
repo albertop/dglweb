@@ -37,13 +37,15 @@ _KEY_FIELDS = {"id", "player", "player_id", "level", "team", "league", "pos", "s
 _SORT_BASE = {"team": 100, "league": 200, "position": 100, "total": 300}
 
 
-def _stat_fields(career_model: type[models.Model]) -> tuple[list[str], list[str]]:
+def _stat_fields(group: str, career_model: type[models.Model]) -> tuple[list[str], list[str]]:
+    """(counting columns, rate columns). Additive-float sabermetrics (WAR, UZR…) count, not prorate."""
     counting: list[str] = []
     rates: list[str] = []
     for field in career_model._meta.fields:
         if field.name in _KEY_FIELDS or field.is_relation:
             continue
-        (rates if isinstance(field, models.FloatField) else counting).append(field.name)
+        is_rate = isinstance(field, models.FloatField) and (group, field.name) not in career_rate.CUMULATIVE_FLOATS
+        (rates if is_rate else counting).append(field.name)
     return counting, rates
 
 
@@ -88,7 +90,7 @@ def _stats(bucket: dict[str, Any], group: str, rates: list[str]) -> dict[str, An
 
 
 def _build_batting_pitching(group: str, career_model: type[models.Model], season_model: type[models.Model]) -> int:
-    counting, rates = _stat_fields(career_model)
+    counting, rates = _stat_fields(group, career_model)
     weight_col = career_rate.WEIGHT[group]
     order_col = "pa" if group == "batting" else "bf"  # the pitcher's PA is bf
     columns = list(dict.fromkeys(["player_id", "team", "league", *counting, *rates]))
@@ -152,7 +154,7 @@ def _build_batting_pitching(group: str, career_model: type[models.Model], season
 
 def _build_fielding() -> int:
     group = "fielding"
-    counting, rates = _stat_fields(FieldingCareer)
+    counting, rates = _stat_fields(group, FieldingCareer)
     weight_col = career_rate.WEIGHT[group]
     columns = list(dict.fromkeys(["player_id", "pos", *counting, *rates]))
 

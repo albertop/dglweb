@@ -46,6 +46,32 @@ COMPONENTS: dict[str, tuple[str, ...]] = {
 # The playing-time weight column used both to prorate and to test the qualifier.
 WEIGHT: dict[str, str] = {"batting": "pa", "pitching": "outs", "fielding": "gp"}
 
+# Floats that are ADDITIVE (runs/wins above average), not rates: their career value is the SUM over
+# seasons, never a prorated average. Rates/indexes/scores (wOBA, wRC+, SPD, FIP-, ERA-, LI) are not
+# here. Curated with the owner (review v2, SAB-03).
+CUMULATIVE_FLOATS: frozenset[tuple[str, str]] = frozenset(
+    [
+        ("batting", column)
+        for column in (
+            "w_raa",
+            "w_rc",
+            "rar",
+            "war",
+            "ubr",
+            "w_gdp",
+            "w_sb",
+            "positional_adj",
+            "w_league",
+            "batting",
+            "fielding",
+            "base_running",
+            "replacement",
+        )
+    ]
+    + [("pitching", column) for column in ("rar", "war", "ra9_war")]
+    + [("fielding", "uzr")]
+)
+
 
 def _div(numerator: float | None, denominator: float | None) -> float | None:
     return None if numerator is None or not denominator else numerator / denominator

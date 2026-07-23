@@ -171,6 +171,42 @@ def test_only_active_metrics_produce_leaders(players: dict[str, Player]) -> None
 
 
 @pytest.mark.django_db
+def test_innings_leader_value_is_innings_not_raw_outs(players: dict[str, Player]) -> None:
+    # SAB-02: the "IP" board ranks `outs`, but the published value must be innings (outs/3).
+    Pitching.objects.create(player=players["a"], season=2019, stint=1, outs=486)  # 162 IP
+    metric = _metric(stat_group="pitching", column="outs", best_season=True)
+
+    build_leaders()
+
+    assert Leader.objects.get(metric=metric, board="best_season", season=2019).value == 162.0
+
+
+@pytest.mark.django_db
+def test_rate_ties_by_displayed_precision(players: dict[str, Player]) -> None:
+    # SAB-06: two AVGs that both display .300 must tie, not split on a 1e-5 float difference.
+    Batting.objects.create(player=players["a"], season=2019, stint=1, avg=0.29997, pa=600)
+    Batting.objects.create(player=players["b"], season=2019, stint=1, avg=0.30003, pa=600)
+    metric = _metric(stat_group="batting", column="avg", kind=Metric.Kind.RATE, best_season=True, fmt="#.000")
+
+    build_leaders()
+
+    ranks = {row.player_id: row.rank for row in Leader.objects.filter(metric=metric, board="best_season")}
+    assert ranks == {1: 1, 2: 1}  # both .300 -> rank 1
+
+
+@pytest.mark.django_db
+def test_cumulative_sabermetric_career_sums_not_prorates(players: dict[str, Player]) -> None:
+    # SAB-03: career WAR = sum of seasonal WAR (5 + 6 = 11), not an IP-weighted average.
+    Batting.objects.create(player=players["a"], season=2018, stint=1, war=5.0, pa=600)
+    Batting.objects.create(player=players["a"], season=2019, stint=1, war=6.0, pa=600)
+    metric = _metric(stat_group="batting", column="war", kind=Metric.Kind.CUMULATIVE, best_career=True)
+
+    build_leaders()
+
+    assert Leader.objects.get(metric=metric, board="best_career").value == 11.0
+
+
+@pytest.mark.django_db
 def test_build_leaders_command_is_recorded_in_the_ingest_log(players: dict[str, Player]) -> None:
     """The scheduled job logs to the bitácora, like the daily refreshers."""
     Batting.objects.create(player=players["a"], season=2019, stint=1, hr=40)

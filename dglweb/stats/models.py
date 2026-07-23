@@ -27,6 +27,7 @@ from django.db import models
 from django.db.models import Exists, OuterRef, Q
 
 from dglweb.players.models import Player
+from dglweb.stats.formula import validate_qualifier_formula
 
 _M = TypeVar("_M", bound=models.Model)
 
@@ -737,16 +738,27 @@ class Metric(models.Model):
     worst_career = models.BooleanField(default=False, verbose_name="Peores carreras")
 
     exclude_zeros = models.BooleanField(default=False, verbose_name="Excluir ceros")
-    postseason = models.BooleanField(default=False, verbose_name="Postemporada")
+    # Reserved: `build_leaders` does not yet produce postseason boards (they will read the *_post
+    # tables in a later phase). The flag is captured now from the source config; setting it has no
+    # effect until that dimension exists. See docs/MEJORAS_FUTURAS.md.
+    postseason = models.BooleanField(default=False, verbose_name="Postemporada (reservado)")
 
     # Qualifier cascade, level 2 (optional per-metric override). A simple formula on aggregated
     # columns, e.g. "PA>=502". Blank = inherit the group default (`QualifierDefault`, level 1);
     # a season may still override it (`QualifierSeasonOverride`, level 3). Counts need no threshold.
     qualifier_season = models.CharField(
-        max_length=100, blank=True, verbose_name="Umbral propio (temporada)", help_text="Vacío = hereda el del grupo."
+        max_length=100,
+        blank=True,
+        verbose_name="Umbral propio (temporada)",
+        help_text="Vacío = hereda el del grupo.",
+        validators=[validate_qualifier_formula],
     )
     qualifier_career = models.CharField(
-        max_length=100, blank=True, verbose_name="Umbral propio (carrera)", help_text="Vacío = hereda el del grupo."
+        max_length=100,
+        blank=True,
+        verbose_name="Umbral propio (carrera)",
+        help_text="Vacío = hereda el del grupo.",
+        validators=[validate_qualifier_formula],
     )
 
     available_from = models.PositiveSmallIntegerField(
@@ -781,8 +793,12 @@ class QualifierDefault(models.Model):
     """
 
     stat_group = models.CharField(max_length=10, choices=Metric.Group.choices, unique=True, verbose_name="Grupo")
-    qualifier_season = models.CharField(max_length=100, blank=True, verbose_name="Umbral (temporada)")
-    qualifier_career = models.CharField(max_length=100, blank=True, verbose_name="Umbral (carrera)")
+    qualifier_season = models.CharField(
+        max_length=100, blank=True, verbose_name="Umbral (temporada)", validators=[validate_qualifier_formula]
+    )
+    qualifier_career = models.CharField(
+        max_length=100, blank=True, verbose_name="Umbral (carrera)", validators=[validate_qualifier_formula]
+    )
 
     class Meta:
         db_table = "dgl_qualifier_default"
@@ -803,7 +819,9 @@ class QualifierSeasonOverride(models.Model):
 
     stat_group = models.CharField(max_length=10, choices=Metric.Group.choices, verbose_name="Grupo")
     season = models.PositiveSmallIntegerField(verbose_name="Temporada")
-    qualifier_season = models.CharField(max_length=100, verbose_name="Umbral (temporada)")
+    qualifier_season = models.CharField(
+        max_length=100, verbose_name="Umbral (temporada)", validators=[validate_qualifier_formula]
+    )
 
     class Meta:
         db_table = "dgl_qualifier_season_override"
@@ -849,6 +867,16 @@ class Leader(models.Model):
         indexes = [
             # The read pattern is "one leaderboard": fix metric/board/season/pos, order by rank.
             models.Index(fields=["metric", "board", "season", "fielding_pos", "rank"], name="dgl_leader_board_idx"),
+        ]
+        constraints = [
+            # One row per player per board. `nulls_distinct=False` so career boards (season NULL) and
+            # non-fielding boards (fielding_pos NULL) are still deduped. Backstop against a concurrent
+            # rebuild (which also takes an advisory lock in build_leaders).
+            models.UniqueConstraint(
+                fields=["metric", "board", "season", "fielding_pos", "player"],
+                name="unique_leader",
+                nulls_distinct=False,
+            )
         ]
 
     def __str__(self) -> str:

@@ -133,6 +133,18 @@ def test_fielding_career_excludes_dh() -> None:
 
 
 @pytest.mark.django_db
+def test_career_total_sums_cumulative_sabermetrics() -> None:
+    # SAB-03: WAR is a cumulative float — career total sums it (5 + 6 = 11), not prorates.
+    player = _player(1, "a01")
+    Batting.objects.create(player=player, season=2018, stint=1, team="BOS", league="AL", war=5.0, pa=600)
+    Batting.objects.create(player=player, season=2019, stint=1, team="BOS", league="AL", war=6.0, pa=600)
+
+    build_career_totals()
+
+    assert BattingCareer.objects.get(player=player, level=CareerLevel.TOTAL).war == 11.0
+
+
+@pytest.mark.django_db
 def test_build_career_totals_command_is_recorded_in_the_ingest_log(batter: Player) -> None:
     call_command("build_career_totals")
 

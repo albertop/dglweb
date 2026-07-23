@@ -29,9 +29,17 @@ después. Cada una con el contexto suficiente para retomarla sin la conversació
   (el sitio viejo lo tenía en `dgl_lideres_seasons_resumen`). Diferido: es feature de UI, el foco fue
   el engine. Derivable de `dgl_leader`.
 
-- **`uzr` mal clasificado como tasa.** UZR es acumulativo (runs sobre el promedio), pero el heurístico
-  `Float→PRO` lo marcó como tasa. En carrera se prorratea (aproximado) cuando debería sumarse. Ajuste
-  de metadata en `dgl_metric` (o un tipo "float acumulable").
+- **Boards de postemporada** (DEV-03). El flag `Metric.postseason` ya se guarda pero `build_leaders`
+  no genera líderes de postemporada. Falta extender el motor para leer `BattingPost/PitchingPost/
+  FieldingPost` y añadir la dimensión regular-vs-post a `Leader` sin mezclar contextos.
+- **`parity_career`: refinar la comparación de `g`** (Fase 4). El proxy `career` reporta un `g` que
+  no cuadra con su propio `yearByYear` para pitchers (cuenta juegos-lanzados en la línea de hitting),
+  generando ~298 falsos positivos. Quitar `g` de las columnas comparadas o comparar contra el
+  `yearByYear` sumado. Nuestros totales son correctos.
+- **Paridad de fildeo de carrera** (`parity_career` v2): comparar por posición contra los splits de
+  fielding del proxy (sumando, excluyendo DH).
+- **DEV-05 — `build_leaders` re-escanea por métrica.** No es bug; escalamiento. Agrupar por
+  `stat_group` y traer las columnas una vez por grupo/posición, o materializar season-totals.
 
 ## Producción / hardening (del code review v1)
 

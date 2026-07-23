@@ -6,11 +6,14 @@ dominicano** (carrera + temporada) + páginas de jugador, sobre el backfill hist
 ## Dónde vamos (2026-07-23)
 - **4a Backfill** ✅ — 1920-2025 en 10.0.0.39 (6 tablas).
 - **4b Motor de líderes** ✅ — `dgl_metric` + cascada de umbrales + `build_leaders`/`dgl_leader`
-  (conteos, tasas temporada+carrera, fildeo por posición), agendado en Ofelia. Commits hasta `1643c8e`.
-- **PAUSA (aquí):** antes de 4c, investigar **totales de carrera por jugador** — ¿sacarlos del proxy
-  (endpoint career) o computarlos in-house sumando nuestras tablas por temporada? El dueño quiere ver
-  qué ofrece el proxy primero.
-- **Pendiente:** tabla de games (temporada en curso), 4c páginas de jugador, 4d páginas de líderes.
+  (conteos, tasas temporada+carrera, fildeo por posición), agendado en Ofelia.
+- **4b-bis Totales de carrera** ✅ — `mlb_*_career` con subtotales (equipo/liga/total bat-pit;
+  posición/total fildeo), `level`+`sort_order`, DH excluido. `parity_career` (loop-safe opción "b",
+  marcador `CareerParityIssue`) verifica vs el proxy; agendado semanal. Commits hasta `8e4d3b6`.
+- **AQUÍ (paréntesis):** revisando `docs/reviews/code_review_v2.md` (nuevos findings) antes de seguir.
+  Corriendo la primera paridad real contra 10.0.0.39.
+- **Pendiente Fase 4:** paridad de fildeo (por posición), tabla de games (temporada en curso),
+  4c páginas de jugador, 4d páginas de líderes. Backlog en `docs/MEJORAS_FUTURAS.md`.
 
 ## Decisiones cerradas
 - **Backfill desde el proxy** (no copiar de SQL Server): reproduce nuestro schema con todas las

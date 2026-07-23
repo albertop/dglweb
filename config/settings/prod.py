@@ -16,5 +16,10 @@ CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = env.int("DJANGO_HSTS_SECONDS", default=31536000)
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
+# The proxy is the only upstream data source: require it in prod (base.py keeps dev-only defaults),
+# so a missing URL/key fails loud at startup instead of at 6am when the first scraper runs.
+MLB_PROXY_URL = env("MLB_PROXY_URL")
+MLB_PROXY_API_KEY = env("MLB_PROXY_API_KEY")
+
 # Static files: hashed + compressed manifest (run `collectstatic` at build/deploy).
 STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStaticFilesStorage"

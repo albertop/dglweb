@@ -15,6 +15,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import models, transaction
 
+from dglweb.stats import career_rate
 from dglweb.stats.models import Batting, Fielding, Metric, Pitching, QualifierDefault
 
 # (neg, best_season, worst_season, best_career, worst_career, exclude_zeros, postseason, active)
@@ -139,7 +140,7 @@ _ALIAS: dict[tuple[str, str], str] = {
     ("fielding", "gp"): "G",
     ("fielding", "fld_pct"): "PCT",
     ("fielding", "double_plays"): "DP",
-    ("fielding", "innings_outs"): "InnOuts",
+    ("fielding", "innings_outs"): "Inn",  # the active innings board (InnOuts was inactive in the source)
     ("fielding", "passed_balls"): "PB",
     ("fielding", "wild_pitches"): "WP",
     ("fielding", "pickoffs"): "pickOffs",
@@ -298,7 +299,10 @@ def _rows() -> list[dict[str, Any]]:
             if field.name in excluded:
                 continue
             if isinstance(field, models.FloatField):
-                kind = Metric.Kind.RATE
+                # Most floats are rates, but additive sabermetrics (WAR, RAR, UZR…) are cumulative.
+                kind = (
+                    Metric.Kind.CUMULATIVE if (group, field.name) in career_rate.CUMULATIVE_FLOATS else Metric.Kind.RATE
+                )
             elif isinstance(field, models.IntegerField):
                 kind = Metric.Kind.CUMULATIVE
             else:

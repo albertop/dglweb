@@ -60,6 +60,32 @@ def test_seed_applies_the_leaderboard_config(seeded: None) -> None:
 
 
 @pytest.mark.django_db
+def test_seed_marks_additive_sabermetrics_as_cumulative(seeded: None) -> None:
+    # SAB-03: WAR/UZR are floats but ADDITIVE — they must sum over a career, not prorate.
+    assert Metric.objects.get(stat_group="batting", column="war").kind == Metric.Kind.CUMULATIVE
+    assert Metric.objects.get(stat_group="fielding", column="uzr").kind == Metric.Kind.CUMULATIVE
+    assert Metric.objects.get(stat_group="batting", column="woba").kind == Metric.Kind.RATE  # a true rate
+
+
+def test_invalid_qualifier_formula_is_rejected() -> None:
+    from django.core.exceptions import ValidationError
+
+    from dglweb.stats.formula import validate_qualifier_formula
+
+    validate_qualifier_formula("PA>=502")  # valid
+    validate_qualifier_formula("")  # blank = no threshold, allowed
+    with pytest.raises(ValidationError):
+        validate_qualifier_formula("PA mayor que 502")  # typo -> rejected, not fail-open
+
+
+def test_qualifies_is_fail_closed_on_an_invalid_formula() -> None:
+    from dglweb.stats.qualifier import qualifies
+
+    assert qualifies("", "batting", {"pa": 10}) is True  # blank = everyone (no threshold)
+    assert qualifies("basura!!", "batting", {"pa": 10}) is False  # invalid = no one (fail-closed)
+
+
+@pytest.mark.django_db
 def test_seed_leaves_metric_qualifiers_blank_to_inherit_the_group_default(seeded: None) -> None:
     # Level 2 is blank by default: rate metrics inherit the group default (level 1), no duplication.
     assert Metric.objects.get(stat_group="batting", column="avg").qualifier_season == ""
@@ -135,11 +161,11 @@ def test_override_seed_prorates_the_group_default_for_short_seasons(seeded: None
 def test_override_seed_is_compact_and_idempotent(seeded: None) -> None:
     call_command("seed_qualifier_overrides")
 
-    # 3 groups x 7 short seasons = 21 rows — not one per metric.
-    assert QualifierSeasonOverride.objects.count() == 21
+    # 3 groups x 8 short seasons = 24 rows — not one per metric.
+    assert QualifierSeasonOverride.objects.count() == 24
 
     call_command("seed_qualifier_overrides")  # re-run
-    assert QualifierSeasonOverride.objects.count() == 21
+    assert QualifierSeasonOverride.objects.count() == 24
 
 
 @pytest.mark.django_db
@@ -147,7 +173,7 @@ def test_override_seed_covers_exactly_the_short_seasons(seeded: None) -> None:
     call_command("seed_qualifier_overrides")
 
     seasons = set(QualifierSeasonOverride.objects.values_list("season", flat=True).distinct())
-    assert seasons == {1956, 1957, 1958, 1959, 1981, 1994, 2020}
+    assert seasons == {1956, 1957, 1958, 1959, 1960, 1981, 1994, 2020}
 
 
 # --- Backoffice forms --------------------------------------------------------------------------

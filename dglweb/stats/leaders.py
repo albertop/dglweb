@@ -14,7 +14,7 @@ Value:
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
-from django.db import models, transaction
+from django.db import connection, models, transaction
 
 from dglweb.stats import career_rate, qualifier
 from dglweb.stats.models import (
@@ -27,7 +27,11 @@ from dglweb.stats.models import (
     QualifierSeasonOverride,
 )
 
-FIRST_SEASON = 1956  # leaders exclude the Negro Leagues (pre-1956)
+# Product decision, not a bug: leaderboards start in 1956 and EXCLUDE the Negro Leagues. Those
+# players ARE shown on their player pages (with a coverage note), but they do not participate in
+# comparative leaders — the Negro Leagues' partial coverage would make historical rankings unfair.
+# Do not "fix" this to 1920 without revisiting that decision. See docs/FASE4_PLAN.md.
+FIRST_SEASON = 1956
 _MODEL: dict[str, type[models.Model]] = {"batting": Batting, "pitching": Pitching, "fielding": Fielding}
 
 # (board value, metric flag attribute, is-best, scope)
@@ -38,6 +42,26 @@ _BOARDS: list[tuple[str, str, bool, str]] = [
     (Leader.Board.WORST_CAREER, "worst_career", False, "career"),
 ]
 _BATCH = 2000
+_LOCK_KEY = 8412025  # arbitrary but stable key for the build_leaders advisory lock
+# Columns stored as outs but ranked/displayed as innings: the value is outs/3 (IP = outs/3).
+_INNINGS_COLUMNS = frozenset({"outs", "innings_outs"})
+
+
+def _precision(metric: Metric) -> int:
+    """Decimals to round a rate to — from its display format (`#.000` -> 3), default 3."""
+    fmt = metric.fmt or ""
+    return len(fmt.rsplit(".", 1)[-1]) if "." in fmt else 3
+
+
+def _leader_value(metric: Metric, raw: float) -> float:
+    """The published value: innings (not raw outs) for innings metrics; rates rounded to their
+    displayed precision so two players who show `.300` tie instead of splitting on a 1e-15 float diff.
+    """
+    if metric.column in _INNINGS_COLUMNS:
+        return raw / 3
+    if metric.kind == Metric.Kind.RATE:
+        return round(raw, _precision(metric))
+    return raw
 
 
 def _dense_rank(pairs: Sequence[tuple[int, float]], descending: bool) -> list[tuple[int, float, int]]:
@@ -97,7 +121,7 @@ def _season_leaders(
             formula = qualifier.resolve_season(metric, row["season"], defaults, overrides)
             if not qualifier.qualifies(formula, metric.stat_group, row):
                 continue
-        by_season.setdefault(row["season"], []).append((row["player_id"], float(value)))
+        by_season.setdefault(row["season"], []).append((row["player_id"], _leader_value(metric, float(value))))
 
     leaders: list[Leader] = []
     for season, pairs in by_season.items():
@@ -125,7 +149,7 @@ def _career_leaders(
         if value is None:
             continue
         totals[row["player_id"]] = totals.get(row["player_id"], 0.0) + float(value)
-    pairs = [(pid, v) for pid, v in totals.items() if not (metric.exclude_zeros and v == 0)]
+    pairs = [(pid, _leader_value(metric, v)) for pid, v in totals.items() if not (metric.exclude_zeros and v == 0)]
 
     return [
         Leader(metric=metric, board=board, season=None, fielding_pos=pos, player_id=pid, value=value, rank=rank)
@@ -157,7 +181,7 @@ def _exact_career_rate_leaders(
         value = career_rate.exact_value(metric.stat_group, metric.column, counts)
         if value is None or not qualifier.qualifies(formula, metric.stat_group, counts):
             continue
-        pairs.append((player_id, value))
+        pairs.append((player_id, _leader_value(metric, value)))
     return [
         Leader(metric=metric, board=board, season=None, fielding_pos=pos, player_id=pid, value=value, rank=rank)
         for pid, value, rank in _dense_rank(pairs, descending)
@@ -183,7 +207,7 @@ def _prorated_career_rate_leaders(
     for player_id, (weighted_sum, total_weight) in weighted.items():
         if total_weight == 0 or not qualifier.qualifies(formula, group, {weight_col: total_weight}):
             continue
-        pairs.append((player_id, weighted_sum / total_weight))
+        pairs.append((player_id, _leader_value(metric, weighted_sum / total_weight)))
     return [
         Leader(metric=metric, board=board, season=None, fielding_pos=pos, player_id=pid, value=value, rank=rank)
         for pid, value, rank in _dense_rank(pairs, descending)
@@ -202,6 +226,10 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
     sums_cache: dict[tuple[str, str | None], dict[int, dict[str, Any]]] = {}  # career sums, per (group, pos)
     written = prorated = 0
     with transaction.atomic():
+        # A transaction-scoped advisory lock: a second concurrent build_leaders blocks here until the
+        # first commits, instead of interleaving delete+insert and duplicating rows.
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_LOCK_KEY])
         Leader.objects.all().delete()
         buffer: list[Leader] = []
         for metric in Metric.objects.filter(is_active=True):
