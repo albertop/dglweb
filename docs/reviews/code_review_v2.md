@@ -1,4 +1,4 @@
-# Code Review v1 - dglweb
+# Code Review v2 - dglweb
 
 Fecha: 2026-07-23  
 Proyecto: `C:\Users\aperd\Documents\DGLv2\apps\dglweb`
@@ -36,8 +36,9 @@ lideres probado con rankings, empates, umbrales y tasas de carrera.
 
 Los riesgos actuales ya no son de estilo basico de Python. Estan en dos zonas: configuracion
 operativa que deberia fallar mas temprano, y semantica sabermetrica de los lideres. En especial,
-hay una tension entre el plan de incluir Ligas Negras y el codigo que las excluye de lideratos, y
-hay metricas cuyo tipo no se puede inferir solo por `IntegerField` vs `FloatField`.
+hay una decision de producto sobre excluir Ligas Negras de los lideratos que deberia quedar mas
+visible en la documentacion, y hay metricas cuyo tipo no se puede inferir solo por `IntegerField`
+vs `FloatField`.
 
 ---
 
@@ -132,23 +133,27 @@ pero reducir scans repetidos.
 
 # Persona 2: Experto en beisbol y sabermetria
 
-## Finding SAB-01 - Ligas Negras estan excluidas de lideres aunque el plan dice incluirlas
+## Finding SAB-01 - La exclusion de Ligas Negras en lideres necesita mejor documentacion
 
-Severidad: Alta  
+Severidad: Media  
 Evidencia: `dglweb/stats/leaders.py:5`, `dglweb/stats/leaders.py:30`,
 `dglweb/stats/leaders.py:63-66`, `docs/FASE4_PLAN.md:15`, `docs/FASE4_PLAN.md:60`
 
-El plan de Fase 4 dice que los 7 jugadores de Ligas Negras van incluidos, con nota de cobertura.
-El codigo actual define `FIRST_SEASON = 1956` y filtra todos los leaderboards con
-`season__gte=FIRST_SEASON`, excluyendolos por completo.
+El codigo define `FIRST_SEASON = 1956` y filtra los leaderboards con `season__gte=FIRST_SEASON`,
+lo cual deja fuera las Ligas Negras de los lideres. Si esta es una decision consciente de producto,
+el problema no es el filtro: es que la decision no queda suficientemente explicita en la
+documentacion de Fase 4, donde tambien se habla de incluir esos jugadores en paginas/stats con nota
+de cobertura.
 
-Razonamiento: esto no es solo un detalle tecnico. Para un sitio de dominicanos, omitir a Tetelo
-Vargas y compania de los lideres contradice la decision de producto y borra parte importante del
-contexto historico.
+Razonamiento: sin esa aclaracion, un futuro maintainer puede interpretar `FIRST_SEASON = 1956` como
+un bug o intentar "arreglarlo" metiendo Ligas Negras en los rankings. Tambien el lector/admin
+necesita entender la diferencia entre "incluidos en paginas historicas" y "excluidos de lideres
+comparativos".
 
-Sugerencia: decidir explicitamente: o se cambia el plan para decir que lideres empiezan en 1956, o
-se incluye pre-1956 con flags/notas de cobertura limitada. Si se incluyen, los leaderboards deben
-mostrar `available_from`/nota historica y permitir filtrar eras incompletas.
+Sugerencia: documentar la regla en `FASE4_PLAN.md` y en el docstring/comentario de `FIRST_SEASON`:
+las Ligas Negras se muestran con contexto en paginas de jugador, pero no participan en lideres por
+cobertura incompleta y comparabilidad historica. Si la UI de lideres menciona cobertura, agregar una
+nota breve tipo "Lideres desde 1956; Ligas Negras excluidas de rankings por cobertura parcial".
 
 ## Finding SAB-02 - Los lideres de innings pueden publicar outs crudos o quedar inactivos
 
@@ -259,7 +264,7 @@ desde componentes, no promedia AVG de temporadas, y usa `outs`/`innings_outs` pa
 # Prioridad sugerida
 
 1. Corregir el parser de umbrales para que no falle abierto.
-2. Resolver la decision de Ligas Negras antes de publicar lideres.
+2. Documentar la decision de excluir Ligas Negras de los lideres antes de publicarlos.
 3. Curar `Metric.kind` para sabermetricas acumulativas y arreglar la presentacion de IP/Inn.
 4. Exigir configuracion del proxy en prod y proteger concurrencia de `build_leaders`.
 5. Reemplazar overrides aproximados por juegos reales de equipo cuando el calendario historico este disponible.

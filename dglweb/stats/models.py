@@ -855,3 +855,246 @@ class Leader(models.Model):
         where = self.season if self.season else "carrera"
         pos = f" {self.fielding_pos}" if self.fielding_pos else ""
         return f"{self.metric.abbrev}{pos} {where} #{self.rank}: {self.player}"
+
+
+# --- Career totals --------------------------------------------------------------------------------
+# Materialized per-player career lines, rebuilt by `build_career_totals` from the season tables.
+# In-house is the source of truth (career = the sum of the seasons we show), verified against the
+# proxy's career endpoint by `parity_career`. These sum ALL seasons (Negro Leagues included, unlike
+# leaders). `ip`/`innings` are not stored — derive them from `outs`/`innings_outs` at display.
+
+
+class BattingCareer(models.Model):
+    """A player's career batting line: counts summed over seasons, rates recomputed (derive/prorate)."""
+
+    player = models.OneToOneField(Player, on_delete=models.CASCADE, primary_key=True, db_column="player_id")
+
+    g = models.PositiveIntegerField(null=True, blank=True)
+    pa = models.PositiveIntegerField(null=True, blank=True)
+    ab = models.PositiveIntegerField(null=True, blank=True)
+    r = models.PositiveIntegerField(null=True, blank=True)
+    h = models.PositiveIntegerField(null=True, blank=True)
+    x1b = models.PositiveIntegerField(null=True, blank=True)
+    x2b = models.PositiveIntegerField(null=True, blank=True)
+    x3b = models.PositiveIntegerField(null=True, blank=True)
+    hr = models.PositiveIntegerField(null=True, blank=True)
+    xbh = models.PositiveIntegerField(null=True, blank=True)
+    rbi = models.PositiveIntegerField(null=True, blank=True)
+    sb = models.PositiveIntegerField(null=True, blank=True)
+    cs = models.PositiveIntegerField(null=True, blank=True)
+    bb = models.PositiveIntegerField(null=True, blank=True)
+    so = models.PositiveIntegerField(null=True, blank=True)
+    ibb = models.PositiveIntegerField(null=True, blank=True)
+    nibb = models.PositiveIntegerField(null=True, blank=True)
+    hbp = models.PositiveIntegerField(null=True, blank=True)
+    sh = models.PositiveIntegerField(null=True, blank=True)
+    sf = models.PositiveIntegerField(null=True, blank=True)
+    gidp = models.PositiveIntegerField(null=True, blank=True)
+    pitches = models.PositiveIntegerField(null=True, blank=True)
+    tb = models.PositiveIntegerField(null=True, blank=True)
+    lob = models.PositiveIntegerField(null=True, blank=True)
+    catcher_int = models.PositiveIntegerField(null=True, blank=True)
+    runs_produced = models.PositiveIntegerField(null=True, blank=True)
+    air_outs = models.PositiveIntegerField(null=True, blank=True)
+    ground_outs = models.PositiveIntegerField(null=True, blank=True)
+    fly_outs = models.PositiveIntegerField(null=True, blank=True)
+    pop_outs = models.PositiveIntegerField(null=True, blank=True)
+    line_outs = models.PositiveIntegerField(null=True, blank=True)
+    fly_hits = models.PositiveIntegerField(null=True, blank=True)
+    pop_hits = models.PositiveIntegerField(null=True, blank=True)
+    line_hits = models.PositiveIntegerField(null=True, blank=True)
+    ground_hits = models.PositiveIntegerField(null=True, blank=True)
+    total_swings = models.PositiveIntegerField(null=True, blank=True)
+    swing_and_misses = models.PositiveIntegerField(null=True, blank=True)
+    balls_in_play = models.PositiveIntegerField(null=True, blank=True)
+    walk_offs = models.PositiveIntegerField(null=True, blank=True)
+    roe = models.PositiveIntegerField(null=True, blank=True)
+    gidp_opp = models.PositiveIntegerField(null=True, blank=True)
+
+    avg = models.FloatField(null=True, blank=True)
+    obp = models.FloatField(null=True, blank=True)
+    slg = models.FloatField(null=True, blank=True)
+    ops = models.FloatField(null=True, blank=True)
+    ab_per_hr = models.FloatField(null=True, blank=True)
+    babip = models.FloatField(null=True, blank=True)
+    bb_per_so = models.FloatField(null=True, blank=True)
+    bsr = models.FloatField(null=True, blank=True)
+    eq_avg = models.FloatField(null=True, blank=True)
+    gross_prod_avg = models.FloatField(null=True, blank=True)
+    iso = models.FloatField(null=True, blank=True)
+    pa_per_so = models.FloatField(null=True, blank=True)
+    rc = models.FloatField(null=True, blank=True)
+    total_avg = models.FloatField(null=True, blank=True)
+    woba = models.FloatField(null=True, blank=True)
+    w_raa = models.FloatField(null=True, blank=True)
+    w_rc = models.FloatField(null=True, blank=True)
+    w_rc_plus = models.FloatField(null=True, blank=True)
+    rar = models.FloatField(null=True, blank=True)
+    war = models.FloatField(null=True, blank=True)
+    ubr = models.FloatField(null=True, blank=True)
+    w_gdp = models.FloatField(null=True, blank=True)
+    w_sb = models.FloatField(null=True, blank=True)
+    spd = models.FloatField(null=True, blank=True)
+    positional_adj = models.FloatField(null=True, blank=True)
+    w_league = models.FloatField(null=True, blank=True)
+    batting = models.FloatField(null=True, blank=True)
+    fielding = models.FloatField(null=True, blank=True)
+    base_running = models.FloatField(null=True, blank=True)
+    replacement = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mlb_batting_career"
+        verbose_name = "carrera de bateo"
+        verbose_name_plural = "carreras de bateo"
+
+    def __str__(self) -> str:
+        return f"{self.player} (carrera bateo)"
+
+
+class PitchingCareer(models.Model):
+    """A player's career pitching line. `ip` is derived from `outs` at display."""
+
+    player = models.OneToOneField(Player, on_delete=models.CASCADE, primary_key=True, db_column="player_id")
+
+    w = models.PositiveIntegerField(null=True, blank=True)
+    l = models.PositiveIntegerField(null=True, blank=True)  # noqa: E741
+    g = models.PositiveIntegerField(null=True, blank=True)
+    gp = models.PositiveIntegerField(null=True, blank=True)
+    gs = models.PositiveIntegerField(null=True, blank=True)
+    gf = models.PositiveIntegerField(null=True, blank=True)
+    cg = models.PositiveIntegerField(null=True, blank=True)
+    sho = models.PositiveIntegerField(null=True, blank=True)
+    sv = models.PositiveIntegerField(null=True, blank=True)
+    bsv = models.PositiveIntegerField(null=True, blank=True)
+    hld = models.PositiveIntegerField(null=True, blank=True)
+    h = models.PositiveIntegerField(null=True, blank=True)
+    r = models.PositiveIntegerField(null=True, blank=True)
+    hr = models.PositiveIntegerField(null=True, blank=True)
+    er = models.PositiveIntegerField(null=True, blank=True)
+    bb = models.PositiveIntegerField(null=True, blank=True)
+    ibb = models.PositiveIntegerField(null=True, blank=True)
+    so = models.PositiveIntegerField(null=True, blank=True)
+    hbp = models.PositiveIntegerField(null=True, blank=True)
+    wp = models.PositiveIntegerField(null=True, blank=True)
+    bk = models.PositiveIntegerField(null=True, blank=True)
+    bf = models.PositiveIntegerField(null=True, blank=True)
+    x2b = models.PositiveIntegerField(null=True, blank=True)
+    x3b = models.PositiveIntegerField(null=True, blank=True)
+    x1b = models.PositiveIntegerField(null=True, blank=True)
+    nibb = models.PositiveIntegerField(null=True, blank=True)
+    cs = models.PositiveIntegerField(null=True, blank=True)
+    sb = models.PositiveIntegerField(null=True, blank=True)
+    gidp = models.PositiveIntegerField(null=True, blank=True)
+    pitches = models.PositiveIntegerField(null=True, blank=True)
+    save_opp = models.PositiveIntegerField(null=True, blank=True)
+    outs = models.PositiveIntegerField(null=True, blank=True)
+    ground_outs = models.PositiveIntegerField(null=True, blank=True)
+    air_outs = models.PositiveIntegerField(null=True, blank=True)
+    strikes = models.PositiveIntegerField(null=True, blank=True)
+    inherit_runners = models.PositiveIntegerField(null=True, blank=True)
+    inherit_runners_scored = models.PositiveIntegerField(null=True, blank=True)
+    sh = models.PositiveIntegerField(null=True, blank=True)
+    sf = models.PositiveIntegerField(null=True, blank=True)
+    pickoffs = models.PositiveIntegerField(null=True, blank=True)
+    tb = models.PositiveIntegerField(null=True, blank=True)
+    catcher_int = models.PositiveIntegerField(null=True, blank=True)
+    bequeathed_runners = models.PositiveIntegerField(null=True, blank=True)
+    bequeathed_runners_scored = models.PositiveIntegerField(null=True, blank=True)
+    quality_starts = models.PositiveIntegerField(null=True, blank=True)
+    gidp_opp = models.PositiveIntegerField(null=True, blank=True)
+    total_swings = models.PositiveIntegerField(null=True, blank=True)
+    swing_and_misses = models.PositiveIntegerField(null=True, blank=True)
+    balls_in_play = models.PositiveIntegerField(null=True, blank=True)
+    run_support = models.PositiveIntegerField(null=True, blank=True)
+    sd = models.PositiveIntegerField(null=True, blank=True)
+    md = models.PositiveIntegerField(null=True, blank=True)
+    ab = models.PositiveIntegerField(null=True, blank=True)
+    sh_fail = models.PositiveIntegerField(null=True, blank=True)
+    sh_missed = models.PositiveIntegerField(null=True, blank=True)
+
+    era = models.FloatField(null=True, blank=True)
+    avg = models.FloatField(null=True, blank=True)
+    obp = models.FloatField(null=True, blank=True)
+    slg = models.FloatField(null=True, blank=True)
+    ops = models.FloatField(null=True, blank=True)
+    sb_pct = models.FloatField(null=True, blank=True)
+    baa = models.FloatField(null=True, blank=True)
+    whip = models.FloatField(null=True, blank=True)
+    win_pct = models.FloatField(null=True, blank=True)
+    r_per9 = models.FloatField(null=True, blank=True)
+    runs_scored_per9 = models.FloatField(null=True, blank=True)
+    babip = models.FloatField(null=True, blank=True)
+    so_per9 = models.FloatField(null=True, blank=True)
+    bb_per9 = models.FloatField(null=True, blank=True)
+    hr_per9 = models.FloatField(null=True, blank=True)
+    h_per9 = models.FloatField(null=True, blank=True)
+    so_to_bb = models.FloatField(null=True, blank=True)
+    strike_pct = models.FloatField(null=True, blank=True)
+    pitches_per_inning = models.FloatField(null=True, blank=True)
+    pitches_per_pa = models.FloatField(null=True, blank=True)
+    walks_per_pa = models.FloatField(null=True, blank=True)
+    so_per_pa = models.FloatField(null=True, blank=True)
+    bb_per_so = models.FloatField(null=True, blank=True)
+    iso = models.FloatField(null=True, blank=True)
+    fip = models.FloatField(null=True, blank=True)
+    xfip = models.FloatField(null=True, blank=True)
+    fip_minus = models.FloatField(null=True, blank=True)
+    ra9_war = models.FloatField(null=True, blank=True)
+    rar = models.FloatField(null=True, blank=True)
+    war = models.FloatField(null=True, blank=True)
+    p_li = models.FloatField(null=True, blank=True)
+    in_li = models.FloatField(null=True, blank=True)
+    gm_li = models.FloatField(null=True, blank=True)
+    ex_li = models.FloatField(null=True, blank=True)
+    era_minus = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mlb_pitching_career"
+        verbose_name = "carrera de pitcheo"
+        verbose_name_plural = "carreras de pitcheo"
+
+    def __str__(self) -> str:
+        return f"{self.player} (carrera pitcheo)"
+
+
+class FieldingCareer(models.Model):
+    """A player's career fielding line **per position** (career is per position, like the season table).
+
+    `innings` is derived from `innings_outs` at display.
+    """
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column="player_id")
+    pos = models.CharField(max_length=2)
+    pk = models.CompositePrimaryKey("player", "pos")
+
+    gp = models.PositiveIntegerField(null=True, blank=True)
+    gs = models.PositiveIntegerField(null=True, blank=True)
+    a = models.PositiveIntegerField(null=True, blank=True)
+    po = models.PositiveIntegerField(null=True, blank=True)
+    e = models.PositiveIntegerField(null=True, blank=True)
+    chances = models.PositiveIntegerField(null=True, blank=True)
+    innings_outs = models.PositiveIntegerField(null=True, blank=True)
+    double_plays = models.PositiveIntegerField(null=True, blank=True)
+    triple_plays = models.PositiveIntegerField(null=True, blank=True)
+    throwing_errors = models.PositiveIntegerField(null=True, blank=True)
+    passed_balls = models.PositiveIntegerField(null=True, blank=True)
+    catcher_int = models.PositiveIntegerField(null=True, blank=True)
+    wild_pitches = models.PositiveIntegerField(null=True, blank=True)
+    pickoffs = models.PositiveIntegerField(null=True, blank=True)
+    stolen_bases = models.PositiveIntegerField(null=True, blank=True)
+    caught_stealing = models.PositiveIntegerField(null=True, blank=True)
+
+    fld_pct = models.FloatField(null=True, blank=True)
+    rf_per_g = models.FloatField(null=True, blank=True)
+    rf_per9 = models.FloatField(null=True, blank=True)
+    catcher_era = models.FloatField(null=True, blank=True)
+    uzr = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        db_table = "mlb_fielding_career"
+        ordering = ["player", "pos"]
+        verbose_name = "carrera de fildeo"
+        verbose_name_plural = "carreras de fildeo"
+
+    def __str__(self) -> str:
+        return f"{self.player} {self.pos} (carrera fildeo)"
