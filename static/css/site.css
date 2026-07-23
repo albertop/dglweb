@@ -142,6 +142,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-stats-table { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .82rem;
   font-variant-numeric: tabular-nums; }
 .dgl-stats-table th { color: var(--dgl-muted); font-weight: 700; }
+/* Numbers right-aligned (tabular); the first column (Temporada / Team) stays left. */
+.dgl-stats-table th, .dgl-stats-table td { text-align: right; }
+.dgl-stats-table th:first-child, .dgl-stats-table td:first-child { text-align: left; }
 
 /* ---------- Player page ---------- */
 .dgl-player-hero {
