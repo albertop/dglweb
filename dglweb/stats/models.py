@@ -862,12 +862,29 @@ class Leader(models.Model):
 # In-house is the source of truth (career = the sum of the seasons we show), verified against the
 # proxy's career endpoint by `parity_career`. These sum ALL seasons (Negro Leagues included, unlike
 # leaders). `ip`/`innings` are not stored — derive them from `outs`/`innings_outs` at display.
+#
+# Each player has SEVERAL rows (subtotals): batting/pitching carry a row per team and per league
+# plus the grand total; fielding a row per position plus the grand total. `level` says which, and
+# `sort_order` (assigned at build time) is the display order the owner asked for: teams first (by
+# PA), then leagues (by PA), then the total; for fielding, positions first (by G) then the total.
+# A surrogate id, not a natural key: these are derived rows rebuilt wholesale, never upserted.
+
+
+class CareerLevel(models.TextChoices):
+    TEAM = "team", "Por equipo"
+    LEAGUE = "league", "Por liga"
+    POSITION = "pos", "Por posición"
+    TOTAL = "total", "Total"
 
 
 class BattingCareer(models.Model):
-    """A player's career batting line: counts summed over seasons, rates recomputed (derive/prorate)."""
+    """A player's career batting subtotals (per team, per league) and grand total."""
 
-    player = models.OneToOneField(Player, on_delete=models.CASCADE, primary_key=True, db_column="player_id")
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column="player_id", related_name="batting_career")
+    level = models.CharField(max_length=6, choices=CareerLevel.choices)
+    team = models.CharField(max_length=3, null=True, blank=True)
+    league = models.CharField(max_length=2, null=True, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
 
     g = models.PositiveIntegerField(null=True, blank=True)
     pa = models.PositiveIntegerField(null=True, blank=True)
@@ -944,17 +961,26 @@ class BattingCareer(models.Model):
 
     class Meta:
         db_table = "mlb_batting_career"
+        ordering = ["player", "sort_order"]
+        indexes = [models.Index(fields=["player", "sort_order"], name="mlb_batting_career_idx")]
         verbose_name = "carrera de bateo"
         verbose_name_plural = "carreras de bateo"
 
     def __str__(self) -> str:
-        return f"{self.player} (carrera bateo)"
+        return f"{self.player} bateo {self.team or self.league or 'total'}"
 
 
 class PitchingCareer(models.Model):
-    """A player's career pitching line. `ip` is derived from `outs` at display."""
+    """A player's career pitching subtotals (per team, per league) and grand total.
 
-    player = models.OneToOneField(Player, on_delete=models.CASCADE, primary_key=True, db_column="player_id")
+    `ip` is derived from `outs` at display; subtotals are ordered by `bf` (the pitcher's PA).
+    """
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column="player_id", related_name="pitching_career")
+    level = models.CharField(max_length=6, choices=CareerLevel.choices)
+    team = models.CharField(max_length=3, null=True, blank=True)
+    league = models.CharField(max_length=2, null=True, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
 
     w = models.PositiveIntegerField(null=True, blank=True)
     l = models.PositiveIntegerField(null=True, blank=True)  # noqa: E741
@@ -1050,22 +1076,25 @@ class PitchingCareer(models.Model):
 
     class Meta:
         db_table = "mlb_pitching_career"
+        ordering = ["player", "sort_order"]
+        indexes = [models.Index(fields=["player", "sort_order"], name="mlb_pitching_career_idx")]
         verbose_name = "carrera de pitcheo"
         verbose_name_plural = "carreras de pitcheo"
 
     def __str__(self) -> str:
-        return f"{self.player} (carrera pitcheo)"
+        return f"{self.player} pitcheo {self.team or self.league or 'total'}"
 
 
 class FieldingCareer(models.Model):
-    """A player's career fielding line **per position** (career is per position, like the season table).
+    """A player's career fielding subtotals per position and the grand total.
 
-    `innings` is derived from `innings_outs` at display.
+    Positions first (by G), then the total. `innings` is derived from `innings_outs` at display.
     """
 
-    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column="player_id")
-    pos = models.CharField(max_length=2)
-    pk = models.CompositePrimaryKey("player", "pos")
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column="player_id", related_name="fielding_career")
+    level = models.CharField(max_length=6, choices=CareerLevel.choices)
+    pos = models.CharField(max_length=2, null=True, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
 
     gp = models.PositiveIntegerField(null=True, blank=True)
     gs = models.PositiveIntegerField(null=True, blank=True)
@@ -1092,9 +1121,10 @@ class FieldingCareer(models.Model):
 
     class Meta:
         db_table = "mlb_fielding_career"
-        ordering = ["player", "pos"]
+        ordering = ["player", "sort_order"]
+        indexes = [models.Index(fields=["player", "sort_order"], name="mlb_fielding_career_idx")]
         verbose_name = "carrera de fildeo"
         verbose_name_plural = "carreras de fildeo"
 
     def __str__(self) -> str:
-        return f"{self.player} {self.pos} (carrera fildeo)"
+        return f"{self.player} fildeo {self.pos or 'total'}"
