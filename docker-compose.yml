@@ -63,7 +63,9 @@ services:
       ofelia.job-exec.pitching-post-daily.command: "python manage.py update_pitching_post"
       ofelia.job-exec.fielding-post-daily.schedule: "0 15 7 * * *"  # 7:15am; a no-op outside Oct/Nov
       ofelia.job-exec.fielding-post-daily.command: "python manage.py update_fielding_post"
-      ofelia.job-exec.prune-log-daily.schedule: "0 30 7 * * *"  # 7:30am; trims the ingest log
+      ofelia.job-exec.build-leaders-daily.schedule: "0 30 7 * * *"  # 7:30am; after every stat refresh
+      ofelia.job-exec.build-leaders-daily.command: "python manage.py build_leaders"
+      ofelia.job-exec.prune-log-daily.schedule: "0 45 7 * * *"  # 7:45am; trims the ingest log, runs last
       ofelia.job-exec.prune-log-daily.command: "python manage.py prune_ingest_log"
 
   # Ofelia: a lean, Docker-native cron. It reads the labels above via the Docker socket and

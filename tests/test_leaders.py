@@ -3,10 +3,11 @@
 from typing import Any
 
 import pytest
+from django.core.management import call_command
 
 from dglweb.players.models import Player
 from dglweb.stats.leaders import build_leaders
-from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching, QualifierDefault
+from dglweb.stats.models import Batting, Fielding, IngestRun, Leader, Metric, Pitching, QualifierDefault
 from tests.test_players import _other_player
 
 
@@ -167,3 +168,16 @@ def test_only_active_metrics_produce_leaders(players: dict[str, Player]) -> None
     build_leaders()
 
     assert Leader.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_build_leaders_command_is_recorded_in_the_ingest_log(players: dict[str, Player]) -> None:
+    """The scheduled job logs to the bitácora, like the daily refreshers."""
+    Batting.objects.create(player=players["a"], season=2019, stint=1, hr=40)
+    _metric(stat_group="batting", column="hr", best_season=True)
+
+    call_command("build_leaders")
+
+    run = IngestRun.objects.get(command="build_leaders")
+    assert run.status == IngestRun.Status.SUCCESS
+    assert run.rows_affected >= 1
