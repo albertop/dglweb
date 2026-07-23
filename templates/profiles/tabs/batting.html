@@ -19,25 +19,33 @@
           <th>AVG</th><th>OBP</th><th>SLG</th><th class="pe-3">OPS</th>
         </tr></thead>
         <tbody>
-          {% for s in d.seasons %}
+          {% for s, leads in d.rows %}
           <tr>
             <td class="ps-3">{{ s.season }}</td><td>{% if s.team == "XXX" %}—{% else %}{{ s.team|default:"—" }}{% endif %}</td>
-            <td>{{ s.age|num }}</td><td>{{ s.g|num }}</td><td>{{ s.pa|num }}</td><td>{{ s.ab|num }}</td><td>{{ s.r|num }}</td>
-            <td>{{ s.h|num }}</td><td>{{ s.x2b|num }}</td><td>{{ s.x3b|num }}</td><td>{{ s.hr|num }}</td><td>{{ s.rbi|num }}</td>
-            <td>{{ s.sb|num }}</td><td>{{ s.cs|num }}</td><td>{{ s.bb|num }}</td><td>{{ s.so|num }}</td><td>{{ s.hbp|num }}</td>
-            <td>{{ s.sh|num }}</td><td>{{ s.sf|num }}</td><td>{{ s.gidp|num }}</td><td>{{ s.avg|rate }}</td><td>{{ s.obp|rate }}</td>
-            <td>{{ s.slg|rate }}</td><td class="pe-3">{{ s.ops|rate }}</td>
+            <td>{{ s.age|num }}</td><td class="{{ leads.g }}">{{ s.g|num }}</td><td class="{{ leads.pa }}">{{ s.pa|num }}</td>
+            <td class="{{ leads.ab }}">{{ s.ab|num }}</td><td class="{{ leads.r }}">{{ s.r|num }}</td><td class="{{ leads.h }}">{{ s.h|num }}</td>
+            <td class="{{ leads.x2b }}">{{ s.x2b|num }}</td><td class="{{ leads.x3b }}">{{ s.x3b|num }}</td><td class="{{ leads.hr }}">{{ s.hr|num }}</td>
+            <td class="{{ leads.rbi }}">{{ s.rbi|num }}</td><td class="{{ leads.sb }}">{{ s.sb|num }}</td><td class="{{ leads.cs }}">{{ s.cs|num }}</td>
+            <td class="{{ leads.bb }}">{{ s.bb|num }}</td><td class="{{ leads.so }}">{{ s.so|num }}</td><td class="{{ leads.hbp }}">{{ s.hbp|num }}</td>
+            <td class="{{ leads.sh }}">{{ s.sh|num }}</td><td class="{{ leads.sf }}">{{ s.sf|num }}</td><td class="{{ leads.gidp }}">{{ s.gidp|num }}</td>
+            <td class="{{ leads.avg }}">{{ s.avg|rate }}</td><td class="{{ leads.obp }}">{{ s.obp|rate }}</td><td class="{{ leads.slg }}">{{ s.slg|rate }}</td>
+            <td class="pe-3 {{ leads.ops }}">{{ s.ops|rate }}</td>
           </tr>
           {% endfor %}
           {% if d.total %}
           <tr style="border-top:2px solid var(--dgl-navy)">
-            <td class="ps-3"><b>{{ d.seasons|length }} temporadas</b></td><td>—</td><td>—</td>
-            <td><b>{{ d.total.g|num }}</b></td><td>{{ d.total.pa|num }}</td><td>{{ d.total.ab|num }}</td><td>{{ d.total.r|num }}</td>
-            <td>{{ d.total.h|num }}</td><td>{{ d.total.x2b|num }}</td><td>{{ d.total.x3b|num }}</td><td><b>{{ d.total.hr|num }}</b></td>
-            <td>{{ d.total.rbi|num }}</td><td>{{ d.total.sb|num }}</td><td>{{ d.total.cs|num }}</td><td>{{ d.total.bb|num }}</td>
-            <td>{{ d.total.so|num }}</td><td>{{ d.total.hbp|num }}</td><td>{{ d.total.sh|num }}</td><td>{{ d.total.sf|num }}</td>
-            <td>{{ d.total.gidp|num }}</td><td><b>{{ d.total.avg|rate }}</b></td><td><b>{{ d.total.obp|rate }}</b></td>
-            <td><b>{{ d.total.slg|rate }}</b></td><td class="pe-3"><b>{{ d.total.ops|rate }}</b></td>
+            <td class="ps-3"><b>{{ d.rows|length }} temporadas</b></td><td>—</td><td>—</td>
+            <td class="{{ d.total_leads.g }}"><b>{{ d.total.g|num }}</b></td><td class="{{ d.total_leads.pa }}">{{ d.total.pa|num }}</td>
+            <td class="{{ d.total_leads.ab }}">{{ d.total.ab|num }}</td><td class="{{ d.total_leads.r }}">{{ d.total.r|num }}</td>
+            <td class="{{ d.total_leads.h }}">{{ d.total.h|num }}</td><td class="{{ d.total_leads.x2b }}">{{ d.total.x2b|num }}</td>
+            <td class="{{ d.total_leads.x3b }}">{{ d.total.x3b|num }}</td><td class="{{ d.total_leads.hr }}"><b>{{ d.total.hr|num }}</b></td>
+            <td class="{{ d.total_leads.rbi }}">{{ d.total.rbi|num }}</td><td class="{{ d.total_leads.sb }}">{{ d.total.sb|num }}</td>
+            <td class="{{ d.total_leads.cs }}">{{ d.total.cs|num }}</td><td class="{{ d.total_leads.bb }}">{{ d.total.bb|num }}</td>
+            <td class="{{ d.total_leads.so }}">{{ d.total.so|num }}</td><td class="{{ d.total_leads.hbp }}">{{ d.total.hbp|num }}</td>
+            <td class="{{ d.total_leads.sh }}">{{ d.total.sh|num }}</td><td class="{{ d.total_leads.sf }}">{{ d.total.sf|num }}</td>
+            <td class="{{ d.total_leads.gidp }}">{{ d.total.gidp|num }}</td><td class="{{ d.total_leads.avg }}"><b>{{ d.total.avg|rate }}</b></td>
+            <td class="{{ d.total_leads.obp }}"><b>{{ d.total.obp|rate }}</b></td><td class="{{ d.total_leads.slg }}"><b>{{ d.total.slg|rate }}</b></td>
+            <td class="pe-3 {{ d.total_leads.ops }}"><b>{{ d.total.ops|rate }}</b></td>
           </tr>
           {% endif %}
         </tbody>
@@ -56,23 +64,28 @@
           <th>wRAA</th><th>wRC</th><th>wGDP</th><th>wSB</th><th>UBR</th><th>SPD</th><th>RAR</th><th>RC</th><th class="pe-3">WAR</th>
         </tr></thead>
         <tbody>
-          {% for s in d.seasons %}
+          {% for s, leads in d.rows %}
           <tr>
             <td class="ps-3">{{ s.season }}</td><td>{% if s.team == "XXX" %}—{% else %}{{ s.team|default:"—" }}{% endif %}</td>
-            <td>{{ s.age|num }}</td><td>{{ s.tb|num }}</td><td>{{ s.iso|rate }}</td><td>{{ s.babip|rate }}</td><td>{{ s.ops|rate }}</td>
-            <td>{{ s.woba|rate }}</td><td>{{ s.w_rc_plus|rate:0 }}</td><td>{{ s.w_raa|dec:1 }}</td><td>{{ s.w_rc|dec:1 }}</td>
-            <td>{{ s.w_gdp|dec:1 }}</td><td>{{ s.w_sb|dec:1 }}</td><td>{{ s.ubr|dec:1 }}</td><td>{{ s.spd|dec:1 }}</td>
-            <td>{{ s.rar|dec:1 }}</td><td>{{ s.rc|dec:1 }}</td><td class="pe-3">{{ s.war|dec:1 }}</td>
+            <td>{{ s.age|num }}</td><td class="{{ leads.tb }}">{{ s.tb|num }}</td><td class="{{ leads.iso }}">{{ s.iso|rate }}</td>
+            <td class="{{ leads.babip }}">{{ s.babip|rate }}</td><td class="{{ leads.ops }}">{{ s.ops|rate }}</td><td class="{{ leads.woba }}">{{ s.woba|rate }}</td>
+            <td class="{{ leads.w_rc_plus }}">{{ s.w_rc_plus|rate:0 }}</td><td class="{{ leads.w_raa }}">{{ s.w_raa|dec:1 }}</td><td class="{{ leads.w_rc }}">{{ s.w_rc|dec:1 }}</td>
+            <td class="{{ leads.w_gdp }}">{{ s.w_gdp|dec:1 }}</td><td class="{{ leads.w_sb }}">{{ s.w_sb|dec:1 }}</td><td class="{{ leads.ubr }}">{{ s.ubr|dec:1 }}</td>
+            <td class="{{ leads.spd }}">{{ s.spd|dec:1 }}</td><td class="{{ leads.rar }}">{{ s.rar|dec:1 }}</td><td class="{{ leads.rc }}">{{ s.rc|dec:1 }}</td>
+            <td class="pe-3 {{ leads.war }}">{{ s.war|dec:1 }}</td>
           </tr>
           {% endfor %}
           {% if d.total %}
           <tr style="border-top:2px solid var(--dgl-navy)">
-            <td class="ps-3"><b>{{ d.seasons|length }} temporadas</b></td><td>—</td><td>—</td><td>{{ d.total.tb|num }}</td>
-            <td>{{ d.total.iso|rate }}</td><td>{{ d.total.babip|rate }}</td><td><b>{{ d.total.ops|rate }}</b></td><td>{{ d.total.woba|rate }}</td>
-            <td>{{ d.total.w_rc_plus|rate:0 }}</td><td>{{ d.total.w_raa|dec:1 }}</td><td>{{ d.total.w_rc|dec:1 }}</td>
-            <td>{{ d.total.w_gdp|dec:1 }}</td><td>{{ d.total.w_sb|dec:1 }}</td><td>{{ d.total.ubr|dec:1 }}</td>
-            <td>{{ d.total.spd|dec:1 }}</td><td>{{ d.total.rar|dec:1 }}</td><td>{{ d.total.rc|dec:1 }}</td>
-            <td class="pe-3"><b>{{ d.total.war|dec:1 }}</b></td>
+            <td class="ps-3"><b>{{ d.rows|length }} temporadas</b></td><td>—</td><td>—</td>
+            <td class="{{ d.total_leads.tb }}">{{ d.total.tb|num }}</td><td class="{{ d.total_leads.iso }}">{{ d.total.iso|rate }}</td>
+            <td class="{{ d.total_leads.babip }}">{{ d.total.babip|rate }}</td><td class="{{ d.total_leads.ops }}"><b>{{ d.total.ops|rate }}</b></td>
+            <td class="{{ d.total_leads.woba }}">{{ d.total.woba|rate }}</td><td class="{{ d.total_leads.w_rc_plus }}">{{ d.total.w_rc_plus|rate:0 }}</td>
+            <td class="{{ d.total_leads.w_raa }}">{{ d.total.w_raa|dec:1 }}</td><td class="{{ d.total_leads.w_rc }}">{{ d.total.w_rc|dec:1 }}</td>
+            <td class="{{ d.total_leads.w_gdp }}">{{ d.total.w_gdp|dec:1 }}</td><td class="{{ d.total_leads.w_sb }}">{{ d.total.w_sb|dec:1 }}</td>
+            <td class="{{ d.total_leads.ubr }}">{{ d.total.ubr|dec:1 }}</td><td class="{{ d.total_leads.spd }}">{{ d.total.spd|dec:1 }}</td>
+            <td class="{{ d.total_leads.rar }}">{{ d.total.rar|dec:1 }}</td><td class="{{ d.total_leads.rc }}">{{ d.total.rc|dec:1 }}</td>
+            <td class="pe-3 {{ d.total_leads.war }}"><b>{{ d.total.war|dec:1 }}</b></td>
           </tr>
           {% endif %}
         </tbody>

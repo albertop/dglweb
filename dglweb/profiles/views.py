@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from dglweb.players.models import Player
 from dglweb.profiles.tabs import tabs_for
-from dglweb.stats.models import BattingCareer, CareerLevel, Leader, PitchingCareer
+from dglweb.stats.models import BattingCareer, CareerLevel, PitchingCareer
 
 
 def _player_id_from_slug(slug: str) -> int:
@@ -16,15 +16,6 @@ def _player_id_from_slug(slug: str) -> int:
     if not tail.isdigit():
         raise Http404("jugador no encontrado")
     return int(tail)
-
-
-def _rankings(player: Player, limit: int = 6) -> list[Leader]:
-    """A few of the player's best career leaderboard placements, for the 'Entre dominicanos' strip."""
-    return list(
-        Leader.objects.filter(player=player, board=Leader.Board.BEST_CAREER, rank__lte=10)
-        .select_related("metric")
-        .order_by("rank")[:limit]
-    )
 
 
 def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
@@ -45,7 +36,6 @@ def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
     context = {
         "player": player,
         "tabs": tabs,
-        "rankings": _rankings(player),
         "is_pitcher": player.pos in {"P", "RP", "SP"},
         "bat_total": BattingCareer.objects.filter(player=player, level=CareerLevel.TOTAL).first(),
         "pit_total": PitchingCareer.objects.filter(player=player, level=CareerLevel.TOTAL).first(),

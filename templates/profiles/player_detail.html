@@ -42,16 +42,6 @@
     </div>
   </div>
 
-  <!-- Rankings among Dominicans -->
-  {% if rankings %}
-  <div class="dgl-panel p-3 mb-4">
-    <span class="dgl-kicker">Entre dominicanos</span>
-    {% for r in rankings %}
-      <span class="ms-2">#{{ r.rank }} en <b>{{ r.metric.abbrev }}</b>{% if r.fielding_pos %} ({{ r.fielding_pos }}){% endif %} de por vida{% if not forloop.last %} ·{% endif %}</span>
-    {% endfor %}
-  </div>
-  {% endif %}
-
   <!-- Stat tabs (extensible: a new tab is a class + a partial, the shell never changes) -->
   <ul class="nav nav-tabs mb-3" role="tablist">
     {% for tab in tabs %}

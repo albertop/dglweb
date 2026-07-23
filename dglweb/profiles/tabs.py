@@ -17,6 +17,7 @@ from dglweb.stats.models import (
     CareerLevel,
     Fielding,
     FieldingCareer,
+    Leader,
     Pitching,
     PitchingCareer,
 )
@@ -26,6 +27,22 @@ _PITCHER_POSITIONS = {"P", "RP", "SP"}  # the master's pitcher codes (starter / 
 
 def is_pitcher(player: Player) -> bool:
     return player.pos in _PITCHER_POSITIONS
+
+
+def _leaderships(player: Player, group: str) -> tuple[set[tuple[int, str]], set[str]]:
+    """Where this player is the #1 leader: {(season, column)} for the season and {column} for career.
+
+    Batting/pitching are position-agnostic (their leaders carry `fielding_pos=NULL`) — position is
+    only a fielding dimension. Drives the in-table highlight (wine = season leader, blue = career).
+    """
+    marks = Leader.objects.filter(player=player, rank=1, metric__stat_group=group).select_related("metric")
+    season = {
+        (row.season, row.metric.column)
+        for row in marks
+        if row.board == Leader.Board.BEST_SEASON and row.season is not None
+    }
+    career = {row.metric.column for row in marks if row.board == Leader.Board.BEST_CAREER}
+    return season, career
 
 
 class PlayerTab:
@@ -59,10 +76,14 @@ class BattingTab(PlayerTab):
         return 20 if is_pitcher(player) else 10  # pitchers push Bateo below Pitcheo
 
     def context(self, player: Player) -> dict[str, Any]:
+        seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
+        season_leads, career_leads = _leaderships(player, "batting")
         career = list(BattingCareer.objects.filter(player=player).order_by("sort_order"))
         return {
-            "seasons": list(Batting.objects.filter(player=player).season_totals().order_by("season")),
+            # (row, {column: css class}) so a cell can mark itself as a season leader (wine).
+            "rows": [(s, {col: "lead-season" for (yr, col) in season_leads if yr == s.season}) for s in seasons],
             "total": next((row for row in career if row.level == CareerLevel.TOTAL), None),
+            "total_leads": {col: "lead-career" for col in career_leads},  # blue on the career row
             "teams": [row for row in career if row.level == CareerLevel.TEAM],
             "leagues": [row for row in career if row.level == CareerLevel.LEAGUE],
             "post": list(BattingPost.objects.filter(player=player).order_by("season", "round")),
