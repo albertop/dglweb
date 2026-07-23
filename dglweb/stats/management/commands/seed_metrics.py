@@ -319,8 +319,9 @@ def _rows() -> list[dict[str, Any]]:
 
             # No per-metric qualifier here: rate metrics inherit the group default (QualifierDefault,
             # level 1). Metric.qualifier_* is left blank as the optional level-2 override.
-            default_label = field.name.replace("_", " ")
-            abbrev = str(field.verbose_name) if str(field.verbose_name) != default_label else _normalize(field.name)
+            # Abbrev = the English code (HR, AVG, ERA, DP, Inn…), never a Spanish one — it shows in the
+            # leaders UI and the player-page rankings.
+            abbrev = code
 
             rows.append(
                 {

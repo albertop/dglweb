@@ -14,25 +14,27 @@
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Año</th><th>Eq</th><th>J</th><th>VB</th><th>H</th><th>2B</th><th>3B</th><th>HR</th>
-          <th>CI</th><th>BB</th><th>K</th><th>BR</th><th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
+          <th class="ps-3">Año</th><th>Tm</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th>
+          <th>HR</th><th>RBI</th><th>SB</th><th>CS</th><th>BB</th><th>SO</th><th>AVG</th><th>OBP</th><th>SLG</th><th class="pe-3">OPS</th>
         </tr></thead>
         <tbody>
           {% for s in d.seasons %}
           <tr>
             <td class="ps-3">{{ s.season }}</td><td>{% if s.team == "XXX" %}—{% else %}{{ s.team|default:"—" }}{% endif %}</td>
-            <td>{{ s.g|num }}</td><td>{{ s.ab|num }}</td><td>{{ s.h|num }}</td><td>{{ s.x2b|num }}</td><td>{{ s.x3b|num }}</td>
-            <td>{{ s.hr|num }}</td><td>{{ s.rbi|num }}</td><td>{{ s.bb|num }}</td><td>{{ s.so|num }}</td><td>{{ s.sb|num }}</td>
-            <td>{{ s.avg|rate }}</td><td>{{ s.obp|rate }}</td><td class="pe-3">{{ s.slg|rate }}</td>
+            <td>{{ s.g|num }}</td><td>{{ s.pa|num }}</td><td>{{ s.ab|num }}</td><td>{{ s.r|num }}</td><td>{{ s.h|num }}</td>
+            <td>{{ s.x2b|num }}</td><td>{{ s.x3b|num }}</td><td>{{ s.hr|num }}</td><td>{{ s.rbi|num }}</td><td>{{ s.sb|num }}</td>
+            <td>{{ s.cs|num }}</td><td>{{ s.bb|num }}</td><td>{{ s.so|num }}</td><td>{{ s.avg|rate }}</td><td>{{ s.obp|rate }}</td>
+            <td>{{ s.slg|rate }}</td><td class="pe-3">{{ s.ops|rate }}</td>
           </tr>
           {% endfor %}
           {% if d.total %}
           <tr style="border-top:2px solid var(--dgl-navy)">
             <td class="ps-3"><b>Carrera</b></td><td>—</td>
-            <td><b>{{ d.total.g|num }}</b></td><td>{{ d.total.ab|num }}</td><td>{{ d.total.h|num }}</td><td>{{ d.total.x2b|num }}</td>
-            <td>{{ d.total.x3b|num }}</td><td><b>{{ d.total.hr|num }}</b></td><td>{{ d.total.rbi|num }}</td><td>{{ d.total.bb|num }}</td>
-            <td>{{ d.total.so|num }}</td><td>{{ d.total.sb|num }}</td>
-            <td><b>{{ d.total.avg|rate }}</b></td><td><b>{{ d.total.obp|rate }}</b></td><td class="pe-3"><b>{{ d.total.slg|rate }}</b></td>
+            <td><b>{{ d.total.g|num }}</b></td><td>{{ d.total.pa|num }}</td><td>{{ d.total.ab|num }}</td><td>{{ d.total.r|num }}</td>
+            <td>{{ d.total.h|num }}</td><td>{{ d.total.x2b|num }}</td><td>{{ d.total.x3b|num }}</td><td><b>{{ d.total.hr|num }}</b></td>
+            <td>{{ d.total.rbi|num }}</td><td>{{ d.total.sb|num }}</td><td>{{ d.total.cs|num }}</td><td>{{ d.total.bb|num }}</td>
+            <td>{{ d.total.so|num }}</td><td><b>{{ d.total.avg|rate }}</b></td><td><b>{{ d.total.obp|rate }}</b></td>
+            <td><b>{{ d.total.slg|rate }}</b></td><td class="pe-3"><b>{{ d.total.ops|rate }}</b></td>
           </tr>
           {% endif %}
         </tbody>
@@ -47,27 +49,28 @@
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Año</th><th>Eq</th><th>OPS</th><th>ISO</th><th>BABIP</th><th>wOBA</th><th>wRC+</th><th class="pe-3">WAR</th>
+          <th class="ps-3">Año</th><th>Tm</th><th>TB</th><th>ISO</th><th>BABIP</th><th>OPS</th><th>wOBA</th><th>wRC+</th>
+          <th>RC</th><th class="pe-3">WAR</th>
         </tr></thead>
         <tbody>
           {% for s in d.seasons %}
           <tr>
             <td class="ps-3">{{ s.season }}</td><td>{% if s.team == "XXX" %}—{% else %}{{ s.team|default:"—" }}{% endif %}</td>
-            <td>{{ s.ops|rate }}</td><td>{{ s.iso|rate }}</td><td>{{ s.babip|rate }}</td><td>{{ s.woba|rate }}</td>
-            <td>{{ s.w_rc_plus|num }}</td><td class="pe-3">{{ s.war|rate:1 }}</td>
+            <td>{{ s.tb|num }}</td><td>{{ s.iso|rate }}</td><td>{{ s.babip|rate }}</td><td>{{ s.ops|rate }}</td>
+            <td>{{ s.woba|rate }}</td><td>{{ s.w_rc_plus|rate:0 }}</td><td>{{ s.rc|rate:1 }}</td><td class="pe-3">{{ s.war|rate:1 }}</td>
           </tr>
           {% endfor %}
           {% if d.total %}
           <tr style="border-top:2px solid var(--dgl-navy)">
-            <td class="ps-3"><b>Carrera</b></td><td>—</td><td><b>{{ d.total.ops|rate }}</b></td><td>{{ d.total.iso|rate }}</td>
-            <td>{{ d.total.babip|rate }}</td><td>{{ d.total.woba|rate }}</td><td>{{ d.total.w_rc_plus|num }}</td>
-            <td class="pe-3"><b>{{ d.total.war|rate:1 }}</b></td>
+            <td class="ps-3"><b>Carrera</b></td><td>—</td><td>{{ d.total.tb|num }}</td><td>{{ d.total.iso|rate }}</td>
+            <td>{{ d.total.babip|rate }}</td><td><b>{{ d.total.ops|rate }}</b></td><td>{{ d.total.woba|rate }}</td>
+            <td>{{ d.total.w_rc_plus|rate:0 }}</td><td>{{ d.total.rc|rate:1 }}</td><td class="pe-3"><b>{{ d.total.war|rate:1 }}</b></td>
           </tr>
           {% endif %}
         </tbody>
       </table>
     </div>
-    <div class="dgl-meta px-3 py-2 border-top">Fuente: mlb-proxy + cálculo propio (mlbstats). Carrera = suma de componentes.</div>
+    <div class="dgl-meta px-3 py-2 border-top">Fuente: mlb-proxy + cálculo propio (mlbstats). Carrera = suma de componentes (índices como wRC+, ponderados por PA).</div>
   </section>
   </div>
 
@@ -78,15 +81,16 @@
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Año</th><th>Ronda</th><th>Eq</th><th>J</th><th>VB</th><th>H</th><th>HR</th><th>CI</th>
-          <th>BB</th><th>K</th><th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
+          <th class="ps-3">Año</th><th>Rd</th><th>Tm</th><th>G</th><th>AB</th><th>R</th><th>H</th><th>HR</th><th>RBI</th>
+          <th>BB</th><th>SO</th><th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
         </tr></thead>
         <tbody>
           {% for p in d.post %}
           <tr>
             <td class="ps-3">{{ p.season }}</td><td>{{ p.round }}</td><td>{{ p.team|default:"—" }}</td>
-            <td>{{ p.g|num }}</td><td>{{ p.ab|num }}</td><td>{{ p.h|num }}</td><td>{{ p.hr|num }}</td><td>{{ p.rbi|num }}</td>
-            <td>{{ p.bb|num }}</td><td>{{ p.so|num }}</td><td>{{ p.avg|rate }}</td><td>{{ p.obp|rate }}</td><td class="pe-3">{{ p.slg|rate }}</td>
+            <td>{{ p.g|num }}</td><td>{{ p.ab|num }}</td><td>{{ p.r|num }}</td><td>{{ p.h|num }}</td><td>{{ p.hr|num }}</td>
+            <td>{{ p.rbi|num }}</td><td>{{ p.bb|num }}</td><td>{{ p.so|num }}</td><td>{{ p.avg|rate }}</td><td>{{ p.obp|rate }}</td>
+            <td class="pe-3">{{ p.slg|rate }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -103,22 +107,22 @@
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Equipo/Liga</th><th>J</th><th>VB</th><th>H</th><th>HR</th><th>CI</th><th>BB</th><th>K</th>
-          <th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
+          <th class="ps-3">Tm/Lg</th><th>G</th><th>AB</th><th>R</th><th>H</th><th>HR</th><th>RBI</th><th>SB</th><th>BB</th><th>SO</th>
+          <th>AVG</th><th>OBP</th><th>SLG</th><th class="pe-3">OPS</th>
         </tr></thead>
         <tbody>
           {% for c in d.teams %}
           <tr>
-            <td class="ps-3">{{ c.team }}</td><td>{{ c.g|num }}</td><td>{{ c.ab|num }}</td><td>{{ c.h|num }}</td>
-            <td>{{ c.hr|num }}</td><td>{{ c.rbi|num }}</td><td>{{ c.bb|num }}</td><td>{{ c.so|num }}</td>
-            <td>{{ c.avg|rate }}</td><td>{{ c.obp|rate }}</td><td class="pe-3">{{ c.slg|rate }}</td>
+            <td class="ps-3">{{ c.team }}</td><td>{{ c.g|num }}</td><td>{{ c.ab|num }}</td><td>{{ c.r|num }}</td><td>{{ c.h|num }}</td>
+            <td>{{ c.hr|num }}</td><td>{{ c.rbi|num }}</td><td>{{ c.sb|num }}</td><td>{{ c.bb|num }}</td><td>{{ c.so|num }}</td>
+            <td>{{ c.avg|rate }}</td><td>{{ c.obp|rate }}</td><td>{{ c.slg|rate }}</td><td class="pe-3">{{ c.ops|rate }}</td>
           </tr>
           {% endfor %}
           {% for c in d.leagues %}
           <tr class="table-light">
-            <td class="ps-3"><b>Liga {{ c.league }}</b></td><td>{{ c.g|num }}</td><td>{{ c.ab|num }}</td><td>{{ c.h|num }}</td>
-            <td>{{ c.hr|num }}</td><td>{{ c.rbi|num }}</td><td>{{ c.bb|num }}</td><td>{{ c.so|num }}</td>
-            <td>{{ c.avg|rate }}</td><td>{{ c.obp|rate }}</td><td class="pe-3">{{ c.slg|rate }}</td>
+            <td class="ps-3"><b>Lg {{ c.league }}</b></td><td>{{ c.g|num }}</td><td>{{ c.ab|num }}</td><td>{{ c.r|num }}</td><td>{{ c.h|num }}</td>
+            <td>{{ c.hr|num }}</td><td>{{ c.rbi|num }}</td><td>{{ c.sb|num }}</td><td>{{ c.bb|num }}</td><td>{{ c.so|num }}</td>
+            <td>{{ c.avg|rate }}</td><td>{{ c.obp|rate }}</td><td>{{ c.slg|rate }}</td><td class="pe-3">{{ c.ops|rate }}</td>
           </tr>
           {% endfor %}
         </tbody>

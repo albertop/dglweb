@@ -26,9 +26,9 @@
       </div>
       <div class="d-flex gap-4 text-center flex-wrap">
         {% if is_pitcher and pit_total %}
-          <div class="dgl-statbox"><div class="v">{{ pit_total.w|num }}</div><div class="k">G</div></div>
-          <div class="dgl-statbox"><div class="v">{{ pit_total.era|rate:2 }}</div><div class="k">EFE</div></div>
-          <div class="dgl-statbox"><div class="v">{{ pit_total.so|num }}</div><div class="k">K</div></div>
+          <div class="dgl-statbox"><div class="v">{{ pit_total.w|num }}</div><div class="k">W</div></div>
+          <div class="dgl-statbox"><div class="v">{{ pit_total.era|rate:2 }}</div><div class="k">ERA</div></div>
+          <div class="dgl-statbox"><div class="v">{{ pit_total.so|num }}</div><div class="k">SO</div></div>
           <div class="dgl-statbox"><div class="v">{{ pit_total.whip|rate:2 }}</div><div class="k">WHIP</div></div>
           <div class="dgl-statbox"><div class="v">{{ pit_total.war|rate:1 }}</div><div class="k">WAR</div></div>
         {% elif bat_total %}
