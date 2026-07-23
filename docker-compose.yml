@@ -69,6 +69,8 @@ services:
       ofelia.job-exec.build-leaders-daily.command: "python manage.py build_leaders"
       ofelia.job-exec.prune-log-daily.schedule: "0 45 7 * * *"  # 7:45am; trims the ingest log, runs last
       ofelia.job-exec.prune-log-daily.command: "python manage.py prune_ingest_log"
+      ofelia.job-exec.parity-career-weekly.schedule: "0 0 8 * * 0"  # Sundays 8am; verifies career vs proxy
+      ofelia.job-exec.parity-career-weekly.command: "python manage.py parity_career"
 
   # Ofelia: a lean, Docker-native cron. It reads the labels above via the Docker socket and
   # execs the command on schedule — same image, separate lifecycle, no cron files.

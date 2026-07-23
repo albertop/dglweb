@@ -156,7 +156,7 @@ def _build_fielding() -> int:
     weight_col = career_rate.WEIGHT[group]
     columns = list(dict.fromkeys(["player_id", "pos", *counting, *rates]))
 
-    rows = list(Fielding.objects.position_totals().values(*columns))
+    rows = list(Fielding.objects.position_totals().exclude(pos="DH").values(*columns))  # DH is not a position
     positions = _accumulate(rows, counting, rates, weight_col, lambda r: (r["player_id"], r["pos"]))
     grand = _accumulate(rows, counting, rates, weight_col, lambda r: r["player_id"])
 

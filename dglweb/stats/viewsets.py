@@ -13,7 +13,7 @@ from wagtail.admin.ui.tables import Column
 from wagtail.permissions import ModelPermissionPolicy
 from wagtail.snippets.views.snippets import SnippetViewSet
 
-from dglweb.stats.models import IngestRun, Metric, QualifierDefault, QualifierSeasonOverride
+from dglweb.stats.models import CareerParityIssue, IngestRun, Metric, QualifierDefault, QualifierSeasonOverride
 
 _User = AbstractBaseUser | AnonymousUser
 
@@ -138,3 +138,22 @@ class QualifierSeasonOverrideViewSet(SnippetViewSet):  # type: ignore[misc]
     add_to_admin_menu = False  # it lives under the Backoffice group
 
     panels = (FieldPanel("stat_group"), FieldPanel("season"), FieldPanel("qualifier_season"))
+
+
+class CareerParityIssueViewSet(SnippetViewSet):  # type: ignore[misc]
+    """The unresolved career-parity disagreements — the human's work queue.
+
+    Written by `parity_career` (which clears them when a re-backfill fixes the data). Deletable here
+    so a mismatch that is accepted as a known tolerance can be dismissed by hand.
+    """
+
+    model = CareerParityIssue
+    icon = "warning"
+    menu_label = "Disparidades de carrera"
+    menu_name = "career_parity"
+    list_display = ("player", "group", "detail", "attempts", "last_checked")
+    list_filter = ("group", "status")
+    ordering = ("-last_checked",)
+    list_per_page = 50
+    add_to_admin_menu = False  # it lives under the Backoffice group
+    inspect_view_enabled = True

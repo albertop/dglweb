@@ -12,6 +12,7 @@ from wagtail.snippets.views.snippets import SnippetViewSetGroup
 
 from dglweb.players.viewsets import PlayerViewSet
 from dglweb.stats.viewsets import (
+    CareerParityIssueViewSet,
     IngestRunViewSet,
     MetricViewSet,
     QualifierDefaultViewSet,
@@ -29,6 +30,7 @@ class BackofficeViewSetGroup(SnippetViewSetGroup):  # type: ignore[misc]
         MetricViewSet,
         QualifierDefaultViewSet,
         QualifierSeasonOverrideViewSet,
+        CareerParityIssueViewSet,
         IngestRunViewSet,
     )
 

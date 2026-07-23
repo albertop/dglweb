@@ -121,6 +121,18 @@ def test_fielding_career_has_position_subtotals_then_total() -> None:
 
 
 @pytest.mark.django_db
+def test_fielding_career_excludes_dh() -> None:
+    player = _player(1, "a01")
+    Fielding.objects.create(player=player, season=2019, team="BOS", pos="LF", po=10, gp=50)
+    Fielding.objects.create(player=player, season=2019, team="BOS", pos="DH", po=0, gp=40)  # not fielding
+
+    build_career_totals()
+
+    assert not FieldingCareer.objects.filter(player=player, pos="DH").exists()
+    assert FieldingCareer.objects.get(player=player, level=CareerLevel.TOTAL).gp == 50  # DH's 40 games excluded
+
+
+@pytest.mark.django_db
 def test_build_career_totals_command_is_recorded_in_the_ingest_log(batter: Player) -> None:
     call_command("build_career_totals")
 

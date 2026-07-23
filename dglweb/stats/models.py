@@ -1128,3 +1128,36 @@ class FieldingCareer(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} fildeo {self.pos or 'total'}"
+
+
+class CareerParityIssue(models.Model):
+    """A career total that disagreed with the proxy's authoritative `career` — the parity marker.
+
+    `parity_career` compares our in-house totals to the proxy and records the survivors here (option
+    "b": it only flags and logs, never auto-writes data). The row IS the "known, unresolved" state:
+    it is created on first disagreement, its `detail` refreshed while it persists, and **deleted when
+    parity passes again** (a re-backfill fixed the season data). `attempts` is the loop guard for a
+    future auto-remediation (option "a", see docs/MEJORAS_FUTURAS): it stays 0 here, and would cap
+    remediation at one try so a persistent mismatch can never re-trigger it.
+    """
+
+    class Status(models.TextChoices):
+        UNRESOLVED = "unresolved", "Sin resolver"
+
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column="player_id", verbose_name="Jugador")
+    group = models.CharField(max_length=10, verbose_name="Grupo")
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.UNRESOLVED, verbose_name="Estado")
+    attempts = models.PositiveSmallIntegerField(default=0, verbose_name="Intentos de remediación")
+    detail = models.TextField(verbose_name="Diferencias")
+    first_detected = models.DateTimeField(verbose_name="Detectado")
+    last_checked = models.DateTimeField(verbose_name="Última revisión")
+
+    class Meta:
+        db_table = "dgl_career_parity_issue"
+        ordering = ["-last_checked", "player"]
+        verbose_name = "disparidad de carrera"
+        verbose_name_plural = "disparidades de carrera"
+        constraints = [models.UniqueConstraint(fields=["player", "group"], name="unique_career_parity_issue")]
+
+    def __str__(self) -> str:
+        return f"{self.player} ({self.group}): {self.detail}"
