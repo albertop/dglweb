@@ -83,3 +83,10 @@ class Player(models.Model):
 
     def __str__(self) -> str:
         return self.full_name
+
+    @property
+    def slug(self) -> str:
+        """SEO slug for the public page; always ends in the MLB id so it never collides."""
+        from django.utils.text import slugify
+
+        return f"{slugify(self.full_name)}-{self.player_id}"

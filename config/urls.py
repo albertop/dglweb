@@ -19,6 +19,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("cms/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     path("", home, name="home"),
+    path("", include("dglweb.profiles.urls")),  # /jugador/<slug>/ — before Wagtail's catch-all
     # Wagtail page-serving catch-all (pages appear in Fase 5).
     path("", include(wagtail_urls)),
 ]

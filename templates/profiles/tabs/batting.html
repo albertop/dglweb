@@ -1,0 +1,132 @@
+{% load stats_extras %}
+{% with d=tab.data %}
+<ul class="nav nav-pills mb-3" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#bat-std" type="button">Estándar</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-adv" type="button">Avanzado</button></li>
+  {% if d.post %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-post" type="button">Postemporada</button></li>{% endif %}
+  {% if d.teams %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-team" type="button">Por equipo / liga</button></li>{% endif %}
+</ul>
+<div class="tab-content">
+
+  <!-- Estándar -->
+  <div class="tab-pane fade show active" id="bat-std">
+  <section class="dgl-panel mb-4">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        <thead><tr>
+          <th class="ps-3">Año</th><th>Eq</th><th>J</th><th>VB</th><th>H</th><th>2B</th><th>3B</th><th>HR</th>
+          <th>CI</th><th>BB</th><th>K</th><th>BR</th><th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
+        </tr></thead>
+        <tbody>
+          {% for s in d.seasons %}
+          <tr>
+            <td class="ps-3">{{ s.season }}</td><td>{% if s.team == "XXX" %}—{% else %}{{ s.team|default:"—" }}{% endif %}</td>
+            <td>{{ s.g|num }}</td><td>{{ s.ab|num }}</td><td>{{ s.h|num }}</td><td>{{ s.x2b|num }}</td><td>{{ s.x3b|num }}</td>
+            <td>{{ s.hr|num }}</td><td>{{ s.rbi|num }}</td><td>{{ s.bb|num }}</td><td>{{ s.so|num }}</td><td>{{ s.sb|num }}</td>
+            <td>{{ s.avg|rate }}</td><td>{{ s.obp|rate }}</td><td class="pe-3">{{ s.slg|rate }}</td>
+          </tr>
+          {% endfor %}
+          {% if d.total %}
+          <tr style="border-top:2px solid var(--dgl-navy)">
+            <td class="ps-3"><b>Carrera</b></td><td>—</td>
+            <td><b>{{ d.total.g|num }}</b></td><td>{{ d.total.ab|num }}</td><td>{{ d.total.h|num }}</td><td>{{ d.total.x2b|num }}</td>
+            <td>{{ d.total.x3b|num }}</td><td><b>{{ d.total.hr|num }}</b></td><td>{{ d.total.rbi|num }}</td><td>{{ d.total.bb|num }}</td>
+            <td>{{ d.total.so|num }}</td><td>{{ d.total.sb|num }}</td>
+            <td><b>{{ d.total.avg|rate }}</b></td><td><b>{{ d.total.obp|rate }}</b></td><td class="pe-3"><b>{{ d.total.slg|rate }}</b></td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  </div>
+
+  <!-- Avanzado / Sabermétrico -->
+  <div class="tab-pane fade" id="bat-adv">
+  <section class="dgl-panel mb-4">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        <thead><tr>
+          <th class="ps-3">Año</th><th>Eq</th><th>OPS</th><th>ISO</th><th>BABIP</th><th>wOBA</th><th>wRC+</th><th class="pe-3">WAR</th>
+        </tr></thead>
+        <tbody>
+          {% for s in d.seasons %}
+          <tr>
+            <td class="ps-3">{{ s.season }}</td><td>{% if s.team == "XXX" %}—{% else %}{{ s.team|default:"—" }}{% endif %}</td>
+            <td>{{ s.ops|rate }}</td><td>{{ s.iso|rate }}</td><td>{{ s.babip|rate }}</td><td>{{ s.woba|rate }}</td>
+            <td>{{ s.w_rc_plus|num }}</td><td class="pe-3">{{ s.war|rate:1 }}</td>
+          </tr>
+          {% endfor %}
+          {% if d.total %}
+          <tr style="border-top:2px solid var(--dgl-navy)">
+            <td class="ps-3"><b>Carrera</b></td><td>—</td><td><b>{{ d.total.ops|rate }}</b></td><td>{{ d.total.iso|rate }}</td>
+            <td>{{ d.total.babip|rate }}</td><td>{{ d.total.woba|rate }}</td><td>{{ d.total.w_rc_plus|num }}</td>
+            <td class="pe-3"><b>{{ d.total.war|rate:1 }}</b></td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+    <div class="dgl-meta px-3 py-2 border-top">Fuente: mlb-proxy + cálculo propio (mlbstats). Carrera = suma de componentes.</div>
+  </section>
+  </div>
+
+  <!-- Postemporada -->
+  {% if d.post %}
+  <div class="tab-pane fade" id="bat-post">
+  <section class="dgl-panel mb-4">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        <thead><tr>
+          <th class="ps-3">Año</th><th>Ronda</th><th>Eq</th><th>J</th><th>VB</th><th>H</th><th>HR</th><th>CI</th>
+          <th>BB</th><th>K</th><th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
+        </tr></thead>
+        <tbody>
+          {% for p in d.post %}
+          <tr>
+            <td class="ps-3">{{ p.season }}</td><td>{{ p.round }}</td><td>{{ p.team|default:"—" }}</td>
+            <td>{{ p.g|num }}</td><td>{{ p.ab|num }}</td><td>{{ p.h|num }}</td><td>{{ p.hr|num }}</td><td>{{ p.rbi|num }}</td>
+            <td>{{ p.bb|num }}</td><td>{{ p.so|num }}</td><td>{{ p.avg|rate }}</td><td>{{ p.obp|rate }}</td><td class="pe-3">{{ p.slg|rate }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  </div>
+  {% endif %}
+
+  <!-- Por equipo / liga (subtotales de carrera) -->
+  {% if d.teams %}
+  <div class="tab-pane fade" id="bat-team">
+  <section class="dgl-panel mb-4">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        <thead><tr>
+          <th class="ps-3">Equipo/Liga</th><th>J</th><th>VB</th><th>H</th><th>HR</th><th>CI</th><th>BB</th><th>K</th>
+          <th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
+        </tr></thead>
+        <tbody>
+          {% for c in d.teams %}
+          <tr>
+            <td class="ps-3">{{ c.team }}</td><td>{{ c.g|num }}</td><td>{{ c.ab|num }}</td><td>{{ c.h|num }}</td>
+            <td>{{ c.hr|num }}</td><td>{{ c.rbi|num }}</td><td>{{ c.bb|num }}</td><td>{{ c.so|num }}</td>
+            <td>{{ c.avg|rate }}</td><td>{{ c.obp|rate }}</td><td class="pe-3">{{ c.slg|rate }}</td>
+          </tr>
+          {% endfor %}
+          {% for c in d.leagues %}
+          <tr class="table-light">
+            <td class="ps-3"><b>Liga {{ c.league }}</b></td><td>{{ c.g|num }}</td><td>{{ c.ab|num }}</td><td>{{ c.h|num }}</td>
+            <td>{{ c.hr|num }}</td><td>{{ c.rbi|num }}</td><td>{{ c.bb|num }}</td><td>{{ c.so|num }}</td>
+            <td>{{ c.avg|rate }}</td><td>{{ c.obp|rate }}</td><td class="pe-3">{{ c.slg|rate }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  </div>
+  {% endif %}
+
+</div>
+{% endwith %}

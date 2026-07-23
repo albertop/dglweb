@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "dglweb.players",
     "dglweb.stats",
     "dglweb.backoffice",
+    "dglweb.profiles",
     # Wagtail
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",
