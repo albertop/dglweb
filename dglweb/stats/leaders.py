@@ -6,9 +6,9 @@ seasons from 1956 on count (Negro Leagues are excluded from leaderboards). Ties 
 
 Value:
   * counting (ACU): season = the season-total; career = the sum over seasons.
-  * rate (PRO): season = the stored rate, gated by the qualifier cascade.
-Rate *career* boards (career AVG/ERA — a recompute from summed components) are v2: they are counted
-and reported, not written.
+  * rate (PRO): season = the stored rate, gated by the qualifier cascade; career = a recompute from
+    summed components where the formula is known (`career_rate.has_exact`), else a playing-time
+    weighted average of the per-season values (`career_rate`).
 """
 
 from collections.abc import Callable, Iterable, Sequence
@@ -16,7 +16,7 @@ from typing import Any
 
 from django.db import models, transaction
 
-from dglweb.stats import qualifier
+from dglweb.stats import career_rate, qualifier
 from dglweb.stats.models import (
     Batting,
     Fielding,
@@ -133,8 +133,65 @@ def _career_leaders(
     ]
 
 
+def _career_sums(group: str, pos: str | None) -> dict[int, dict[str, Any]]:
+    """Per player, the career sum of the group's counting components (None where never recorded)."""
+    components = career_rate.COMPONENTS[group]
+    base = _MODEL[group]._default_manager.filter(season__gte=FIRST_SEASON)
+    rows = base.position_totals().filter(pos=pos) if group == "fielding" else base.season_totals()  # type: ignore[attr-defined]
+    sums: dict[int, dict[str, Any]] = {}
+    for row in rows.values("player_id", *components):
+        player = sums.setdefault(row["player_id"], dict.fromkeys(components))
+        for component in components:
+            value = row[component]
+            if value is not None:
+                player[component] = (player[component] or 0) + value
+    return sums
+
+
+def _exact_career_rate_leaders(
+    metric: Metric, board: str, pos: str | None, descending: bool, sums: dict[int, dict[str, Any]], formula: str
+) -> list[Leader]:
+    """Career rate with a known formula: recompute from the summed components."""
+    pairs: list[tuple[int, float]] = []
+    for player_id, counts in sums.items():
+        value = career_rate.exact_value(metric.stat_group, metric.column, counts)
+        if value is None or not qualifier.qualifies(formula, metric.stat_group, counts):
+            continue
+        pairs.append((player_id, value))
+    return [
+        Leader(metric=metric, board=board, season=None, fielding_pos=pos, player_id=pid, value=value, rank=rank)
+        for pid, value, rank in _dense_rank(pairs, descending)
+    ]
+
+
+def _prorated_career_rate_leaders(
+    metric: Metric, board: str, pos: str | None, descending: bool, rows: Iterable[dict[str, Any]], formula: str
+) -> list[Leader]:
+    """Career rate with no known formula: a playing-time-weighted average of the per-season rate."""
+    group = metric.stat_group
+    weight_col = career_rate.WEIGHT[group]
+    weighted: dict[int, list[float]] = {}  # player -> [sum(rate*weight), sum(weight)]
+    for row in rows:
+        rate, weight = row[metric.column], row[weight_col]
+        if rate is None or not weight:
+            continue
+        accumulator = weighted.setdefault(row["player_id"], [0.0, 0.0])
+        accumulator[0] += rate * weight
+        accumulator[1] += weight
+
+    pairs: list[tuple[int, float]] = []
+    for player_id, (weighted_sum, total_weight) in weighted.items():
+        if total_weight == 0 or not qualifier.qualifies(formula, group, {weight_col: total_weight}):
+            continue
+        pairs.append((player_id, weighted_sum / total_weight))
+    return [
+        Leader(metric=metric, board=board, season=None, fielding_pos=pos, player_id=pid, value=value, rank=rank)
+        for pid, value, rank in _dense_rank(pairs, descending)
+    ]
+
+
 def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int]:
-    """Rebuild `dgl_leader` from scratch. Returns {written, deferred_rate_career}."""
+    """Rebuild `dgl_leader` from scratch. Returns {written, prorated_rate_career}."""
     defaults: qualifier.Defaults = {
         d.stat_group: (d.qualifier_season, d.qualifier_career) for d in QualifierDefault.objects.all()
     }
@@ -142,7 +199,8 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
         (o.stat_group, o.season): o.qualifier_season for o in QualifierSeasonOverride.objects.all()
     }
 
-    written = deferred = 0
+    sums_cache: dict[tuple[str, str | None], dict[int, dict[str, Any]]] = {}  # career sums, per (group, pos)
+    written = prorated = 0
     with transaction.atomic():
         Leader.objects.all().delete()
         buffer: list[Leader] = []
@@ -153,11 +211,20 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
                 for board, flag, is_best, scope in _BOARDS:
                     if not getattr(metric, flag):
                         continue
-                    if metric.kind == Metric.Kind.RATE and scope == "career":
-                        deferred += 1  # career rate = recompute from summed components (v2)
-                        continue
                     descending = _descending(metric, is_best)
-                    if scope == "season":
+                    if metric.kind == Metric.Kind.RATE and scope == "career":
+                        formula = qualifier.resolve_career(metric, defaults)
+                        if career_rate.has_exact(metric.stat_group, metric.column):
+                            key = (metric.stat_group, pos)
+                            if key not in sums_cache:
+                                sums_cache[key] = _career_sums(metric.stat_group, pos)
+                            buffer += _exact_career_rate_leaders(
+                                metric, board, pos, descending, sums_cache[key], formula
+                            )
+                        else:
+                            buffer += _prorated_career_rate_leaders(metric, board, pos, descending, rows, formula)
+                            prorated += 1
+                    elif scope == "season":
                         buffer += _season_leaders(metric, board, pos, rows, descending, defaults, overrides)
                     else:
                         buffer += _career_leaders(metric, board, pos, rows, descending)
@@ -169,5 +236,5 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
             Leader.objects.bulk_create(buffer)
             written += len(buffer)
 
-    note(f"{written} filas escritas; {deferred} tableros de tasa-carrera diferidos (v2).")
-    return {"written": written, "deferred_rate_career": deferred}
+    note(f"{written} filas escritas; {prorated} tableros de tasa-carrera prorrateados.")
+    return {"written": written, "prorated_rate_career": prorated}

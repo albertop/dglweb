@@ -108,17 +108,55 @@ def test_leaders_exclude_pre_1956_seasons(players: dict[str, Player]) -> None:
 
 
 @pytest.mark.django_db
-def test_rate_career_is_deferred_not_written(players: dict[str, Player]) -> None:
-    QualifierDefault.objects.create(stat_group="pitching", qualifier_career="IP>=1000")
-    Pitching.objects.create(player=players["a"], season=2019, stint=1, era=2.00, outs=3000)
+def test_batting_career_rate_recomputes_from_summed_components(players: dict[str, Player]) -> None:
+    """Career AVG = sum(H)/sum(AB) over seasons — via the verified derive formulas, not an average of AVGs."""
+    QualifierDefault.objects.create(stat_group="batting", qualifier_career="PA>=100")
+    Batting.objects.create(player=players["a"], season=2018, stint=1, h=100, ab=300, pa=330)
+    Batting.objects.create(player=players["a"], season=2019, stint=1, h=100, ab=200, pa=220)  # A: 200/500 = .400
+    Batting.objects.create(player=players["b"], season=2019, stint=1, h=50, ab=200, pa=220)  # B: .250
+    Batting.objects.create(player=players["c"], season=2019, stint=1, h=40, ab=80, pa=90)  # C: .500 but PA<100
+    metric = _metric(stat_group="batting", column="avg", kind=Metric.Kind.RATE, best_career=True)
+
+    build_leaders()
+
+    board = list(Leader.objects.filter(metric=metric, board="best_career").order_by("rank"))
+    assert [(row.player_id, round(row.value, 3), row.rank) for row in board] == [(1, 0.400, 1), (2, 0.250, 2)]
+    assert not Leader.objects.filter(player_id=3).exists()  # C did not clear PA>=100
+
+
+@pytest.mark.django_db
+def test_pitching_career_rate_uses_the_standard_formula(players: dict[str, Player]) -> None:
+    """Career ERA = 9·sum(ER)/sum(IP) = 27·sum(ER)/sum(outs) — recomputed, not averaged."""
+    QualifierDefault.objects.create(stat_group="pitching", qualifier_career="IP>=100")
+    Pitching.objects.create(player=players["a"], season=2018, stint=1, er=50, outs=486)
+    Pitching.objects.create(player=players["a"], season=2019, stint=1, er=40, outs=486)  # 90 ER / 972 outs = 2.50
+    Pitching.objects.create(player=players["b"], season=2019, stint=1, er=60, outs=486)  # 3.33
     metric = _metric(
         stat_group="pitching", column="era", kind=Metric.Kind.RATE, direction=Metric.Direction.LOWER, best_career=True
     )
 
+    build_leaders()
+
+    board = list(Leader.objects.filter(metric=metric, board="best_career").order_by("rank"))
+    assert [(row.player_id, round(row.value, 2), row.rank) for row in board] == [(1, 2.50, 1), (2, 3.33, 2)]
+
+
+@pytest.mark.django_db
+def test_career_rate_without_a_formula_is_prorated_by_playing_time(players: dict[str, Player]) -> None:
+    """FIP has no clean career sum, so it's an IP-weighted average of the per-season values."""
+    QualifierDefault.objects.create(stat_group="pitching", qualifier_career="IP>=100")
+    Pitching.objects.create(player=players["a"], season=2018, stint=1, fip=3.0, outs=486)
+    Pitching.objects.create(player=players["a"], season=2019, stint=1, fip=4.0, outs=486)  # weighted avg = 3.5
+    Pitching.objects.create(player=players["b"], season=2019, stint=1, fip=5.0, outs=486)
+    metric = _metric(
+        stat_group="pitching", column="fip", kind=Metric.Kind.RATE, direction=Metric.Direction.LOWER, best_career=True
+    )
+
     result = build_leaders()
 
-    assert result["deferred_rate_career"] == 1
-    assert not Leader.objects.filter(metric=metric, board="best_career").exists()  # v2
+    board = list(Leader.objects.filter(metric=metric, board="best_career").order_by("rank"))
+    assert [(row.player_id, round(row.value, 2), row.rank) for row in board] == [(1, 3.50, 1), (2, 5.00, 2)]
+    assert result["prorated_rate_career"] == 1  # fip fell back to proration
 
 
 @pytest.mark.django_db
