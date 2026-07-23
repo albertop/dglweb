@@ -3,6 +3,25 @@
 Ideas discutidas y **diferidas a propósito** — no son deuda ni bugs, son cosas que decidimos hacer
 después. Cada una con el contexto suficiente para retomarla sin la conversación original.
 
+## Daily refresh de temporada en curso — **A DISCUTIR** (no es trivial)
+
+Hoy el scheduler corre `update_*` (refresh de la temporada actual) → `build_career_totals` →
+`build_leaders`. Parece simple pero hay decisiones abiertas que hay que aterrizar juntos:
+
+- **¿Qué es "temporada actual"?** Detección del año (rollover en enero, spring training, offseason);
+  no hardcodear.
+- **Datos parciales en curso.** La temporada viva es incompleta a diario. ¿Aparece en líderes (con
+  umbral prorrateado por la **tabla de games**) y en totales de carrera (sí, acumula)? ¿Se marca como
+  parcial en la UI?
+- **Orden y acoplamiento de jobs:** refresh temporada → totales de carrera → líderes → `parity_career`.
+  Un fallo intermedio no debe dejar líderes/carreras a medio construir.
+- **Chicken-and-egg con la paridad:** `parity_career` marca "falta la temporada actual" hasta que el
+  refresh corra ese día. ¿Se tolera la temporada en curso en la comparación?
+- **Cierre de temporada:** transición de "en curso" a "final"; postemporada solo oct/nov.
+- **Costo:** el refresh + rebuilds + parity son ~miles de llamadas/día. ¿Frecuencia, ventana, reintentos?
+
+Es una conversación de diseño, no un ticket. Retomar antes de dar por cerrado el pipeline diario.
+
 ## Motor de líderes / datos
 
 - **Auto-remediación de paridad (opción "a").** Hoy `parity_career` solo **marca y loguea** las
