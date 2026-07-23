@@ -10,10 +10,13 @@ dominicano** (carrera + temporada) + páginas de jugador, sobre el backfill hist
 - **4b-bis Totales de carrera** ✅ — `mlb_*_career` con subtotales (equipo/liga/total bat-pit;
   posición/total fildeo), `level`+`sort_order`, DH excluido. `parity_career` (loop-safe opción "b",
   marcador `CareerParityIssue`) verifica vs el proxy; agendado semanal. Commits hasta `8e4d3b6`.
-- **AQUÍ (paréntesis):** revisando `docs/reviews/code_review_v2.md` (nuevos findings) antes de seguir.
-  Corriendo la primera paridad real contra 10.0.0.39.
-- **Pendiente Fase 4:** paridad de fildeo (por posición), tabla de games (temporada en curso),
-  4c páginas de jugador, 4d páginas de líderes. Backlog en `docs/MEJORAS_FUTURAS.md`.
+- **Code review v2** ✅ — 9 findings corregidos (commit `a6eb29f`), 1 descartado (SAB-05), 1 al backlog.
+- **Primera paridad real** corrida: 298 disparidades, casi todas falsos positivos de `g` (el proxy
+  `career` reporta un `g` que no cuadra con su propio `yearByYear` para pitchers). Nuestros totales
+  son correctos. → refinar `parity_career` (quitar `g`) — en `docs/MEJORAS_FUTURAS.md`.
+- **AQUÍ.** Pendiente Fase 4: **4c páginas de jugador** (siguiente gran entregable; totales de carrera
+  + temporada ya listos), 4d páginas de líderes, refinar paridad `g`, tabla de games, paridad de
+  fildeo. Backlog en `docs/MEJORAS_FUTURAS.md`.
 
 ## Decisiones cerradas
 - **Backfill desde el proxy** (no copiar de SQL Server): reproduce nuestro schema con todas las
