@@ -81,6 +81,24 @@ def test_rate_season_applies_the_qualifier_and_ranks_lower_is_better(players: di
 
 
 @pytest.mark.django_db
+def test_counting_minimum_is_gated_by_the_qualifier(players: dict[str, Player]) -> None:
+    """ "Menos boletos" sin umbral lo gana quien lanzó una entrada: el tablero de BB abría con un
+    jugador de posición que tiró 1.0 IP y no dio boletos."""
+    QualifierDefault.objects.create(stat_group="pitching", qualifier_season="IP>=162", qualifier_career="IP>=100")
+    _metric(stat_group="pitching", column="bb", direction=Metric.Direction.LOWER, best_season=True, best_career=True)
+    # 3 outs = 1.0 IP, cero boletos: la "mejor" marca posible si nada lo filtra.
+    Pitching.objects.create(player=players["a"], season=2015, stint=1, outs=3, bb=0)
+    Pitching.objects.create(player=players["b"], season=2015, stint=1, outs=600, bb=40)  # 200 IP
+
+    build_leaders()
+
+    season = Leader.objects.get(board=Leader.Board.BEST_SEASON, season=2015, rank=1)
+    assert season.player == players["b"]  # el único que califica, aunque dio 40
+    career = Leader.objects.get(board=Leader.Board.BEST_CAREER, rank=1)
+    assert career.player == players["b"]
+
+
+@pytest.mark.django_db
 def test_worst_board_and_dense_rank_ties(players: dict[str, Player]) -> None:
     Batting.objects.create(player=players["a"], season=2019, stint=1, hr=40)
     Batting.objects.create(player=players["b"], season=2019, stint=1, hr=40)  # tie with A

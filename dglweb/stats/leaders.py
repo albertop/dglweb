@@ -116,6 +116,17 @@ def _descending(metric: Metric, is_best: bool) -> bool:
     return higher_is_better if is_best else not higher_is_better
 
 
+def _needs_qualifier(metric: Metric) -> bool:
+    """Whether a threshold must gate this metric's board.
+
+    A rate is distorted by a small sample in either direction. And so is the MINIMUM of a count:
+    "fewest walks" without a threshold crowns whoever pitched one inning — the board for BB used to
+    open with a position player who threw 1.0 IP and walked nobody. A count ranked "most first"
+    needs nothing: you cannot accumulate a league-leading total in a cup of coffee.
+    """
+    return metric.kind == Metric.Kind.RATE or metric.direction == Metric.Direction.LOWER
+
+
 def _season_leaders(
     metric: Metric,
     board: str,
@@ -130,7 +141,7 @@ def _season_leaders(
         value = row[metric.column]
         if value is None or (metric.exclude_zeros and value == 0):
             continue
-        if metric.kind == Metric.Kind.RATE:
+        if _needs_qualifier(metric):
             formula = qualifier.resolve_season(metric, row["season"], defaults, overrides)
             if not qualifier.qualifies(formula, metric.stat_group, row):
                 continue
@@ -154,15 +165,34 @@ def _season_leaders(
 
 
 def _career_leaders(
-    metric: Metric, board: str, pos: str | None, rows: Iterable[dict[str, Any]], descending: bool
+    metric: Metric,
+    board: str,
+    pos: str | None,
+    rows: Iterable[dict[str, Any]],
+    descending: bool,
+    defaults: qualifier.Defaults,
 ) -> list[Leader]:
     totals: dict[int, float] = {}
+    played: dict[int, dict[str, float]] = {}  # career sums of whatever the qualifier reads
+    formula = qualifier.resolve_career(metric, defaults) if _needs_qualifier(metric) else ""
+    threshold_column = qualifier.field_column(metric.stat_group, formula) if formula else None
     for row in rows:
         value = row[metric.column]
         if value is None:
             continue
         totals[row["player_id"]] = totals.get(row["player_id"], 0.0) + float(value)
-    pairs = [(pid, _leader_value(metric, v)) for pid, v in totals.items() if not (metric.exclude_zeros and v == 0)]
+        if threshold_column is not None:
+            carried = row.get(threshold_column) or 0
+            bucket = played.setdefault(row["player_id"], {threshold_column: 0.0})
+            bucket[threshold_column] += float(carried)
+    pairs = [
+        (pid, _leader_value(metric, v))
+        for pid, v in totals.items()
+        if not (metric.exclude_zeros and v == 0)
+        # A career minimum needs the same gate as a season one, or "fewest career walks" is won by
+        # whoever threw a single inning.
+        and (not formula or qualifier.qualifies(formula, metric.stat_group, played.get(pid, {})))
+    ]
 
     return [
         Leader(metric=metric, board=board, season=None, fielding_pos=pos, player_id=pid, value=value, rank=rank)
@@ -274,7 +304,7 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
                     elif scope == "season":
                         buffer += _season_leaders(metric, board, pos, rows, descending, defaults, overrides)
                     else:
-                        buffer += _career_leaders(metric, board, pos, rows, descending)
+                        buffer += _career_leaders(metric, board, pos, rows, descending, defaults)
                     if len(buffer) >= _BATCH:
                         Leader.objects.bulk_create(buffer)
                         written += len(buffer)
