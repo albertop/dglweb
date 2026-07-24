@@ -21,6 +21,7 @@ from dglweb.stats.models import (
     BattingCareer,
     CareerLevel,
     FieldingCareer,
+    Leader,
     Metric,
     PitchingCareer,
     QualifierDefault,
@@ -120,12 +121,21 @@ def test_bio_line_lists_every_field_it_has() -> None:
 
     play, origin = bio_lines(player)  # dos líneas: cómo juega, y de dónde/cuándo
 
-    assert "Batea: Izquierda" in play  # el modelo no tiene choices: mapeo explícito, no get_*_display
-    assert "Lanza: Derecha" in play
+    assert "Batea: Izq" in play  # el modelo no tiene choices: mapeo explícito, no get_*_display
+    assert "Lanza: Der" in play
     assert "Estatura: 6-3" in play and "Peso: 230 lb" in play
     assert "Santo Domingo, Distrito Nacional" in origin
     assert any(p.startswith("Debut") for p in origin)
     assert any(p.startswith("Falleció") for p in origin)
+
+
+@pytest.mark.django_db
+def test_bio_line_spells_out_the_pitcher_role() -> None:
+    """El maestro guarda el rol en el código de posición; el resto de posiciones pasa tal cual."""
+    assert "Posición: P-Abr" in bio_lines(_player(23, "r01", "Abridor", "SP"))[0]
+    assert "Posición: P-Rel" in bio_lines(_player(24, "r02", "Relevista", "RP"))[0]
+    assert "Posición: P" in bio_lines(_player(25, "r03", "Genérico", "P"))[0]
+    assert "Posición: LF" in bio_lines(_player(26, "r04", "Jardinero", "LF"))[0]
 
 
 @pytest.mark.django_db
@@ -298,6 +308,27 @@ def test_personal_best_lower_is_better_is_the_qualified_minimum() -> None:
     assert (2018, "so") in best  # el mínimo calificado es su mejor marca
     assert (2019, "so") not in best  # el máximo (peor) nunca
     assert (2020, "so") not in best  # muestra chica sin calificar no cuenta
+
+
+@pytest.mark.django_db
+def test_a_pitchers_batting_table_carries_no_leadership_badges() -> None:
+    """Sus turnos al bate son incidentales: se ranquean contra bateadores de oficio. La mejor marca
+    personal sí se queda — esa no compara con nadie."""
+    pitcher = _player(22, "p02", "Un Abridor", "SP")
+    BattingCareer.objects.create(player=pitcher, level=CareerLevel.TOTAL, sort_order=300)
+    Batting.objects.create(player=pitcher, season=2019, stint=1, team="BOS", pa=80, hr=2)
+    metric = Metric.objects.create(
+        stat_group="batting", column="hr", kind=Metric.Kind.CUMULATIVE, direction=Metric.Direction.HIGHER
+    )
+    Leader.objects.create(metric=metric, board=Leader.Board.BEST_SEASON, season=2019, player=pitcher, value=2, rank=1)
+    Leader.objects.create(metric=metric, board=Leader.Board.BEST_CAREER, player=pitcher, value=2, rank=1)
+
+    data = BattingTab().context(pitcher)
+
+    assert data["total_leads"] == {}  # sin azul de líder de por vida
+    classes = {css for _, leads in data["rows"] for css in leads.values()}
+    assert "lead-season" not in classes and "lead-career" not in classes
+    assert "lead-best" in classes  # su mejor marca personal sobrevive
 
 
 @pytest.mark.django_db

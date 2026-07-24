@@ -178,7 +178,7 @@
         </tbody>
       </table>
     </div>
-    <div class="dgl-meta px-3 py-2 border-top">GB/FB/LD/PU% = % de bolas en juego por tipo (roletazo/elevado/línea/palomita) · GB/FB = roletazos÷elevados · Contact% = swings con contacto ÷ swings · Whiff% = swings y fallos ÷ swings. Solo cuentan temporadas que califican por PA.</div>
+    <div class="dgl-meta px-3 py-2 border-top">GB/FB/LD/PU% = % de bolas en juego por tipo (roletazo/elevado/línea/palomita) · GB/FB = roletazos÷elevados · Contact% = swings con contacto ÷ swings · Whiff% = swings y fallos ÷ swings.{% if d.coefficient_qualifiers %} Solo temporadas que califican: {{ d.coefficient_qualifiers|join:" o " }}.{% endif %}</div>
   </section>
   {% include "profiles/_legend.html" %}
   </div>

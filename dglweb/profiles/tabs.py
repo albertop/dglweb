@@ -15,7 +15,7 @@ from django.db import models
 
 from dglweb.players.models import Player
 from dglweb.stats import career_totals, qualifier
-from dglweb.stats.derive import FIRST_STATCAST_SEASON
+from dglweb.stats.derive import FIRST_STATCAST_SEASON, batted_ball_coefficients
 from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
 from dglweb.stats.models import (
     Batting,
@@ -28,6 +28,7 @@ from dglweb.stats.models import (
     Metric,
     Pitching,
     PitchingCareer,
+    PitchingPost,
     QualifierDefault,
     QualifierSeasonOverride,
 )
@@ -293,6 +294,84 @@ class PlayerTab:
         return {}
 
 
+_COEFFICIENT_COLUMNS: frozenset[str] = frozenset(batted_ball_coefficients({}))
+
+
+def _is_his_trade(group: str, player: Player) -> bool:
+    """Whether this stat group is what the player is actually paid to do."""
+    return is_pitcher(player) if group == "pitching" else not is_pitcher(player)
+
+
+def _group_context(
+    group: str,
+    model: type[models.Model],
+    career_model: type[models.Model],
+    post_model: type[models.Model],
+    player: Player,
+) -> dict[str, Any]:
+    """Everything a batting or pitching pane needs.
+
+    Both groups have the same shape — season lines with their per-team splits, career subtotals,
+    postseason, Statcast — so they share the assembly and only differ in their templates' columns.
+    Fielding does not fit here: its lines are per position, not per stint.
+    """
+    # Two row sets: `seasons` is one line per season (the combined line for a traded year) and
+    # drives every calculation; `lines` also lists the per-team splits, and is what the table
+    # shows — a traded year prints each club, then that season's combined line.
+    rows_qs = model._default_manager.filter(player=player)
+    seasons = list(rows_qs.season_totals().order_by("season"))  # type: ignore[attr-defined]
+    lines = list(rows_qs.order_by("season", "stint"))
+    total_keys = {_row_key(row) for row in seasons}
+    season_leads, career_leads = _leaderships(player, group)
+    if not _is_his_trade(group, player):
+        # A pitcher's batting line and a position player's pitching line are incidental: they are
+        # ranked against people whose job that is, so a "leader" badge claims something false. The
+        # career GB/FB board for BATTING is topped by three pitchers. Nobody here is Ohtani — every
+        # Dominican with numbers in both tables is a starting pitcher from the pre-DH National
+        # League, and the most batting any of them did is Marichal's 1 339 PA over 16 seasons.
+        # The personal best survives: it compares him only with himself.
+        season_leads, career_leads = set(), set()
+    defaults, overrides = _qualifier_context()
+    catalog = _catalog(group)
+    best = _personal_bests(model, group, seasons, catalog, defaults, overrides)
+    career: list[Any] = list(career_model._default_manager.filter(player=player).order_by("sort_order"))
+    total = next((row for row in career if row.level == CareerLevel.TOTAL), None)
+    rows = _season_highlights(lines, season_leads, best, total_keys)
+    total_leads = {col: "lead-career" for col in career_leads}  # blue on the career row
+    # The Statcast panes start in 1989: before that the batted-ball types were barely recorded
+    # (see derive.FIRST_STATCAST_SEASON for the season-by-season coverage). A player who retired
+    # earlier gets no panes at all, and no row of pure `—` is ever printed.
+    # Coverage is judged on the season lines, never on the row count: a traded year contributes
+    # several rows but is still one season.
+    statcast_rows = [(row, leads) for row, leads in rows if row.season >= FIRST_STATCAST_SEASON]
+    statcast_seasons = [row for row in seasons if row.season >= FIRST_STATCAST_SEASON]
+    post_lines, post_totals = _postseason(post_model, group, player)
+    return {
+        # (row, {column: css class}): season leader (wine) > personal career-best (dark).
+        "rows": rows,
+        "season_count": len(seasons),  # seasons, not rows: a traded year prints several lines
+        "total": total,
+        "total_leads": total_leads,
+        "totals": _totals_rows(career, total, len(seasons), model, player, total_leads),
+        "post": post_lines,
+        "post_totals": post_totals,
+        "statcast_rows": statcast_rows,
+        "has_statcast": bool(statcast_rows),
+        # Read back from `dgl_metric`, never hardcoded in the caption: the thresholds are tunable in
+        # the Backoffice, and a note that repeated them would start lying the day someone tunes one.
+        "coefficient_qualifiers": sorted(
+            {
+                metric.qualifier_season
+                for column, metric in catalog.items()
+                if column in _COEFFICIENT_COLUMNS and metric.qualifier_season
+            }
+        ),
+        # Only total a Statcast pane when it covers every season the player has: a career line
+        # summed over fewer seasons than the table lists would misread as his whole career.
+        "statcast_full": bool(statcast_seasons) and len(statcast_seasons) == len(seasons),
+    }
+
+
 class BattingTab(PlayerTab):
     key = "batting"
     label = "Bateo"
@@ -306,48 +385,13 @@ class BattingTab(PlayerTab):
         return 20 if is_pitcher(player) else 10  # pitchers push Bateo below Pitcheo
 
     def context(self, player: Player) -> dict[str, Any]:
-        # Two row sets: `seasons` is one line per season (the combined line for a traded year) and
-        # drives every calculation; `lines` also lists the per-team splits, and is what the table
-        # shows — a traded year prints each club, then that season's combined line.
-        seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
-        lines = list(Batting.objects.filter(player=player).order_by("season", "stint"))
-        total_keys = {_row_key(row) for row in seasons}
-        season_leads, career_leads = _leaderships(player, "batting")
-        defaults, overrides = _qualifier_context()
-        best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), defaults, overrides)
-        career = list(BattingCareer.objects.filter(player=player).order_by("sort_order"))
-        total = next((row for row in career if row.level == CareerLevel.TOTAL), None)
-        rows = _season_highlights(lines, season_leads, best, total_keys)
-        total_leads = {col: "lead-career" for col in career_leads}  # blue on the career row
-        # The Statcast panes start in 1989: before that the batted-ball types were barely recorded
-        # (see derive.FIRST_STATCAST_SEASON for the season-by-season coverage). A player who retired
-        # earlier gets no panes at all, and no row of pure `—` is ever printed.
-        # Coverage is judged on the season lines, never on the row count: a traded year contributes
-        # several rows but is still one season.
-        statcast_rows = [(row, leads) for row, leads in rows if row.season >= FIRST_STATCAST_SEASON]
-        statcast_seasons = [row for row in seasons if row.season >= FIRST_STATCAST_SEASON]
-        post_lines, post_totals = _postseason(BattingPost, "batting", player)
-        return {
-            # (row, {column: css class}): season leader (wine) > personal career-best (dark).
-            "rows": rows,
-            "season_count": len(seasons),  # seasons, not rows: a traded year prints several lines
-            "total": total,
-            "total_leads": total_leads,
-            "totals": _totals_rows(career, total, len(seasons), Batting, player, total_leads),
-            "post": post_lines,
-            "post_totals": post_totals,
-            "statcast_rows": statcast_rows,
-            "has_statcast": bool(statcast_rows),
-            # Only total a Statcast pane when it covers every season the player has: a career line
-            # summed over fewer seasons than the table lists would misread as his whole career.
-            "statcast_full": bool(statcast_seasons) and len(statcast_seasons) == len(seasons),
-        }
+        return _group_context("batting", Batting, BattingCareer, BattingPost, player)
 
 
 class PitchingTab(PlayerTab):
     key = "pitching"
     label = "Pitcheo"
-    template = "profiles/tabs/_soon.html"  # placeholder until built (same shell, no page rework)
+    template = "profiles/tabs/pitching.html"
     base_order = 20
 
     def applies_to(self, player: Player) -> bool:
@@ -357,7 +401,7 @@ class PitchingTab(PlayerTab):
         return 10 if is_pitcher(player) else 20
 
     def context(self, player: Player) -> dict[str, Any]:
-        return {"has_data": Pitching.objects.filter(player=player).exists()}
+        return _group_context("pitching", Pitching, PitchingCareer, PitchingPost, player)
 
 
 class FieldingTab(PlayerTab):
