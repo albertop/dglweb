@@ -179,3 +179,41 @@ PITCHING_ADVANCED: list[Column] = [
 
 PITCHING_STATCAST: list[Column] = [Column("G", "g"), Column("IP", "outs", "innings"), *_BATTED_BALL]
 PITCHING_RATIOS: list[Column] = [Column("G", "g"), Column("IP", "outs", "innings"), *_COEFFICIENTS]
+
+# Fielding. `Inn` is the canonical `innings_outs` rendered as baseball notation (never the summable
+# `innings` float). The position itself is the row prefix, not a stat column.
+FIELDING_STANDARD: list[Column] = [
+    Column("G", "gp"),
+    Column("GS", "gs"),
+    Column("Inn", "innings_outs", "innings"),
+    Column("PO", "po"),
+    Column("A", "a"),
+    Column("E", "e"),
+    Column("Ch", "chances"),
+    Column("DP", "double_plays"),
+    Column("Fld%", "fld_pct", "rate"),
+    Column("RF/G", "rf_per_g", "dec2"),
+]
+
+FIELDING_ADVANCED: list[Column] = [
+    Column("Inn", "innings_outs", "innings"),
+    Column("Ch", "chances"),
+    Column("DP", "double_plays"),
+    Column("TP", "triple_plays"),
+    Column("ErrT", "throwing_errors"),
+    Column("RF/G", "rf_per_g", "dec2"),
+    Column("RF/9", "rf_per9", "dec2"),
+    Column("UZR", "uzr", "dec1"),
+]
+
+# Catcher-only line. Its own pill, shown only when the player caught, so a first baseman is never
+# handed a row of dashes.
+FIELDING_CATCHER: list[Column] = [
+    Column("Inn", "innings_outs", "innings"),
+    Column("SB", "stolen_bases"),
+    Column("CS", "caught_stealing"),
+    Column("PB", "passed_balls"),
+    Column("WP", "wild_pitches"),
+    Column("PkO", "pickoffs"),
+    Column("cERA", "catcher_era", "dec2"),
+]

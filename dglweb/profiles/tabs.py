@@ -476,17 +476,125 @@ class PitchingTab(PlayerTab):
         return _group_context("pitching", Pitching, PitchingCareer, PitchingPost, player, _PITCHING_TABLES)
 
 
+def _fielding_leaderships(player: Player) -> tuple[set[tuple[int, str, str]], set[tuple[str, str]]]:
+    """Fielding leaders are per position: {(season, pos, column)} and {(pos, column)} for career.
+
+    Unlike batting/pitching (`fielding_pos=NULL`), a fielding board is scoped to a position — "most
+    putouts at 1B", not "most putouts". So a mark is keyed by its position and only lights the row
+    for that position.
+    """
+    marks = Leader.objects.filter(player=player, rank=1, metric__stat_group="fielding").select_related("metric")
+    season = {
+        (row.season, row.fielding_pos, row.metric.column)
+        for row in marks
+        if row.board == Leader.Board.BEST_SEASON and row.season is not None and row.fielding_pos
+    }
+    career = {
+        (row.fielding_pos, row.metric.column)
+        for row in marks
+        if row.board == Leader.Board.BEST_CAREER and row.fielding_pos
+    }
+    return season, career
+
+
+_FIELDING_TABLES: dict[str, list[columns.Column]] = {
+    "standard": columns.FIELDING_STANDARD,
+    "advanced": columns.FIELDING_ADVANCED,
+    "catcher": columns.FIELDING_CATCHER,
+}
+
+
+def _fielding_context(player: Player) -> dict[str, Any]:
+    """Fielding is per POSITION, so it does not fit `_group_context`. A line is one (season, pos);
+    highlights, personal bests and career leaderships are all scoped to the position — comparing a
+    catcher's putouts against a first baseman's would be meaningless. DH is dropped (no defence)."""
+    catalog = _catalog("fielding")
+    defaults, overrides = _qualifier_context()
+    lines = list(Fielding.objects.filter(player=player).position_totals().exclude(pos="DH").order_by("season", "-gp"))
+    season_leads, career_leads = _fielding_leaderships(player)
+
+    # Personal bests within each position, never across them.
+    by_pos: dict[str, list[Any]] = defaultdict(list)
+    for row in lines:
+        by_pos[row.pos].append(row)
+    best: set[tuple[int, str, str]] = set()
+    for pos, pos_lines in by_pos.items():
+        for season, column in _personal_bests(Fielding, "fielding", pos_lines, catalog, defaults, overrides):
+            best.add((season, pos, column))
+
+    def paint(row: Any) -> dict[str, str]:  # noqa: ANN401
+        classes: dict[str, str] = {}
+        for season, pos, column in season_leads:
+            if season == row.season and pos == row.pos:
+                classes[column] = "lead-season"
+        for season, pos, column in best:
+            if season == row.season and pos == row.pos:
+                classes[column] = f"{classes[column]} lead-personal" if column in classes else "lead-best"
+        return classes
+
+    names = tuple(_FIELDING_TABLES)
+    painted: list[dict[str, Any]] = [
+        {"row": row, "leads": (cl := paint(row)), **_cells(row, cl, _FIELDING_TABLES, names)} for row in lines
+    ]
+
+    # Career: one row per position (each is its own leaderboard entity, so it takes the career mark),
+    # then the grand total (a sum across positions — not a ranked line, so unmarked).
+    career: list[Any] = list(FieldingCareer.objects.filter(player=player).exclude(pos="DH").order_by("sort_order"))
+    total = next((line for line in career if line.level == CareerLevel.TOTAL), None)
+    seasons_at = {pos: len({row.season for row in pos_lines}) for pos, pos_lines in by_pos.items()}
+    totals_rows: list[dict[str, Any]] = []
+    for line in career:
+        if line.level != CareerLevel.POSITION:
+            continue
+        leads = {column: "lead-career" for pos, column in career_leads if pos == line.pos}
+        totals_rows.append(
+            {
+                "row": line,
+                "label": line.pos,
+                "seasons": seasons_at.get(line.pos, 0),
+                "kind": "team",
+                "leads": leads,
+                **_cells(line, leads, _FIELDING_TABLES, names),
+            }
+        )
+    if total is not None:
+        totals_rows.append(
+            {
+                "row": total,
+                "label": "Total",
+                "seasons": len({row.season for row in lines}),
+                "kind": "total",
+                "leads": {},
+                **_cells(total, {}, _FIELDING_TABLES, names),
+            }
+        )
+
+    return {
+        "columns": _FIELDING_TABLES,
+        "lines": painted,
+        "season_count": len({row.season for row in lines}),
+        "total_cells": _cells(total, {}, _FIELDING_TABLES, names) if total else None,
+        "totals_rows": totals_rows,
+        "has_catcher": any(row.pos == "C" for row in lines),
+        "has_season_leads": bool(season_leads),
+        "has_career_leads": bool(career_leads),
+        "has_personal_leads": any("lead-personal" in css for entry in painted for css in entry["leads"].values()),
+    }
+
+
 class FieldingTab(PlayerTab):
     key = "fielding"
     label = "Fildeo"
-    template = "profiles/tabs/_soon.html"
+    template = "profiles/tabs/fielding.html"
     base_order = 30
 
     def applies_to(self, player: Player) -> bool:
-        return FieldingCareer.objects.filter(player=player).exists()
+        # Needs an actual defensive line, not just a career row: a pure DH has a FieldingCareer total
+        # but nothing to show once DH is dropped.
+        return Fielding.objects.filter(player=player).exclude(pos="DH").exists()
 
     def context(self, player: Player) -> dict[str, Any]:
-        return {"has_data": Fielding.objects.filter(player=player).exists()}
+        return _fielding_context(player)
 
 
 REGISTRY: list[PlayerTab] = [BattingTab(), PitchingTab(), FieldingTab()]  # append new tabs here

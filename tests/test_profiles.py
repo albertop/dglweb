@@ -24,6 +24,7 @@ from dglweb.stats.models import (
     Batting,
     BattingCareer,
     CareerLevel,
+    Fielding,
     FieldingCareer,
     Leader,
     Metric,
@@ -58,6 +59,7 @@ def test_tabs_order_batter_batting_first() -> None:
     player = _player(1, "a01", "Un Bateador", "LF")
     BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
     FieldingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=200)
+    Fielding.objects.create(player=player, season=2020, team="BOS", pos="LF", gp=100)  # una línea real
 
     assert [tab.key for tab in tabs_for(player)] == ["batting", "fielding"]
 
@@ -68,6 +70,7 @@ def test_tabs_order_pitcher_pitching_first() -> None:
     BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
     PitchingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
     FieldingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=200)
+    Fielding.objects.create(player=player, season=2020, team="BOS", pos="P", gp=30)  # una línea real
 
     assert [tab.key for tab in tabs_for(player)] == ["pitching", "batting", "fielding"]
 
@@ -346,6 +349,31 @@ def test_personal_best_lower_is_better_is_the_qualified_minimum() -> None:
     assert (2018, "so") in best  # el mínimo calificado es su mejor marca
     assert (2019, "so") not in best  # el máximo (peor) nunca
     assert (2020, "so") not in best  # muestra chica sin calificar no cuenta
+
+
+@pytest.mark.django_db
+def test_fielding_is_per_position_and_drops_the_dh() -> None:
+    """Una fila por (temporada, posición); el DH no aparece (no defiende); y el resaltado se compara
+    DENTRO de cada posición — el mejor PO como 3B no compite contra el PO como jardinero."""
+    from dglweb.profiles.tabs import FieldingTab
+    from dglweb.stats.models import Fielding, FieldingCareer
+
+    player = _player(32, "f01", "Multi Posición", "3B")
+    FieldingCareer.objects.create(player=player, level=CareerLevel.POSITION, pos="3B", sort_order=100)
+    FieldingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    Fielding.objects.create(player=player, season=2019, team="BOS", pos="3B", gp=150, po=120)
+    Fielding.objects.create(player=player, season=2019, team="BOS", pos="SS", gp=5, po=8)
+    Fielding.objects.create(player=player, season=2019, team="BOS", pos="DH", gp=20, po=0)  # se descarta
+
+    data = FieldingTab().context(player)
+    shown = [(entry["row"].season, entry["row"].pos) for entry in data["lines"]]
+
+    assert (2019, "DH") not in shown  # el DH no aparece
+    assert (2019, "3B") in shown and (2019, "SS") in shown
+    # PO=120 (3B) es su mejor marca en 3B; PO=8 (SS) es su mejor marca en SS. Cada uno en su posición.
+    marks = {(entry["row"].pos): entry["leads"].get("po", "") for entry in data["lines"]}
+    assert "lead-best" in marks["3B"]
+    assert "lead-best" in marks["SS"]  # 8 no compite contra 120: es el mejor de SS
 
 
 @pytest.mark.django_db

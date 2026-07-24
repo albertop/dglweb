@@ -1,0 +1,102 @@
+{% load stats_extras %}
+{% with d=tab.data %}
+{% comment %}
+Fildeo va por POSICIÓN, no por stint: cada fila es una (temporada, posición), con columna Pos en el
+prefijo (partials `_fielding_*`). Las columnas viven en `profiles/columns.py`. El pill Receptor solo
+aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar por posición es turbio).
+{% endcomment %}
+<ul class="nav nav-pills mb-3" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#fld-std" type="button">Estándar</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-adv" type="button">Avanzado</button></li>
+  {% if d.has_catcher %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-cat" type="button">Receptor</button></li>{% endif %}
+  {% if d.totals_rows %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-team" type="button">Totales</button></li>{% endif %}
+</ul>
+<div class="tab-content">
+
+  <div class="tab-pane fade show active" id="fld-std">
+  <section class="dgl-panel mb-4">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        {% include "profiles/_fielding_head.html" with cols=d.columns.standard %}
+        <tbody>
+          {% for entry in d.lines %}{% include "profiles/_fielding_row.html" with cells=entry.standard %}{% endfor %}
+          {% if d.total_cells %}{% include "profiles/_fielding_total.html" with cells=d.total_cells.standard count=d.season_count totals_target="fld-team" %}{% endif %}
+        </tbody>
+      </table>
+    </div>
+    <div class="dgl-meta px-3 py-2 border-top">Una fila por posición jugada cada temporada. Los liderazgos y la mejor marca se comparan dentro de cada posición. Inn = entradas en la posición; Fld% = fildeo; RF/G = rango por juego. El bateador designado no aparece (no defiende).</div>
+  </section>
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
+  </div>
+
+  <div class="tab-pane fade" id="fld-adv">
+  <section class="dgl-panel mb-4">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        {% include "profiles/_fielding_head.html" with cols=d.columns.advanced %}
+        <tbody>
+          {% for entry in d.lines %}{% include "profiles/_fielding_row.html" with cells=entry.advanced %}{% endfor %}
+          {% if d.total_cells %}{% include "profiles/_fielding_total.html" with cells=d.total_cells.advanced count=d.season_count totals_target="fld-team" %}{% endif %}
+        </tbody>
+      </table>
+    </div>
+    <div class="dgl-meta px-3 py-2 border-top">TP = triples plays · ErrT = errores de tiro · RF/9 = rango por 9 entradas · UZR = carreras defensivas sobre el promedio (desde 2002).</div>
+  </section>
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
+  </div>
+
+  {% if d.has_catcher %}
+  <div class="tab-pane fade" id="fld-cat">
+  <section class="dgl-panel mb-4">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        {% include "profiles/_fielding_head.html" with cols=d.columns.catcher %}
+        <tbody>
+          {% for entry in d.lines %}{% if entry.row.pos == "C" %}{% include "profiles/_fielding_row.html" with cells=entry.catcher %}{% endif %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="dgl-meta px-3 py-2 border-top">Solo las temporadas como receptor. SB/CS = robos permitidos y atrapados · PB = passed balls · WP = wild pitches · PkO = pickoffs · cERA = efectividad del equipo con él detrás del plato.</div>
+  </section>
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
+  </div>
+  {% endif %}
+
+  {% if d.totals_rows %}
+  <div class="tab-pane fade" id="fld-team">
+    <section class="dgl-panel mb-4">
+      <div class="dgl-embed-cap">Estándar</div>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0 dgl-stats-table">
+          {% include "profiles/_label_head.html" with label="Posición" cols=d.columns.standard %}
+          <tbody>{% for entry in d.totals_rows %}{% include "profiles/_label_row.html" with cells=entry.standard %}{% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
+    <section class="dgl-panel mb-4">
+      <div class="dgl-embed-cap">Avanzado</div>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0 dgl-stats-table">
+          {% include "profiles/_label_head.html" with label="Posición" cols=d.columns.advanced %}
+          <tbody>{% for entry in d.totals_rows %}{% include "profiles/_label_row.html" with cells=entry.advanced %}{% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
+    {% if d.has_catcher %}
+    <section class="dgl-panel mb-4">
+      <div class="dgl-embed-cap">Receptor</div>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0 dgl-stats-table">
+          {% include "profiles/_label_head.html" with label="Posición" cols=d.columns.catcher %}
+          <tbody>{% for entry in d.totals_rows %}{% if entry.row.pos == "C" or entry.kind == "total" %}{% include "profiles/_label_row.html" with cells=entry.catcher %}{% endif %}{% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+    {% include "profiles/_legend.html" with career=d.has_career_leads season=False best=False %}
+    <div class="dgl-meta mb-4">Una línea por cada posición que jugó, más el total de todas. Cada posición es su propio ranking: el azul marca dónde lidera de por vida entre dominicanos en esa posición.</div>
+  </div>
+  {% endif %}
+
+</div>
+{% endwith %}

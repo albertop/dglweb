@@ -59,6 +59,13 @@ Es una conversación de diseño, no un ticket. Retomar antes de dar por cerrado 
   fielding del proxy (sumando, excluyendo DH).
 - **DEV-05 — `build_leaders` re-escanea por métrica.** No es bug; escalamiento. Agrupar por
   `stat_group` y traer las columnas una vez por grupo/posición, o materializar season-totals.
+- **Postemporada de fildeo en el perfil** (Fase 4c). El tab de Fildeo se lanzó sin pill de
+  Postemporada: `mlb_fielding_post` existe y tiene los datos, pero agregarlos es turbio. A diferencia
+  de bateo/pitcheo, una línea de fildeo es por **posición**, así que un subtotal por ronda o por año
+  mezclaría posiciones (PO como receptor + como jardinero en una sola fila), y las tasas —Fld%, RF—
+  no tienen sentido sumadas entre posiciones. Si se retoma, mostrar el detalle por (temporada, ronda,
+  posición) SIN subtotales agregados, o decidir con el dueño una agregación por posición. Bajo valor;
+  revisar si en algún momento hace sentido.
 - **Hueco de batazos en 2000 y 2001** (Fase 4c). En esas dos temporadas la fuente entregó los **outs**
   por tipo completos pero casi ningún **hit** por tipo: 91 hits tipificados en 2000 y 113 en 2001,
   contra ~5 100 hits reales (un 2%). En 1999 el match es exacto (4 957 = 4 957) y en 2003 casi
