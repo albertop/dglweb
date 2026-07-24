@@ -16,16 +16,16 @@
   <div class="tab-pane fade show active" id="bat-std">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
-      <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-team-left">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Temporada</th><th>Team</th><th>Edad</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th>
+          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th>
           <th>HR</th><th>RBI</th><th>SB</th><th>CS</th><th>BB</th><th>SO</th><th>HBP</th><th>SH</th><th>SF</th><th>GIDP</th>
           <th>AVG</th><th>OBP</th><th>SLG</th><th class="pe-3">OPS</th>
         </tr></thead>
         <tbody>
           {% for s, leads in d.rows %}
           <tr>
-            <td class="ps-3">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td>{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
+            <td class="ps-3 dgl-mid">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td class="dgl-mid">{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
             <td>{% ifchanged s.season %}{{ s.age|num }}{% endifchanged %}</td><td class="{{ leads.g }}">{{ s.g|num }}</td><td class="{{ leads.pa }}">{{ s.pa|num }}</td>
             <td class="{{ leads.ab }}">{{ s.ab|num }}</td><td class="{{ leads.r }}">{{ s.r|num }}</td><td class="{{ leads.h }}">{{ s.h|num }}</td>
             <td class="{{ leads.x2b }}">{{ s.x2b|num }}</td><td class="{{ leads.x3b }}">{{ s.x3b|num }}</td><td class="{{ leads.hr }}">{{ s.hr|num }}</td>
@@ -38,7 +38,7 @@
           {% endfor %}
           {% if d.total %}
           <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-            <td class="ps-3"><b>{{ d.season_count }} temporadas</b></td><td></td><td></td>
+            <td class="ps-3 dgl-mid"><b>{{ d.season_count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
             <td class="{{ d.total_leads.g }}">{{ d.total.g|num }}</td><td class="{{ d.total_leads.pa }}">{{ d.total.pa|num }}</td>
             <td class="{{ d.total_leads.ab }}">{{ d.total.ab|num }}</td><td class="{{ d.total_leads.r }}">{{ d.total.r|num }}</td>
             <td class="{{ d.total_leads.h }}">{{ d.total.h|num }}</td><td class="{{ d.total_leads.x2b }}">{{ d.total.x2b|num }}</td>
@@ -63,15 +63,15 @@
   <div class="tab-pane fade" id="bat-adv">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
-      <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-team-left">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Temporada</th><th>Team</th><th>Edad</th><th>TB</th><th>LOB</th><th>ISO</th><th>BABIP</th><th>OPS</th><th>TotAvg</th><th>wOBA</th><th>wRC+</th>
+          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th><th>TB</th><th>LOB</th><th>ISO</th><th>BABIP</th><th>OPS</th><th>TotAvg</th><th>wOBA</th><th>wRC+</th>
           <th>wRAA</th><th>wRC</th><th>wGDP</th><th>wSB</th><th>UBR</th><th>SPD</th><th>RAR</th><th>RC</th><th>BsR</th><th class="pe-3">WAR</th>
         </tr></thead>
         <tbody>
           {% for s, leads in d.rows %}
           <tr>
-            <td class="ps-3">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td>{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
+            <td class="ps-3 dgl-mid">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td class="dgl-mid">{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
             <td>{% ifchanged s.season %}{{ s.age|num }}{% endifchanged %}</td><td class="{{ leads.tb }}">{{ s.tb|num }}</td><td class="{{ leads.lob }}">{{ s.lob|num }}</td><td class="{{ leads.iso }}">{{ s.iso|rate }}</td>
             <td class="{{ leads.babip }}">{{ s.babip|rate }}</td><td class="{{ leads.ops }}">{{ s.ops|rate }}</td><td class="{{ leads.total_avg }}">{{ s.total_avg|rate }}</td><td class="{{ leads.woba }}">{{ s.woba|rate }}</td>
             <td class="{{ leads.w_rc_plus }}">{{ s.w_rc_plus|rate:0 }}</td><td class="{{ leads.w_raa }}">{{ s.w_raa|dec:1 }}</td><td class="{{ leads.w_rc }}">{{ s.w_rc|dec:1 }}</td>
@@ -82,7 +82,7 @@
           {% endfor %}
           {% if d.total %}
           <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-            <td class="ps-3"><b>{{ d.season_count }} temporadas</b></td><td></td><td></td>
+            <td class="ps-3 dgl-mid"><b>{{ d.season_count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
             <td class="{{ d.total_leads.tb }}">{{ d.total.tb|num }}</td><td class="{{ d.total_leads.lob }}">{{ d.total.lob|num }}</td><td class="{{ d.total_leads.iso }}">{{ d.total.iso|rate }}</td>
             <td class="{{ d.total_leads.babip }}">{{ d.total.babip|rate }}</td><td class="{{ d.total_leads.ops }}">{{ d.total.ops|rate }}</td>
             <td class="{{ d.total_leads.total_avg }}">{{ d.total.total_avg|rate }}</td>
@@ -107,15 +107,15 @@
   <div class="tab-pane fade" id="bat-statcast">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
-      <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-team-left">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Temporada</th><th>Team</th><th>Edad</th><th>G</th><th>AB</th><th>AO</th><th>GO</th><th>FO</th><th>PO</th><th>LO</th>
+          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th><th>G</th><th>AB</th><th>AO</th><th>GO</th><th>FO</th><th>PO</th><th>LO</th>
           <th>FH</th><th>PH</th><th>LH</th><th>GH</th><th>Sw</th><th>Miss</th><th class="pe-3">BIP</th>
         </tr></thead>
         <tbody>
           {% for s, leads in d.statcast_rows %}
           <tr>
-            <td class="ps-3">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td>{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
+            <td class="ps-3 dgl-mid">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td class="dgl-mid">{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
             <td>{% ifchanged s.season %}{{ s.age|num }}{% endifchanged %}</td><td class="{{ leads.g }}">{{ s.g|num }}</td><td class="{{ leads.ab }}">{{ s.ab|num }}</td>
             <td class="{{ leads.air_outs }}">{{ s.air_outs|num }}</td><td class="{{ leads.ground_outs }}">{{ s.ground_outs|num }}</td>
             <td class="{{ leads.fly_outs }}">{{ s.fly_outs|num }}</td><td class="{{ leads.pop_outs }}">{{ s.pop_outs|num }}</td>
@@ -127,7 +127,7 @@
           {% endfor %}
           {% if d.total and d.statcast_full %}
           <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-            <td class="ps-3"><b>{{ d.season_count }} temporadas</b></td><td></td><td></td>
+            <td class="ps-3 dgl-mid"><b>{{ d.season_count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
             <td class="{{ d.total_leads.g }}">{{ d.total.g|num }}</td><td class="{{ d.total_leads.ab }}">{{ d.total.ab|num }}</td>
             <td class="{{ d.total_leads.air_outs }}">{{ d.total.air_outs|num }}</td><td class="{{ d.total_leads.ground_outs }}">{{ d.total.ground_outs|num }}</td>
             <td class="{{ d.total_leads.fly_outs }}">{{ d.total.fly_outs|num }}</td><td class="{{ d.total_leads.pop_outs }}">{{ d.total.pop_outs|num }}</td>
@@ -149,15 +149,15 @@
   <div class="tab-pane fade" id="bat-ratios">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
-      <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-team-left">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Temporada</th><th>Team</th><th>Edad</th><th>G</th><th>AB</th><th>GB%</th><th>FB%</th><th>LD%</th><th>PU%</th>
+          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th><th>G</th><th>AB</th><th>GB%</th><th>FB%</th><th>LD%</th><th>PU%</th>
           <th>GB/FB</th><th>Contact%</th><th class="pe-3">Whiff%</th>
         </tr></thead>
         <tbody>
           {% for s, leads in d.statcast_rows %}
           <tr>
-            <td class="ps-3">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td>{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
+            <td class="ps-3 dgl-mid">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td class="dgl-mid">{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
             <td>{% ifchanged s.season %}{{ s.age|num }}{% endifchanged %}</td><td class="{{ leads.g }}">{{ s.g|num }}</td><td class="{{ leads.ab }}">{{ s.ab|num }}</td>
             <td class="{{ leads.gb_pct }}">{{ s.gb_pct|pct }}</td><td class="{{ leads.fb_pct }}">{{ s.fb_pct|pct }}</td>
             <td class="{{ leads.ld_pct }}">{{ s.ld_pct|pct }}</td><td class="{{ leads.pu_pct }}">{{ s.pu_pct|pct }}</td>
@@ -167,7 +167,7 @@
           {% endfor %}
           {% if d.total and d.statcast_full %}
           <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-            <td class="ps-3"><b>{{ d.season_count }} temporadas</b></td><td></td><td></td>
+            <td class="ps-3 dgl-mid"><b>{{ d.season_count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
             <td class="{{ d.total_leads.g }}">{{ d.total.g|num }}</td><td class="{{ d.total_leads.ab }}">{{ d.total.ab|num }}</td>
             <td class="{{ d.total_leads.gb_pct }}">{{ d.total.gb_pct|pct }}</td><td class="{{ d.total_leads.fb_pct }}">{{ d.total.fb_pct|pct }}</td>
             <td class="{{ d.total_leads.ld_pct }}">{{ d.total.ld_pct|pct }}</td><td class="{{ d.total_leads.pu_pct }}">{{ d.total.pu_pct|pct }}</td>
@@ -191,22 +191,57 @@
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
         <thead><tr>
-          <th class="ps-3">Temporada</th><th>Rd</th><th>Team</th><th>G</th><th>AB</th><th>R</th><th>H</th><th>HR</th><th>RBI</th>
-          <th>BB</th><th>SO</th><th>AVG</th><th>OBP</th><th class="pe-3">SLG</th>
+          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Rd</th><th class="dgl-mid">Equipo</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th>
+          <th>HR</th><th>RBI</th><th>SB</th><th>CS</th><th>BB</th><th>SO</th><th>HBP</th><th>SH</th><th>SF</th><th>GIDP</th>
+          <th>AVG</th><th>OBP</th><th>SLG</th><th class="pe-3">OPS</th>
         </tr></thead>
         <tbody>
-          {% for p in d.post %}
-          <tr>
-            <td class="ps-3">{% ifchanged p.season %}{{ p.season }}{% endifchanged %}</td><td>{{ p.round }}</td>
-            <td>{% ifchanged p.season %}{{ p.team|default:"—" }}{% endifchanged %}</td>
-            <td>{{ p.g|num }}</td><td>{{ p.ab|num }}</td><td>{{ p.r|num }}</td><td>{{ p.h|num }}</td><td>{{ p.hr|num }}</td>
-            <td>{{ p.rbi|num }}</td><td>{{ p.bb|num }}</td><td>{{ p.so|num }}</td><td>{{ p.avg|rate }}</td><td>{{ p.obp|rate }}</td>
-            <td class="pe-3">{{ p.slg|rate }}</td>
+          {% for t in d.post %}{% with p=t.row %}
+          <tr {% if t.kind == "season" %}class="table-light" style="font-weight:700"{% endif %}>
+            <td class="ps-3 dgl-mid">{% if t.kind == "line" %}{% ifchanged p.season %}{{ p.season }}{% endifchanged %}{% endif %}</td>
+            <td class="dgl-mid">{% if t.kind == "season" %}Tot{% else %}{{ p.round }}{% endif %}</td>
+            <td class="dgl-mid">{% if t.kind == "line" %}{% ifchanged p.season %}{{ p.team|default:"—" }}{% endifchanged %}{% endif %}</td>
+            <td>{{ p.g|num }}</td><td>{{ p.pa|num }}</td><td>{{ p.ab|num }}</td><td>{{ p.r|num }}</td><td>{{ p.h|num }}</td>
+            <td>{{ p.x2b|num }}</td><td>{{ p.x3b|num }}</td><td>{{ p.hr|num }}</td><td>{{ p.rbi|num }}</td>
+            <td>{{ p.sb|num }}</td><td>{{ p.cs|num }}</td><td>{{ p.bb|num }}</td><td>{{ p.so|num }}</td>
+            <td>{{ p.hbp|num }}</td><td>{{ p.sh|num }}</td><td>{{ p.sf|num }}</td><td>{{ p.gidp|num }}</td>
+            <td>{{ p.avg|rate }}</td><td>{{ p.obp|rate }}</td><td>{{ p.slg|rate }}</td><td class="pe-3">{{ p.ops|rate }}</td>
           </tr>
-          {% endfor %}
+          {% endwith %}{% endfor %}
         </tbody>
       </table>
     </div>
+  </section>
+
+  {% comment %}
+  Los mismos totales por ronda salen también en el pill Totales: aquí para leerlos junto al detalle
+  que los produce, allá para tenerlos con el resto de los totales del jugador.
+  {% endcomment %}
+  <section class="dgl-panel mb-4">
+    <div class="dgl-embed-cap">Totales de postemporada</div>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        <thead><tr>
+          <th class="ps-3">Ronda</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th>
+          <th>HR</th><th>RBI</th><th>SB</th><th>CS</th><th>BB</th><th>SO</th><th>HBP</th><th>SH</th><th>SF</th><th>GIDP</th>
+          <th>AVG</th><th>OBP</th><th>SLG</th><th class="pe-3">OPS</th>
+        </tr></thead>
+        <tbody>
+          {% for t in d.post_totals %}{% with p=t.row %}
+          <tr {% if t.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
+            <td class="ps-3"><b>{{ t.label }}</b>
+              <span class="dgl-meta">({{ t.seasons }} temporada{{ t.seasons|pluralize:"s" }})</span></td>
+            <td>{{ p.g|num }}</td><td>{{ p.pa|num }}</td><td>{{ p.ab|num }}</td><td>{{ p.r|num }}</td><td>{{ p.h|num }}</td>
+            <td>{{ p.x2b|num }}</td><td>{{ p.x3b|num }}</td><td>{{ p.hr|num }}</td><td>{{ p.rbi|num }}</td>
+            <td>{{ p.sb|num }}</td><td>{{ p.cs|num }}</td><td>{{ p.bb|num }}</td><td>{{ p.so|num }}</td>
+            <td>{{ p.hbp|num }}</td><td>{{ p.sh|num }}</td><td>{{ p.sf|num }}</td><td>{{ p.gidp|num }}</td>
+            <td>{{ p.avg|rate }}</td><td>{{ p.obp|rate }}</td><td>{{ p.slg|rate }}</td><td class="pe-3">{{ p.ops|rate }}</td>
+          </tr>
+          {% endwith %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial. Los promedios se recalculan desde los totales, no son promedio de promedios.</div>
   </section>
   </div>
   {% endif %}
@@ -221,7 +256,7 @@
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
           <thead><tr>
-            <th class="ps-3">Team / Liga</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th>
+            <th class="ps-3">Equipo / Liga</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th>
             <th>HR</th><th>RBI</th><th>SB</th><th>CS</th><th>BB</th><th>SO</th><th>HBP</th><th>SH</th><th>SF</th><th>GIDP</th>
             <th>AVG</th><th>OBP</th><th>SLG</th><th class="pe-3">OPS</th>
           </tr></thead>
@@ -253,7 +288,7 @@
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
           <thead><tr>
-            <th class="ps-3">Team / Liga</th><th>TB</th><th>LOB</th><th>ISO</th><th>BABIP</th><th>OPS</th><th>TotAvg</th>
+            <th class="ps-3">Equipo / Liga</th><th>TB</th><th>LOB</th><th>ISO</th><th>BABIP</th><th>OPS</th><th>TotAvg</th>
             <th>wOBA</th><th>wRC+</th><th>wRAA</th><th>wRC</th><th>wGDP</th><th>wSB</th><th>UBR</th><th>SPD</th>
             <th>RAR</th><th>RC</th><th>BsR</th><th class="pe-3">WAR</th>
           </tr></thead>
@@ -284,7 +319,7 @@
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
           <thead><tr>
-            <th class="ps-3">Team / Liga</th><th>AO</th><th>GO</th><th>FO</th><th>PO</th><th>LO</th>
+            <th class="ps-3">Equipo / Liga</th><th>AO</th><th>GO</th><th>FO</th><th>PO</th><th>LO</th>
             <th>FH</th><th>PH</th><th>LH</th><th>GH</th><th>Sw</th><th>Miss</th><th class="pe-3">BIP</th>
           </tr></thead>
           <tbody>
@@ -310,7 +345,7 @@
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
           <thead><tr>
-            <th class="ps-3">Team / Liga</th><th>GB%</th><th>FB%</th><th>LD%</th><th>PU%</th>
+            <th class="ps-3">Equipo / Liga</th><th>GB%</th><th>FB%</th><th>LD%</th><th>PU%</th>
             <th>GB/FB</th><th>Contact%</th><th class="pe-3">Whiff%</th>
           </tr></thead>
           <tbody>
@@ -327,6 +362,35 @@
           </tbody>
         </table>
       </div>
+    </section>
+    {% endif %}
+
+    {% if d.post_totals %}
+    <section class="dgl-panel mb-4">
+      <div class="dgl-embed-cap">Postemporada</div>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0 dgl-stats-table">
+          <thead><tr>
+            <th class="ps-3">Ronda</th><th>G</th><th>PA</th><th>AB</th><th>R</th><th>H</th><th>2B</th><th>3B</th>
+            <th>HR</th><th>RBI</th><th>SB</th><th>CS</th><th>BB</th><th>SO</th><th>HBP</th><th>SH</th><th>SF</th><th>GIDP</th>
+            <th>AVG</th><th>OBP</th><th>SLG</th><th class="pe-3">OPS</th>
+          </tr></thead>
+          <tbody>
+            {% for t in d.post_totals %}{% with p=t.row %}
+            <tr {% if t.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
+              <td class="ps-3"><b>{{ t.label }}</b>
+                <span class="dgl-meta">({{ t.seasons }} temporada{{ t.seasons|pluralize:"s" }})</span></td>
+              <td>{{ p.g|num }}</td><td>{{ p.pa|num }}</td><td>{{ p.ab|num }}</td><td>{{ p.r|num }}</td><td>{{ p.h|num }}</td>
+              <td>{{ p.x2b|num }}</td><td>{{ p.x3b|num }}</td><td>{{ p.hr|num }}</td><td>{{ p.rbi|num }}</td>
+              <td>{{ p.sb|num }}</td><td>{{ p.cs|num }}</td><td>{{ p.bb|num }}</td><td>{{ p.so|num }}</td>
+              <td>{{ p.hbp|num }}</td><td>{{ p.sh|num }}</td><td>{{ p.sf|num }}</td><td>{{ p.gidp|num }}</td>
+              <td>{{ p.avg|rate }}</td><td>{{ p.obp|rate }}</td><td>{{ p.slg|rate }}</td><td class="pe-3">{{ p.ops|rate }}</td>
+            </tr>
+            {% endwith %}{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial. Los promedios se recalculan desde los totales, no son promedio de promedios.</div>
     </section>
     {% endif %}
 

@@ -142,12 +142,21 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-stats-table { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .82rem;
   font-variant-numeric: tabular-nums; }
 .dgl-stats-table th { color: var(--dgl-muted); font-weight: 700; }
-/* Numbers right-aligned (tabular); the first column (Temporada / Team) stays left. */
+/* Numbers right-aligned (tabular). The first column stays left because on the totals tables it is a
+   label ("BOS (14 temporadas)", "Liga AL", "Ronda") that reads badly centred. */
 .dgl-stats-table th, .dgl-stats-table td { text-align: right; }
 .dgl-stats-table th:first-child, .dgl-stats-table td:first-child { text-align: left; }
-/* Team is text, not a number: left-align it too so it sits next to Temporada (no wide gap).
-   Only on tables whose 2nd column IS Team (standard / advanced) — not the Team/Liga table. */
-.dgl-team-left th:nth-child(2), .dgl-team-left td:nth-child(2) { text-align: left; }
+/* Centred columns — Temporada, Equipo, Rd: short labels, not numbers. Declared last so it wins the
+   specificity tie against the :first-child rule above. */
+.dgl-stats-table th.dgl-mid, .dgl-stats-table td.dgl-mid { text-align: center; }
+/* Column separators. Bootstrap already draws the row separator with these two variables, so reusing
+   them (instead of a hard-coded 1px) keeps both directions identical if the theme ever changes it.
+   With a grid on both axes a highlighted cell reads as a framed block instead of bleeding into its
+   neighbours. The last column is skipped so it does not double up with the table's own edge. */
+.dgl-stats-table th, .dgl-stats-table td {
+  border-right: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+}
+.dgl-stats-table th:last-child, .dgl-stats-table td:last-child { border-right: 0; }
 /* Highlights (cell background + white bold), in order of importance: deep blue = all-time (career)
    leader, wine = led that season, near-black = the player's own career-high for that stat.
    Base rules also style the legend swatches (plain <span>). */
