@@ -114,6 +114,32 @@ _LEADERBOARD: dict[tuple[str, str], tuple[int, ...]] = {
     ("fielding", "SB"): (0, 1, 0, 1, 0, 0, 0, 0),
     ("fielding", "WP"): (1, 0, 1, 0, 1, 0, 0, 1),
     ("fielding", "ZR"): (0, 1, 1, 1, 1, 0, 0, 0),
+    # Batted-ball counts and coefficients allowed by the pitcher. Same columns and thresholds as
+    # batting, but several directions are the MIRROR of it, because the same event means the opposite
+    # thing from the mound (owner's calls):
+    #   BIP  '-'  fewer balls in play is better
+    #   PU%  '+'  inducing pop-ups is nearly a free out
+    #   Whiff% '+' / Contact% '-'  making them miss is the job
+    # GB%, FB%, LD% and GB/FB stay descriptive in both groups. All start in 1989.
+    ("pitching", "AO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "GO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "FO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "PO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "LO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "FH"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "PH"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "LH"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "GH"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "Sw"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "Miss"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "BIP"): (1, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "GB%"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "FB%"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "LD%"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "PU%"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "GB/FB"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "Contact%"): (1, 1, 1, 1, 1, 0, 0, 1),
+    ("pitching", "Whiff%"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("pitching", "APR"): (0, 1, 1, 0, 0, 1, 0, 1),
     ("pitching", "BAA"): (1, 1, 1, 1, 1, 0, 0, 1),
     ("pitching", "BB"): (1, 1, 1, 1, 1, 0, 1, 1),
@@ -167,6 +193,25 @@ _ALIAS: dict[tuple[str, str], str] = {
     ("batting", "total_swings"): "Sw",
     ("batting", "swing_and_misses"): "Miss",
     ("batting", "balls_in_play"): "BIP",
+    ("pitching", "air_outs"): "AO",
+    ("pitching", "ground_outs"): "GO",
+    ("pitching", "fly_outs"): "FO",
+    ("pitching", "pop_outs"): "PO",
+    ("pitching", "line_outs"): "LO",
+    ("pitching", "fly_hits"): "FH",
+    ("pitching", "pop_hits"): "PH",
+    ("pitching", "line_hits"): "LH",
+    ("pitching", "ground_hits"): "GH",
+    ("pitching", "total_swings"): "Sw",
+    ("pitching", "swing_and_misses"): "Miss",
+    ("pitching", "balls_in_play"): "BIP",
+    ("pitching", "gb_pct"): "GB%",
+    ("pitching", "fb_pct"): "FB%",
+    ("pitching", "ld_pct"): "LD%",
+    ("pitching", "pu_pct"): "PU%",
+    ("pitching", "gb_fb"): "GB/FB",
+    ("pitching", "contact_pct"): "Contact%",
+    ("pitching", "whiff_pct"): "Whiff%",
     ("batting", "gb_pct"): "GB%",
     ("batting", "fb_pct"): "FB%",
     ("batting", "ld_pct"): "LD%",
@@ -250,14 +295,15 @@ _STATCAST_COLUMNS: frozenset[str] = frozenset(
     }
 )
 
+# Both groups carry the same coefficients over the same columns, so they take the same thresholds.
+_STATCAST_GROUPS: frozenset[str] = frozenset({"batting", "pitching"})
 _OWN_QUALIFIER: dict[tuple[str, str], str] = {
-    ("batting", "gb_pct"): "BALLS_IN_PLAY>=400",
-    ("batting", "fb_pct"): "BALLS_IN_PLAY>=400",
-    ("batting", "ld_pct"): "BALLS_IN_PLAY>=400",
-    ("batting", "pu_pct"): "BALLS_IN_PLAY>=400",
-    ("batting", "gb_fb"): "BALLS_IN_PLAY>=400",
-    ("batting", "contact_pct"): "TOTAL_SWINGS>=1000",
-    ("batting", "whiff_pct"): "TOTAL_SWINGS>=1000",
+    **{
+        (group, column): "BALLS_IN_PLAY>=400"
+        for group in _STATCAST_GROUPS
+        for column in ("gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb")
+    },
+    **{(group, column): "TOTAL_SWINGS>=1000" for group in _STATCAST_GROUPS for column in ("contact_pct", "whiff_pct")},
 }
 
 # Default qualifiers per group (season, career). Owner tunes these in the Backoffice.
@@ -435,7 +481,9 @@ def _rows() -> list[dict[str, Any]]:
                     "qualifier_season": own_qualifier,
                     "qualifier_career": own_qualifier,
                     "available_from": (
-                        derive.FIRST_STATCAST_SEASON if group == "batting" and field.name in _STATCAST_COLUMNS else None
+                        derive.FIRST_STATCAST_SEASON
+                        if group in _STATCAST_GROUPS and field.name in _STATCAST_COLUMNS
+                        else None
                     ),
                     "abbrev": abbrev,
                     "sort_order": _SORT_ORDER.get((group, code), _SORT_LAST),

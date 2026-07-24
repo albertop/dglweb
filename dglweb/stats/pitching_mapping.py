@@ -12,6 +12,8 @@ into NULL. Two things are still derived (`X1B`, `NIBB`) and one uses the single 
 
 from typing import Any
 
+from dglweb.stats.derive import batted_ball_coefficients
+
 # proxy key -> our column
 _REGULAR = {
     "W": "w",
@@ -219,4 +221,7 @@ def derive_pitching(c: dict[str, Any]) -> dict[str, Any]:
         "x1b": _sub(h, c.get("x2b"), c.get("x3b"), c.get("hr")),
         "nibb": _sub(bb, c.get("ibb")),
         "baa": baa,
+        # The batted-ball profile of what was hit against him — same formulas as batting, shared so
+        # the two groups can never drift apart.
+        **batted_ball_coefficients(c),
     }

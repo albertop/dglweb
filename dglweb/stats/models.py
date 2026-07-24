@@ -333,6 +333,17 @@ class Pitching(models.Model):
     total_swings = models.PositiveSmallIntegerField(null=True, blank=True)
     swing_and_misses = models.PositiveSmallIntegerField(null=True, blank=True)
     balls_in_play = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # --- batted-ball / swing coefficients (derive.batted_ball_coefficients) ------
+    # The balls put in play AGAINST him: same arithmetic as batting, same column names.
+    gb_pct = models.FloatField(null=True, blank=True)
+    fb_pct = models.FloatField(null=True, blank=True)
+    ld_pct = models.FloatField(null=True, blank=True)
+    pu_pct = models.FloatField(null=True, blank=True)
+    gb_fb = models.FloatField(null=True, blank=True)
+    contact_pct = models.FloatField(null=True, blank=True)
+    whiff_pct = models.FloatField(null=True, blank=True)
+
     run_support = models.PositiveSmallIntegerField(null=True, blank=True)
     pitches_per_inning = models.FloatField(null=True, blank=True)
     pitches_per_pa = models.FloatField(null=True, blank=True)
@@ -637,6 +648,17 @@ class PitchingPost(models.Model):
     total_swings = models.PositiveSmallIntegerField(null=True, blank=True)
     swing_and_misses = models.PositiveSmallIntegerField(null=True, blank=True)
     balls_in_play = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # --- batted-ball / swing coefficients (derive.batted_ball_coefficients) ------
+    # The balls put in play AGAINST him: same arithmetic as batting, same column names.
+    gb_pct = models.FloatField(null=True, blank=True)
+    fb_pct = models.FloatField(null=True, blank=True)
+    ld_pct = models.FloatField(null=True, blank=True)
+    pu_pct = models.FloatField(null=True, blank=True)
+    gb_fb = models.FloatField(null=True, blank=True)
+    contact_pct = models.FloatField(null=True, blank=True)
+    whiff_pct = models.FloatField(null=True, blank=True)
+
     run_support = models.PositiveSmallIntegerField(null=True, blank=True)
     pitches_per_inning = models.FloatField(null=True, blank=True)
     pitches_per_pa = models.FloatField(null=True, blank=True)
@@ -1087,6 +1109,26 @@ class PitchingCareer(models.Model):
     total_swings = models.PositiveIntegerField(null=True, blank=True)
     swing_and_misses = models.PositiveIntegerField(null=True, blank=True)
     balls_in_play = models.PositiveIntegerField(null=True, blank=True)
+
+    # Batted-ball breakdown. The career table was missing these seven, so a career line could not
+    # show the type split nor recompute the coefficients from its own sums.
+    fly_outs = models.PositiveIntegerField(null=True, blank=True)
+    pop_outs = models.PositiveIntegerField(null=True, blank=True)
+    line_outs = models.PositiveIntegerField(null=True, blank=True)
+    fly_hits = models.PositiveIntegerField(null=True, blank=True)
+    pop_hits = models.PositiveIntegerField(null=True, blank=True)
+    line_hits = models.PositiveIntegerField(null=True, blank=True)
+    ground_hits = models.PositiveIntegerField(null=True, blank=True)
+
+    # --- batted-ball / swing coefficients (derive.batted_ball_coefficients) ------
+    gb_pct = models.FloatField(null=True, blank=True)
+    fb_pct = models.FloatField(null=True, blank=True)
+    ld_pct = models.FloatField(null=True, blank=True)
+    pu_pct = models.FloatField(null=True, blank=True)
+    gb_fb = models.FloatField(null=True, blank=True)
+    contact_pct = models.FloatField(null=True, blank=True)
+    whiff_pct = models.FloatField(null=True, blank=True)
+
     run_support = models.PositiveIntegerField(null=True, blank=True)
     sd = models.PositiveIntegerField(null=True, blank=True)
     md = models.PositiveIntegerField(null=True, blank=True)

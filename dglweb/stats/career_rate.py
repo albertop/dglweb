@@ -51,7 +51,30 @@ COMPONENTS: dict[str, tuple[str, ...]] = {
         "total_swings",
         "swing_and_misses",
     ),
-    "pitching": ("er", "outs", "h", "bb", "hr", "so", "w", "l", "ab", "r"),
+    "pitching": (
+        "er",
+        "outs",
+        "h",
+        "bb",
+        "hr",
+        "so",
+        "w",
+        "l",
+        "ab",
+        "r",
+        # Batted-ball / swing inputs, so the career coefficients recompute from these sums.
+        "ground_outs",
+        "ground_hits",
+        "fly_outs",
+        "fly_hits",
+        "line_outs",
+        "line_hits",
+        "pop_outs",
+        "pop_hits",
+        "balls_in_play",
+        "total_swings",
+        "swing_and_misses",
+    ),
     "fielding": ("po", "a", "e", "gp", "innings_outs"),
 }
 
@@ -121,6 +144,11 @@ _PITCHING: dict[str, Callable[[Mapping[str, Any]], float | None]] = {
     "win_pct": _pct("w", "l"),
     "baa": lambda c: _div(c.get("h"), c.get("ab")),
     "so_to_bb": lambda c: _div(c.get("so"), c.get("bb")),
+    # Batted-ball coefficients: same formulas as batting, over the balls put in play against him.
+    **{
+        column: (lambda col: lambda c: derive.batted_ball_coefficients(dict(c)).get(col))(column)
+        for column in derive.batted_ball_coefficients({})
+    },
 }
 
 _FIELDING: dict[str, Callable[[Mapping[str, Any]], float | None]] = {

@@ -78,13 +78,6 @@ def derived_rates(c: dict[str, Any]) -> dict[str, Any]:
     obp = _div(_sum(h, bb, hbp), _sum(ab, bb, hbp, sf))
     slg = _div(total_bases, ab)
 
-    # Group 3 inputs: a batted ball's type is its outs plus its hits (the four share balls_in_play).
-    ground = _sum(c.get("ground_outs"), c.get("ground_hits"))
-    fly = _sum(c.get("fly_outs"), c.get("fly_hits"))
-    line = _sum(c.get("line_outs"), c.get("line_hits"))
-    pop = _sum(c.get("pop_outs"), c.get("pop_hits"))
-    bip, swings, misses = c.get("balls_in_play"), c.get("total_swings"), c.get("swing_and_misses")
-
     return {
         "avg": _div(h, ab),
         "obp": obp,
@@ -115,6 +108,24 @@ def derived_rates(c: dict[str, Any]) -> dict[str, Any]:
         ),
         "total_avg": _total_avg(c.get("tb"), hbp, bb, c.get("sb"), ab, h, c.get("cs"), c.get("gidp")),
         # Group 3 — batted-ball profile and swing coefficients (ours, not mlbstats).
+        **batted_ball_coefficients(c),
+    }
+
+
+def batted_ball_coefficients(c: dict[str, Any]) -> dict[str, Any]:
+    """Group 3 on its own, because pitching needs the very same numbers.
+
+    The arithmetic does not care who is at bat: for a hitter these are the balls he put in play,
+    for a pitcher the balls put in play against him, and both models carry the same column names.
+    A batted ball's type is its outs plus its hits, and the four types share `balls_in_play`;
+    whiff is over swings (owner decision). NULL-over-0 as everywhere else in this module.
+    """
+    ground = _sum(c.get("ground_outs"), c.get("ground_hits"))
+    fly = _sum(c.get("fly_outs"), c.get("fly_hits"))
+    line = _sum(c.get("line_outs"), c.get("line_hits"))
+    pop = _sum(c.get("pop_outs"), c.get("pop_hits"))
+    bip, swings, misses = c.get("balls_in_play"), c.get("total_swings"), c.get("swing_and_misses")
+    return {
         "gb_pct": _div(ground, bip),
         "fb_pct": _div(fly, bip),
         "ld_pct": _div(line, bip),

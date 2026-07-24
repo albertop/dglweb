@@ -59,6 +59,17 @@ Es una conversación de diseño, no un ticket. Retomar antes de dar por cerrado 
   fielding del proxy (sumando, excluyendo DH).
 - **DEV-05 — `build_leaders` re-escanea por métrica.** No es bug; escalamiento. Agrupar por
   `stat_group` y traer las columnas una vez por grupo/posición, o materializar season-totals.
+- **Hueco de batazos en 2000 y 2001** (Fase 4c). En esas dos temporadas la fuente entregó los **outs**
+  por tipo completos pero casi ningún **hit** por tipo: 91 hits tipificados en 2000 y 113 en 2001,
+  contra ~5 100 hits reales (un 2%). En 1999 el match es exacto (4 957 = 4 957) y en 2003 casi
+  (6 001 de 6 013). Consecuencia: GB%/FB%/LD%/PU% de esos años cuentan casi solo outs, los cuatro
+  tipos suman ~67% en vez de 100%, y cada uno queda subestimado alrededor de un tercio.
+  Quedan **dentro** del piso de 1989 (`derive.FIRST_STATCAST_SEASON`), así que el corte por año no
+  las protege, y ahora los coeficientes alimentan tableros de líderes: un jugador con carrera corta
+  concentrada en 2000-2001 compite con ratios malos. Decisión del dueño: **dejarlo así por ahora**
+  para no agregar otra capa. Si se retoma, `available_from` no sirve (es un piso, no un hueco
+  intermedio) — habría que excluir esas dos temporadas explícitamente, o mejor, reintentar la
+  ingesta de esos años por si la fuente ya los corrigió.
 
 ## Producción / hardening (del code review v1)
 
