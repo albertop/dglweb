@@ -268,17 +268,45 @@ _POST_MODEL: dict[str, type[models.Model]] = {"batting": BattingPost, "pitching"
 
 
 def _wants_postseason(metric: Metric) -> bool:
-    """Only counting stats where MORE is better get a postseason board (owner decision, option A).
+    """Counting stats where MORE is better get an unqualified postseason board (owner decision).
 
     A "most HR in October" board can't be faked by a small sample —you can't lead in postseason home
-    runs without hitting them— so it needs no qualifier. Rates (tiny, uneven samples) and "fewer is
-    better" counts (leading in fewest strikeouts on 2 at-bats is noise) are left out. Fielding too.
+    runs without hitting them— so it needs no qualifier. "Fewer is better" counts (leading in fewest
+    strikeouts on 2 at-bats is noise) are left out; the classic rates get their own floored board
+    (`_wants_postseason_rate`). Fielding has no postseason board at all.
     """
     return (
         metric.postseason
         and metric.stat_group in _POST_MODEL
         and metric.kind == Metric.Kind.CUMULATIVE
         and metric.direction == Metric.Direction.HIGHER
+    )
+
+
+# The only rates that get a postseason board (owner decision): the classic slash line and ERA. Other
+# rates (BABIP, ISO, the coefficients…) are left out — noisy on their own and not asked for.
+_POST_RATE: dict[str, frozenset[str]] = {
+    "batting": frozenset({"avg", "obp", "slg", "ops"}),
+    "pitching": frozenset({"era"}),
+}
+
+# October has no official qualifier: not even a full deep run (max ~89 PA / ~29 IP) reaches a
+# regular-season cut. These are FIXED floors, chosen by a statistical study of the real Dominican
+# postseason distribution so each board admits ~1/3 of its population — a real field, not a 3-for-4
+# wild-card cameo. The full exercise (distributions, why these numbers) is in
+# docs/UMBRALES_POSTEMPORADA.md. They deliberately bypass the regular qualifier cascade (502 PA…).
+_POST_QUALIFIER: dict[str, tuple[str, str]] = {  # group -> (season floor, career floor)
+    "batting": ("PA>=25", "PA>=50"),
+    "pitching": ("IP>=8", "IP>=15"),
+}
+
+
+def _wants_postseason_rate(metric: Metric) -> bool:
+    """The classic slash-line/ERA rates get a postseason board, gated by the fixed October floor."""
+    return (
+        metric.postseason
+        and metric.kind == Metric.Kind.RATE
+        and metric.column in _POST_RATE.get(metric.stat_group, frozenset())
     )
 
 
@@ -306,6 +334,46 @@ def _postseason_leaders(metric: Metric) -> list[Leader]:
     leaders: list[Leader] = board(Leader.Board.BEST_CAREER, None, by_career)
     for season, totals in by_season.items():
         leaders += board(Leader.Board.BEST_SEASON, season, totals)
+    return leaders
+
+
+def _postseason_rate_leaders(metric: Metric) -> list[Leader]:
+    """Rate leaders over the postseason. The value is RECOMPUTED from the summed components (AVG =
+    ΣH/ΣAB, ERA = 27·ΣER/Σouts…), never an average of the per-round rates — aggregating each player's
+    whole October per (player, season) and per player, exactly as the counting boards do. Gated by
+    the fixed October floor (`_POST_QUALIFIER`), not the regular qualifier cascade."""
+    model = _POST_MODEL[metric.stat_group]
+    fields = {f.name for f in model._meta.get_fields()}
+    components = [c for c in career_rate.COMPONENTS[metric.stat_group] if c in fields]
+    season_floor, career_floor = _POST_QUALIFIER[metric.stat_group]
+    descending = _descending(metric, is_best=True)  # postseason has only "best" boards (option A)
+
+    by_season: dict[int, dict[int, dict[str, float]]] = defaultdict(dict)
+    by_career: dict[int, dict[str, float]] = {}
+    for row in model._default_manager.filter(season__gte=FIRST_SEASON).values("player_id", "season", *components):
+        season_bucket = by_season[row["season"]].setdefault(row["player_id"], dict.fromkeys(components, 0.0))
+        career_bucket = by_career.setdefault(row["player_id"], dict.fromkeys(components, 0.0))
+        for component in components:
+            value = row[component]
+            if value is not None:
+                season_bucket[component] += value
+                career_bucket[component] += value
+
+    def board(scope: str, season: int | None, sums: dict[int, dict[str, float]], floor: str) -> list[Leader]:
+        pairs: list[tuple[int, float]] = []
+        for player_id, counts in sums.items():
+            value = career_rate.exact_value(metric.stat_group, metric.column, counts)
+            if value is None or not qualifier.qualifies(floor, metric.stat_group, counts):
+                continue
+            pairs.append((player_id, _leader_value(metric, value)))
+        return [
+            Leader(metric=metric, board=scope, season=season, player_id=pid, value=value, rank=rank, postseason=True)
+            for pid, value, rank in _dense_rank(pairs, descending)
+        ]
+
+    leaders: list[Leader] = board(Leader.Board.BEST_CAREER, None, by_career, career_floor)
+    for season, sums in by_season.items():
+        leaders += board(Leader.Board.BEST_SEASON, season, sums, season_floor)
     return leaders
 
 
@@ -357,12 +425,16 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
                         Leader.objects.bulk_create(buffer)
                         written += len(buffer)
                         buffer = []
-            if _wants_postseason(metric):  # once per metric (postseason has no position dimension)
+            # Postseason boards are once per metric (no position dimension): counts where more is
+            # better (unqualified) and the classic rates (floored). Never both for the same metric.
+            if _wants_postseason(metric):
                 buffer += _postseason_leaders(metric)
-                if len(buffer) >= _BATCH:
-                    Leader.objects.bulk_create(buffer)
-                    written += len(buffer)
-                    buffer = []
+            elif _wants_postseason_rate(metric):
+                buffer += _postseason_rate_leaders(metric)
+            if len(buffer) >= _BATCH:
+                Leader.objects.bulk_create(buffer)
+                written += len(buffer)
+                buffer = []
         if buffer:
             Leader.objects.bulk_create(buffer)
             written += len(buffer)

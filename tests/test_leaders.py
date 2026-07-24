@@ -120,18 +120,81 @@ def test_postseason_boards_aggregate_a_whole_october(players: dict[str, Player])
 
 
 @pytest.mark.django_db
-def test_postseason_boards_skip_rates_and_negative_counts(players: dict[str, Player]) -> None:
-    """Opción A: solo conteos donde MÁS es mejor. Una tasa (AVG) y un conteo '-' (SO) no reciben
-    tablero de postemporada, aunque estén marcados `postseason=True`."""
+def test_postseason_skips_negative_counts(players: dict[str, Player]) -> None:
+    """Un conteo '-' (SO) no recibe tablero de postemporada aunque esté marcado `postseason=True`:
+    liderar en "menos ponches" con un turno es ruido. (Las tasas sí lo reciben, con piso fijo.)"""
     from dglweb.stats.models import BattingPost
 
-    _metric(stat_group="batting", column="avg", kind=Metric.Kind.RATE, best_season=True, postseason=True)
     _metric(stat_group="batting", column="so", direction=Metric.Direction.LOWER, best_season=True, postseason=True)
-    BattingPost.objects.create(player=players["a"], season=2019, round="WS", avg=0.500, so=1)
+    BattingPost.objects.create(player=players["a"], season=2019, round="WS", so=1)
 
     build_leaders()
 
     assert not Leader.objects.filter(postseason=True).exists()
+
+
+@pytest.mark.django_db
+def test_postseason_rate_boards_recompute_from_totals_and_gate_by_floor(players: dict[str, Player]) -> None:
+    """AVG de postemporada: el valor se RECOMPONE desde los totales (ΣH/ΣAB), no se promedian las
+    tasas por ronda; y el piso fijo (25 PA temporada, 50 PA carrera) excluye muestras pequeñas."""
+    from dglweb.stats.models import BattingPost
+
+    metric = _metric(
+        stat_group="batting", column="avg", kind=Metric.Kind.RATE, best_season=True, best_career=True, postseason=True
+    )
+    # A, 2019: 30 PA en dos rondas -> 12/30 = .400, sobre el piso de temporada (25).
+    BattingPost.objects.create(player=players["a"], season=2019, round="DS", pa=15, ab=15, h=6, tb=6)
+    BattingPost.objects.create(player=players["a"], season=2019, round="WS", pa=15, ab=15, h=6, tb=6)
+    # A, 2018: otras 30 PA, 9 H -> carrera 60 PA (sobre 50), 21/60 = .350.
+    BattingPost.objects.create(player=players["a"], season=2018, round="WS", pa=30, ab=30, h=9, tb=9)
+    # B, 2019: 26 PA (sobre el piso de temporada) pero solo .192; carrera 26 PA < 50 -> fuera de carrera.
+    BattingPost.objects.create(player=players["b"], season=2019, round="WS", pa=26, ab=26, h=5, tb=5)
+    # C, 2019: 10 PA (.500) -> bajo el piso de temporada, excluido.
+    BattingPost.objects.create(player=players["c"], season=2019, round="WS", pa=10, ab=10, h=5, tb=5)
+
+    build_leaders()
+
+    season_qs = Leader.objects.filter(metric=metric, board="best_season", postseason=True, season=2019)
+    season = list(season_qs.order_by("rank"))
+    assert [(row.player_id, row.value, row.rank) for row in season] == [(1, 0.400, 1), (2, 0.192, 2)]
+    assert not Leader.objects.filter(metric=metric, postseason=True, player_id=3).exists()  # C: < 25 PA
+    career = list(Leader.objects.filter(metric=metric, board="best_career", postseason=True).order_by("rank"))
+    assert [(row.player_id, row.value) for row in career] == [(1, 0.350)]  # solo A cruza 50 PA de carrera
+
+
+@pytest.mark.django_db
+def test_postseason_era_board_recomputes_and_gates_by_ip(players: dict[str, Player]) -> None:
+    """ERA de postemporada: se recompone (27·ΣER/Σouts), el menor gana (dir '-'), y el piso es en IP
+    (8 temporada, 15 carrera)."""
+    from dglweb.stats.models import PitchingPost
+
+    metric = _metric(
+        stat_group="pitching",
+        column="era",
+        kind=Metric.Kind.RATE,
+        direction=Metric.Direction.LOWER,
+        best_season=True,
+        best_career=True,
+        postseason=True,
+    )
+    # A, 2019: 8 IP (24 outs), 2 ER -> 27*2/24 = 2.25, sobre el piso (8). + 2018 para cruzar 15 IP carrera.
+    PitchingPost.objects.create(player=players["a"], season=2019, round="LCS", outs=12, er=1)
+    PitchingPost.objects.create(player=players["a"], season=2019, round="WS", outs=12, er=1)
+    PitchingPost.objects.create(player=players["a"], season=2018, round="WS", outs=24, er=3)  # carrera 48 outs = 16 IP
+    # B, 2019: 8 IP (24 outs), 6 ER -> 6.75, peor. Carrera 8 IP < 15 -> fuera de carrera.
+    PitchingPost.objects.create(player=players["b"], season=2019, round="WS", outs=24, er=6)
+    # C, 2019: 5 IP (15 outs) -> bajo el piso de temporada, excluido.
+    PitchingPost.objects.create(player=players["c"], season=2019, round="WS", outs=15, er=0)
+
+    build_leaders()
+
+    season_qs = Leader.objects.filter(metric=metric, board="best_season", postseason=True, season=2019)
+    season = list(season_qs.order_by("rank"))
+    assert [(row.player_id, row.value, row.rank) for row in season] == [(1, 2.25, 1), (2, 6.75, 2)]
+    assert not Leader.objects.filter(metric=metric, postseason=True, player_id=3).exists()  # C: < 8 IP
+    # Carrera: A cruza 15 IP (16), 27*5/48 = 2.8125 -> 2.812 (redondeo bancario a 3 decimales); B no.
+    career = list(Leader.objects.filter(metric=metric, board="best_career", postseason=True).order_by("rank"))
+    assert [(row.player_id, row.value) for row in career] == [(1, 2.812)]
 
 
 @pytest.mark.django_db
