@@ -26,6 +26,37 @@ roadmap de fases — eso está en `BUILD_PLAN.md`.)
 - [ ] Nav (Artículos/Líderes/Jugadores/Entrar) y buscador apuntan a `#`/submit desactivado.
   Poner URLs reales o esconderlos hasta que las páginas existan.
 
+## Code review v3 — findings
+
+Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
+
+- [x] **DEV-02 — `backfill_batting_rates` sin cobertura.** Verificado: 0%, el módulo ni se importaba
+  en la suite. Es una herramienta de escritura masiva sobre las tablas de stats. **Corregido.**
+- [x] **DEV-04 — los filtros numéricos revientan con texto.** Reproducido: `rate`, `dec`, `pct` e
+  `innings` lanzan `ValueError` con `"N/A"` → 500 en una página pública. **Corregido** (fail-soft en
+  render, fail-loud sigue en ingest).
+- [x] **SAB-03 — mejor marca personal sobre métricas descriptivas.** GB%, FB%, LD% y GB/FB no tienen
+  "mejor": un extremo solo dice que cambió el perfil. **Corregido**: no se resaltan.
+- [ ] **DEV-01 — todos los tabs se calculan en cada request.** Cierto, pero **la magnitud del finding
+  está sobrestimada**: medido son 25 queries / 415 ms para Pedro Martínez (dos tabs completos) contra
+  16 / 221 ms para Ortiz (uno). El segundo tab cuesta 9 queries, no cientos, y ~340 ms de esos 415
+  son latencia de red contra 10.0.0.39. No es urgente, pero cada tab nuevo cobra impuesto: con Fildeo
+  real y luego Splits/Game Logs sí se nota. Agregado un test de presupuesto de queries para que no
+  crezca en silencio; la carga diferida (HTMX o endpoints por tab) queda pendiente.
+- [ ] **DEV-03 — las tablas repiten listas de columnas a mano.** Real y ya lo sufrimos: cada columna
+  agregada (LOB, TotAvg, BsR, G, AB) obligó a editar encabezado + fila + total en varios bloques, y
+  las desalineaciones solo se detectaron con un script ad-hoc. **Conviene resolverlo ANTES de Fildeo**,
+  que sería la tercera copia del patrón. Propuesta: mover las columnas a una lista declarativa en
+  Python `(label, attr, formato, clase)` y renderizar con un partial común.
+- [ ] **SAB-02 — boards descriptivos etiquetados como "mejor/peor".** GB%, FB%, LD% y GB/FB se
+  rankean, pero llamarlos "mejor" implica un valor competitivo que no tienen. La corrección natural
+  es de etiquetas ("Más alto / Más bajo") y vive en la UI de líderes, que **todavía no existe**
+  (Fase 5). Cuando se construya, usar la misma marca de métrica descriptiva que ya usa SAB-03.
+- [ ] **SAB-01 — la cobertura Statcast se decide por año, no por completitud.** El reviewer llegó de
+  forma independiente al hueco de 2000-2001 que ya está documentado en `MEJORAS_FUTURAS.md`. Decisión
+  del dueño: dejarlo así por ahora. Su sugerencia extra —advertirlo en la UI, no solo en el backlog—
+  sigue disponible y es barata.
+
 ## Por decidir (traído del CONCEPT)
 
 - [ ] Proveedor de ad server hosted (GAM vs AdButler/Broadstreet/AdSpeed).
