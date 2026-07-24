@@ -43,13 +43,17 @@ def is_pitcher(player: Player) -> bool:
     return player.pos in _PITCHER_POSITIONS
 
 
-def _leaderships(player: Player, group: str) -> tuple[set[tuple[int, str]], set[str]]:
+def _leaderships(player: Player, group: str, *, postseason: bool = False) -> tuple[set[tuple[int, str]], set[str]]:
     """Where this player is the #1 leader: {(season, column)} for the season and {column} for career.
 
     Batting/pitching are position-agnostic (their leaders carry `fielding_pos=NULL`) — position is
-    only a fielding dimension. Drives the in-table highlight (wine = season leader, blue = career).
+    only a fielding dimension. `postseason` picks the regular-season boards (False) or the October
+    ones (True); they live in the same table split by `Leader.postseason`. Drives the in-table
+    highlight (wine = season leader, blue = career).
     """
-    marks = Leader.objects.filter(player=player, rank=1, metric__stat_group=group).select_related("metric")
+    marks = Leader.objects.filter(
+        player=player, rank=1, metric__stat_group=group, postseason=postseason
+    ).select_related("metric")
     season = {
         (row.season, row.metric.column)
         for row in marks
@@ -227,11 +231,14 @@ def _postseason(
     )
 
     lines: list[dict[str, Any]] = []
-    for _, season_group in groupby(rows, key=lambda row: row.season):
+    for season, season_group in groupby(rows, key=lambda row: row.season):
         season_rows = list(season_group)
         lines += [{"kind": "line", "row": row} for row in season_rows]
         if len(season_rows) > 1:  # one round is already its own subtotal — printing it twice is noise
-            lines.append({"kind": "season", "row": _post_subtotal(model, group, season_rows)})
+            subtotal = _post_subtotal(model, group, season_rows)
+            subtotal.season = season  # `aggregate_lines` drops the key columns; the postseason
+            subtotal.round = "Tot"  # leadership overlay needs the season back on the aggregate row
+            lines.append({"kind": "season", "row": subtotal})
 
     totals: list[dict[str, Any]] = []
     for code in _POST_ROUNDS:
@@ -373,14 +380,16 @@ def _group_context(
     lines = list(rows_qs.order_by("season", "stint"))
     total_keys = {_row_key(row) for row in seasons}
     season_leads, career_leads = _leaderships(player, group)
+    post_season_leads, post_career_leads = _leaderships(player, group, postseason=True)
     if not _is_his_trade(group, player):
         # A pitcher's batting line and a position player's pitching line are incidental: they are
         # ranked against people whose job that is, so a "leader" badge claims something false. The
         # career GB/FB board for BATTING is topped by three pitchers. Nobody here is Ohtani — every
         # Dominican with numbers in both tables is a starting pitcher from the pre-DH National
         # League, and the most batting any of them did is Marichal's 1 339 PA over 16 seasons.
-        # The personal best survives: it compares him only with himself.
+        # The personal best survives: it compares him only with himself. Same for October.
         season_leads, career_leads = set(), set()
+        post_season_leads, post_career_leads = set(), set()
     defaults, overrides = _qualifier_context()
     catalog = _catalog(group)
     best = _personal_bests(model, group, seasons, catalog, defaults, overrides)
@@ -396,6 +405,23 @@ def _group_context(
     statcast_rows = [(row, leads) for row, leads in rows if row.season >= FIRST_STATCAST_SEASON]
     statcast_seasons = [row for row in seasons if row.season >= FIRST_STATCAST_SEASON]
     post_lines, post_totals = _postseason(post_model, group, player)
+    # Postseason leadership overlay: the mark lives on the aggregate the board ranks, never on a
+    # single round. Wine on a season's subtotal (its whole October); blue on the career total. A
+    # season with one round has no separate subtotal, so that lone line IS its aggregate and carries
+    # the mark. Only counts have postseason boards (option A) — no personal-best here.
+    for entry in post_lines:
+        # Solo la fila "Tot" (subtotal de todo el octubre de ese año) lleva la marca de temporada,
+        # nunca una fila de ronda. Un año de una sola ronda no tiene fila Tot, así que ese liderazgo
+        # aparece solo en el total azul de carrera.
+        row = entry["row"]
+        entry["leads"] = (
+            {column: "lead-season" for season, column in post_season_leads if season == row.season}
+            if entry["kind"] == "season"
+            else {}
+        )
+    for entry in post_totals:
+        if entry["kind"] == "total":
+            entry["leads"] = {column: "lead-career" for column in post_career_leads}
     totals = _totals_rows(career, total, len(seasons), model, player, total_leads)
 
     # Every line carries its cells already rendered, one list per table. The column specs in
@@ -428,6 +454,8 @@ def _group_context(
         "has_season_leads": bool(season_leads),
         "has_career_leads": bool(career_leads),
         "has_personal_leads": any("lead-personal" in css for _, leads in rows for css in leads.values()),
+        "has_post_season_leads": bool(post_season_leads),
+        "has_post_career_leads": bool(post_career_leads),
         "statcast_rows": statcast_rows,
         "has_statcast": bool(statcast_rows),
         # Read back from `dgl_metric`, never hardcoded in the caption: the thresholds are tunable in

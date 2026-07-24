@@ -93,8 +93,9 @@ faltar en los totales.
         </tbody>
       </table>
     </div>
-    <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial. Los subtotales por ronda están en el pill Totales.</div>
+    <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial. Los liderazgos de postemporada suman todo octubre de cada año, no por ronda.</div>
   </section>
+  {% include "profiles/_legend.html" with career=d.has_post_career_leads season=d.has_post_season_leads best=False %}
   </div>
   {% endif %}
 

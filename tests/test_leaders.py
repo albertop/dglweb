@@ -99,6 +99,42 @@ def test_counting_minimum_is_gated_by_the_qualifier(players: dict[str, Player]) 
 
 
 @pytest.mark.django_db
+def test_postseason_boards_aggregate_a_whole_october(players: dict[str, Player]) -> None:
+    """Los tableros de postemporada suman todo octubre por (jugador, temporada), no por ronda: los 3
+    HR de A en la Serie Divisional + los 2 de la Serie Mundial son 5 en 2019. Y solo conteos '+'."""
+    from dglweb.stats.models import BattingPost
+
+    _metric(stat_group="batting", column="hr", best_season=True, best_career=True, postseason=True)
+    BattingPost.objects.create(player=players["a"], season=2019, round="DS", hr=3)
+    BattingPost.objects.create(player=players["a"], season=2019, round="WS", hr=2)  # A: 5 en 2019
+    BattingPost.objects.create(player=players["b"], season=2019, round="WS", hr=4)  # B: 4
+
+    build_leaders()
+
+    season = list(Leader.objects.filter(board="best_season", postseason=True, season=2019).order_by("rank"))
+    assert [(row.player_id, row.value, row.rank) for row in season] == [(1, 5.0, 1), (2, 4.0, 2)]
+    career = list(Leader.objects.filter(board="best_career", postseason=True).order_by("rank"))
+    assert [(row.player_id, row.value) for row in career] == [(1, 5.0), (2, 4.0)]
+    # Los tableros de temporada regular no se tocan.
+    assert not Leader.objects.filter(postseason=False).exists()
+
+
+@pytest.mark.django_db
+def test_postseason_boards_skip_rates_and_negative_counts(players: dict[str, Player]) -> None:
+    """Opción A: solo conteos donde MÁS es mejor. Una tasa (AVG) y un conteo '-' (SO) no reciben
+    tablero de postemporada, aunque estén marcados `postseason=True`."""
+    from dglweb.stats.models import BattingPost
+
+    _metric(stat_group="batting", column="avg", kind=Metric.Kind.RATE, best_season=True, postseason=True)
+    _metric(stat_group="batting", column="so", direction=Metric.Direction.LOWER, best_season=True, postseason=True)
+    BattingPost.objects.create(player=players["a"], season=2019, round="WS", avg=0.500, so=1)
+
+    build_leaders()
+
+    assert not Leader.objects.filter(postseason=True).exists()
+
+
+@pytest.mark.django_db
 def test_worst_board_and_dense_rank_ties(players: dict[str, Player]) -> None:
     Batting.objects.create(player=players["a"], season=2019, stint=1, hr=40)
     Batting.objects.create(player=players["b"], season=2019, stint=1, hr=40)  # tie with A

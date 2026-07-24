@@ -1,5 +1,4 @@
-{% comment %}Gran total de postemporada como última fila de la tabla de detalle (no una tabla aparte).
-Los subtotales por ronda están en el pill Totales.{% endcomment %}
+{% comment %}Gran total de postemporada como última fila de la tabla de detalle (no una tabla aparte).{% endcomment %}
 <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
   <td class="ps-3 dgl-mid"><b>{{ entry.seasons }} temporada{{ entry.seasons|pluralize:"s" }}</b>{% if totals_target %}<br><a href="#" class="dgl-meta small" style="font-weight:400" onclick="dglShowPill('{{ totals_target }}');return false;">desglose ▸</a>{% endif %}</td>
   <td class="dgl-mid"></td><td class="dgl-mid"></td>

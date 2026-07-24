@@ -11,6 +11,7 @@ Value:
     weighted average of the per-season values (`career_rate`).
 """
 
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
@@ -19,10 +20,12 @@ from django.db import connection, models, transaction
 from dglweb.stats import career_rate, qualifier
 from dglweb.stats.models import (
     Batting,
+    BattingPost,
     Fielding,
     Leader,
     Metric,
     Pitching,
+    PitchingPost,
     QualifierDefault,
     QualifierSeasonOverride,
 )
@@ -261,6 +264,51 @@ def _prorated_career_rate_leaders(
     ]
 
 
+_POST_MODEL: dict[str, type[models.Model]] = {"batting": BattingPost, "pitching": PitchingPost}
+
+
+def _wants_postseason(metric: Metric) -> bool:
+    """Only counting stats where MORE is better get a postseason board (owner decision, option A).
+
+    A "most HR in October" board can't be faked by a small sample —you can't lead in postseason home
+    runs without hitting them— so it needs no qualifier. Rates (tiny, uneven samples) and "fewer is
+    better" counts (leading in fewest strikeouts on 2 at-bats is noise) are left out. Fielding too.
+    """
+    return (
+        metric.postseason
+        and metric.stat_group in _POST_MODEL
+        and metric.kind == Metric.Kind.CUMULATIVE
+        and metric.direction == Metric.Direction.HIGHER
+    )
+
+
+def _postseason_leaders(metric: Metric) -> list[Leader]:
+    """Leaders of a count over the postseason, aggregating each player's whole October: per (player,
+    season) for the season board, per player for the career board. Never per round."""
+    model = _POST_MODEL[metric.stat_group]
+    by_season: dict[int, dict[int, float]] = defaultdict(lambda: defaultdict(float))
+    by_career: dict[int, float] = defaultdict(float)
+    for row in model._default_manager.filter(season__gte=FIRST_SEASON).values("player_id", "season", metric.column):
+        value = row[metric.column]
+        if value is None:
+            continue
+        by_season[row["season"]][row["player_id"]] += value
+        by_career[row["player_id"]] += value
+
+    def board(scope: str, season: int | None, totals: dict[int, float]) -> list[Leader]:
+        # value > 0: you are not a "postseason leader" in a count you never recorded.
+        pairs = [(pid, _leader_value(metric, total)) for pid, total in totals.items() if total > 0]
+        return [
+            Leader(metric=metric, board=scope, season=season, player_id=pid, value=value, rank=rank, postseason=True)
+            for pid, value, rank in _dense_rank(pairs, descending=True)
+        ]
+
+    leaders: list[Leader] = board(Leader.Board.BEST_CAREER, None, by_career)
+    for season, totals in by_season.items():
+        leaders += board(Leader.Board.BEST_SEASON, season, totals)
+    return leaders
+
+
 def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int]:
     """Rebuild `dgl_leader` from scratch. Returns {written, prorated_rate_career}."""
     defaults: qualifier.Defaults = {
@@ -309,6 +357,12 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
                         Leader.objects.bulk_create(buffer)
                         written += len(buffer)
                         buffer = []
+            if _wants_postseason(metric):  # once per metric (postseason has no position dimension)
+                buffer += _postseason_leaders(metric)
+                if len(buffer) >= _BATCH:
+                    Leader.objects.bulk_create(buffer)
+                    written += len(buffer)
+                    buffer = []
         if buffer:
             Leader.objects.bulk_create(buffer)
             written += len(buffer)

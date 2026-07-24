@@ -882,6 +882,9 @@ class Leader(models.Model):
       * `board`   — best/worst x season/career (from the metric's calc flags).
       * `season`  — the season for a *season* board; NULL for a *career* board.
       * `fielding_pos` — the position for a fielding board (LF, CF, 1B…); NULL for batting/pitching.
+      * `postseason` — regular season (False) vs postseason (True). Orthogonal to `board`: a
+        postseason board aggregates a player's whole October per season (best_season) or over his
+        career (best_career), never per round. Only counts get postseason boards.
     So "PutOuts leaders for LF in 2020" = (metric=po, board=best_season, season=2020, pos=LF).
     """
 
@@ -895,6 +898,7 @@ class Leader(models.Model):
     board = models.CharField(max_length=12, choices=Board.choices, verbose_name="Tablero")
     season = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Temporada")
     fielding_pos = models.CharField(max_length=2, null=True, blank=True, verbose_name="Posición")
+    postseason = models.BooleanField(default=False, verbose_name="Postemporada")
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="leaderships", verbose_name="Jugador")
     value = models.FloatField(verbose_name="Valor")
     rank = models.PositiveIntegerField(verbose_name="Rango")
@@ -905,15 +909,18 @@ class Leader(models.Model):
         verbose_name = "líder"
         verbose_name_plural = "líderes"
         indexes = [
-            # The read pattern is "one leaderboard": fix metric/board/season/pos, order by rank.
-            models.Index(fields=["metric", "board", "season", "fielding_pos", "rank"], name="dgl_leader_board_idx"),
+            # The read pattern is "one leaderboard": fix metric/board/season/pos/postseason, by rank.
+            models.Index(
+                fields=["metric", "board", "season", "fielding_pos", "postseason", "rank"],
+                name="dgl_leader_board_idx",
+            ),
         ]
         constraints = [
             # One row per player per board. `nulls_distinct=False` so career boards (season NULL) and
             # non-fielding boards (fielding_pos NULL) are still deduped. Backstop against a concurrent
             # rebuild (which also takes an advisory lock in build_leaders).
             models.UniqueConstraint(
-                fields=["metric", "board", "season", "fielding_pos", "player"],
+                fields=["metric", "board", "season", "fielding_pos", "postseason", "player"],
                 name="unique_leader",
                 nulls_distinct=False,
             )
