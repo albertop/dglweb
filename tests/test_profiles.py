@@ -560,7 +560,7 @@ def _metric(
     )
 
 
-def _puesto(metric: Metric, player: Player, season: int, rank: int) -> None:
+def _puesto(metric: Metric, player: Player, season: int, rank: int, *, postseason: bool = False) -> None:
     Leader.objects.create(
         metric=metric,
         board=Leader.Board.BEST_SEASON,
@@ -568,11 +568,11 @@ def _puesto(metric: Metric, player: Player, season: int, rank: int) -> None:
         player=player,
         value=float(rank),
         rank=rank,
-        postseason=False,
+        postseason=postseason,
     )
 
 
-def _puesto_career(metric: Metric, player: Player, rank: int) -> None:
+def _puesto_career(metric: Metric, player: Player, rank: int, *, postseason: bool = False) -> None:
     Leader.objects.create(
         metric=metric,
         board=Leader.Board.BEST_CAREER,
@@ -580,13 +580,13 @@ def _puesto_career(metric: Metric, player: Player, rank: int) -> None:
         player=player,
         value=float(rank),
         rank=rank,
-        postseason=False,
+        postseason=postseason,
     )
 
 
-def _flat(data: dict[str, object]) -> list[dict[str, object]]:
-    """Todas las filas de la rejilla, aplanadas a través de sus divisiones."""
-    return [row for section in data["sections"] for row in section["rows"]]
+def _flat(grid: dict[str, object]) -> list[dict[str, object]]:
+    """Todas las filas de una rejilla (Serie Regular o Postemporada), aplanadas por sus divisiones."""
+    return [row for section in grid["sections"] for row in section["rows"]]
 
 
 @pytest.mark.django_db
@@ -607,21 +607,21 @@ def test_puestos_grid_pivots_top10_by_metric_and_season() -> None:
     _puesto_career(hr, player, 4)  # de por vida: HR puesto 4
     _puesto_career(so, player, 12)  # SO carrera fuera del top-10 -> columna vacía
 
-    data = _puestos_context(player)
+    reg = _puestos_context(player)["regular"]
 
     def show(cell: dict[str, object]) -> str:
         return "" if cell["rank"] is None else f"{cell['rank']}{'*' if cell['tied'] else ''}"
 
-    assert data["seasons"] == [2001, 2002]
-    assert [section["label"] for section in data["sections"]] == ["Estándar"]  # HR y SO viven en Estándar
+    assert reg["seasons"] == [2001, 2002]
+    assert [section["label"] for section in reg["sections"]] == ["Estándar"]  # HR y SO viven en Estándar
     grid = [
-        (row["abbrev"], row["direction"], [show(c) for c in row["cells"]], show(row["career"])) for row in _flat(data)
+        (row["abbrev"], row["direction"], [show(c) for c in row["cells"]], show(row["career"])) for row in _flat(reg)
     ]
     assert grid == [
         ("HR", "+", ["3", "1*"], "4"),  # 2002 empatado -> *; de por vida #4 (sin empate)
         ("SO", "-", ["", "5"], ""),  # menos es mejor; carrera fuera del top-10 -> vacío
     ]
-    assert _flat(data)[0]["name"] == "Jonrones"  # columna 1 = nombre largo
+    assert _flat(reg)[0]["name"] == "Jonrones"  # columna 1 = nombre largo
 
 
 @pytest.mark.django_db
@@ -635,9 +635,9 @@ def test_puestos_includes_a_metric_that_is_top10_only_de_por_vida() -> None:
     _puesto(hr, player, 2001, 2)  # HR sí tuvo top-10 de temporada
     _puesto_career(bb, player, 6)  # BB: solo de por vida, nunca top-10 de temporada
 
-    data = _puestos_context(player)
+    reg = _puestos_context(player)["regular"]
 
-    rows = {row["abbrev"]: row for row in _flat(data)}
+    rows = {row["abbrev"]: row for row in _flat(reg)}
     assert set(rows) == {"HR", "BB"}  # BB aparece aunque no tenga ningún top-10 de temporada
     assert [c["rank"] for c in rows["BB"]["cells"]] == [None]  # celdas de temporada vacías
     assert rows["BB"]["career"]["rank"] == 6  # solo el puesto de por vida
@@ -653,9 +653,9 @@ def test_puestos_shows_only_the_players_trade() -> None:
     _puesto(era, pitcher, 2010, 2)
     _puesto(bat_hr, pitcher, 2010, 1)  # su bateo incidental: NO debe aparecer
 
-    data = _puestos_context(pitcher)
+    reg = _puestos_context(pitcher)["regular"]
 
-    assert [row["abbrev"] for row in _flat(data)] == ["ERA"]
+    assert [row["abbrev"] for row in _flat(reg)] == ["ERA"]
 
 
 @pytest.mark.django_db
@@ -674,14 +674,47 @@ def test_puestos_groups_metrics_into_table_divisions_in_order() -> None:
     for metric in metrics.values():
         _puesto(metric, player, 2005, 3)
 
-    data = _puestos_context(player)
+    reg = _puestos_context(player)["regular"]
 
-    assert [(s["label"], [r["abbrev"] for r in s["rows"]]) for s in data["sections"]] == [
+    assert [(s["label"], [r["abbrev"] for r in s["rows"]]) for s in reg["sections"]] == [
         ("Estándar", ["H", "1B", "2B"]),  # 1B entre H y 2B
         ("Avanzado", ["ISO"]),
         ("Sabermetría", ["AO"]),
         ("Coeficientes", ["GB%"]),
     ]
+
+
+@pytest.mark.django_db
+def test_puestos_has_separate_regular_and_postseason_boards() -> None:
+    """Dos rejillas independientes: Serie Regular y Postemporada, cada una con sus propios puestos."""
+    player = _player(10, "e10", "Octubre E", "1B")
+    hr = _metric("batting", "hr", "HR", name_es="Jonrones")
+    _puesto(hr, player, 2004, 3)  # regular 2004: puesto 3
+    _puesto(hr, player, 2004, 1, postseason=True)  # octubre 2004: puesto 1
+    _puesto_career(hr, player, 5, postseason=True)  # octubre carrera: puesto 5
+
+    data = _puestos_context(player)
+
+    assert [r["abbrev"] for r in _flat(data["regular"])] == ["HR"]
+    assert data["regular"]["seasons"] == [2004]
+    post = data["postseason"]
+    assert post is not None
+    hr_row = _flat(post)[0]
+    assert hr_row["cells"][0]["rank"] == 1  # puesto 1 en octubre 2004
+    assert hr_row["career"]["rank"] == 5  # de por vida en octubre, puesto 5
+
+
+@pytest.mark.django_db
+def test_puestos_postseason_is_none_without_october_top10() -> None:
+    """Sin ningún top-10 de octubre, la rejilla de Postemporada es None (el pill no se muestra)."""
+    player = _player(11, "e11", "Solo Regular", "1B")
+    hr = _metric("batting", "hr", "HR")
+    _puesto(hr, player, 2004, 3)  # solo regular
+
+    data = _puestos_context(player)
+
+    assert data["regular"] is not None
+    assert data["postseason"] is None
 
 
 @pytest.mark.django_db

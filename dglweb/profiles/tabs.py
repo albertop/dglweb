@@ -16,7 +16,7 @@ from django.db import models
 
 from dglweb.players.models import Player
 from dglweb.profiles import columns
-from dglweb.stats import career_totals, qualifier
+from dglweb.stats import career_totals, leaders, qualifier
 from dglweb.stats.derive import FIRST_STATCAST_SEASON, batted_ball_coefficients
 from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
 from dglweb.stats.models import (
@@ -774,49 +774,47 @@ def _pretty_qualifier(formula: str) -> str:
     )
 
 
-def _puestos_context(player: Player) -> dict[str, Any]:
-    """The "Puestos" grid: for the player's OWN trade only (a pitcher's incidental batting is ranked
-    against people whose job it is, so it is not his puesto), a metric-by-season matrix of where he
-    finished among Dominicans. A cell is his rank that year; blank where he was not in the top 10. The
-    far-right column is his career (de por vida) rank in the same metric, top 10 only. A row is any
-    metric where he was top 10 in a season OR de por vida — a steady career can place among the career
-    leaders in a metric he never led in a single season, and that would be lost if only season top-10s
-    opened a row. A rank he shares with another player (a dense-rank tie) is flagged with `*`. Regular
-    season only.
+def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, Any] | None:
+    """One Puestos board — Serie Regular (`postseason=False`) or Postemporada (`True`): a
+    metric-by-season matrix of where the player finished among Dominicans, plus the de-por-vida
+    column, grouped into the profile's table divisions. A cell is his rank that year; blank where he
+    was not in the top 10. A row is any metric where he was top 10 in a season OR de por vida. A
+    shared rank (dense-rank tie) is flagged with `*`. `None` when he has no top-10 for this board.
     """
-    group = "pitching" if is_pitcher(player) else "batting"
-    base = Leader.objects.filter(player=player, postseason=False, rank__lte=_PUESTOS_TOP_N, metric__stat_group=group)
+    board = Leader.objects.filter(
+        player=player, postseason=postseason, rank__lte=_PUESTOS_TOP_N, metric__stat_group=group
+    )
     by_metric_id: dict[int, dict[int, int]] = defaultdict(dict)
     seasons: set[int] = set()
-    for mark in base.filter(board=Leader.Board.BEST_SEASON):
+    for mark in board.filter(board=Leader.Board.BEST_SEASON):
         if mark.season is None:  # a season board always carries one; guard keeps the types honest
             continue
         by_metric_id[mark.metric_id][mark.season] = mark.rank
         seasons.add(mark.season)
-    career_rank = {mark.metric_id: mark.rank for mark in base.filter(board=Leader.Board.BEST_CAREER)}
+    career_rank = {mark.metric_id: mark.rank for mark in board.filter(board=Leader.Board.BEST_CAREER)}
 
     metric_ids = set(by_metric_id) | set(career_rank)  # union: season top-10s and career top-10s
-    metrics = Metric.objects.filter(pk__in=metric_ids) if metric_ids else Metric.objects.none()
+    if not metric_ids:
+        return None
+    metrics = Metric.objects.filter(pk__in=metric_ids)
 
     # A rank is shared when >1 player sits on it in that (metric, board, season). One grouped query
     # over the player's own metrics; the board index (metric, board, season, …, rank) serves the GROUP BY.
-    tied: set[tuple[int, str, int | None, int]] = set()
-    if metric_ids:
-        shared = (
-            Leader.objects.filter(
-                metric_id__in=metric_ids,
-                postseason=False,
-                board__in=(Leader.Board.BEST_SEASON, Leader.Board.BEST_CAREER),
-                rank__lte=_PUESTOS_TOP_N,
-            )
-            .values("metric_id", "board", "season", "rank")
-            .annotate(n=models.Count("player_id"))
-            .filter(n__gt=1)
+    shared = (
+        Leader.objects.filter(
+            metric_id__in=metric_ids,
+            postseason=postseason,
+            board__in=(Leader.Board.BEST_SEASON, Leader.Board.BEST_CAREER),
+            rank__lte=_PUESTOS_TOP_N,
         )
-        tied = {(g["metric_id"], g["board"], g["season"], g["rank"]) for g in shared}
+        .values("metric_id", "board", "season", "rank")
+        .annotate(n=models.Count("player_id"))
+        .filter(n__gt=1)
+    )
+    tied = {(g["metric_id"], g["board"], g["season"], g["rank"]) for g in shared}
 
-    def cell(metric_pk: int, board: str, season: int | None, rank: int | None) -> dict[str, Any]:
-        return {"rank": rank, "tied": rank is not None and (metric_pk, board, season, rank) in tied}
+    def cell(metric_pk: int, board_value: str, season: int | None, rank: int | None) -> dict[str, Any]:
+        return {"rank": rank, "tied": rank is not None and (metric_pk, board_value, season, rank) in tied}
 
     ordered_seasons = sorted(seasons)
 
@@ -846,15 +844,32 @@ def _puestos_context(player: Player) -> dict[str, Any]:
     if leftover:  # defensive: a rankable metric no table lists — never silently dropped
         sections.append({"label": "Otras", "rows": leftover})
 
-    defaults, _ = _qualifier_context()
-    season_q, career_q = defaults.get(group, ("", ""))
-    coefficient_q = sorted({metric.qualifier_season for metric in metrics if metric.qualifier_season})
+    if postseason:
+        # October has no qualifier cascade; the rate boards use the fixed floors from the engine.
+        season_q, career_q = leaders._POST_QUALIFIER.get(group, ("", ""))
+        coefficient_q: list[str] = []  # no batted-ball/coefficient boards in October
+    else:
+        defaults, _ = _qualifier_context()
+        season_q, career_q = defaults.get(group, ("", ""))
+        coefficient_q = sorted({metric.qualifier_season for metric in metrics if metric.qualifier_season})
     qualifiers = {
         "season": _pretty_qualifier(season_q),
         "career": _pretty_qualifier(career_q),
         "coefficients": [_pretty_qualifier(formula) for formula in coefficient_q],
     }
-    return {"seasons": ordered_seasons, "sections": sections, "group": group, "qualifiers": qualifiers}
+    return {"seasons": ordered_seasons, "sections": sections, "qualifiers": qualifiers}
+
+
+def _puestos_context(player: Player) -> dict[str, Any]:
+    """The two Puestos boards: Serie Regular and Postemporada, for the player's OWN trade only (a
+    pitcher's incidental batting is ranked against people whose job it is, so it is not his puesto).
+    Either can be `None` when he has no top-10 there."""
+    group = "pitching" if is_pitcher(player) else "batting"
+    return {
+        "group": group,
+        "regular": _puestos_grid(player, group, postseason=False),
+        "postseason": _puestos_grid(player, group, postseason=True),
+    }
 
 
 class PuestosTab(PlayerTab):
@@ -865,10 +880,9 @@ class PuestosTab(PlayerTab):
 
     def applies_to(self, player: Player) -> bool:
         group = "pitching" if is_pitcher(player) else "batting"
-        return Leader.objects.filter(
+        return Leader.objects.filter(  # any top-10, regular OR October
             player=player,
             board__in=(Leader.Board.BEST_SEASON, Leader.Board.BEST_CAREER),
-            postseason=False,
             rank__lte=_PUESTOS_TOP_N,
             metric__stat_group=group,
         ).exists()
