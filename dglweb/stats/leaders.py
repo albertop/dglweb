@@ -84,17 +84,30 @@ def _positions() -> list[str]:
     return sorted({p for p in positions if p and p != "DH"})
 
 
+def _first_season(metric: Metric) -> int:
+    """The metric's own floor. `available_from` marks the first season the column has real data —
+    the Statcast counts and coefficients start in 1989 (see `derive.FIRST_STATCAST_SEASON`), and
+    ranking earlier seasons would publish boards built on a numerator that was never recorded."""
+    return max(FIRST_SEASON, metric.available_from or 0)
+
+
 def _totals(metric: Metric, pos: str | None) -> list[dict[str, Any]]:
     """Season-total rows for the metric (Dominican tables, 1956+), with the value and qualifier cols."""
     model = _MODEL[metric.stat_group]
-    base = model._default_manager.filter(season__gte=FIRST_SEASON)
+    base = model._default_manager.filter(season__gte=_first_season(metric))
     if metric.stat_group == "fielding":
         rows = base.position_totals().filter(pos=pos)  # type: ignore[attr-defined]
         qualifier_col = "gp"
     else:
         rows = base.season_totals()  # type: ignore[attr-defined]
         qualifier_col = "outs" if metric.stat_group == "pitching" else "pa"
-    columns = list(dict.fromkeys(["player_id", "season", metric.column, qualifier_col]))
+    # A metric may gate on a column other than the group's own (the coefficients use BALLS_IN_PLAY).
+    # It has to be selected here or `qualifies` reads None and fails closed, emptying the board.
+    own = [
+        qualifier.field_column(metric.stat_group, formula)
+        for formula in (metric.qualifier_season, metric.qualifier_career)
+    ]
+    columns = list(dict.fromkeys(["player_id", "season", metric.column, qualifier_col, *filter(None, own)]))
     return list(rows.values(*columns))
 
 
@@ -157,10 +170,14 @@ def _career_leaders(
     ]
 
 
-def _career_sums(group: str, pos: str | None) -> dict[int, dict[str, Any]]:
-    """Per player, the career sum of the group's counting components (None where never recorded)."""
+def _career_sums(group: str, pos: str | None, first_season: int = FIRST_SEASON) -> dict[int, dict[str, Any]]:
+    """Per player, the career sum of the group's counting components (None where never recorded).
+
+    `first_season` is the metric's floor: a career coefficient must sum only the seasons whose data
+    exists, or a player spanning 1985-1995 would average a decade that was never classified.
+    """
     components = career_rate.COMPONENTS[group]
-    base = _MODEL[group]._default_manager.filter(season__gte=FIRST_SEASON)
+    base = _MODEL[group]._default_manager.filter(season__gte=first_season)
     rows = base.position_totals().filter(pos=pos) if group == "fielding" else base.season_totals()  # type: ignore[attr-defined]
     sums: dict[int, dict[str, Any]] = {}
     for row in rows.values("player_id", *components):
@@ -223,7 +240,7 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
         (o.stat_group, o.season): o.qualifier_season for o in QualifierSeasonOverride.objects.all()
     }
 
-    sums_cache: dict[tuple[str, str | None], dict[int, dict[str, Any]]] = {}  # career sums, per (group, pos)
+    sums_cache: dict[tuple[str, str | None, int], dict[int, dict[str, Any]]] = {}  # per (group, pos, floor)
     written = prorated = 0
     with transaction.atomic():
         # A transaction-scoped advisory lock: a second concurrent build_leaders blocks here until the
@@ -243,9 +260,11 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
                     if metric.kind == Metric.Kind.RATE and scope == "career":
                         formula = qualifier.resolve_career(metric, defaults)
                         if career_rate.has_exact(metric.stat_group, metric.column):
-                            key = (metric.stat_group, pos)
+                            # The floor is part of the key: metrics with different floors must not
+                            # share a cached sum.
+                            key = (metric.stat_group, pos, _first_season(metric))
                             if key not in sums_cache:
-                                sums_cache[key] = _career_sums(metric.stat_group, pos)
+                                sums_cache[key] = _career_sums(metric.stat_group, pos, _first_season(metric))
                             buffer += _exact_career_rate_leaders(
                                 metric, board, pos, descending, sums_cache[key], formula
                             )

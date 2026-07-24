@@ -47,13 +47,30 @@ def resolve_career(metric: Metric, defaults: Defaults) -> str:
     return defaults.get(metric.stat_group, ("", ""))[1]
 
 
+def _column(group: str, field: str) -> str:
+    """The row column a qualifier field reads. Anything unmapped is the column of the same name."""
+    if group == "pitching" and field == "IP":
+        return "outs"  # IP is derived from the canonical outs
+    return {"PA": "pa", "G": "gp" if group == "fielding" else "g"}.get(field, field.lower())
+
+
+def field_column(group: str, formula: str) -> str | None:
+    """The column a formula needs, so the caller can be sure it selected it.
+
+    A threshold on a column the caller did not fetch reads as missing and fails **closed** — the
+    board comes out empty instead of unfiltered. Metrics with their own qualifier (the batted-ball
+    coefficients gate on `BALLS_IN_PLAY`, not `PA`) depend on this.
+    """
+    match = QUALIFIER_RE.match(formula or "")
+    return None if match is None else _column(group, match.group(1))
+
+
 def _field_value(group: str, field: str, row: Mapping[str, Any]) -> float | None:
     """The qualifier field's value for a totals row (IP = outs / 3; G = games at the position)."""
     if group == "pitching" and field == "IP":
         outs = row.get("outs")
         return None if outs is None else outs / 3
-    column = {"PA": "pa", "G": "gp" if group == "fielding" else "g"}.get(field, field.lower())
-    value = row.get(column)
+    value = row.get(_column(group, field))
     return None if value is None else float(value)
 
 

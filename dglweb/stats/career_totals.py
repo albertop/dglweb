@@ -16,7 +16,7 @@ fielding, positions by G then total. `ip`/`innings` are not stored — derive fr
 """
 
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from django.db import models, transaction
@@ -34,7 +34,35 @@ from dglweb.stats.models import (
 
 # fields that are not stats (never summed / recomputed)
 _KEY_FIELDS = {"id", "player", "player_id", "level", "team", "league", "pos", "sort_order"}
+# Same idea for a *line* model (a season or a postseason round): its keys differ from a career row's,
+# and summing `season` or averaging `age` would be nonsense.
+_LINE_KEY_FIELDS = {"season", "stint", "age"}
 _SORT_BASE = {"team": 100, "league": 200, "position": 100, "total": 300}
+
+
+def aggregate_lines(group: str, model: type[models.Model], rows: Sequence[models.Model]) -> dict[str, Any]:
+    """Collapse stat lines into one set of fields, exactly as a career row is built: counting columns
+    summed, rates recomputed **from those sums** where the formula is known (never an average of
+    averages), else a playing-time weighted average.
+
+    For subtotals that are not materialized — the postseason ones, computed per request. Returns a
+    plain dict so the caller decides what to wrap it in.
+    """
+    counting: list[str] = []
+    rates: list[str] = []
+    for field in model._meta.fields:
+        if field.is_relation or field.name in _LINE_KEY_FIELDS:
+            continue
+        if not isinstance(field, models.IntegerField | models.FloatField):
+            continue
+        is_rate = isinstance(field, models.FloatField) and (group, field.name) not in career_rate.CUMULATIVE_FLOATS
+        (rates if is_rate else counting).append(field.name)
+
+    weight_col = career_rate.WEIGHT[group]
+    columns = list(dict.fromkeys([*counting, *rates, weight_col]))
+    values = [{column: getattr(row, column, None) for column in columns} for row in rows]
+    bucket = _accumulate(values, counting, rates, weight_col, lambda _: "all").get("all")
+    return _stats(bucket, group, rates) if bucket else {}
 
 
 def _stat_fields(group: str, career_model: type[models.Model]) -> tuple[list[str], list[str]]:

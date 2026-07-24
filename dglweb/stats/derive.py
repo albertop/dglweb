@@ -29,6 +29,24 @@ Two subtleties the source verification pinned down:
 
 from typing import Any
 
+# Batted-ball data only becomes usable in 1989. Measured over our own rows, as the share of each
+# season's `balls_in_play` that actually carries a type (ground/fly/line/pop, outs + hits):
+#
+#     <=1970   0%          no batted-ball data at all
+#     1971-87  15-36%      `balls_in_play` is recorded but almost nothing is classified
+#     1988     65%         still a third missing
+#     1989-90  94% / 90%
+#     1991+    98-100%
+#
+# The gap is in the NUMERATOR, so a volume threshold cannot catch it: Rico Carty cleared 2 507
+# balls in play with 19% of them classified and came out "leading" PU% at 1.3%. Only a season floor
+# fixes it, so the Statcast counts and the coefficients start in 1989 — earlier seasons neither
+# appear on the player page nor feed a leaderboard.
+#
+# Known exception left in place by decision: 2000 and 2001 sit at ~67% (their *_hits are missing).
+# They are after the floor, so their ratios are understated; see docs/MEJORAS_FUTURAS.md.
+FIRST_STATCAST_SEASON = 1989
+
 
 def _sum(*values: int | None) -> int | None:
     known = [v for v in values if v is not None]

@@ -89,7 +89,13 @@ def test_qualifies_is_fail_closed_on_an_invalid_formula() -> None:
 def test_seed_leaves_metric_qualifiers_blank_to_inherit_the_group_default(seeded: None) -> None:
     # Level 2 is blank by default: rate metrics inherit the group default (level 1), no duplication.
     assert Metric.objects.get(stat_group="batting", column="avg").qualifier_season == ""
-    assert Metric.objects.filter(qualifier_season="").count() == Metric.objects.count()
+
+    # The only exception: the batted-ball coefficients are rates over balls in play / swings, so
+    # gating them on the group's PA would let an era with no batted-ball data top the board.
+    own = set(Metric.objects.exclude(qualifier_season="").values_list("column", flat=True))
+    assert own == {"gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb", "contact_pct", "whiff_pct"}
+    assert Metric.objects.get(stat_group="batting", column="gb_pct").qualifier_season == "BALLS_IN_PLAY>=400"
+    assert Metric.objects.get(stat_group="batting", column="whiff_pct").qualifier_season == "TOTAL_SWINGS>=1000"
 
 
 @pytest.mark.django_db

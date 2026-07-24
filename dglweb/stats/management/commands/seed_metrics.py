@@ -15,7 +15,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandParser
 from django.db import models, transaction
 
-from dglweb.stats import career_rate
+from dglweb.stats import career_rate, derive
 from dglweb.stats.models import Batting, Fielding, Metric, Pitching, QualifierDefault
 
 # (neg, best_season, worst_season, best_career, worst_career, exclude_zeros, postseason, active)
@@ -72,6 +72,20 @@ _LEADERBOARD: dict[tuple[str, str], tuple[int, ...]] = {
     ("batting", "TotAvg"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("batting", "wOBA"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("batting", "wRC+"): (0, 1, 1, 1, 1, 0, 1, 1),  # rate index, ranked like AVG (owner request)
+    # Batted-ball counts. Plain counts, so "the leader has the most" (as with GIDP). All of these,
+    # and the coefficients below, only start in 1989 — see `_STATCAST_COLUMNS`.
+    ("batting", "AO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "GO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "FO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "PO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "LO"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "FH"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "PH"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "LH"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "GH"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "Sw"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "Miss"): (0, 1, 1, 1, 1, 0, 0, 1),
+    ("batting", "BIP"): (0, 1, 1, 1, 1, 0, 0, 1),
     # Batted-ball / swing coefficients (derive.py group 3). Direction is a judgment call: fewer
     # pop-ups and fewer whiffs are better; the profile shares (GB/FB/GB-FB) are descriptive rather
     # than good-or-bad, so they default to "higher first". Tunable in the Backoffice.
@@ -141,6 +155,18 @@ _ALIAS: dict[tuple[str, str], str] = {
     ("batting", "total_avg"): "TotAvg",
     ("batting", "woba"): "wOBA",
     ("batting", "w_rc_plus"): "wRC+",
+    ("batting", "air_outs"): "AO",
+    ("batting", "ground_outs"): "GO",
+    ("batting", "fly_outs"): "FO",
+    ("batting", "pop_outs"): "PO",
+    ("batting", "line_outs"): "LO",
+    ("batting", "fly_hits"): "FH",
+    ("batting", "pop_hits"): "PH",
+    ("batting", "line_hits"): "LH",
+    ("batting", "ground_hits"): "GH",
+    ("batting", "total_swings"): "Sw",
+    ("batting", "swing_and_misses"): "Miss",
+    ("batting", "balls_in_play"): "BIP",
     ("batting", "gb_pct"): "GB%",
     ("batting", "fb_pct"): "FB%",
     ("batting", "ld_pct"): "LD%",
@@ -192,6 +218,47 @@ _NEGATIVE: frozenset[tuple[str, str]] = frozenset(
         ("fielding", "catcher_era"),
     }
 )
+
+# Qualifier cascade level 2: a metric whose threshold must NOT be the group's own column.
+# The batted-ball coefficients are rates over balls in play / swings, so gating them on PA lets an
+# era without batted-ball classification top the board — Felipe Alou led PU% with a single ball in
+# play in 7908 PA. Gate them on the coverage that actually feeds the ratio. (owner's thresholds)
+# Columns whose data only starts in 1989 — the batted-ball counts and everything derived from them.
+# `available_from` is what `build_leaders` reads to floor their boards. See derive.FIRST_STATCAST_SEASON
+# for the coverage measurements behind the year.
+_STATCAST_COLUMNS: frozenset[str] = frozenset(
+    {
+        "air_outs",
+        "ground_outs",
+        "fly_outs",
+        "pop_outs",
+        "line_outs",
+        "fly_hits",
+        "pop_hits",
+        "line_hits",
+        "ground_hits",
+        "total_swings",
+        "swing_and_misses",
+        "balls_in_play",
+        "gb_pct",
+        "fb_pct",
+        "ld_pct",
+        "pu_pct",
+        "gb_fb",
+        "contact_pct",
+        "whiff_pct",
+    }
+)
+
+_OWN_QUALIFIER: dict[tuple[str, str], str] = {
+    ("batting", "gb_pct"): "BALLS_IN_PLAY>=400",
+    ("batting", "fb_pct"): "BALLS_IN_PLAY>=400",
+    ("batting", "ld_pct"): "BALLS_IN_PLAY>=400",
+    ("batting", "pu_pct"): "BALLS_IN_PLAY>=400",
+    ("batting", "gb_fb"): "BALLS_IN_PLAY>=400",
+    ("batting", "contact_pct"): "TOTAL_SWINGS>=1000",
+    ("batting", "whiff_pct"): "TOTAL_SWINGS>=1000",
+}
 
 # Default qualifiers per group (season, career). Owner tunes these in the Backoffice.
 _QUALIFIER: dict[str, tuple[str, str]] = {
@@ -346,11 +413,12 @@ def _rows() -> list[dict[str, Any]]:
                 bs = ws = bc = wc = qz = post = act = 0
                 direction = Metric.Direction.LOWER if (group, field.name) in _NEGATIVE else Metric.Direction.HIGHER
 
-            # No per-metric qualifier here: rate metrics inherit the group default (QualifierDefault,
-            # level 1). Metric.qualifier_* is left blank as the optional level-2 override.
+            # Rate metrics inherit the group default (QualifierDefault, level 1) unless they gate on
+            # a different column entirely — see `_OWN_QUALIFIER`, the level-2 override.
             # Abbrev = the English code (HR, AVG, ERA, DP, Inn…), never a Spanish one — it shows in the
             # leaders UI and the player-page rankings.
             abbrev = code
+            own_qualifier = _OWN_QUALIFIER.get((group, field.name), "")
 
             rows.append(
                 {
@@ -364,6 +432,11 @@ def _rows() -> list[dict[str, Any]]:
                     "worst_career": bool(wc),
                     "exclude_zeros": bool(qz),
                     "postseason": bool(post),
+                    "qualifier_season": own_qualifier,
+                    "qualifier_career": own_qualifier,
+                    "available_from": (
+                        derive.FIRST_STATCAST_SEASON if group == "batting" and field.name in _STATCAST_COLUMNS else None
+                    ),
                     "abbrev": abbrev,
                     "sort_order": _SORT_ORDER.get((group, code), _SORT_LAST),
                     "is_active": bool(act),
