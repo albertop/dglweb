@@ -1,11 +1,21 @@
-"""Derived batting rate stats — the metrics the R pipeline computes with `mlbstats`.
+"""Derived batting rate stats.
 
-All fifteen are ported straight from the `mlbstats` source the owner provided, and every formula
-was checked against all 120 929 rows of `dbo.mlbBatting`: where the source has a real value, they
-match to the float (0 divergences). The only differences are rows the source stores as 0 — old
-eras missing an input, or a zero denominator (a pitcher's 0 AB) — where we return NULL instead,
-the same NULL-over-0 choice made everywhere in this project. A missing input propagates to NULL
-naturally, so an era without sacrifice flies yields no OBP.
+Two families, with **different provenance** — keep them apart when auditing:
+
+* **Groups 1-2 (fifteen): ported from `mlbstats`.** Straight from the R source the owner provided,
+  and every formula was checked against all 120 929 rows of `dbo.mlbBatting`: where the source has
+  a real value, they match to the float (0 divergences).
+* **Group 3 (seven): defined here.** The batted-ball profile and swing coefficients (GB/FB/LD/PU%,
+  GB/FB, Contact%, Whiff%). They have no `mlbstats` counterpart, so there is nothing to verify
+  them against — they are our definitions, agreed with the owner. Whiff is over **swings** (not
+  pitches). A batted ball's type is its outs plus its hits, and the four types share
+  `balls_in_play`. These only carry meaning for a season that clears the PA qualifier, which is
+  enforced upstream by making them `PRO` metrics (the qualifier cascade gates every rate).
+
+The only differences from the source are rows it stores as 0 — old eras missing an input, or a
+zero denominator (a pitcher's 0 AB) — where we return NULL instead, the same NULL-over-0 choice
+made everywhere in this project. A missing input propagates to NULL naturally, so an era without
+sacrifice flies yields no OBP.
 
 Two subtleties the source verification pinned down:
 
@@ -40,7 +50,7 @@ def _neg(value: int | None) -> int | None:
 
 
 def derived_rates(c: dict[str, Any]) -> dict[str, Any]:
-    """Compute all fifteen derived columns from a row's counting stats (our column names)."""
+    """Compute all twenty-two derived columns from a row's counting stats (our column names)."""
     h, ab, bb, hbp, sf = c.get("h"), c.get("ab"), c.get("bb"), c.get("hbp"), c.get("sf")
     so, hr, x2b, x3b, x1b = c.get("so"), c.get("hr"), c.get("x2b"), c.get("x3b"), c.get("x1b")
 
@@ -49,6 +59,13 @@ def derived_rates(c: dict[str, Any]) -> dict[str, Any]:
 
     obp = _div(_sum(h, bb, hbp), _sum(ab, bb, hbp, sf))
     slg = _div(total_bases, ab)
+
+    # Group 3 inputs: a batted ball's type is its outs plus its hits (the four share balls_in_play).
+    ground = _sum(c.get("ground_outs"), c.get("ground_hits"))
+    fly = _sum(c.get("fly_outs"), c.get("fly_hits"))
+    line = _sum(c.get("line_outs"), c.get("line_hits"))
+    pop = _sum(c.get("pop_outs"), c.get("pop_hits"))
+    bip, swings, misses = c.get("balls_in_play"), c.get("total_swings"), c.get("swing_and_misses")
 
     return {
         "avg": _div(h, ab),
@@ -79,6 +96,14 @@ def derived_rates(c: dict[str, Any]) -> dict[str, Any]:
             sf,
         ),
         "total_avg": _total_avg(c.get("tb"), hbp, bb, c.get("sb"), ab, h, c.get("cs"), c.get("gidp")),
+        # Group 3 — batted-ball profile and swing coefficients (ours, not mlbstats).
+        "gb_pct": _div(ground, bip),
+        "fb_pct": _div(fly, bip),
+        "ld_pct": _div(line, bip),
+        "pu_pct": _div(pop, bip),
+        "gb_fb": _div(ground, fly),
+        "contact_pct": _div(_sum(swings, _neg(misses)), swings),
+        "whiff_pct": _div(misses, swings),
     }
 
 

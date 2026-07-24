@@ -72,6 +72,14 @@ EXPECTED_FIELDS = (
     "swing_and_misses",
     "balls_in_play",
     "walk_offs",
+    # Not from the source: our batted-ball / swing coefficients (derive.py group 3).
+    "gb_pct",
+    "fb_pct",
+    "ld_pct",
+    "pu_pct",
+    "gb_fb",
+    "contact_pct",
+    "whiff_pct",
 )
 
 ROW: dict[str, object] = {"season": 2013, "round": "WS", "team": "BOS", "league": "AL", "ab": 16, "h": 11}

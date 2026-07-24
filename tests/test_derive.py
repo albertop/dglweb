@@ -1,9 +1,13 @@
 """Tests for the derived rate stats (Fase 3).
 
-The fifteen metrics the owner's R script computes with `mlbstats`. Every counting input and every
-golden result below is the REAL José Ramírez 2024 line, read from `dbo.mlbBatting` — so these are
-parity checks against the source, not self-consistent arithmetic. Each formula was also verified
-against all 120 929 source rows (0 divergences on non-zero values).
+Two families, matching `derive.py`:
+
+* **The fifteen from `mlbstats`.** Every counting input and every golden result below is the REAL
+  José Ramírez 2024 line, read from `dbo.mlbBatting` — so these are parity checks against the
+  source, not self-consistent arithmetic. Each formula was also verified against all 120 929
+  source rows (0 divergences on non-zero values).
+* **The seven batted-ball / swing coefficients.** Ours, so there is no source to check against;
+  their tests assert the agreed definitions and the NULL-over-0 rule instead.
 """
 
 import pytest
@@ -107,6 +111,67 @@ def test_exotic_metrics_null_when_an_input_is_missing() -> None:
     assert rates["eq_avg"] is None
     assert rates["rc"] is None
     assert rates["total_avg"] is None
+
+
+_COEFFICIENTS = ("gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb", "contact_pct", "whiff_pct")
+
+
+def test_batted_ball_coefficients() -> None:
+    """A batted ball's type = its outs + its hits; the four types share `balls_in_play`."""
+    rates = derived_rates(
+        {
+            "ground_outs": 10,
+            "ground_hits": 5,  # GB = 15
+            "fly_outs": 8,
+            "fly_hits": 2,  # FB = 10
+            "line_outs": 3,
+            "line_hits": 4,  # LD = 7
+            "pop_outs": 1,
+            "pop_hits": 0,  # PU = 1
+            "balls_in_play": 33,  # 15 + 10 + 7 + 1
+            "total_swings": 100,
+            "swing_and_misses": 20,
+        }
+    )
+
+    assert rates["gb_pct"] == pytest.approx(15 / 33)
+    assert rates["fb_pct"] == pytest.approx(10 / 33)
+    assert rates["ld_pct"] == pytest.approx(7 / 33)
+    assert rates["pu_pct"] == pytest.approx(1 / 33)
+    assert rates["gb_fb"] == pytest.approx(1.5)  # 15 / 10
+    assert rates["contact_pct"] == pytest.approx(0.8)  # (100 - 20) / 100
+    assert rates["whiff_pct"] == pytest.approx(0.2)  # 20 / 100, whiff over swings
+
+
+def test_batted_ball_coefficients_null_when_inputs_missing() -> None:
+    """Same NULL-over-0 rule as the rest: no batted-ball data -> NULL, never a fake 0."""
+    rates = derived_rates({})
+
+    assert all(rates[c] is None for c in _COEFFICIENTS)
+
+
+def test_batted_ball_coefficients_null_when_denominator_is_zero() -> None:
+    """A line with the inputs present but no balls in play / no swings -> NULL, not a crash."""
+    rates = derived_rates(
+        dict.fromkeys(
+            [
+                "ground_outs",
+                "ground_hits",
+                "fly_outs",
+                "fly_hits",
+                "line_outs",
+                "line_hits",
+                "pop_outs",
+                "pop_hits",
+                "balls_in_play",
+                "total_swings",
+                "swing_and_misses",
+            ],
+            0,
+        )
+    )
+
+    assert all(rates[c] is None for c in _COEFFICIENTS)
 
 
 def test_exotic_metrics_null_when_their_denominator_is_zero() -> None:

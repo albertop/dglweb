@@ -142,6 +142,15 @@ class Batting(models.Model):
     balls_in_play = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="EnJuego")
     walk_offs = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="WalkOffs")
 
+    # --- batted-ball / swing coefficients (derived from the counts above; derive.py group 3) -----
+    gb_pct = models.FloatField(null=True, blank=True, verbose_name="GB%")
+    fb_pct = models.FloatField(null=True, blank=True, verbose_name="FB%")
+    ld_pct = models.FloatField(null=True, blank=True, verbose_name="LD%")
+    pu_pct = models.FloatField(null=True, blank=True, verbose_name="PU%")
+    gb_fb = models.FloatField(null=True, blank=True, verbose_name="GB/FB")
+    contact_pct = models.FloatField(null=True, blank=True, verbose_name="Contact%")
+    whiff_pct = models.FloatField(null=True, blank=True, verbose_name="Whiff%")
+
     # --- sabermetrics ------------------------------------------------------------
     woba = models.FloatField(null=True, blank=True, verbose_name="wOBA")
     w_raa = models.FloatField(null=True, blank=True, verbose_name="wRAA")
@@ -518,6 +527,15 @@ class BattingPost(models.Model):
     swing_and_misses = models.PositiveSmallIntegerField(null=True, blank=True)
     balls_in_play = models.PositiveSmallIntegerField(null=True, blank=True)
     walk_offs = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # --- batted-ball / swing coefficients (derive.py group 3) ---------------------
+    gb_pct = models.FloatField(null=True, blank=True)
+    fb_pct = models.FloatField(null=True, blank=True)
+    ld_pct = models.FloatField(null=True, blank=True)
+    pu_pct = models.FloatField(null=True, blank=True)
+    gb_fb = models.FloatField(null=True, blank=True)
+    contact_pct = models.FloatField(null=True, blank=True)
+    whiff_pct = models.FloatField(null=True, blank=True)
 
     class Meta:
         db_table = "mlb_batting_post"
@@ -953,6 +971,16 @@ class BattingCareer(models.Model):
     swing_and_misses = models.PositiveIntegerField(null=True, blank=True)
     balls_in_play = models.PositiveIntegerField(null=True, blank=True)
     walk_offs = models.PositiveIntegerField(null=True, blank=True)
+
+    # --- batted-ball / swing coefficients (derive.py group 3) ---------------------
+    gb_pct = models.FloatField(null=True, blank=True)
+    fb_pct = models.FloatField(null=True, blank=True)
+    ld_pct = models.FloatField(null=True, blank=True)
+    pu_pct = models.FloatField(null=True, blank=True)
+    gb_fb = models.FloatField(null=True, blank=True)
+    contact_pct = models.FloatField(null=True, blank=True)
+    whiff_pct = models.FloatField(null=True, blank=True)
+
     roe = models.PositiveIntegerField(null=True, blank=True)
     gidp_opp = models.PositiveIntegerField(null=True, blank=True)
 
