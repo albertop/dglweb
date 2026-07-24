@@ -457,12 +457,12 @@ _NAME_ES: dict[tuple[str, str], str] = {
     ("batting", "HBP"): "Golpeado por lanzamiento",
     ("batting", "SLG"): "Porcentaje de slugging",
     ("batting", "OBP"): "Porcentaje de embasado",
-    ("batting", "OPS"): "OPS (embasado + slugging)",
+    ("batting", "OPS"): "Embasado más slugging",
     ("batting", "PA"): "Apariciones al plato",
     ("batting", "wRC+"): "Carreras creadas ajustadas",
     ("batting", "RCG"): "Carreras creadas",
     ("batting", "GIDP"): "Bateos en doble matanza",
-    ("batting", "IsoP"): "Poder aislado (ISO)",
+    ("batting", "IsoP"): "Poder aislado",
     ("batting", "BABIP"): "Promedio en bolas en juego",
     ("batting", "wOBA"): "Embasado ponderado",
     ("batting", "TotAvg"): "Promedio total",
@@ -499,15 +499,15 @@ _NAME_ES: dict[tuple[str, str], str] = {
     ("pitching", "BB"): "Bases por bolas",
     ("pitching", "HR"): "Jonrones permitidos",
     ("pitching", "SO"): "Ponches",
-    ("pitching", "ERA"): "Efectividad (ERA)",
+    ("pitching", "ERA"): "Efectividad",
     ("pitching", "Hx9"): "Imparables por 9 entradas",
     ("pitching", "BBx9"): "Bases por bolas por 9 entradas",
     ("pitching", "SOx9"): "Ponches por 9 entradas",
     ("pitching", "HRx9"): "Jonrones por 9 entradas",
     ("pitching", "PCT"): "Porcentaje de victorias",
-    ("pitching", "WHIP"): "Embasados por entrada (WHIP)",
+    ("pitching", "WHIP"): "Embasados por entrada",
     ("pitching", "SOxBB"): "Ponches por boleto",
-    ("pitching", "FIP"): "Efectividad independiente (FIP)",
+    ("pitching", "FIP"): "Efectividad independiente",
     ("pitching", "BAA"): "Promedio de bateo en contra",
     ("pitching", "BFP"): "Bateadores enfrentados",
     ("pitching", "R"): "Carreras permitidas",
@@ -532,6 +532,10 @@ _NAME_ES: dict[tuple[str, str], str] = {
     ("pitching", "Sw"): "Swings totales",
     ("pitching", "Whiff%"): "Porcentaje de abanicar y fallar",
 }
+
+# Display abbreviation where it differs from the dgl code (which stays the join key for _LEADERBOARD /
+# _SORT_ORDER). The source calls Isolated Power "IsoP"; it shows as the standard "ISO".
+_ABBREV_OVERRIDE: dict[tuple[str, str], str] = {("batting", "IsoP"): "ISO"}
 
 _MODELS: dict[str, type[models.Model]] = {"batting": Batting, "pitching": Pitching, "fielding": Fielding}
 
@@ -572,7 +576,7 @@ def _rows() -> list[dict[str, Any]]:
             # a different column entirely — see `_OWN_QUALIFIER`, the level-2 override.
             # Abbrev = the English code (HR, AVG, ERA, DP, Inn…), never a Spanish one — it shows in the
             # leaders UI and the player-page rankings.
-            abbrev = code
+            abbrev = _ABBREV_OVERRIDE.get((group, code), code)
             own_qualifier = _OWN_QUALIFIER.get((group, field.name), "")
 
             rows.append(

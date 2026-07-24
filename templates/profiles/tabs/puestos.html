@@ -1,9 +1,9 @@
 {% with d=tab.data %}
 {% comment %}
-Rejilla de puestos: una fila por métrica en la que el pelotero quedó en el top-10 alguna temporada,
-una columna por temporada. Cada celda es el puesto (1–10) que ocupó ese año entre dominicanos; vacío
-si no estuvo en el top-10. Solo su oficio (bateo si bateador, pitcheo si lanzador) y temporada regular.
-El pill "De por vida" se agregará después.
+Rejilla de puestos: fila = métrica, columna = temporada, celda = el puesto (1–10) que ocupó ese año
+entre dominicanos; vacío si no estuvo en el top-10. La última columna es su puesto de por vida. Las
+filas se agrupan en divisiones (Estándar, Avanzado, Sabermetría, Coeficientes) y van en el mismo orden
+que las tablas del perfil. Solo su oficio y temporada regular. Un * marca un puesto compartido.
 {% endcomment %}
 <section class="dgl-panel mb-4">
   <div class="table-responsive">
@@ -14,7 +14,9 @@ El pill "De por vida" se agregará después.
         <th class="dgl-mid pe-3" style="border-left:2px solid var(--dgl-navy)">De por vida</th>
       </tr></thead>
       <tbody>
-        {% for row in d.rows %}
+        {% for section in d.sections %}
+        <tr class="table-light"><td colspan="{{ d.seasons|length|add:3 }}" class="ps-3" style="font-weight:700">{{ section.label }}</td></tr>
+        {% for row in section.rows %}
         <tr>
           <td class="ps-3">{{ row.name }} <span class="dgl-meta" title="{% if row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>
           <td class="dgl-mid dgl-meta">{{ row.abbrev }}</td>
@@ -22,9 +24,13 @@ El pill "De por vida" se agregará después.
           <td class="dgl-mid pe-3{% if row.career.rank == 1 %} lead-career{% endif %}" style="border-left:2px solid var(--dgl-navy)">{{ row.career.rank|default_if_none:"" }}{% if row.career.tied %}*{% endif %}</td>
         </tr>
         {% endfor %}
+        {% endfor %}
       </tbody>
     </table>
   </div>
-  <div class="dgl-meta px-3 py-2 border-top">Cada celda es el puesto (1–10) que ocupó esa temporada entre dominicanos calificados; vacío = no estuvo en el top-10. La última columna es su puesto de por vida en esa métrica. El signo junto a la métrica indica hacia dónde manda: + más es mejor, - menos es mejor. Un * marca un puesto compartido (empate).</div>
+  <div class="dgl-meta px-3 py-2 border-top">
+    Cada celda es el puesto (1–10) que ocupó esa temporada entre dominicanos calificados; vacío = no estuvo en el top-10. La última columna es su puesto de por vida. El signo junto a la métrica indica hacia dónde manda: + más es mejor, - menos es mejor. Un * marca un puesto compartido (empate).
+    {% if d.qualifiers.season or d.qualifiers.career %}<br>Umbrales de calificación (solo tasas; los conteos no llevan): temporada {{ d.qualifiers.season }}, carrera {{ d.qualifiers.career }}.{% endif %}{% if d.qualifiers.coefficients %} Coeficientes: {{ d.qualifiers.coefficients|join:" o " }}.{% endif %}
+  </div>
 </section>
 {% endwith %}

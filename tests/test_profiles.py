@@ -379,6 +379,28 @@ def test_fielding_is_per_position_and_drops_the_dh() -> None:
 
 
 @pytest.mark.django_db
+def test_catcher_total_is_scoped_to_catching_and_keeps_cera() -> None:
+    """Las tablas de Receptor son de catcher: su total es la línea de carrera de la posición C (con
+    cERA real), no el gran total multi-posición que blanquea las tasas."""
+    from dglweb.profiles.tabs import FieldingTab
+    from dglweb.stats.models import Fielding, FieldingCareer
+
+    player = _player(33, "c33", "Un Receptor", "C")
+    FieldingCareer.objects.create(player=player, level=CareerLevel.POSITION, pos="C", sort_order=100, catcher_era=3.65)
+    FieldingCareer.objects.create(player=player, level=CareerLevel.POSITION, pos="1B", sort_order=110)
+    FieldingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300, catcher_era=3.62)
+    Fielding.objects.create(player=player, season=2019, team="BOS", pos="C", gp=100, innings_outs=2400)
+    Fielding.objects.create(player=player, season=2020, team="BOS", pos="C", gp=90, innings_outs=2200)
+    Fielding.objects.create(player=player, season=2020, team="BOS", pos="1B", gp=10)  # otra posición no cuenta
+
+    total = FieldingTab().context(player)["catcher_total"]
+
+    assert total is not None
+    assert total["seasons"] == 2  # dos temporadas como receptor
+    assert total["catcher"][-1]["text"] == "3.65"  # cERA (última col de FIELDING_CATCHER), no blanqueado
+
+
+@pytest.mark.django_db
 def test_a_pitchers_batting_table_carries_no_leadership_badges() -> None:
     """Sus turnos al bate son incidentales: se ranquean contra bateadores de oficio. La mejor marca
     personal sí se queda — esa no compara con nadie."""
@@ -562,11 +584,16 @@ def _puesto_career(metric: Metric, player: Player, rank: int) -> None:
     )
 
 
+def _flat(data: dict[str, object]) -> list[dict[str, object]]:
+    """Todas las filas de la rejilla, aplanadas a través de sus divisiones."""
+    return [row for section in data["sections"] for row in section["rows"]]
+
+
 @pytest.mark.django_db
 def test_puestos_grid_pivots_top10_by_metric_and_season() -> None:
     """Una fila por métrica con top-10, una columna por temporada; la celda es el puesto y queda en
     blanco donde no estuvo en el top-10. Un puesto > 10 no entra y una métrica sin ningún top-10 se
-    cae. Las filas salen en orden de `sort_order`."""
+    cae."""
     player = _player(1, "a01", "Bateador A", "1B")
     rival = _player(9, "z01", "Rival Z", "1B")
     hr = _metric("batting", "hr", "HR", sort_order=13, name_es="Jonrones")
@@ -586,14 +613,15 @@ def test_puestos_grid_pivots_top10_by_metric_and_season() -> None:
         return "" if cell["rank"] is None else f"{cell['rank']}{'*' if cell['tied'] else ''}"
 
     assert data["seasons"] == [2001, 2002]
+    assert [section["label"] for section in data["sections"]] == ["Estándar"]  # HR y SO viven en Estándar
     grid = [
-        (row["abbrev"], row["direction"], [show(c) for c in row["cells"]], show(row["career"])) for row in data["rows"]
+        (row["abbrev"], row["direction"], [show(c) for c in row["cells"]], show(row["career"])) for row in _flat(data)
     ]
     assert grid == [
         ("HR", "+", ["3", "1*"], "4"),  # 2002 empatado -> *; de por vida #4 (sin empate)
         ("SO", "-", ["", "5"], ""),  # menos es mejor; carrera fuera del top-10 -> vacío
     ]
-    assert data["rows"][0]["name"] == "Jonrones"  # columna 1 = nombre largo
+    assert _flat(data)[0]["name"] == "Jonrones"  # columna 1 = nombre largo
 
 
 @pytest.mark.django_db
@@ -609,7 +637,7 @@ def test_puestos_includes_a_metric_that_is_top10_only_de_por_vida() -> None:
 
     data = _puestos_context(player)
 
-    rows = {row["abbrev"]: row for row in data["rows"]}
+    rows = {row["abbrev"]: row for row in _flat(data)}
     assert set(rows) == {"HR", "BB"}  # BB aparece aunque no tenga ningún top-10 de temporada
     assert [c["rank"] for c in rows["BB"]["cells"]] == [None]  # celdas de temporada vacías
     assert rows["BB"]["career"]["rank"] == 6  # solo el puesto de por vida
@@ -620,14 +648,40 @@ def test_puestos_shows_only_the_players_trade() -> None:
     """Un lanzador solo ve sus puestos de PITCHEO: su bateo incidental se rankea contra bateadores de
     verdad, así que no es su puesto. (Y a la inversa para un bateador.)"""
     pitcher = _player(2, "p01", "Lanzador P", "P")
-    era = _metric("pitching", "era", "ERA", sort_order=17, name_es="Efectividad (ERA)")
+    era = _metric("pitching", "era", "ERA", sort_order=17, name_es="Efectividad")
     bat_hr = _metric("batting", "hr", "HR", sort_order=13, name_es="Jonrones")
     _puesto(era, pitcher, 2010, 2)
     _puesto(bat_hr, pitcher, 2010, 1)  # su bateo incidental: NO debe aparecer
 
     data = _puestos_context(pitcher)
 
-    assert [row["abbrev"] for row in data["rows"]] == ["ERA"]
+    assert [row["abbrev"] for row in _flat(data)] == ["ERA"]
+
+
+@pytest.mark.django_db
+def test_puestos_groups_metrics_into_table_divisions_in_order() -> None:
+    """Las filas se agrupan en las divisiones de las tablas (Estándar, Avanzado, Sabermetría,
+    Coeficientes) y en su mismo orden. Sencillos (1B) va entre H y 2B dentro de Estándar."""
+    player = _player(8, "d08", "Completo D", "1B")
+    metrics = {
+        "H": _metric("batting", "h", "H"),
+        "1B": _metric("batting", "x1b", "1B"),
+        "2B": _metric("batting", "x2b", "2B"),
+        "ISO": _metric("batting", "iso", "ISO"),
+        "AO": _metric("batting", "air_outs", "AO"),
+        "GB%": _metric("batting", "gb_pct", "GB%"),
+    }
+    for metric in metrics.values():
+        _puesto(metric, player, 2005, 3)
+
+    data = _puestos_context(player)
+
+    assert [(s["label"], [r["abbrev"] for r in s["rows"]]) for s in data["sections"]] == [
+        ("Estándar", ["H", "1B", "2B"]),  # 1B entre H y 2B
+        ("Avanzado", ["ISO"]),
+        ("Sabermetría", ["AO"]),
+        ("Coeficientes", ["GB%"]),
+    ]
 
 
 @pytest.mark.django_db

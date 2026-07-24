@@ -627,6 +627,18 @@ def _fielding_context(player: Player) -> dict[str, Any]:
             }
         )
 
+    # The Receptor tables are catcher-scoped, so their single-line total is the C-position career line
+    # (catcher-only innings and a real cERA), never the multi-position grand total that blanks rates.
+    catcher_career = next((line for line in career if line.level == CareerLevel.POSITION and line.pos == "C"), None)
+    catcher_total: dict[str, Any] | None = None
+    if catcher_career is not None:
+        catcher_total = {
+            "label": "Total",
+            "seasons": seasons_at.get("C", 0),
+            "kind": "total",
+            **_cells(catcher_career, {}, _FIELDING_TABLES, ("catcher",)),
+        }
+
     # Postseason: detail per (season, round, position), each pill/table closing with its single-line
     # total (`aggregate_lines`, same engine as batting/pitching post). The per-position subtotals live
     # in the Totales pill, and the grand total there blanks the rates like every multi-position total.
@@ -675,6 +687,7 @@ def _fielding_context(player: Player) -> dict[str, Any]:
         "total_cells": _fielding_total_cells(total, len(by_pos) > 1) if total else None,
         "totals_rows": totals_rows,
         "has_catcher": any(row.pos == "C" for row in lines),
+        "catcher_total": catcher_total,
         "post_lines": post_lines,
         "post_total_cells": post_total_cells,
         "post_season_count": post_season_count,
@@ -704,6 +717,61 @@ _PUESTOS_TOP_N = 10
 # The ranking direction shown next to each metric: + = more is better, - = fewer/lower is better.
 # It is how the board is sorted, so it explains what "puesto 1" means for that metric.
 _DIRECTION_SIGN: dict[str, str] = {Metric.Direction.HIGHER: "+", Metric.Direction.LOWER: "-"}
+
+
+def _insert_after(columns_: list[str], anchor: str, value: str) -> list[str]:
+    """A copy of `columns_` with `value` inserted right after `anchor` (or appended if absent)."""
+    out = list(columns_)
+    out.insert(out.index(anchor) + 1 if anchor in out else len(out), value)
+    return out
+
+
+def _puestos_layout(group: str) -> list[tuple[str, list[str]]]:
+    """The Puestos divisions and their metric order — taken from the profile tables so the grid reads
+    in the exact same order. Each division is a table pane; a column already placed in an earlier
+    division is not repeated (OPS lives in Estándar, its first table). Statcast/Coeficientes drop the
+    G/AB (pitching: G/IP) context prefix, already counted under Estándar. Two rankable batting metrics
+    are not shown in any table: Sencillos (1B) slots between H and 2B, Boletos intencionales (IBB)
+    after BB.
+    """
+    if group == "batting":
+        standard = [c.attr for c in columns.BATTING_STANDARD]
+        standard = _insert_after(standard, "h", "x1b")  # Sencillos entre H y 2B
+        standard = _insert_after(standard, "bb", "ibb")  # Boletos intencionales tras BB
+        divisions = [
+            ("Estándar", standard),
+            ("Avanzado", [c.attr for c in columns.BATTING_ADVANCED]),
+            ("Sabermetría", [c.attr for c in columns.BATTING_STATCAST[2:]]),
+            ("Coeficientes", [c.attr for c in columns.BATTING_RATIOS[2:]]),
+        ]
+    else:
+        divisions = [
+            ("Estándar", [c.attr for c in columns.PITCHING_STANDARD]),
+            ("Avanzado", [c.attr for c in columns.PITCHING_ADVANCED]),
+            ("Sabermetría", [c.attr for c in columns.PITCHING_STATCAST[2:]]),
+            ("Coeficientes", [c.attr for c in columns.PITCHING_RATIOS[2:]]),
+        ]
+    seen: set[str] = set()
+    layout: list[tuple[str, list[str]]] = []
+    for label, attrs in divisions:
+        ordered: list[str] = []
+        for attr in attrs:
+            if attr not in seen:
+                seen.add(attr)
+                ordered.append(attr)
+        layout.append((label, ordered))
+    return layout
+
+
+def _pretty_qualifier(formula: str) -> str:
+    """`PA>=502` -> `PA ≥ 502`; the coefficient columns get their short label. Blank stays blank."""
+    return (
+        formula.replace("BALLS_IN_PLAY", "BIP")
+        .replace("TOTAL_SWINGS", "swings")
+        .replace(">=", " ≥ ")
+        .replace("<=", " ≤ ")
+        .strip()
+    )
 
 
 def _puestos_context(player: Player) -> dict[str, Any]:
@@ -751,8 +819,9 @@ def _puestos_context(player: Player) -> dict[str, Any]:
         return {"rank": rank, "tied": rank is not None and (metric_pk, board, season, rank) in tied}
 
     ordered_seasons = sorted(seasons)
-    rows = [
-        {
+
+    def row(metric: Metric) -> dict[str, Any]:
+        return {
             "name": metric.name_es or metric.abbrev,
             "abbrev": metric.abbrev,
             "direction": _DIRECTION_SIGN.get(metric.direction, ""),
@@ -762,9 +831,30 @@ def _puestos_context(player: Player) -> dict[str, Any]:
             ],
             "career": cell(metric.pk, Leader.Board.BEST_CAREER, None, career_rank.get(metric.pk)),
         }
-        for metric in sorted(metrics, key=lambda m: (m.sort_order, m.column))
-    ]
-    return {"seasons": ordered_seasons, "rows": rows, "group": group}
+
+    # Group the player's metrics into the profile's divisions, in table order. A division with no
+    # top-10 metric for this player is dropped (no empty header).
+    metric_by_col = {metric.column: metric for metric in metrics}
+    placed: set[str] = set()
+    sections: list[dict[str, Any]] = []
+    for label, cols in _puestos_layout(group):
+        section_rows = [row(metric_by_col[col]) for col in cols if col in metric_by_col]
+        placed.update(col for col in cols if col in metric_by_col)
+        if section_rows:
+            sections.append({"label": label, "rows": section_rows})
+    leftover = [row(metric) for col, metric in metric_by_col.items() if col not in placed]
+    if leftover:  # defensive: a rankable metric no table lists — never silently dropped
+        sections.append({"label": "Otras", "rows": leftover})
+
+    defaults, _ = _qualifier_context()
+    season_q, career_q = defaults.get(group, ("", ""))
+    coefficient_q = sorted({metric.qualifier_season for metric in metrics if metric.qualifier_season})
+    qualifiers = {
+        "season": _pretty_qualifier(season_q),
+        "career": _pretty_qualifier(career_q),
+        "coefficients": [_pretty_qualifier(formula) for formula in coefficient_q],
+    }
+    return {"seasons": ordered_seasons, "sections": sections, "group": group, "qualifiers": qualifiers}
 
 
 class PuestosTab(PlayerTab):

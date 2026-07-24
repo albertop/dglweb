@@ -54,6 +54,7 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
         {% include "profiles/_fielding_head.html" with cols=d.columns.catcher %}
         <tbody>
           {% for entry in d.lines %}{% if entry.row.pos == "C" %}{% include "profiles/_fielding_row.html" with cells=entry.catcher %}{% endif %}{% endfor %}
+          {% if d.catcher_total %}{% include "profiles/_fielding_total.html" with cells=d.catcher_total.catcher count=d.catcher_total.seasons totals_target="fld-team" %}{% endif %}
         </tbody>
       </table>
     </div>
@@ -107,7 +108,7 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
           {% include "profiles/_label_head.html" with label="Posición" cols=d.columns.catcher %}
-          <tbody>{% for entry in d.totals_rows %}{% if entry.row.pos == "C" or entry.kind == "total" %}{% include "profiles/_label_row.html" with cells=entry.catcher %}{% endif %}{% endfor %}</tbody>
+          <tbody>{% if d.catcher_total %}{% include "profiles/_label_row.html" with entry=d.catcher_total cells=d.catcher_total.catcher %}{% endif %}</tbody>
         </table>
       </div>
     </section>
