@@ -23,7 +23,7 @@ faltar en los totales.
         {% include "profiles/_season_head.html" with cols=d.columns.standard %}
         <tbody>
           {% for line in d.lines %}{% include "profiles/_season_row.html" with cells=line.standard %}{% endfor %}
-          {% if d.total_cells %}{% include "profiles/_season_total.html" with cells=d.total_cells.standard count=d.season_count %}{% endif %}
+          {% if d.total_cells %}{% include "profiles/_season_total.html" with cells=d.total_cells.standard count=d.season_count totals_target="bat-team" %}{% endif %}
         </tbody>
       </table>
     </div>
@@ -38,7 +38,7 @@ faltar en los totales.
         {% include "profiles/_season_head.html" with cols=d.columns.advanced %}
         <tbody>
           {% for line in d.lines %}{% include "profiles/_season_row.html" with cells=line.advanced %}{% endfor %}
-          {% if d.total_cells %}{% include "profiles/_season_total.html" with cells=d.total_cells.advanced count=d.season_count %}{% endif %}
+          {% if d.total_cells %}{% include "profiles/_season_total.html" with cells=d.total_cells.advanced count=d.season_count totals_target="bat-team" %}{% endif %}
         </tbody>
       </table>
     </div>
@@ -55,7 +55,7 @@ faltar en los totales.
         {% include "profiles/_season_head.html" with cols=d.columns.statcast %}
         <tbody>
           {% for line in d.statcast_lines %}{% include "profiles/_season_row.html" with cells=line.statcast %}{% endfor %}
-          {% if d.total_cells and d.statcast_full %}{% include "profiles/_season_total.html" with cells=d.total_cells.statcast count=d.season_count %}{% endif %}
+          {% if d.total_cells and d.statcast_full %}{% include "profiles/_season_total.html" with cells=d.total_cells.statcast count=d.season_count totals_target="bat-team" %}{% endif %}
         </tbody>
       </table>
     </div>
@@ -71,7 +71,7 @@ faltar en los totales.
         {% include "profiles/_season_head.html" with cols=d.columns.ratios %}
         <tbody>
           {% for line in d.statcast_lines %}{% include "profiles/_season_row.html" with cells=line.ratios %}{% endfor %}
-          {% if d.total_cells and d.statcast_full %}{% include "profiles/_season_total.html" with cells=d.total_cells.ratios count=d.season_count %}{% endif %}
+          {% if d.total_cells and d.statcast_full %}{% include "profiles/_season_total.html" with cells=d.total_cells.ratios count=d.season_count totals_target="bat-team" %}{% endif %}
         </tbody>
       </table>
     </div>
@@ -89,22 +89,11 @@ faltar en los totales.
         {% include "profiles/_post_head.html" with cols=d.columns.standard %}
         <tbody>
           {% for entry in d.post_cells %}{% include "profiles/_post_row.html" with cells=entry.standard %}{% endfor %}
+          {% for entry in d.post_total_cells %}{% if entry.kind == "total" %}{% include "profiles/_post_total.html" with cells=entry.standard totals_target="bat-team" %}{% endif %}{% endfor %}
         </tbody>
       </table>
     </div>
-  </section>
-  {% comment %}Los mismos totales por ronda salen también en el pill Totales.{% endcomment %}
-  <section class="dgl-panel mb-4">
-    <div class="dgl-embed-cap">Totales de postemporada</div>
-    <div class="table-responsive">
-      <table class="table table-sm table-striped mb-0 dgl-stats-table">
-        {% include "profiles/_label_head.html" with label="Ronda" cols=d.columns.standard %}
-        <tbody>
-          {% for entry in d.post_total_cells %}{% include "profiles/_label_row.html" with cells=entry.standard %}{% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial. Los promedios se recalculan desde los totales, no son promedio de promedios.</div>
+    <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial. Los subtotales por ronda están en el pill Totales.</div>
   </section>
   </div>
   {% endif %}

@@ -177,12 +177,15 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-stats-table td.lead-career,
 .dgl-stats-table td.lead-season,
 .dgl-stats-table td.lead-best { color: var(--lead-ink); font-weight: 800; box-shadow: none; }
-/* Una celda que es líder de temporada Y su mejor marca. El fondo se lo queda el liderazgo —es lo
-   más fuerte— y la itálica dice que además es su récord: se lee como "especial DENTRO de su
-   categoría", no como una cuarta categoría. Se probó un anillo interior y se descartó: quedaba
-   demasiado sutil. Ojo si algún día se intenta de nuevo con `box-shadow` — hay que declararlo
-   DESPUÉS del `box-shadow: none` de arriba o se borra solo. */
+/* Una celda que es líder de temporada Y su mejor marca. El fondo (claro) se lo queda el liderazgo,
+   y encima va itálica + un recuadro oscuro de 1px que la enmarca dentro de su categoría (no es una
+   cuarta categoría, es "esta celda además es su récord"). El recuadro va por un canal que no es el
+   tono, así que también funciona para quien no distingue colores.
+   `inset` para no ensanchar la celda ni empujar la rejilla, y calificado con `.dgl-stats-table td`
+   y declarado DESPUÉS del `box-shadow: none` del rayado (misma propiedad, misma especificidad → gana
+   el último). Ahí quedó borrándose la vez pasada. */
 .lead-personal { font-style: italic; }
+.dgl-stats-table td.lead-personal { box-shadow: inset 0 0 0 1px var(--lead-ink); }
 .dgl-stats-table td.lead-career { background-color: var(--lead-career); }
 .dgl-stats-table td.lead-season { background-color: var(--lead-season); }
 .dgl-stats-table td.lead-best   { background-color: var(--lead-best); }
