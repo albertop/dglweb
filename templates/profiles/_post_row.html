@@ -1,0 +1,7 @@
+{% comment %}Línea de postemporada, o el subtotal de un año con varias rondas.{% endcomment %}
+<tr {% if entry.kind == "season" %}class="table-light" style="font-weight:700"{% endif %}>
+  <td class="ps-3 dgl-mid">{% if entry.kind == "line" %}{% ifchanged entry.row.season %}{{ entry.row.season }}{% endifchanged %}{% endif %}</td>
+  <td class="dgl-mid">{% if entry.kind == "season" %}Tot{% else %}{{ entry.row.round }}{% endif %}</td>
+  <td class="dgl-mid">{% if entry.kind == "line" %}{% ifchanged entry.row.season %}{{ entry.row.team|default:"—" }}{% endifchanged %}{% endif %}</td>
+  {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}">{{ cell.text }}</td>{% endfor %}
+</tr>

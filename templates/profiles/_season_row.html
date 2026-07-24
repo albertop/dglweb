@@ -1,0 +1,9 @@
+{% load stats_extras %}
+{% comment %}Una línea de temporada. Año y edad no se repiten dentro del mismo año; XXX es el
+combinado de una temporada dividida y se muestra como "Tot".{% endcomment %}
+<tr>
+  <td class="ps-3 dgl-mid">{% ifchanged line.row.season %}{{ line.row.season }}{% endifchanged %}</td>
+  <td class="dgl-mid">{% if line.row.team == "XXX" %}Tot{% else %}{{ line.row.team|default:"—" }}{% endif %}</td>
+  <td>{% ifchanged line.row.season %}{{ line.row.age|num }}{% endifchanged %}</td>
+  {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}">{{ cell.text }}</td>{% endfor %}
+</tr>

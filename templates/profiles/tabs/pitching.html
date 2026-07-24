@@ -1,9 +1,9 @@
 {% load stats_extras %}
 {% with d=tab.data %}
 {% comment %}
-Mismo molde que bateo: los pills y la estructura son idénticos, solo cambian las columnas.
-IP nunca se imprime desde la columna `ip` del modelo — esa es notación de béisbol y no se puede
-sumar. Se deriva siempre de `outs` con el filtro `innings`, que es lo que hace bien los totales.
+Mismo molde que bateo, y las mismas partials: solo cambian las listas de columnas, que viven en
+`profiles/columns.py`. IP nunca sale de la columna `ip` del modelo —esa es notación de béisbol y no
+se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
 {% endcomment %}
 <ul class="nav nav-pills mb-3" role="tablist">
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pit-std" type="button">Estándar</button></li>
@@ -15,249 +15,90 @@ sumar. Se deriva siempre de `outs` con el filtro `innings`, que es lo que hace b
 </ul>
 <div class="tab-content">
 
-  <!-- Estándar -->
   <div class="tab-pane fade show active" id="pit-std">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
-        <thead><tr>
-          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th><th>W</th><th>L</th><th>W-L%</th><th>ERA</th>
-          <th>G</th><th>GS</th><th>GF</th><th>CG</th><th>SHO</th><th>SV</th><th>IP</th><th>H</th><th>R</th><th>ER</th><th>HR</th>
-          <th>BB</th><th>IBB</th><th>SO</th><th>HBP</th><th>WP</th><th>BK</th><th>BF</th><th class="pe-3">WHIP</th>
-        </tr></thead>
+        {% include "profiles/_season_head.html" with cols=d.columns.standard %}
         <tbody>
-          {% for s, leads in d.rows %}
-          <tr>
-            <td class="ps-3 dgl-mid">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td class="dgl-mid">{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
-            <td>{% ifchanged s.season %}{{ s.age|num }}{% endifchanged %}</td>
-            <td class="{{ leads.w }}">{{ s.w|num }}</td><td class="{{ leads.l }}">{{ s.l|num }}</td>
-            <td class="{{ leads.win_pct }}">{{ s.win_pct|rate }}</td><td class="{{ leads.era }}">{{ s.era|dec:2 }}</td>
-            <td class="{{ leads.g }}">{{ s.g|num }}</td><td class="{{ leads.gs }}">{{ s.gs|num }}</td>
-            <td class="{{ leads.gf }}">{{ s.gf|num }}</td><td class="{{ leads.cg }}">{{ s.cg|num }}</td>
-            <td class="{{ leads.sho }}">{{ s.sho|num }}</td><td class="{{ leads.sv }}">{{ s.sv|num }}</td>
-            <td class="{{ leads.outs }}">{{ s.outs|innings }}</td><td class="{{ leads.h }}">{{ s.h|num }}</td>
-            <td class="{{ leads.r }}">{{ s.r|num }}</td><td class="{{ leads.er }}">{{ s.er|num }}</td>
-            <td class="{{ leads.hr }}">{{ s.hr|num }}</td><td class="{{ leads.bb }}">{{ s.bb|num }}</td>
-            <td class="{{ leads.ibb }}">{{ s.ibb|num }}</td><td class="{{ leads.so }}">{{ s.so|num }}</td>
-            <td class="{{ leads.hbp }}">{{ s.hbp|num }}</td><td class="{{ leads.wp }}">{{ s.wp|num }}</td>
-            <td class="{{ leads.bk }}">{{ s.bk|num }}</td><td class="{{ leads.bf }}">{{ s.bf|num }}</td>
-            <td class="pe-3 {{ leads.whip }}">{{ s.whip|dec:2 }}</td>
-          </tr>
-          {% endfor %}
-          {% if d.total %}
-          <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-            <td class="ps-3 dgl-mid"><b>{{ d.season_count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
-            <td class="{{ d.total_leads.w }}">{{ d.total.w|num }}</td><td class="{{ d.total_leads.l }}">{{ d.total.l|num }}</td>
-            <td class="{{ d.total_leads.win_pct }}">{{ d.total.win_pct|rate }}</td><td class="{{ d.total_leads.era }}">{{ d.total.era|dec:2 }}</td>
-            <td class="{{ d.total_leads.g }}">{{ d.total.g|num }}</td><td class="{{ d.total_leads.gs }}">{{ d.total.gs|num }}</td>
-            <td class="{{ d.total_leads.gf }}">{{ d.total.gf|num }}</td><td class="{{ d.total_leads.cg }}">{{ d.total.cg|num }}</td>
-            <td class="{{ d.total_leads.sho }}">{{ d.total.sho|num }}</td><td class="{{ d.total_leads.sv }}">{{ d.total.sv|num }}</td>
-            <td class="{{ d.total_leads.outs }}">{{ d.total.outs|innings }}</td><td class="{{ d.total_leads.h }}">{{ d.total.h|num }}</td>
-            <td class="{{ d.total_leads.r }}">{{ d.total.r|num }}</td><td class="{{ d.total_leads.er }}">{{ d.total.er|num }}</td>
-            <td class="{{ d.total_leads.hr }}">{{ d.total.hr|num }}</td><td class="{{ d.total_leads.bb }}">{{ d.total.bb|num }}</td>
-            <td class="{{ d.total_leads.ibb }}">{{ d.total.ibb|num }}</td><td class="{{ d.total_leads.so }}">{{ d.total.so|num }}</td>
-            <td class="{{ d.total_leads.hbp }}">{{ d.total.hbp|num }}</td><td class="{{ d.total_leads.wp }}">{{ d.total.wp|num }}</td>
-            <td class="{{ d.total_leads.bk }}">{{ d.total.bk|num }}</td><td class="{{ d.total_leads.bf }}">{{ d.total.bf|num }}</td>
-            <td class="pe-3 {{ d.total_leads.whip }}">{{ d.total.whip|dec:2 }}</td>
-          </tr>
-          {% endif %}
+          {% for line in d.lines %}{% include "profiles/_season_row.html" with cells=line.standard %}{% endfor %}
+          {% if d.total_cells %}{% include "profiles/_season_total.html" with cells=d.total_cells.standard count=d.season_count %}{% endif %}
         </tbody>
       </table>
     </div>
   </section>
-  {% include "profiles/_legend.html" %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
   </div>
 
-  <!-- Avanzado / Sabermétrico -->
   <div class="tab-pane fade" id="pit-adv">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
-        <thead><tr>
-          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th><th>IP</th><th>BF</th><th>BAA</th><th>BABIP</th>
-          <th>WHIP</th><th>SO/9</th><th>BB/9</th><th>HR/9</th><th>H/9</th><th>SO/BB</th><th>Strike%</th><th>P/IP</th>
-          <th>FIP</th><th>xFIP</th><th>ERA-</th><th>FIP-</th><th>RA9-WAR</th><th>RAR</th><th class="pe-3">WAR</th>
-        </tr></thead>
+        {% include "profiles/_season_head.html" with cols=d.columns.advanced %}
         <tbody>
-          {% for s, leads in d.rows %}
-          <tr>
-            <td class="ps-3 dgl-mid">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td class="dgl-mid">{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
-            <td>{% ifchanged s.season %}{{ s.age|num }}{% endifchanged %}</td>
-            <td class="{{ leads.outs }}">{{ s.outs|innings }}</td><td class="{{ leads.bf }}">{{ s.bf|num }}</td>
-            <td class="{{ leads.baa }}">{{ s.baa|rate }}</td><td class="{{ leads.babip }}">{{ s.babip|rate }}</td>
-            <td class="{{ leads.whip }}">{{ s.whip|dec:2 }}</td><td class="{{ leads.so_per9 }}">{{ s.so_per9|dec:2 }}</td>
-            <td class="{{ leads.bb_per9 }}">{{ s.bb_per9|dec:2 }}</td><td class="{{ leads.hr_per9 }}">{{ s.hr_per9|dec:2 }}</td>
-            <td class="{{ leads.h_per9 }}">{{ s.h_per9|dec:2 }}</td><td class="{{ leads.so_to_bb }}">{{ s.so_to_bb|dec:2 }}</td>
-            <td class="{{ leads.strike_pct }}">{{ s.strike_pct|pct }}</td><td class="{{ leads.pitches_per_inning }}">{{ s.pitches_per_inning|dec:1 }}</td>
-            <td class="{{ leads.fip }}">{{ s.fip|dec:2 }}</td><td class="{{ leads.xfip }}">{{ s.xfip|dec:2 }}</td>
-            <td class="{{ leads.era_minus }}">{{ s.era_minus|rate:0 }}</td><td class="{{ leads.fip_minus }}">{{ s.fip_minus|rate:0 }}</td>
-            <td class="{{ leads.ra9_war }}">{{ s.ra9_war|dec:1 }}</td><td class="{{ leads.rar }}">{{ s.rar|dec:1 }}</td>
-            <td class="pe-3 {{ leads.war }}">{{ s.war|dec:1 }}</td>
-          </tr>
-          {% endfor %}
-          {% if d.total %}
-          <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-            <td class="ps-3 dgl-mid"><b>{{ d.season_count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
-            <td class="{{ d.total_leads.outs }}">{{ d.total.outs|innings }}</td><td class="{{ d.total_leads.bf }}">{{ d.total.bf|num }}</td>
-            <td class="{{ d.total_leads.baa }}">{{ d.total.baa|rate }}</td><td class="{{ d.total_leads.babip }}">{{ d.total.babip|rate }}</td>
-            <td class="{{ d.total_leads.whip }}">{{ d.total.whip|dec:2 }}</td><td class="{{ d.total_leads.so_per9 }}">{{ d.total.so_per9|dec:2 }}</td>
-            <td class="{{ d.total_leads.bb_per9 }}">{{ d.total.bb_per9|dec:2 }}</td><td class="{{ d.total_leads.hr_per9 }}">{{ d.total.hr_per9|dec:2 }}</td>
-            <td class="{{ d.total_leads.h_per9 }}">{{ d.total.h_per9|dec:2 }}</td><td class="{{ d.total_leads.so_to_bb }}">{{ d.total.so_to_bb|dec:2 }}</td>
-            <td class="{{ d.total_leads.strike_pct }}">{{ d.total.strike_pct|pct }}</td><td class="{{ d.total_leads.pitches_per_inning }}">{{ d.total.pitches_per_inning|dec:1 }}</td>
-            <td class="{{ d.total_leads.fip }}">{{ d.total.fip|dec:2 }}</td><td class="{{ d.total_leads.xfip }}">{{ d.total.xfip|dec:2 }}</td>
-            <td class="{{ d.total_leads.era_minus }}">{{ d.total.era_minus|rate:0 }}</td><td class="{{ d.total_leads.fip_minus }}">{{ d.total.fip_minus|rate:0 }}</td>
-            <td class="{{ d.total_leads.ra9_war }}">{{ d.total.ra9_war|dec:1 }}</td><td class="{{ d.total_leads.rar }}">{{ d.total.rar|dec:1 }}</td>
-            <td class="pe-3 {{ d.total_leads.war }}">{{ d.total.war|dec:1 }}</td>
-          </tr>
-          {% endif %}
+          {% for line in d.lines %}{% include "profiles/_season_row.html" with cells=line.advanced %}{% endfor %}
+          {% if d.total_cells %}{% include "profiles/_season_total.html" with cells=d.total_cells.advanced count=d.season_count %}{% endif %}
         </tbody>
       </table>
     </div>
     <div class="dgl-meta px-3 py-2 border-top">Carrera = suma de componentes; las tasas se recalculan desde los totales, no son promedio de promedios.</div>
   </section>
-  {% include "profiles/_legend.html" %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
   </div>
 
-  <!-- Statcast (batazos permitidos / swings) -->
   {% if d.has_statcast %}
   <div class="tab-pane fade" id="pit-statcast">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
-        <thead><tr>
-          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th><th>G</th><th>IP</th>
-          <th>AO</th><th>GO</th><th>FO</th><th>PO</th><th>LO</th>
-          <th>FH</th><th>PH</th><th>LH</th><th>GH</th><th>Sw</th><th>Miss</th><th class="pe-3">BIP</th>
-        </tr></thead>
+        {% include "profiles/_season_head.html" with cols=d.columns.statcast %}
         <tbody>
-          {% for s, leads in d.statcast_rows %}
-          <tr>
-            <td class="ps-3 dgl-mid">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td class="dgl-mid">{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
-            <td>{% ifchanged s.season %}{{ s.age|num }}{% endifchanged %}</td>
-            <td class="{{ leads.g }}">{{ s.g|num }}</td><td class="{{ leads.outs }}">{{ s.outs|innings }}</td>
-            <td class="{{ leads.air_outs }}">{{ s.air_outs|num }}</td><td class="{{ leads.ground_outs }}">{{ s.ground_outs|num }}</td>
-            <td class="{{ leads.fly_outs }}">{{ s.fly_outs|num }}</td><td class="{{ leads.pop_outs }}">{{ s.pop_outs|num }}</td>
-            <td class="{{ leads.line_outs }}">{{ s.line_outs|num }}</td><td class="{{ leads.fly_hits }}">{{ s.fly_hits|num }}</td>
-            <td class="{{ leads.pop_hits }}">{{ s.pop_hits|num }}</td><td class="{{ leads.line_hits }}">{{ s.line_hits|num }}</td>
-            <td class="{{ leads.ground_hits }}">{{ s.ground_hits|num }}</td><td class="{{ leads.total_swings }}">{{ s.total_swings|num }}</td>
-            <td class="{{ leads.swing_and_misses }}">{{ s.swing_and_misses|num }}</td><td class="pe-3 {{ leads.balls_in_play }}">{{ s.balls_in_play|num }}</td>
-          </tr>
-          {% endfor %}
-          {% if d.total and d.statcast_full %}
-          <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-            <td class="ps-3 dgl-mid"><b>{{ d.season_count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
-            <td class="{{ d.total_leads.g }}">{{ d.total.g|num }}</td><td class="{{ d.total_leads.outs }}">{{ d.total.outs|innings }}</td>
-            <td class="{{ d.total_leads.air_outs }}">{{ d.total.air_outs|num }}</td><td class="{{ d.total_leads.ground_outs }}">{{ d.total.ground_outs|num }}</td>
-            <td class="{{ d.total_leads.fly_outs }}">{{ d.total.fly_outs|num }}</td><td class="{{ d.total_leads.pop_outs }}">{{ d.total.pop_outs|num }}</td>
-            <td class="{{ d.total_leads.line_outs }}">{{ d.total.line_outs|num }}</td><td class="{{ d.total_leads.fly_hits }}">{{ d.total.fly_hits|num }}</td>
-            <td class="{{ d.total_leads.pop_hits }}">{{ d.total.pop_hits|num }}</td><td class="{{ d.total_leads.line_hits }}">{{ d.total.line_hits|num }}</td>
-            <td class="{{ d.total_leads.ground_hits }}">{{ d.total.ground_hits|num }}</td><td class="{{ d.total_leads.total_swings }}">{{ d.total.total_swings|num }}</td>
-            <td class="{{ d.total_leads.swing_and_misses }}">{{ d.total.swing_and_misses|num }}</td><td class="pe-3 {{ d.total_leads.balls_in_play }}">{{ d.total.balls_in_play|num }}</td>
-          </tr>
-          {% endif %}
+          {% for line in d.statcast_lines %}{% include "profiles/_season_row.html" with cells=line.statcast %}{% endfor %}
+          {% if d.total_cells and d.statcast_full %}{% include "profiles/_season_total.html" with cells=d.total_cells.statcast count=d.season_count %}{% endif %}
         </tbody>
       </table>
     </div>
     <div class="dgl-meta px-3 py-2 border-top">AO/GO/FO/PO/LO=out al aire/roletazo/elevado/palomita/línea · FH/PH/LH/GH=hit por elevado/palomita/línea/roletazo · Sw=swings · Miss=swings y fallos · BIP=bolas en juego. Desde 1989, cuando la fuente empieza a clasificar el batazo.</div>
   </section>
-  {% include "profiles/_legend.html" %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
   </div>
 
-  <!-- Coeficientes: perfil del batazo que le conectan -->
   <div class="tab-pane fade" id="pit-ratios">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
-        <thead><tr>
-          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th><th>G</th><th>IP</th>
-          <th>GB%</th><th>FB%</th><th>LD%</th><th>PU%</th><th>GB/FB</th><th>Contact%</th><th class="pe-3">Whiff%</th>
-        </tr></thead>
+        {% include "profiles/_season_head.html" with cols=d.columns.ratios %}
         <tbody>
-          {% for s, leads in d.statcast_rows %}
-          <tr>
-            <td class="ps-3 dgl-mid">{% ifchanged s.season %}{{ s.season }}{% endifchanged %}</td><td class="dgl-mid">{% if s.team == "XXX" %}Tot{% else %}{{ s.team|default:"—" }}{% endif %}</td>
-            <td>{% ifchanged s.season %}{{ s.age|num }}{% endifchanged %}</td>
-            <td class="{{ leads.g }}">{{ s.g|num }}</td><td class="{{ leads.outs }}">{{ s.outs|innings }}</td>
-            <td class="{{ leads.gb_pct }}">{{ s.gb_pct|pct }}</td><td class="{{ leads.fb_pct }}">{{ s.fb_pct|pct }}</td>
-            <td class="{{ leads.ld_pct }}">{{ s.ld_pct|pct }}</td><td class="{{ leads.pu_pct }}">{{ s.pu_pct|pct }}</td>
-            <td class="{{ leads.gb_fb }}">{{ s.gb_fb|dec:2 }}</td><td class="{{ leads.contact_pct }}">{{ s.contact_pct|pct }}</td>
-            <td class="pe-3 {{ leads.whiff_pct }}">{{ s.whiff_pct|pct }}</td>
-          </tr>
-          {% endfor %}
-          {% if d.total and d.statcast_full %}
-          <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-            <td class="ps-3 dgl-mid"><b>{{ d.season_count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
-            <td class="{{ d.total_leads.g }}">{{ d.total.g|num }}</td><td class="{{ d.total_leads.outs }}">{{ d.total.outs|innings }}</td>
-            <td class="{{ d.total_leads.gb_pct }}">{{ d.total.gb_pct|pct }}</td><td class="{{ d.total_leads.fb_pct }}">{{ d.total.fb_pct|pct }}</td>
-            <td class="{{ d.total_leads.ld_pct }}">{{ d.total.ld_pct|pct }}</td><td class="{{ d.total_leads.pu_pct }}">{{ d.total.pu_pct|pct }}</td>
-            <td class="{{ d.total_leads.gb_fb }}">{{ d.total.gb_fb|dec:2 }}</td><td class="{{ d.total_leads.contact_pct }}">{{ d.total.contact_pct|pct }}</td>
-            <td class="pe-3 {{ d.total_leads.whiff_pct }}">{{ d.total.whiff_pct|pct }}</td>
-          </tr>
-          {% endif %}
+          {% for line in d.statcast_lines %}{% include "profiles/_season_row.html" with cells=line.ratios %}{% endfor %}
+          {% if d.total_cells and d.statcast_full %}{% include "profiles/_season_total.html" with cells=d.total_cells.ratios count=d.season_count %}{% endif %}
         </tbody>
       </table>
     </div>
     <div class="dgl-meta px-3 py-2 border-top">Perfil del batazo que le conectan: GB/FB/LD/PU% = % de bolas en juego por tipo · GB/FB = roletazos÷elevados · Contact% y Whiff% sobre swings.{% if d.coefficient_qualifiers %} Solo temporadas que califican: {{ d.coefficient_qualifiers|join:" o " }}.{% endif %}</div>
   </section>
-  {% include "profiles/_legend.html" %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
   </div>
   {% endif %}
 
-  <!-- Postemporada -->
   {% if d.post %}
   <div class="tab-pane fade" id="pit-post">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
-        <thead><tr>
-          <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Rd</th><th class="dgl-mid">Equipo</th><th>W</th><th>L</th><th>W-L%</th><th>ERA</th>
-          <th>G</th><th>GS</th><th>GF</th><th>CG</th><th>SHO</th><th>SV</th><th>IP</th><th>H</th><th>R</th><th>ER</th><th>HR</th>
-          <th>BB</th><th>IBB</th><th>SO</th><th>HBP</th><th>WP</th><th>BK</th><th>BF</th><th class="pe-3">WHIP</th>
-        </tr></thead>
+        {% include "profiles/_post_head.html" with cols=d.columns.standard %}
         <tbody>
-          {% for t in d.post %}{% with p=t.row %}
-          <tr {% if t.kind == "season" %}class="table-light" style="font-weight:700"{% endif %}>
-            <td class="ps-3 dgl-mid">{% if t.kind == "line" %}{% ifchanged p.season %}{{ p.season }}{% endifchanged %}{% endif %}</td>
-            <td class="dgl-mid">{% if t.kind == "season" %}Tot{% else %}{{ p.round }}{% endif %}</td>
-            <td class="dgl-mid">{% if t.kind == "line" %}{% ifchanged p.season %}{{ p.team|default:"—" }}{% endifchanged %}{% endif %}</td>
-            <td>{{ p.w|num }}</td><td>{{ p.l|num }}</td><td>{{ p.win_pct|rate }}</td><td>{{ p.era|dec:2 }}</td>
-            <td>{{ p.g|num }}</td><td>{{ p.gs|num }}</td><td>{{ p.gf|num }}</td><td>{{ p.cg|num }}</td>
-            <td>{{ p.sho|num }}</td><td>{{ p.sv|num }}</td><td>{{ p.outs|innings }}</td><td>{{ p.h|num }}</td>
-            <td>{{ p.r|num }}</td><td>{{ p.er|num }}</td><td>{{ p.hr|num }}</td><td>{{ p.bb|num }}</td>
-            <td>{{ p.ibb|num }}</td><td>{{ p.so|num }}</td><td>{{ p.hbp|num }}</td><td>{{ p.wp|num }}</td>
-            <td>{{ p.bk|num }}</td><td>{{ p.bf|num }}</td><td class="pe-3">{{ p.whip|dec:2 }}</td>
-          </tr>
-          {% endwith %}{% endfor %}
+          {% for entry in d.post_cells %}{% include "profiles/_post_row.html" with cells=entry.standard %}{% endfor %}
         </tbody>
       </table>
     </div>
   </section>
-
-  {% comment %}
-  Los mismos totales por ronda saldrán también en el pill Totales cuando se construya.
-  {% endcomment %}
   <section class="dgl-panel mb-4">
     <div class="dgl-embed-cap">Totales de postemporada</div>
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
-        <thead><tr>
-          <th class="ps-3">Ronda</th><th>W</th><th>L</th><th>W-L%</th><th>ERA</th>
-          <th>G</th><th>GS</th><th>GF</th><th>CG</th><th>SHO</th><th>SV</th><th>IP</th><th>H</th><th>R</th><th>ER</th><th>HR</th>
-          <th>BB</th><th>IBB</th><th>SO</th><th>HBP</th><th>WP</th><th>BK</th><th>BF</th><th class="pe-3">WHIP</th>
-        </tr></thead>
+        {% include "profiles/_label_head.html" with label="Ronda" cols=d.columns.standard %}
         <tbody>
-          {% for t in d.post_totals %}{% with p=t.row %}
-          <tr {% if t.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
-            <td class="ps-3"><b>{{ t.label }}</b>
-              <span class="dgl-meta">({{ t.seasons }} temporada{{ t.seasons|pluralize:"s" }})</span></td>
-            <td>{{ p.w|num }}</td><td>{{ p.l|num }}</td><td>{{ p.win_pct|rate }}</td><td>{{ p.era|dec:2 }}</td>
-            <td>{{ p.g|num }}</td><td>{{ p.gs|num }}</td><td>{{ p.gf|num }}</td><td>{{ p.cg|num }}</td>
-            <td>{{ p.sho|num }}</td><td>{{ p.sv|num }}</td><td>{{ p.outs|innings }}</td><td>{{ p.h|num }}</td>
-            <td>{{ p.r|num }}</td><td>{{ p.er|num }}</td><td>{{ p.hr|num }}</td><td>{{ p.bb|num }}</td>
-            <td>{{ p.ibb|num }}</td><td>{{ p.so|num }}</td><td>{{ p.hbp|num }}</td><td>{{ p.wp|num }}</td>
-            <td>{{ p.bk|num }}</td><td>{{ p.bf|num }}</td><td class="pe-3">{{ p.whip|dec:2 }}</td>
-          </tr>
-          {% endwith %}{% endfor %}
+          {% for entry in d.post_total_cells %}{% include "profiles/_label_row.html" with cells=entry.standard %}{% endfor %}
         </tbody>
       </table>
     </div>
@@ -266,156 +107,58 @@ sumar. Se deriva siempre de `outs` con el filtro `innings`, que es lo que hace b
   </div>
   {% endif %}
 
-  <!-- Totales: por equipo, por liga, y el total de la carrera como última línea -->
   {% if d.totals %}
   <div class="tab-pane fade" id="pit-team">
-
     <section class="dgl-panel mb-4">
       <div class="dgl-embed-cap">Estándar</div>
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
-          <thead><tr>
-            <th class="ps-3">Equipo / Liga</th><th>W</th><th>L</th><th>W-L%</th><th>ERA</th>
-            <th>G</th><th>GS</th><th>GF</th><th>CG</th><th>SHO</th><th>SV</th><th>IP</th><th>H</th><th>R</th><th>ER</th><th>HR</th>
-            <th>BB</th><th>IBB</th><th>SO</th><th>HBP</th><th>WP</th><th>BK</th><th>BF</th><th class="pe-3">WHIP</th>
-          </tr></thead>
-          <tbody>
-            {% for t in d.totals %}{% with c=t.row %}
-            <tr {% if t.kind == "league" %}class="table-light"{% elif t.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
-              <td class="ps-3">{% if t.kind == "team" %}{{ t.label }}{% else %}<b>{{ t.label }}</b>{% endif %}
-                <span class="dgl-meta">({{ t.seasons }} temporada{{ t.seasons|pluralize:"s" }})</span></td>
-              <td class="{{ t.leads.w }}">{{ c.w|num }}</td><td class="{{ t.leads.l }}">{{ c.l|num }}</td>
-              <td class="{{ t.leads.win_pct }}">{{ c.win_pct|rate }}</td><td class="{{ t.leads.era }}">{{ c.era|dec:2 }}</td>
-              <td class="{{ t.leads.g }}">{{ c.g|num }}</td><td class="{{ t.leads.gs }}">{{ c.gs|num }}</td>
-              <td class="{{ t.leads.gf }}">{{ c.gf|num }}</td><td class="{{ t.leads.cg }}">{{ c.cg|num }}</td>
-              <td class="{{ t.leads.sho }}">{{ c.sho|num }}</td><td class="{{ t.leads.sv }}">{{ c.sv|num }}</td>
-              <td class="{{ t.leads.outs }}">{{ c.outs|innings }}</td><td class="{{ t.leads.h }}">{{ c.h|num }}</td>
-              <td class="{{ t.leads.r }}">{{ c.r|num }}</td><td class="{{ t.leads.er }}">{{ c.er|num }}</td>
-              <td class="{{ t.leads.hr }}">{{ c.hr|num }}</td><td class="{{ t.leads.bb }}">{{ c.bb|num }}</td>
-              <td class="{{ t.leads.ibb }}">{{ c.ibb|num }}</td><td class="{{ t.leads.so }}">{{ c.so|num }}</td>
-              <td class="{{ t.leads.hbp }}">{{ c.hbp|num }}</td><td class="{{ t.leads.wp }}">{{ c.wp|num }}</td>
-              <td class="{{ t.leads.bk }}">{{ c.bk|num }}</td><td class="{{ t.leads.bf }}">{{ c.bf|num }}</td>
-              <td class="pe-3 {{ t.leads.whip }}">{{ c.whip|dec:2 }}</td>
-            </tr>
-            {% endwith %}{% endfor %}
-          </tbody>
+          {% include "profiles/_label_head.html" with label="Equipo / Liga" cols=d.columns.standard %}
+          <tbody>{% for entry in d.totals_rows %}{% include "profiles/_label_row.html" with cells=entry.standard %}{% endfor %}</tbody>
         </table>
       </div>
     </section>
-
     <section class="dgl-panel mb-4">
       <div class="dgl-embed-cap">Avanzado</div>
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
-          <thead><tr>
-            <th class="ps-3">Equipo / Liga</th><th>IP</th><th>BF</th><th>BAA</th><th>BABIP</th>
-            <th>WHIP</th><th>SO/9</th><th>BB/9</th><th>HR/9</th><th>H/9</th><th>SO/BB</th><th>Strike%</th><th>P/IP</th>
-            <th>FIP</th><th>xFIP</th><th>ERA-</th><th>FIP-</th><th>RA9-WAR</th><th>RAR</th><th class="pe-3">WAR</th>
-          </tr></thead>
-          <tbody>
-            {% for t in d.totals %}{% with c=t.row %}
-            <tr {% if t.kind == "league" %}class="table-light"{% elif t.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
-              <td class="ps-3">{% if t.kind == "team" %}{{ t.label }}{% else %}<b>{{ t.label }}</b>{% endif %}
-                <span class="dgl-meta">({{ t.seasons }} temporada{{ t.seasons|pluralize:"s" }})</span></td>
-              <td class="{{ t.leads.outs }}">{{ c.outs|innings }}</td><td class="{{ t.leads.bf }}">{{ c.bf|num }}</td>
-              <td class="{{ t.leads.baa }}">{{ c.baa|rate }}</td><td class="{{ t.leads.babip }}">{{ c.babip|rate }}</td>
-              <td class="{{ t.leads.whip }}">{{ c.whip|dec:2 }}</td><td class="{{ t.leads.so_per9 }}">{{ c.so_per9|dec:2 }}</td>
-              <td class="{{ t.leads.bb_per9 }}">{{ c.bb_per9|dec:2 }}</td><td class="{{ t.leads.hr_per9 }}">{{ c.hr_per9|dec:2 }}</td>
-              <td class="{{ t.leads.h_per9 }}">{{ c.h_per9|dec:2 }}</td><td class="{{ t.leads.so_to_bb }}">{{ c.so_to_bb|dec:2 }}</td>
-              <td class="{{ t.leads.strike_pct }}">{{ c.strike_pct|pct }}</td><td class="{{ t.leads.pitches_per_inning }}">{{ c.pitches_per_inning|dec:1 }}</td>
-              <td class="{{ t.leads.fip }}">{{ c.fip|dec:2 }}</td><td class="{{ t.leads.xfip }}">{{ c.xfip|dec:2 }}</td>
-              <td class="{{ t.leads.era_minus }}">{{ c.era_minus|rate:0 }}</td><td class="{{ t.leads.fip_minus }}">{{ c.fip_minus|rate:0 }}</td>
-              <td class="{{ t.leads.ra9_war }}">{{ c.ra9_war|dec:1 }}</td><td class="{{ t.leads.rar }}">{{ c.rar|dec:1 }}</td>
-              <td class="pe-3 {{ t.leads.war }}">{{ c.war|dec:1 }}</td>
-            </tr>
-            {% endwith %}{% endfor %}
-          </tbody>
+          {% include "profiles/_label_head.html" with label="Equipo / Liga" cols=d.columns.advanced %}
+          <tbody>{% for entry in d.totals_rows %}{% include "profiles/_label_row.html" with cells=entry.advanced %}{% endfor %}</tbody>
         </table>
       </div>
     </section>
-
     {% if d.statcast_full %}
     <section class="dgl-panel mb-4">
       <div class="dgl-embed-cap">Statcast</div>
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
-          <thead><tr>
-            <th class="ps-3">Equipo / Liga</th><th>AO</th><th>GO</th><th>FO</th><th>PO</th><th>LO</th>
-            <th>FH</th><th>PH</th><th>LH</th><th>GH</th><th>Sw</th><th>Miss</th><th class="pe-3">BIP</th>
-          </tr></thead>
-          <tbody>
-            {% for t in d.totals %}{% with c=t.row %}
-            <tr {% if t.kind == "league" %}class="table-light"{% elif t.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
-              <td class="ps-3">{% if t.kind == "team" %}{{ t.label }}{% else %}<b>{{ t.label }}</b>{% endif %}
-                <span class="dgl-meta">({{ t.seasons }} temporada{{ t.seasons|pluralize:"s" }})</span></td>
-              <td class="{{ t.leads.air_outs }}">{{ c.air_outs|num }}</td><td class="{{ t.leads.ground_outs }}">{{ c.ground_outs|num }}</td>
-              <td class="{{ t.leads.fly_outs }}">{{ c.fly_outs|num }}</td><td class="{{ t.leads.pop_outs }}">{{ c.pop_outs|num }}</td>
-              <td class="{{ t.leads.line_outs }}">{{ c.line_outs|num }}</td><td class="{{ t.leads.fly_hits }}">{{ c.fly_hits|num }}</td>
-              <td class="{{ t.leads.pop_hits }}">{{ c.pop_hits|num }}</td><td class="{{ t.leads.line_hits }}">{{ c.line_hits|num }}</td>
-              <td class="{{ t.leads.ground_hits }}">{{ c.ground_hits|num }}</td><td class="{{ t.leads.total_swings }}">{{ c.total_swings|num }}</td>
-              <td class="{{ t.leads.swing_and_misses }}">{{ c.swing_and_misses|num }}</td><td class="pe-3 {{ t.leads.balls_in_play }}">{{ c.balls_in_play|num }}</td>
-            </tr>
-            {% endwith %}{% endfor %}
-          </tbody>
+          {% include "profiles/_label_head.html" with label="Equipo / Liga" cols=d.columns.statcast %}
+          <tbody>{% for entry in d.totals_rows %}{% include "profiles/_label_row.html" with cells=entry.statcast %}{% endfor %}</tbody>
         </table>
       </div>
     </section>
-
     <section class="dgl-panel mb-4">
       <div class="dgl-embed-cap">Coeficientes</div>
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
-          <thead><tr>
-            <th class="ps-3">Equipo / Liga</th><th>GB%</th><th>FB%</th><th>LD%</th><th>PU%</th>
-            <th>GB/FB</th><th>Contact%</th><th class="pe-3">Whiff%</th>
-          </tr></thead>
-          <tbody>
-            {% for t in d.totals %}{% with c=t.row %}
-            <tr {% if t.kind == "league" %}class="table-light"{% elif t.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
-              <td class="ps-3">{% if t.kind == "team" %}{{ t.label }}{% else %}<b>{{ t.label }}</b>{% endif %}
-                <span class="dgl-meta">({{ t.seasons }} temporada{{ t.seasons|pluralize:"s" }})</span></td>
-              <td class="{{ t.leads.gb_pct }}">{{ c.gb_pct|pct }}</td><td class="{{ t.leads.fb_pct }}">{{ c.fb_pct|pct }}</td>
-              <td class="{{ t.leads.ld_pct }}">{{ c.ld_pct|pct }}</td><td class="{{ t.leads.pu_pct }}">{{ c.pu_pct|pct }}</td>
-              <td class="{{ t.leads.gb_fb }}">{{ c.gb_fb|dec:2 }}</td><td class="{{ t.leads.contact_pct }}">{{ c.contact_pct|pct }}</td>
-              <td class="pe-3 {{ t.leads.whiff_pct }}">{{ c.whiff_pct|pct }}</td>
-            </tr>
-            {% endwith %}{% endfor %}
-          </tbody>
+          {% include "profiles/_label_head.html" with label="Equipo / Liga" cols=d.columns.ratios %}
+          <tbody>{% for entry in d.totals_rows %}{% include "profiles/_label_row.html" with cells=entry.ratios %}{% endfor %}</tbody>
         </table>
       </div>
     </section>
     {% endif %}
-
     {% if d.post_totals %}
     <section class="dgl-panel mb-4">
       <div class="dgl-embed-cap">Postemporada</div>
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table">
-          <thead><tr>
-            <th class="ps-3">Ronda</th><th>W</th><th>L</th><th>W-L%</th><th>ERA</th>
-            <th>G</th><th>GS</th><th>GF</th><th>CG</th><th>SHO</th><th>SV</th><th>IP</th><th>H</th><th>R</th><th>ER</th><th>HR</th>
-            <th>BB</th><th>IBB</th><th>SO</th><th>HBP</th><th>WP</th><th>BK</th><th>BF</th><th class="pe-3">WHIP</th>
-          </tr></thead>
-          <tbody>
-            {% for t in d.post_totals %}{% with p=t.row %}
-            <tr {% if t.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
-              <td class="ps-3"><b>{{ t.label }}</b>
-                <span class="dgl-meta">({{ t.seasons }} temporada{{ t.seasons|pluralize:"s" }})</span></td>
-              <td>{{ p.w|num }}</td><td>{{ p.l|num }}</td><td>{{ p.win_pct|rate }}</td><td>{{ p.era|dec:2 }}</td>
-              <td>{{ p.g|num }}</td><td>{{ p.gs|num }}</td><td>{{ p.gf|num }}</td><td>{{ p.cg|num }}</td>
-              <td>{{ p.sho|num }}</td><td>{{ p.sv|num }}</td><td>{{ p.outs|innings }}</td><td>{{ p.h|num }}</td>
-              <td>{{ p.r|num }}</td><td>{{ p.er|num }}</td><td>{{ p.hr|num }}</td><td>{{ p.bb|num }}</td>
-              <td>{{ p.ibb|num }}</td><td>{{ p.so|num }}</td><td>{{ p.hbp|num }}</td><td>{{ p.wp|num }}</td>
-              <td>{{ p.bk|num }}</td><td>{{ p.bf|num }}</td><td class="pe-3">{{ p.whip|dec:2 }}</td>
-            </tr>
-            {% endwith %}{% endfor %}
-          </tbody>
+          {% include "profiles/_label_head.html" with label="Ronda" cols=d.columns.standard %}
+          <tbody>{% for entry in d.post_total_cells %}{% include "profiles/_label_row.html" with cells=entry.standard %}{% endfor %}</tbody>
         </table>
       </div>
     </section>
     {% endif %}
-
-    {% include "profiles/_legend.html" with career_only=True %}
+    {% include "profiles/_legend.html" with career=d.has_career_leads season=False best=False %}
     <div class="dgl-meta mb-4">Una temporada dividida entre dos equipos o entre dos ligas cuenta para cada uno, así que las temporadas por equipo o por liga pueden sumar más que las de la carrera.</div>
   </div>
   {% endif %}

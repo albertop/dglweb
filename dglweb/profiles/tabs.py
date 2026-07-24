@@ -8,12 +8,14 @@ URL and the other tabs are untouched.
 """
 
 from collections import defaultdict
+from collections.abc import Sequence
 from itertools import groupby
 from typing import Any
 
 from django.db import models
 
 from dglweb.players.models import Player
+from dglweb.profiles import columns
 from dglweb.stats import career_totals, qualifier
 from dglweb.stats.derive import FIRST_STATCAST_SEASON, batted_ball_coefficients
 from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
@@ -105,13 +107,15 @@ def _personal_bests(
     like WAR) can't be faked by few PA, so its maximum is taken over all seasons. Columns absent
     from the catalog have no known kind/direction, so they keep the plain maximum.
     """
-    columns = [
+    stat_columns = [
         field.name
         for field in model._meta.fields
         if isinstance(field, models.IntegerField | models.FloatField) and field.name not in _NOT_A_STAT
     ]
     best: set[tuple[int, str]] = set()
-    for column in columns:
+    for column in stat_columns:
+        if column in _DESCRIPTIVE_COLUMNS:
+            continue  # a style has no "best" — see _DESCRIPTIVE_COLUMNS
         metric = catalog.get(column)
         lower_is_better = metric is not None and metric.direction == Metric.Direction.LOWER
         # Rates distort in small samples either way; the min of a "lower is better" count is trivially
@@ -296,6 +300,39 @@ class PlayerTab:
 
 _COEFFICIENT_COLUMNS: frozenset[str] = frozenset(batted_ball_coefficients({}))
 
+# Which column list each pane renders. Same keys for both groups, so `_group_context` stays generic.
+_BATTING_TABLES: dict[str, list[columns.Column]] = {
+    "standard": columns.BATTING_STANDARD,
+    "advanced": columns.BATTING_ADVANCED,
+    "statcast": columns.BATTING_STATCAST,
+    "ratios": columns.BATTING_RATIOS,
+}
+_PITCHING_TABLES: dict[str, list[columns.Column]] = {
+    "standard": columns.PITCHING_STANDARD,
+    "advanced": columns.PITCHING_ADVANCED,
+    "statcast": columns.PITCHING_STATCAST,
+    "ratios": columns.PITCHING_RATIOS,
+}
+
+# Descriptive metrics: they measure a STYLE, not an achievement. A career-high GB% does not say the
+# player got better at anything — his batted-ball profile simply moved, and whether that helps him
+# depends on speed, power, park and era. Painting that extreme with the same badge as a career-high
+# HR invites a false reading, so these get no personal-best mark.
+# Their `direction` stays as it is: the engine still needs an order to rank by. Contrast with PU%,
+# Contact% and Whiff%, which DO have a clear sporting direction (set per group, mirrored for
+# pitching) and keep their highlight.
+_DESCRIPTIVE_COLUMNS: frozenset[str] = frozenset({"gb_pct", "fb_pct", "ld_pct", "gb_fb"})
+
+
+def _cells(
+    row: Any,  # noqa: ANN401
+    leads: dict[str, str],
+    tables: dict[str, list[columns.Column]],
+    names: Sequence[str],
+) -> dict[str, list[dict[str, str]]]:
+    """The rendered cells of `row` for each named table."""
+    return {name: columns.cells(row, tables[name], leads) for name in names}
+
 
 def _is_his_trade(group: str, player: Player) -> bool:
     """Whether this stat group is what the player is actually paid to do."""
@@ -308,6 +345,7 @@ def _group_context(
     career_model: type[models.Model],
     post_model: type[models.Model],
     player: Player,
+    tables: dict[str, list[columns.Column]],
 ) -> dict[str, Any]:
     """Everything a batting or pitching pane needs.
 
@@ -346,15 +384,37 @@ def _group_context(
     statcast_rows = [(row, leads) for row, leads in rows if row.season >= FIRST_STATCAST_SEASON]
     statcast_seasons = [row for row in seasons if row.season >= FIRST_STATCAST_SEASON]
     post_lines, post_totals = _postseason(post_model, group, player)
+    totals = _totals_rows(career, total, len(seasons), model, player, total_leads)
+
+    # Every line carries its cells already rendered, one list per table. The column specs in
+    # `profiles/columns.py` are the single definition: header, season line, career total, postseason
+    # and per-team subtotal all read the same list, so none of them can drift from the others.
+    def painted(source: list[tuple[Any, dict[str, str]]], *names: str) -> list[dict[str, Any]]:
+        return [{"row": row, "leads": leads, **_cells(row, leads, tables, names)} for row, leads in source]
+
+    def labelled(entries: list[dict[str, Any]], *names: str) -> list[dict[str, Any]]:
+        return [{**entry, **_cells(entry["row"], entry.get("leads") or {}, tables, names)} for entry in entries]
+
+    every = tuple(tables)
     return {
-        # (row, {column: css class}): season leader (wine) > personal career-best (dark).
-        "rows": rows,
+        "columns": tables,
+        "lines": painted(rows, "standard", "advanced"),
+        "statcast_lines": painted(statcast_rows, "statcast", "ratios"),
+        "total_cells": _cells(total, total_leads, tables, every) if total else None,
+        "totals_rows": labelled(totals, *every),
+        "post_cells": labelled(post_lines, "standard"),
+        "post_total_cells": labelled(post_totals, "standard"),
         "season_count": len(seasons),  # seasons, not rows: a traded year prints several lines
         "total": total,
+        "totals": totals,
+        # Los datos crudos detrás de las celdas: (fila, {columna: clase}) y las marcas de carrera.
+        "rows": rows,
         "total_leads": total_leads,
-        "totals": _totals_rows(career, total, len(seasons), model, player, total_leads),
         "post": post_lines,
         "post_totals": post_totals,
+        # What the legend is allowed to name: only the marks this player actually carries.
+        "has_season_leads": bool(season_leads),
+        "has_career_leads": bool(career_leads),
         "statcast_rows": statcast_rows,
         "has_statcast": bool(statcast_rows),
         # Read back from `dgl_metric`, never hardcoded in the caption: the thresholds are tunable in
@@ -385,7 +445,7 @@ class BattingTab(PlayerTab):
         return 20 if is_pitcher(player) else 10  # pitchers push Bateo below Pitcheo
 
     def context(self, player: Player) -> dict[str, Any]:
-        return _group_context("batting", Batting, BattingCareer, BattingPost, player)
+        return _group_context("batting", Batting, BattingCareer, BattingPost, player, _BATTING_TABLES)
 
 
 class PitchingTab(PlayerTab):
@@ -401,7 +461,7 @@ class PitchingTab(PlayerTab):
         return 10 if is_pitcher(player) else 20
 
     def context(self, player: Player) -> dict[str, Any]:
-        return _group_context("pitching", Pitching, PitchingCareer, PitchingPost, player)
+        return _group_context("pitching", Pitching, PitchingCareer, PitchingPost, player, _PITCHING_TABLES)
 
 
 class FieldingTab(PlayerTab):

@@ -1,0 +1,7 @@
+{% comment %}Fila de agregado: etiqueta + cuántas temporadas cubre. La de carrera se separa con
+la línea azul; las de liga van en fondo claro.{% endcomment %}
+<tr {% if entry.kind == "league" %}class="table-light"{% elif entry.kind == "total" %}style="border-top:2px solid var(--dgl-navy); font-weight:700"{% endif %}>
+  <td class="ps-3">{% if entry.kind == "team" %}{{ entry.label }}{% else %}<b>{{ entry.label }}</b>{% endif %}
+    <span class="dgl-meta">({{ entry.seasons }} temporada{{ entry.seasons|pluralize:"s" }})</span></td>
+  {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}">{{ cell.text }}</td>{% endfor %}
+</tr>

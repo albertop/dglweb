@@ -1,15 +1,19 @@
 {% comment %}
-Highlight legend. Include it right under a table, listing only the marks that table can show:
+Highlight legend. Names ONLY the marks that actually appear in the table it sits under — a colour
+the reader will never find on the page is noise, and worse, it implies the player might have earned
+something he did not. Callers pass what applies:
 
-  {% include "profiles/_legend.html" %}                        -> season tables (the three marks)
-  {% include "profiles/_legend.html" with career_only=True %}  -> career/total tables (blue only)
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=False best=False %}   (Totales)
 
-A totals table has no season leader and no personal best — every line is already a career figure —
-so naming those marks there would point at nothing.
+That covers two cases with one rule. A player from before 1956 has no leaderships at all — the
+boards start there, the Negro Leagues are deliberately out — so he is left with just "su mejor
+marca". And so is any modern player who simply never led anything, which is most of them.
 {% endcomment %}
+{% if career or season or best %}
 <div class="dgl-meta small mb-4">
-  <span class="lead-career px-2">&nbsp;</span> líder de por vida entre dominicanos
-  {% if not career_only %}&nbsp;·&nbsp;
-  <span class="lead-season px-2">&nbsp;</span> líder de temporada entre dominicanos &nbsp;·&nbsp;
-  <span class="lead-best px-2">&nbsp;</span> su mejor marca{% endif %}
+  {% if career %}<span class="lead-career px-2">&nbsp;</span> líder de por vida entre dominicanos{% endif %}
+  {% if season %}{% if career %}&nbsp;·&nbsp;{% endif %}<span class="lead-season px-2">&nbsp;</span> líder de temporada entre dominicanos{% endif %}
+  {% if best %}{% if career or season %}&nbsp;·&nbsp;{% endif %}<span class="lead-best px-2">&nbsp;</span> su mejor marca{% endif %}
 </div>
+{% endif %}

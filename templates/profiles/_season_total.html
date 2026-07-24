@@ -1,0 +1,5 @@
+{% comment %}La línea de carrera de una tabla por temporada.{% endcomment %}
+<tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
+  <td class="ps-3 dgl-mid"><b>{{ count }} temporadas</b></td><td class="dgl-mid"></td><td></td>
+  {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}">{{ cell.text }}</td>{% endfor %}
+</tr>

@@ -1,9 +1,13 @@
 """Public player pages: the tab registry (ordering, pitcher-first), the view, the slug, the filters."""
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date
 
 import pytest
+from django.db import connection
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from dglweb.players.models import Player
@@ -23,6 +27,7 @@ from dglweb.stats.models import (
     FieldingCareer,
     Leader,
     Metric,
+    Pitching,
     PitchingCareer,
     QualifierDefault,
 )
@@ -31,6 +36,15 @@ from tests.test_players import _other_player
 
 def _player(pid: int, dgl: str, name: str, pos: str) -> Player:
     return Player.objects.create(**_other_player(player_id=pid, dgl_id=dgl, full_name=name, pos=pos))
+
+
+@contextmanager
+def django_assert_num_queries_lte(limit: int) -> Iterator[None]:
+    """Un techo, no un número exacto: el punto es cazar un salto de orden de magnitud, no obligar a
+    editar el test cada vez que una query se reordena."""
+    with CaptureQueriesContext(connection) as captured:
+        yield
+    assert len(captured) <= limit, f"{len(captured)} queries, presupuesto {limit}"
 
 
 @pytest.mark.django_db
@@ -176,6 +190,30 @@ def test_dec_keeps_the_leading_zero_and_groups_thousands() -> None:
     assert dec(-2.34, 2) == "-2.34"
     assert dec(1536.6) == "1,536.6"  # BsR/RC/wRC de carrera pasan de mil
     assert dec(None) == "—"
+
+
+@pytest.mark.parametrize("junk", ["N/A", "--", "", [], object()])
+def test_filters_render_a_dash_instead_of_exploding(junk: object) -> None:
+    """Fail-soft en render, fail-loud en ingesta: una celda corrupta no puede tumbar la página
+    entera de un jugador. La corrupción se caza en paridad/ingesta, no con un 500."""
+    assert rate(junk) == "—"
+    assert dec(junk) == "—"
+    assert pct(junk) == "—"
+    assert innings(junk) == "—"
+
+
+@pytest.mark.django_db
+def test_the_player_page_stays_within_its_query_budget() -> None:
+    """La página calcula TODOS los tabs, no solo el activo. Hoy son pocas queries, pero cada tab
+    nuevo cobra impuesto: este presupuesto hace ruidoso el crecimiento en vez de silencioso."""
+    player = _player(28, "q01", "Doble Tabla", "SP")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    PitchingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    Batting.objects.create(player=player, season=2019, stint=1, team="BOS", pa=80, hr=1)
+    Pitching.objects.create(player=player, season=2019, stint=1, team="BOS", outs=600, w=15)
+
+    with django_assert_num_queries_lte(40):
+        assert Client().get(reverse("player_detail", args=[player.slug])).status_code == 200
 
 
 def test_pct_filter_shows_percentage_number() -> None:
@@ -329,6 +367,22 @@ def test_a_pitchers_batting_table_carries_no_leadership_badges() -> None:
     classes = {css for _, leads in data["rows"] for css in leads.values()}
     assert "lead-season" not in classes and "lead-career" not in classes
     assert "lead-best" in classes  # su mejor marca personal sobrevive
+
+
+@pytest.mark.django_db
+def test_a_pre_1956_player_has_no_leaderships_to_explain() -> None:
+    """Tetelo Vargas jugó 1927-1943: los tableros arrancan en 1956, así que no compite en ninguno.
+    La leyenda no debe nombrar colores que su página nunca va a mostrar."""
+    player = _player(27, "n01", "Tetelo Vargas", "CF")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    Batting.objects.create(player=player, season=1943, stint=1, team="NYC", pa=200, h=70)
+
+    data = BattingTab().context(player)
+
+    assert data["has_season_leads"] is False
+    assert data["has_career_leads"] is False
+    # Pero sus marcas personales siguen: esas solo lo comparan consigo mismo.
+    assert any(leads for _, leads in data["rows"])
 
 
 @pytest.mark.django_db

@@ -1,0 +1,5 @@
+{% comment %}Encabezado de una tabla por temporada: las 3 columnas de contexto + las de `cols`.{% endcomment %}
+<thead><tr>
+  <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Equipo</th><th>Edad</th>
+  {% for c in cols %}<th{% if forloop.last %} class="pe-3"{% endif %}>{{ c.label }}</th>{% endfor %}
+</tr></thead>
