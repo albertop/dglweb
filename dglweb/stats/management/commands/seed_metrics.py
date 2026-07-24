@@ -430,6 +430,109 @@ _SORT_ORDER: dict[tuple[str, str], int] = {
 }
 _SORT_LAST = 900  # columns the old table did not cover sort after the curated ones
 
+# Spanish display name per (group, dgl code). `abbrev` stays the English code (HR, ERA…); this is the
+# long label — column 1 of the "Puestos" grid and the future leaders UI. Keyed by (group, code)
+# because a code can mean opposite things by group (pitching HR = jonrones PERMITIDOS). Only the
+# batting/pitching metrics that feed a board are named here; fielding names come with fielding Puestos.
+# Seeded as a fill-only default: `handle` sets it on metrics whose name is still blank, so Backoffice
+# edits are never clobbered.
+_NAME_ES: dict[tuple[str, str], str] = {
+    ("batting", "G"): "Juegos",
+    ("batting", "AB"): "Turnos al bate",
+    ("batting", "R"): "Carreras anotadas",
+    ("batting", "H"): "Imparables",
+    ("batting", "1B"): "Sencillos",
+    ("batting", "2B"): "Dobles",
+    ("batting", "3B"): "Triples",
+    ("batting", "HR"): "Jonrones",
+    ("batting", "RBI"): "Carreras impulsadas",
+    ("batting", "SH"): "Toques de sacrificio",
+    ("batting", "BB"): "Bases por bolas",
+    ("batting", "SF"): "Elevados de sacrificio",
+    ("batting", "SB"): "Bases robadas",
+    ("batting", "SO"): "Ponches",
+    ("batting", "TB"): "Bases totales",
+    ("batting", "AVG"): "Promedio de bateo",
+    ("batting", "IBB"): "Bases por bolas intencionales",
+    ("batting", "HBP"): "Golpeado por lanzamiento",
+    ("batting", "SLG"): "Porcentaje de slugging",
+    ("batting", "OBP"): "Porcentaje de embasado",
+    ("batting", "OPS"): "OPS (embasado + slugging)",
+    ("batting", "PA"): "Apariciones al plato",
+    ("batting", "wRC+"): "Carreras creadas ajustadas",
+    ("batting", "RCG"): "Carreras creadas",
+    ("batting", "GIDP"): "Bateos en doble matanza",
+    ("batting", "IsoP"): "Poder aislado (ISO)",
+    ("batting", "BABIP"): "Promedio en bolas en juego",
+    ("batting", "wOBA"): "Embasado ponderado",
+    ("batting", "TotAvg"): "Promedio total",
+    ("batting", "BR"): "Corrido de bases",
+    ("batting", "GB%"): "Porcentaje de rodados",
+    ("batting", "FB%"): "Porcentaje de elevados",
+    ("batting", "LD%"): "Porcentaje de líneas",
+    ("batting", "PU%"): "Porcentaje de palomitas",
+    ("batting", "GB/FB"): "Rodados por elevado",
+    ("batting", "Contact%"): "Porcentaje de contacto",
+    ("batting", "Whiff%"): "Porcentaje de abanicar y fallar",
+    ("batting", "AO"): "Outs al aire",
+    ("batting", "BIP"): "Bolas en juego",
+    ("batting", "FH"): "Imparables por elevado",
+    ("batting", "FO"): "Outs por elevado",
+    ("batting", "GH"): "Imparables por rodado",
+    ("batting", "GO"): "Outs por rodado",
+    ("batting", "LH"): "Imparables por línea",
+    ("batting", "LO"): "Outs por línea",
+    ("batting", "PH"): "Imparables por palomita",
+    ("batting", "PO"): "Outs por palomita",
+    ("batting", "Miss"): "Swings fallados",
+    ("batting", "Sw"): "Swings totales",
+    ("pitching", "G"): "Juegos",
+    ("pitching", "W"): "Victorias",
+    ("pitching", "L"): "Derrotas",
+    ("pitching", "GS"): "Aperturas",
+    ("pitching", "CG"): "Juegos completos",
+    ("pitching", "SV"): "Salvamentos",
+    ("pitching", "SHO"): "Blanqueadas",
+    ("pitching", "IP"): "Entradas lanzadas",
+    ("pitching", "H"): "Imparables permitidos",
+    ("pitching", "ER"): "Carreras limpias",
+    ("pitching", "BB"): "Bases por bolas",
+    ("pitching", "HR"): "Jonrones permitidos",
+    ("pitching", "SO"): "Ponches",
+    ("pitching", "ERA"): "Efectividad (ERA)",
+    ("pitching", "Hx9"): "Imparables por 9 entradas",
+    ("pitching", "BBx9"): "Bases por bolas por 9 entradas",
+    ("pitching", "SOx9"): "Ponches por 9 entradas",
+    ("pitching", "HRx9"): "Jonrones por 9 entradas",
+    ("pitching", "PCT"): "Porcentaje de victorias",
+    ("pitching", "WHIP"): "Embasados por entrada (WHIP)",
+    ("pitching", "SOxBB"): "Ponches por boleto",
+    ("pitching", "FIP"): "Efectividad independiente (FIP)",
+    ("pitching", "BAA"): "Promedio de bateo en contra",
+    ("pitching", "BFP"): "Bateadores enfrentados",
+    ("pitching", "R"): "Carreras permitidas",
+    ("pitching", "AO"): "Outs al aire",
+    ("pitching", "BIP"): "Bolas en juego permitidas",
+    ("pitching", "BK"): "Balks",
+    ("pitching", "Contact%"): "Porcentaje de contacto permitido",
+    ("pitching", "FB%"): "Porcentaje de elevados",
+    ("pitching", "FH"): "Imparables por elevado",
+    ("pitching", "FO"): "Outs por elevado",
+    ("pitching", "GB/FB"): "Rodados por elevado",
+    ("pitching", "GB%"): "Porcentaje de rodados",
+    ("pitching", "GH"): "Imparables por rodado",
+    ("pitching", "GO"): "Outs por rodado",
+    ("pitching", "LD%"): "Porcentaje de líneas",
+    ("pitching", "LH"): "Imparables por línea",
+    ("pitching", "LO"): "Outs por línea",
+    ("pitching", "PH"): "Imparables por palomita",
+    ("pitching", "PO"): "Outs por palomita",
+    ("pitching", "PU%"): "Porcentaje de palomitas",
+    ("pitching", "Miss"): "Swings fallados inducidos",
+    ("pitching", "Sw"): "Swings totales",
+    ("pitching", "Whiff%"): "Porcentaje de abanicar y fallar",
+}
+
 _MODELS: dict[str, type[models.Model]] = {"batting": Batting, "pitching": Pitching, "fielding": Fielding}
 
 
@@ -492,6 +595,7 @@ def _rows() -> list[dict[str, Any]]:
                         else None
                     ),
                     "abbrev": abbrev,
+                    "name_es": _NAME_ES.get((group, code), ""),
                     "sort_order": _SORT_ORDER.get((group, code), _SORT_LAST),
                     "is_active": bool(act),
                 }
@@ -510,12 +614,18 @@ class Command(BaseCommand):
             if options["reset"]:
                 Metric.objects.all().delete()
                 QualifierDefault.objects.all().delete()
-            created = 0
+            created = named = 0
             for row in _rows():
-                _, was_created = Metric.objects.get_or_create(
+                metric, was_created = Metric.objects.get_or_create(
                     stat_group=row["stat_group"], column=row["column"], defaults=row
                 )
                 created += was_created
+                # Fill-only backfill of the display name onto pre-existing rows (the field was added
+                # after the catalog was first seeded). Never touches a name already set in Backoffice.
+                if not was_created and not metric.name_es and row["name_es"]:
+                    metric.name_es = row["name_es"]
+                    metric.save(update_fields=["name_es"])
+                    named += 1
             # Level 1 of the qualifier cascade: one default per group (defined once, inherited by all).
             for group, (season, career) in _QUALIFIER.items():
                 QualifierDefault.objects.get_or_create(
@@ -523,4 +633,8 @@ class Command(BaseCommand):
                 )
         total = Metric.objects.count()
         active = Metric.objects.filter(is_active=True).count()
-        self.stdout.write(self.style.SUCCESS(f"{created} métricas creadas; {total} en total, {active} activas."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"{created} métricas creadas, {named} nombres rellenados; {total} en total, {active} activas."
+            )
+        )

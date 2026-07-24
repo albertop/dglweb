@@ -1,0 +1,30 @@
+{% with d=tab.data %}
+{% comment %}
+Rejilla de puestos: una fila por métrica en la que el pelotero quedó en el top-10 alguna temporada,
+una columna por temporada. Cada celda es el puesto (1–10) que ocupó ese año entre dominicanos; vacío
+si no estuvo en el top-10. Solo su oficio (bateo si bateador, pitcheo si lanzador) y temporada regular.
+El pill "De por vida" se agregará después.
+{% endcomment %}
+<section class="dgl-panel mb-4">
+  <div class="table-responsive">
+    <table class="table table-sm table-striped mb-0 dgl-stats-table">
+      <thead><tr>
+        <th class="ps-3">Métrica</th><th class="dgl-mid">Abr</th>
+        {% for season in d.seasons %}<th class="dgl-mid">{{ season }}</th>{% endfor %}
+        <th class="dgl-mid pe-3" style="border-left:2px solid var(--dgl-navy)">De por vida</th>
+      </tr></thead>
+      <tbody>
+        {% for row in d.rows %}
+        <tr>
+          <td class="ps-3">{{ row.name }} <span class="dgl-meta" title="{% if row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>
+          <td class="dgl-mid dgl-meta">{{ row.abbrev }}</td>
+          {% for cell in row.cells %}<td class="dgl-mid{% if cell.rank == 1 %} lead-season{% endif %}">{{ cell.rank|default_if_none:"" }}{% if cell.tied %}*{% endif %}</td>{% endfor %}
+          <td class="dgl-mid pe-3{% if row.career.rank == 1 %} lead-career{% endif %}" style="border-left:2px solid var(--dgl-navy)">{{ row.career.rank|default_if_none:"" }}{% if row.career.tied %}*{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="dgl-meta px-3 py-2 border-top">Cada celda es el puesto (1–10) que ocupó esa temporada entre dominicanos calificados; vacío = no estuvo en el top-10. La última columna es su puesto de por vida en esa métrica. El signo junto a la métrica indica hacia dónde manda: + más es mejor, - menos es mejor. Un * marca un puesto compartido (empate).</div>
+</section>
+{% endwith %}
