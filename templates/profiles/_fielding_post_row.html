@@ -1,0 +1,8 @@
+{% comment %}Una línea de fildeo en postemporada (temporada, ronda, posición). El año no se repite
+dentro de la misma temporada.{% endcomment %}
+<tr>
+  <td class="ps-3 dgl-mid">{% ifchanged entry.row.season %}{{ entry.row.season }}{% endifchanged %}</td>
+  <td class="dgl-mid">{{ entry.row.round }}</td>
+  <td class="dgl-mid">{{ entry.row.pos }}</td>
+  {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}">{{ cell.text }}</td>{% endfor %}
+</tr>

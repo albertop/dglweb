@@ -9,6 +9,7 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
   <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#fld-std" type="button">Estándar</button></li>
   <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-adv" type="button">Avanzado</button></li>
   {% if d.has_catcher %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-cat" type="button">Receptor</button></li>{% endif %}
+  {% if d.post_lines %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-post" type="button">Postemporada</button></li>{% endif %}
   {% if d.totals_rows %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-team" type="button">Totales</button></li>{% endif %}
 </ul>
 <div class="tab-content">
@@ -62,6 +63,24 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
   </div>
   {% endif %}
 
+  {% if d.post_lines %}
+  <div class="tab-pane fade" id="fld-post">
+  <section class="dgl-panel mb-4">
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table">
+        {% include "profiles/_fielding_post_head.html" with cols=d.columns.standard %}
+        <tbody>
+          {% for entry in d.post_lines %}{% include "profiles/_fielding_post_row.html" with cells=entry.standard %}{% endfor %}
+          {% if d.post_total_cells %}{% include "profiles/_fielding_post_total.html" with cells=d.post_total_cells.standard count=d.post_season_count totals_target="fld-team" %}{% endif %}
+        </tbody>
+      </table>
+    </div>
+    <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial.</div>
+  </section>
+  {% include "profiles/_legend.html" with career=False season=False best=False %}
+  </div>
+  {% endif %}
+
   {% if d.totals_rows %}
   <div class="tab-pane fade" id="fld-team">
     <section class="dgl-panel mb-4">
@@ -93,8 +112,19 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
       </div>
     </section>
     {% endif %}
+    {% if d.post_totals %}
+    <section class="dgl-panel mb-4">
+      <div class="dgl-embed-cap">Postemporada por posición</div>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0 dgl-stats-table">
+          {% include "profiles/_label_head.html" with label="Posición" cols=d.columns.standard %}
+          <tbody>{% for entry in d.post_totals %}{% include "profiles/_label_row.html" with cells=entry.standard %}{% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
     {% include "profiles/_legend.html" with career=d.has_career_leads season=False best=False %}
-    <div class="dgl-meta mb-4">Una línea por cada posición que jugó, más el total de todas. Cada posición es su propio ranking: el azul marca dónde lidera de por vida entre dominicanos en esa posición.</div>
+    <div class="dgl-meta mb-4">Una línea por cada posición que jugó. Cada posición es su propio ranking: el azul marca dónde lidera de por vida entre dominicanos en esa posición.</div>
   </div>
   {% endif %}
 

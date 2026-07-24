@@ -1,0 +1,5 @@
+{% comment %}Encabezado del detalle de fildeo en postemporada: Temporada / Rd / Pos + columnas.{% endcomment %}
+<thead><tr>
+  <th class="ps-3 dgl-mid">Temporada</th><th class="dgl-mid">Rd</th><th class="dgl-mid">Pos</th>
+  {% for c in cols %}<th{% if forloop.last %} class="pe-3"{% endif %}>{{ c.label }}</th>{% endfor %}
+</tr></thead>

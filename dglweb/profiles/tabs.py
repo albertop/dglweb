@@ -26,6 +26,7 @@ from dglweb.stats.models import (
     CareerLevel,
     Fielding,
     FieldingCareer,
+    FieldingPost,
     Leader,
     Metric,
     Pitching,
@@ -504,6 +505,32 @@ _FIELDING_TABLES: dict[str, list[columns.Column]] = {
 }
 
 
+# En cualquier total single-line de fildeo que sume MÁS DE UNA posición, ninguna tasa tiene sentido:
+# un Fld% o un rango que mezcla receptor y jardinero no significa nada, y el UZR está calibrado por
+# posición. Se blanquean todos los FloatField (las tasas), dejando solo los conteos acumulados. Con
+# una sola posición el total ES esa posición, así que el valor sí vale y no se toca.
+_FIELDING_RATE_COLUMNS: frozenset[str] = frozenset(
+    field.name for field in Fielding._meta.fields if isinstance(field, models.FloatField)
+)
+
+
+def _blank_rates(cols: list[columns.Column], cells: list[dict[str, str]]) -> None:
+    for col, cell in zip(cols, cells, strict=True):
+        if col.attr in _FIELDING_RATE_COLUMNS:
+            cell["text"] = "—"
+
+
+def _fielding_total_cells(total: Any, multi_position: bool) -> dict[str, list[dict[str, str]]]:  # noqa: ANN401
+    """Rendered cells for a grand-total line; on a multi-position sum every rate is blanked."""
+    result: dict[str, list[dict[str, str]]] = {}
+    for name, cols in _FIELDING_TABLES.items():
+        cells = columns.cells(total, cols, {})
+        if multi_position:
+            _blank_rates(cols, cells)
+        result[name] = cells
+    return result
+
+
 def _fielding_context(player: Player) -> dict[str, Any]:
     """Fielding is per POSITION, so it does not fit `_group_context`. A line is one (season, pos);
     highlights, personal bests and career leaderships are all scoped to the position — comparing a
@@ -517,6 +544,7 @@ def _fielding_context(player: Player) -> dict[str, Any]:
     by_pos: dict[str, list[Any]] = defaultdict(list)
     for row in lines:
         by_pos[row.pos].append(row)
+    multi_position = len(by_pos) > 1  # un total que suma >1 posición no puede mostrar tasas
     best: set[tuple[int, str, str]] = set()
     for pos, pos_lines in by_pos.items():
         for season, column in _personal_bests(Fielding, "fielding", pos_lines, catalog, defaults, overrides):
@@ -558,6 +586,8 @@ def _fielding_context(player: Player) -> dict[str, Any]:
             }
         )
     if total is not None:
+        # La fila Total del pill Totales también es un single-line que suma posiciones: mismas tasas
+        # blanqueadas si son varias.
         totals_rows.append(
             {
                 "row": total,
@@ -565,17 +595,62 @@ def _fielding_context(player: Player) -> dict[str, Any]:
                 "seasons": len({row.season for row in lines}),
                 "kind": "total",
                 "leads": {},
-                **_cells(total, {}, _FIELDING_TABLES, names),
+                **_fielding_total_cells(total, multi_position),
             }
         )
+
+    # Postseason: detail per (season, round, position), each pill/table closing with its single-line
+    # total (`aggregate_lines`, same engine as batting/pitching post). The per-position subtotals live
+    # in the Totales pill, and the grand total there blanks the rates like every multi-position total.
+    post_table = {"standard": columns.FIELDING_STANDARD}
+    round_order = {code: index for index, code in enumerate(_POST_ROUNDS)}
+    post_rows: list[Any] = sorted(
+        FieldingPost.objects.filter(player=player).exclude(pos="DH"),
+        key=lambda line: (line.season, round_order.get(line.round, len(_POST_ROUNDS)), line.pos),
+    )
+    post_lines = [{"row": line, **_cells(line, {}, post_table, ("standard",))} for line in post_rows]
+    post_by_pos: dict[str, list[Any]] = defaultdict(list)
+    for line in post_rows:
+        post_by_pos[line.pos].append(line)
+    post_multi = len(post_by_pos) > 1
+    post_season_count = len({line.season for line in post_rows})
+
+    # Grand total of the whole postseason: the single-line total for the detail table, with rates
+    # blanked when it sums positions.
+    post_total_cells = None
+    if post_rows:
+        cells = columns.cells(_post_subtotal(FieldingPost, "fielding", post_rows), columns.FIELDING_STANDARD, {})
+        if post_multi:
+            _blank_rates(columns.FIELDING_STANDARD, cells)
+        post_total_cells = {"standard": cells}
+
+    post_totals: list[dict[str, Any]] = []
+    for pos in sorted(post_by_pos, key=lambda pos: -sum(line.gp or 0 for line in post_by_pos[pos])):
+        rows_at = post_by_pos[pos]
+        aggregate = _post_subtotal(FieldingPost, "fielding", rows_at)
+        post_totals.append(
+            {
+                "row": aggregate,
+                "label": pos,
+                "seasons": len({line.season for line in rows_at}),
+                "kind": "team",
+                **_cells(aggregate, {}, post_table, ("standard",)),
+            }
+        )
+    if post_total_cells:  # the per-position table also closes with its single-line total
+        post_totals.append({"label": "Total", "seasons": post_season_count, "kind": "total", **post_total_cells})
 
     return {
         "columns": _FIELDING_TABLES,
         "lines": painted,
         "season_count": len({row.season for row in lines}),
-        "total_cells": _cells(total, {}, _FIELDING_TABLES, names) if total else None,
+        "total_cells": _fielding_total_cells(total, len(by_pos) > 1) if total else None,
         "totals_rows": totals_rows,
         "has_catcher": any(row.pos == "C" for row in lines),
+        "post_lines": post_lines,
+        "post_total_cells": post_total_cells,
+        "post_season_count": post_season_count,
+        "post_totals": post_totals,
         "has_season_leads": bool(season_leads),
         "has_career_leads": bool(career_leads),
         "has_personal_leads": any("lead-personal" in css for entry in painted for css in entry["leads"].values()),
