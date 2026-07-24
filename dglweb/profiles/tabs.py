@@ -8,12 +8,14 @@ URL and the other tabs are untouched.
 """
 
 from collections import defaultdict
+from itertools import groupby
 from typing import Any
 
 from django.db import models
 
 from dglweb.players.models import Player
-from dglweb.stats import qualifier
+from dglweb.stats import career_totals, qualifier
+from dglweb.stats.derive import FIRST_STATCAST_SEASON
 from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
 from dglweb.stats.models import (
     Batting,
@@ -73,6 +75,18 @@ def _qualifier_row(row: models.Model) -> dict[str, Any]:
     return {"pa": getattr(row, "pa", None), "outs": getattr(row, "outs", None), "gp": getattr(row, "gp", None)}
 
 
+# A floor value is only an achievement when there was a chance to fail. "Never caught stealing" says
+# nothing about a player who never ran, so CS=0 counts as a personal best only for a season with at
+# least one steal. Display-only: CS feeds no "best" leaderboard, so the engine is untouched.
+_NEEDS_OPPORTUNITY: dict[tuple[str, str], str] = {("batting", "cs"): "sb"}
+
+
+def _had_the_chance(group: str, column: str, row: models.Model) -> bool:
+    """False when the column's companion says the player never put himself at risk that season."""
+    companion = _NEEDS_OPPORTUNITY.get((group, column))
+    return companion is None or bool(getattr(row, companion, None))
+
+
 def _personal_bests(
     model: type[models.Model],
     group: str,
@@ -105,7 +119,7 @@ def _personal_bests(
         candidates: list[tuple[int, float]] = []
         for row in seasons:
             value = getattr(row, column)
-            if value is None:
+            if value is None or not _had_the_chance(group, column, row):
                 continue
             if needs_qualifier and metric is not None:
                 formula = qualifier.resolve_season(metric, row.season, defaults, overrides)
@@ -172,6 +186,62 @@ def _totals_rows(
     if total is not None:
         rows.append({"row": total, "label": "Total", "seasons": seasons, "kind": "total", "leads": total_leads})
     return rows
+
+
+# The MLB bracket, in the order it is played. `round` sorts alphabetically otherwise (DS, LCS, WC,
+# WS), which would print the Wild Card after the League Championship.
+_POST_ROUNDS = ("WC", "DS", "LCS", "WS")
+
+
+def _post_subtotal(model: type[models.Model], group: str, rows: list[Any]) -> Any:  # noqa: ANN401
+    """An unsaved line standing for a set of postseason rows, so templates read it like any other."""
+    return model(**career_totals.aggregate_lines(group, model, rows))
+
+
+def _postseason(
+    model: type[models.Model], group: str, player: Player
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """(detail lines with a per-season subtotal, per-round subtotals plus the grand total).
+
+    Computed per request rather than materialized: postseason feeds no leaderboard yet, so the
+    player page is its only consumer and a stored table could only drift. Rates come from
+    `aggregate_lines`, i.e. recomputed from the summed components.
+    """
+    order = {code: index for index, code in enumerate(_POST_ROUNDS)}
+    rows: list[Any] = sorted(
+        model._default_manager.filter(player=player),
+        key=lambda row: (row.season, order.get(row.round, len(_POST_ROUNDS))),
+    )
+
+    lines: list[dict[str, Any]] = []
+    for _, season_group in groupby(rows, key=lambda row: row.season):
+        season_rows = list(season_group)
+        lines += [{"kind": "line", "row": row} for row in season_rows]
+        if len(season_rows) > 1:  # one round is already its own subtotal — printing it twice is noise
+            lines.append({"kind": "season", "row": _post_subtotal(model, group, season_rows)})
+
+    totals: list[dict[str, Any]] = []
+    for code in _POST_ROUNDS:
+        in_round = [row for row in rows if row.round == code]
+        if in_round:
+            totals.append(
+                {
+                    "kind": "round",
+                    "label": code,
+                    "row": _post_subtotal(model, group, in_round),
+                    "seasons": len({row.season for row in in_round}),
+                }
+            )
+    if rows:
+        totals.append(
+            {
+                "kind": "total",
+                "label": "Total",
+                "row": _post_subtotal(model, group, rows),
+                "seasons": len({row.season for row in rows}),
+            }
+        )
+    return lines, totals
 
 
 def _row_key(row: models.Model) -> tuple[Any, Any]:
@@ -249,12 +319,14 @@ class BattingTab(PlayerTab):
         total = next((row for row in career if row.level == CareerLevel.TOTAL), None)
         rows = _season_highlights(lines, season_leads, best, total_keys)
         total_leads = {col: "lead-career" for col in career_leads}  # blue on the career row
-        # The Statcast panes only cover seasons that actually carry batted-ball data — a player from
-        # before that coverage gets no panes at all, and rows of pure `—` are never printed.
+        # The Statcast panes start in 1989: before that the batted-ball types were barely recorded
+        # (see derive.FIRST_STATCAST_SEASON for the season-by-season coverage). A player who retired
+        # earlier gets no panes at all, and no row of pure `—` is ever printed.
         # Coverage is judged on the season lines, never on the row count: a traded year contributes
         # several rows but is still one season.
-        statcast_rows = [(row, leads) for row, leads in rows if row.balls_in_play is not None]
-        statcast_seasons = [row for row in seasons if row.balls_in_play is not None]
+        statcast_rows = [(row, leads) for row, leads in rows if row.season >= FIRST_STATCAST_SEASON]
+        statcast_seasons = [row for row in seasons if row.season >= FIRST_STATCAST_SEASON]
+        post_lines, post_totals = _postseason(BattingPost, "batting", player)
         return {
             # (row, {column: css class}): season leader (wine) > personal career-best (dark).
             "rows": rows,
@@ -262,7 +334,8 @@ class BattingTab(PlayerTab):
             "total": total,
             "total_leads": total_leads,
             "totals": _totals_rows(career, total, len(seasons), Batting, player, total_leads),
-            "post": list(BattingPost.objects.filter(player=player).order_by("season", "round")),
+            "post": post_lines,
+            "post_totals": post_totals,
             "statcast_rows": statcast_rows,
             "has_statcast": bool(statcast_rows),
             # Only total a Statcast pane when it covers every season the player has: a career line

@@ -1,5 +1,7 @@
 """Public player pages: the tab registry (ordering, pitcher-first), the view, the slug, the filters."""
 
+from datetime import date
+
 import pytest
 from django.test import Client
 from django.urls import reverse
@@ -12,7 +14,8 @@ from dglweb.profiles.tabs import (
     _qualifier_context,
     tabs_for,
 )
-from dglweb.profiles.templatetags.stats_extras import num, pct, rate
+from dglweb.profiles.templatetags.stats_extras import dec, innings, num, pct, rate
+from dglweb.profiles.views import bio_lines
 from dglweb.stats.models import (
     Batting,
     BattingCareer,
@@ -73,6 +76,8 @@ def test_player_page_renders_the_name_and_a_stat() -> None:
     assert response.status_code == 200
     assert b"Juan Soto" in response.content
     assert b"229" in response.content  # career HR statbox
+    # `{# ... #}` es de UNA línea: partido en dos deja de ser comentario y se imprime en la página.
+    assert b"{#" not in response.content
 
 
 @pytest.mark.django_db
@@ -102,6 +107,65 @@ def test_rate_filter_drops_the_leading_zero() -> None:
 def test_num_adds_thousands_separator() -> None:
     assert num(2472) == "2,472"
     assert num(541) == "541"
+
+
+@pytest.mark.django_db
+def test_bio_line_lists_every_field_it_has() -> None:
+    player = _player(18, "b03", "Con Todo", "1B")
+    player.bats, player.throws, player.height, player.weight = "L", "R", "6-3", 230
+    player.birth_date = date(1975, 11, 18)
+    player.birth_place, player.birth_province = "Santo Domingo", "Distrito Nacional"
+    player.debut_date, player.death_date = date(1997, 9, 2), date(2050, 1, 5)
+    player.save()
+
+    play, origin = bio_lines(player)  # dos líneas: cómo juega, y de dónde/cuándo
+
+    assert "Batea: Izquierda" in play  # el modelo no tiene choices: mapeo explícito, no get_*_display
+    assert "Lanza: Derecha" in play
+    assert "Estatura: 6-3" in play and "Peso: 230 lb" in play
+    assert "Santo Domingo, Distrito Nacional" in origin
+    assert any(p.startswith("Debut") for p in origin)
+    assert any(p.startswith("Falleció") for p in origin)
+
+
+@pytest.mark.django_db
+def test_bio_line_prints_the_birthplace_once_when_city_equals_province() -> None:
+    """384 de 984 jugadores repiten el valor; `Hato Mayor, Hato Mayor` se lee como un error."""
+    player = _player(19, "b04", "Mismo Lugar", "1B")
+    player.birth_place = player.birth_province = "Hato Mayor"
+    player.birth_date = player.debut_date = player.death_date = None
+    player.save()
+
+    _, origin = bio_lines(player)
+
+    assert origin == ["Hato Mayor"]  # una vez, no "Hato Mayor, Hato Mayor"
+
+
+@pytest.mark.django_db
+def test_bio_line_skips_what_the_record_lacks() -> None:
+    player = _player(20, "b05", "Sin Datos", "1B")
+    player.pos = None
+    player.bats = player.throws = player.height = player.weight = None
+    player.birth_date = player.birth_place = player.birth_province = None
+    player.debut_date = player.death_date = None
+    player.save()
+
+    assert bio_lines(player) == []  # ni etiquetas huérfanas ni separadores sueltos
+
+
+def test_innings_uses_baseball_notation_not_a_decimal() -> None:
+    """Los 8482 outs de Pedro son 2,827.1 IP — el `.1` es UN OUT, no una décima (2,827.3)."""
+    assert innings(8482) == "2,827.1"
+    assert innings(8483) == "2,827.2"
+    assert innings(8484) == "2,828.0"
+    assert innings(None) == "—"
+
+
+def test_dec_keeps_the_leading_zero_and_groups_thousands() -> None:
+    assert dec(0.5) == "0.5"  # el cero inicial se queda (no es una tasa de bateo)
+    assert dec(-2.34, 2) == "-2.34"
+    assert dec(1536.6) == "1,536.6"  # BsR/RC/wRC de carrera pasan de mil
+    assert dec(None) == "—"
 
 
 def test_pct_filter_shows_percentage_number() -> None:
@@ -171,16 +235,19 @@ def test_statcast_panes_hidden_for_a_player_without_batted_ball_data() -> None:
 
 @pytest.mark.django_db
 def test_statcast_has_no_total_when_coverage_is_partial() -> None:
-    """Si Statcast cubre menos temporadas que bateo, la fila total engañaría: no se pone."""
+    """Si Statcast cubre menos temporadas que bateo, la fila total engañaría: no se pone.
+
+    El jugador cruza el piso de 1989: su temporada de 1988 no entra a los paneles Statcast."""
     player = _player(14, "s02", "Cobertura Parcial", "1B")
     BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
-    Batting.objects.create(player=player, season=1995, stint=1, team="BOS", pa=600)  # sin BIP
+    Batting.objects.create(player=player, season=1988, stint=1, team="BOS", pa=600, balls_in_play=400)
     Batting.objects.create(player=player, season=1996, stint=1, team="BOS", pa=600, balls_in_play=400)
 
     data = BattingTab().context(player)
 
     assert data["has_statcast"] is True
-    assert len(data["statcast_rows"]) == 1  # solo la temporada con datos
+    assert len(data["statcast_rows"]) == 1  # 1988 queda fuera del piso
+    assert data["statcast_rows"][0][0].season == 1996
     assert data["statcast_full"] is False  # -> sin fila total
 
 
@@ -231,6 +298,25 @@ def test_personal_best_lower_is_better_is_the_qualified_minimum() -> None:
     assert (2018, "so") in best  # el mínimo calificado es su mejor marca
     assert (2019, "so") not in best  # el máximo (peor) nunca
     assert (2020, "so") not in best  # muestra chica sin calificar no cuenta
+
+
+@pytest.mark.django_db
+def test_cs_zero_is_a_personal_best_only_when_he_actually_ran() -> None:
+    """No haber sido atrapado robando no dice nada si nunca intentó robar."""
+    player = _player(21, "c02", "Nunca Corre", "1B")
+    Metric.objects.create(
+        stat_group="batting", column="cs", kind=Metric.Kind.CUMULATIVE, direction=Metric.Direction.LOWER
+    )
+    QualifierDefault.objects.create(stat_group="batting", qualifier_season="PA>=502")
+    Batting.objects.create(player=player, season=2016, stint=1, team="BOS", pa=600, sb=0, cs=0)
+    Batting.objects.create(player=player, season=2017, stint=1, team="BOS", pa=600, sb=12, cs=0)
+    Batting.objects.create(player=player, season=2018, stint=1, team="BOS", pa=600, sb=5, cs=4)
+
+    seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
+    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *_qualifier_context())
+
+    assert (2017, "cs") in best  # robó 12 y nunca lo atraparon: eso sí es una marca
+    assert (2016, "cs") not in best  # 0 de 0 intentos no es un logro
 
 
 @pytest.mark.django_db
