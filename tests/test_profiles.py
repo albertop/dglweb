@@ -13,8 +13,10 @@ from django.urls import reverse
 from dglweb.players.models import Player
 from dglweb.profiles.tabs import (
     BattingTab,
+    PuestosTab,
     _catalog,
     _personal_bests,
+    _puestos_context,
     _qualifier_context,
     tabs_for,
 )
@@ -512,3 +514,127 @@ def test_personal_best_rate_ignores_small_sample_extreme() -> None:
 
     assert (1997, "babip") not in best  # muestra chica sin calificar no cuenta
     assert (2006, "babip") in best  # el máximo entre temporadas calificadas
+
+
+def _metric(
+    group: str,
+    column: str,
+    abbrev: str,
+    *,
+    sort_order: int = 0,
+    name_es: str = "",
+    direction: str = Metric.Direction.HIGHER,
+) -> Metric:
+    return Metric.objects.create(
+        stat_group=group,
+        column=column,
+        abbrev=abbrev,
+        name_es=name_es,
+        sort_order=sort_order,
+        kind=Metric.Kind.CUMULATIVE,
+        direction=direction,
+        best_season=True,
+        is_active=True,
+    )
+
+
+def _puesto(metric: Metric, player: Player, season: int, rank: int) -> None:
+    Leader.objects.create(
+        metric=metric,
+        board=Leader.Board.BEST_SEASON,
+        season=season,
+        player=player,
+        value=float(rank),
+        rank=rank,
+        postseason=False,
+    )
+
+
+def _puesto_career(metric: Metric, player: Player, rank: int) -> None:
+    Leader.objects.create(
+        metric=metric,
+        board=Leader.Board.BEST_CAREER,
+        season=None,
+        player=player,
+        value=float(rank),
+        rank=rank,
+        postseason=False,
+    )
+
+
+@pytest.mark.django_db
+def test_puestos_grid_pivots_top10_by_metric_and_season() -> None:
+    """Una fila por métrica con top-10, una columna por temporada; la celda es el puesto y queda en
+    blanco donde no estuvo en el top-10. Un puesto > 10 no entra y una métrica sin ningún top-10 se
+    cae. Las filas salen en orden de `sort_order`."""
+    player = _player(1, "a01", "Bateador A", "1B")
+    rival = _player(9, "z01", "Rival Z", "1B")
+    hr = _metric("batting", "hr", "HR", sort_order=13, name_es="Jonrones")
+    so = _metric("batting", "so", "SO", sort_order=14, name_es="Ponches", direction=Metric.Direction.LOWER)
+    avg = _metric("batting", "avg", "AVG", sort_order=20, name_es="Promedio de bateo")
+    _puesto(hr, player, 2001, 3)
+    _puesto(hr, player, 2002, 1)  # HR: 2001 y 2002
+    _puesto(hr, rival, 2002, 1)  # empate en 2002 -> el puesto 1 va con *
+    _puesto(so, player, 2002, 5)  # SO: solo 2002
+    _puesto(avg, player, 2001, 15)  # puesto 16+ no entra -> AVG no aparece
+    _puesto_career(hr, player, 4)  # de por vida: HR puesto 4
+    _puesto_career(so, player, 12)  # SO carrera fuera del top-10 -> columna vacía
+
+    data = _puestos_context(player)
+
+    def show(cell: dict[str, object]) -> str:
+        return "" if cell["rank"] is None else f"{cell['rank']}{'*' if cell['tied'] else ''}"
+
+    assert data["seasons"] == [2001, 2002]
+    grid = [
+        (row["abbrev"], row["direction"], [show(c) for c in row["cells"]], show(row["career"])) for row in data["rows"]
+    ]
+    assert grid == [
+        ("HR", "+", ["3", "1*"], "4"),  # 2002 empatado -> *; de por vida #4 (sin empate)
+        ("SO", "-", ["", "5"], ""),  # menos es mejor; carrera fuera del top-10 -> vacío
+    ]
+    assert data["rows"][0]["name"] == "Jonrones"  # columna 1 = nombre largo
+
+
+@pytest.mark.django_db
+def test_puestos_includes_a_metric_that_is_top10_only_de_por_vida() -> None:
+    """Un jugador puede estar en el top-10 de por vida (última columna) sin haber estado nunca en un
+    top-10 de temporada —constancia sin picos—: esa fila igual debe salir, con las celdas de temporada
+    en blanco y solo el puesto de por vida."""
+    player = _player(7, "c07", "Constante C", "1B")
+    hr = _metric("batting", "hr", "HR", sort_order=13, name_es="Jonrones")
+    bb = _metric("batting", "bb", "BB", sort_order=15, name_es="Bases por bolas")
+    _puesto(hr, player, 2001, 2)  # HR sí tuvo top-10 de temporada
+    _puesto_career(bb, player, 6)  # BB: solo de por vida, nunca top-10 de temporada
+
+    data = _puestos_context(player)
+
+    rows = {row["abbrev"]: row for row in data["rows"]}
+    assert set(rows) == {"HR", "BB"}  # BB aparece aunque no tenga ningún top-10 de temporada
+    assert [c["rank"] for c in rows["BB"]["cells"]] == [None]  # celdas de temporada vacías
+    assert rows["BB"]["career"]["rank"] == 6  # solo el puesto de por vida
+
+
+@pytest.mark.django_db
+def test_puestos_shows_only_the_players_trade() -> None:
+    """Un lanzador solo ve sus puestos de PITCHEO: su bateo incidental se rankea contra bateadores de
+    verdad, así que no es su puesto. (Y a la inversa para un bateador.)"""
+    pitcher = _player(2, "p01", "Lanzador P", "P")
+    era = _metric("pitching", "era", "ERA", sort_order=17, name_es="Efectividad (ERA)")
+    bat_hr = _metric("batting", "hr", "HR", sort_order=13, name_es="Jonrones")
+    _puesto(era, pitcher, 2010, 2)
+    _puesto(bat_hr, pitcher, 2010, 1)  # su bateo incidental: NO debe aparecer
+
+    data = _puestos_context(pitcher)
+
+    assert [row["abbrev"] for row in data["rows"]] == ["ERA"]
+
+
+@pytest.mark.django_db
+def test_puestos_tab_hidden_without_any_top10() -> None:
+    player = _player(3, "b01", "Bateador B", "1B")
+    hr = _metric("batting", "hr", "HR", sort_order=13)
+    _puesto(hr, player, 2001, 12)  # fuera del top-10
+
+    assert PuestosTab().applies_to(player) is False
+    assert "puestos" not in [tab.key for tab in tabs_for(player)]

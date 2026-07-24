@@ -700,7 +700,94 @@ class FieldingTab(PlayerTab):
         return _fielding_context(player)
 
 
-REGISTRY: list[PlayerTab] = [BattingTab(), PitchingTab(), FieldingTab()]  # append new tabs here
+_PUESTOS_TOP_N = 10
+# The ranking direction shown next to each metric: + = more is better, - = fewer/lower is better.
+# It is how the board is sorted, so it explains what "puesto 1" means for that metric.
+_DIRECTION_SIGN: dict[str, str] = {Metric.Direction.HIGHER: "+", Metric.Direction.LOWER: "-"}
+
+
+def _puestos_context(player: Player) -> dict[str, Any]:
+    """The "Puestos" grid: for the player's OWN trade only (a pitcher's incidental batting is ranked
+    against people whose job it is, so it is not his puesto), a metric-by-season matrix of where he
+    finished among Dominicans. A cell is his rank that year; blank where he was not in the top 10. The
+    far-right column is his career (de por vida) rank in the same metric, top 10 only. A row is any
+    metric where he was top 10 in a season OR de por vida — a steady career can place among the career
+    leaders in a metric he never led in a single season, and that would be lost if only season top-10s
+    opened a row. A rank he shares with another player (a dense-rank tie) is flagged with `*`. Regular
+    season only.
+    """
+    group = "pitching" if is_pitcher(player) else "batting"
+    base = Leader.objects.filter(player=player, postseason=False, rank__lte=_PUESTOS_TOP_N, metric__stat_group=group)
+    by_metric_id: dict[int, dict[int, int]] = defaultdict(dict)
+    seasons: set[int] = set()
+    for mark in base.filter(board=Leader.Board.BEST_SEASON):
+        if mark.season is None:  # a season board always carries one; guard keeps the types honest
+            continue
+        by_metric_id[mark.metric_id][mark.season] = mark.rank
+        seasons.add(mark.season)
+    career_rank = {mark.metric_id: mark.rank for mark in base.filter(board=Leader.Board.BEST_CAREER)}
+
+    metric_ids = set(by_metric_id) | set(career_rank)  # union: season top-10s and career top-10s
+    metrics = Metric.objects.filter(pk__in=metric_ids) if metric_ids else Metric.objects.none()
+
+    # A rank is shared when >1 player sits on it in that (metric, board, season). One grouped query
+    # over the player's own metrics; the board index (metric, board, season, …, rank) serves the GROUP BY.
+    tied: set[tuple[int, str, int | None, int]] = set()
+    if metric_ids:
+        shared = (
+            Leader.objects.filter(
+                metric_id__in=metric_ids,
+                postseason=False,
+                board__in=(Leader.Board.BEST_SEASON, Leader.Board.BEST_CAREER),
+                rank__lte=_PUESTOS_TOP_N,
+            )
+            .values("metric_id", "board", "season", "rank")
+            .annotate(n=models.Count("player_id"))
+            .filter(n__gt=1)
+        )
+        tied = {(g["metric_id"], g["board"], g["season"], g["rank"]) for g in shared}
+
+    def cell(metric_pk: int, board: str, season: int | None, rank: int | None) -> dict[str, Any]:
+        return {"rank": rank, "tied": rank is not None and (metric_pk, board, season, rank) in tied}
+
+    ordered_seasons = sorted(seasons)
+    rows = [
+        {
+            "name": metric.name_es or metric.abbrev,
+            "abbrev": metric.abbrev,
+            "direction": _DIRECTION_SIGN.get(metric.direction, ""),
+            "cells": [
+                cell(metric.pk, Leader.Board.BEST_SEASON, s, by_metric_id.get(metric.pk, {}).get(s))
+                for s in ordered_seasons
+            ],
+            "career": cell(metric.pk, Leader.Board.BEST_CAREER, None, career_rank.get(metric.pk)),
+        }
+        for metric in sorted(metrics, key=lambda m: (m.sort_order, m.column))
+    ]
+    return {"seasons": ordered_seasons, "rows": rows, "group": group}
+
+
+class PuestosTab(PlayerTab):
+    key = "puestos"
+    label = "Puestos"
+    template = "profiles/tabs/puestos.html"
+    base_order = 40  # after Bateo/Pitcheo/Fildeo
+
+    def applies_to(self, player: Player) -> bool:
+        group = "pitching" if is_pitcher(player) else "batting"
+        return Leader.objects.filter(
+            player=player,
+            board__in=(Leader.Board.BEST_SEASON, Leader.Board.BEST_CAREER),
+            postseason=False,
+            rank__lte=_PUESTOS_TOP_N,
+            metric__stat_group=group,
+        ).exists()
+
+    def context(self, player: Player) -> dict[str, Any]:
+        return _puestos_context(player)
+
+
+REGISTRY: list[PlayerTab] = [BattingTab(), PitchingTab(), FieldingTab(), PuestosTab()]  # append new tabs here
 
 
 def tabs_for(player: Player) -> list[PlayerTab]:
