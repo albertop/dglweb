@@ -5,9 +5,23 @@ from django.test import Client
 from django.urls import reverse
 
 from dglweb.players.models import Player
-from dglweb.profiles.tabs import tabs_for
-from dglweb.profiles.templatetags.stats_extras import num, rate
-from dglweb.stats.models import Batting, BattingCareer, CareerLevel, FieldingCareer, PitchingCareer
+from dglweb.profiles.tabs import (
+    BattingTab,
+    _catalog,
+    _personal_bests,
+    _qualifier_context,
+    tabs_for,
+)
+from dglweb.profiles.templatetags.stats_extras import num, pct, rate
+from dglweb.stats.models import (
+    Batting,
+    BattingCareer,
+    CareerLevel,
+    FieldingCareer,
+    Metric,
+    PitchingCareer,
+    QualifierDefault,
+)
 from tests.test_players import _other_player
 
 
@@ -83,3 +97,157 @@ def test_rate_filter_drops_the_leading_zero() -> None:
     assert rate(None) == "—"
     assert num(None) == "—"
     assert num(41) == "41"
+
+
+def test_num_adds_thousands_separator() -> None:
+    assert num(2472) == "2,472"
+    assert num(541) == "541"
+
+
+def test_pct_filter_shows_percentage_number() -> None:
+    assert pct(0.452) == "45.2"
+    assert pct(0.2, 1) == "20.0"
+    assert pct(None) == "—"
+
+
+@pytest.mark.django_db
+def test_a_traded_season_lists_each_club_then_the_combined_line() -> None:
+    """2021 de Pujols: cada equipo sale como fila, y la combinada del año cierra la temporada."""
+    player = _player(17, "x01", "Traspasado", "1B")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    Batting.objects.create(player=player, season=2020, stint=1, team="LAN", league="NL", pa=600, hr=40)
+    Batting.objects.create(player=player, season=2021, stint=1, team="LAN", league="NL", pa=204, hr=12)
+    Batting.objects.create(player=player, season=2021, stint=2, team="ANA", league="AL", pa=92, hr=5)
+    Batting.objects.create(player=player, season=2021, stint=3, team="XXX", league="XX", pa=296, hr=17)
+
+    data = BattingTab().context(player)
+    lines = [(row.season, row.team) for row, _ in data["rows"]]
+
+    assert lines == [(2020, "LAN"), (2021, "LAN"), (2021, "ANA"), (2021, "XXX")]
+    assert data["season_count"] == 2  # 2 temporadas aunque sean 4 filas
+
+    # El resaltado pertenece a la temporada completa, no a media temporada: solo la combinada.
+    marked = [(row.season, row.team) for row, leads in data["rows"] if leads]
+    assert all(team in {"LAN", "XXX"} for _, team in marked)
+    split_rows = [leads for row, leads in data["rows"] if row.season == 2021 and row.team != "XXX"]
+    assert all(leads == {} for leads in split_rows)
+
+
+@pytest.mark.django_db
+def test_totals_pane_counts_seasons_and_ends_with_the_career_total() -> None:
+    """Una temporada dividida cuenta para CADA equipo, pero una sola vez en la carrera."""
+    player = _player(16, "t01", "Cambio de Equipo", "1B")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TEAM, team="MIN", sort_order=100)
+    BattingCareer.objects.create(player=player, level=CareerLevel.TEAM, team="BOS", sort_order=101)
+    BattingCareer.objects.create(player=player, level=CareerLevel.LEAGUE, league="AL", sort_order=200)
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    Batting.objects.create(player=player, season=2002, stint=1, team="MIN", league="AL", pa=400)
+    Batting.objects.create(player=player, season=2003, stint=1, team="MIN", league="AL", pa=200)
+    Batting.objects.create(player=player, season=2003, stint=2, team="BOS", league="AL", pa=200)
+    Batting.objects.create(player=player, season=2003, stint=3, team="XXX", league="AL", pa=400)  # combinada
+
+    totals = BattingTab().context(player)["totals"]
+    by_label = {row["label"]: row["seasons"] for row in totals}
+
+    assert by_label["MIN"] == 2  # 2002 y 2003
+    assert by_label["BOS"] == 1  # solo la mitad de 2003
+    assert by_label["Liga AL"] == 2
+    assert totals[-1]["kind"] == "total"  # el total de carrera va de último
+    assert totals[-1]["seasons"] == 2  # 2003 dividida cuenta UNA vez
+
+
+@pytest.mark.django_db
+def test_statcast_panes_hidden_for_a_player_without_batted_ball_data() -> None:
+    """Un jugador del pasado sin Statcast no debe mostrar los pills."""
+    player = _player(13, "s01", "Bateo Antiguo", "1B")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    Batting.objects.create(player=player, season=1960, stint=1, team="SFG", pa=600)
+
+    data = BattingTab().context(player)
+
+    assert data["has_statcast"] is False
+    assert data["statcast_rows"] == []
+
+
+@pytest.mark.django_db
+def test_statcast_has_no_total_when_coverage_is_partial() -> None:
+    """Si Statcast cubre menos temporadas que bateo, la fila total engañaría: no se pone."""
+    player = _player(14, "s02", "Cobertura Parcial", "1B")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    Batting.objects.create(player=player, season=1995, stint=1, team="BOS", pa=600)  # sin BIP
+    Batting.objects.create(player=player, season=1996, stint=1, team="BOS", pa=600, balls_in_play=400)
+
+    data = BattingTab().context(player)
+
+    assert data["has_statcast"] is True
+    assert len(data["statcast_rows"]) == 1  # solo la temporada con datos
+    assert data["statcast_full"] is False  # -> sin fila total
+
+
+@pytest.mark.django_db
+def test_statcast_totals_when_every_season_has_data() -> None:
+    player = _player(15, "s03", "Cobertura Total", "1B")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    Batting.objects.create(player=player, season=2015, stint=1, team="BOS", pa=600, balls_in_play=400)
+    Batting.objects.create(player=player, season=2016, stint=1, team="BOS", pa=600, balls_in_play=410)
+
+    data = BattingTab().context(player)
+
+    assert data["statcast_full"] is True
+
+
+@pytest.mark.django_db
+def test_personal_best_higher_is_better_is_the_season_maximum() -> None:
+    player = _player(10, "h01", "Bateo HR", "1B")
+    Metric.objects.create(
+        stat_group="batting", column="hr", kind=Metric.Kind.CUMULATIVE, direction=Metric.Direction.HIGHER
+    )
+    Batting.objects.create(player=player, season=2018, stint=1, team="BOS", pa=600, hr=54)
+    Batting.objects.create(player=player, season=2019, stint=1, team="BOS", pa=600, hr=30)
+
+    seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
+    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *_qualifier_context())
+
+    assert (2018, "hr") in best
+    assert (2019, "hr") not in best
+
+
+@pytest.mark.django_db
+def test_personal_best_lower_is_better_is_the_qualified_minimum() -> None:
+    """SO (menor es mejor): la mejor marca es el mínimo ENTRE temporadas calificadas por PA,
+    no el conteo más pequeño de una muestra chica sin calificar, ni el máximo (que es lo peor)."""
+    player = _player(11, "k01", "Bateo Ponches", "1B")
+    Metric.objects.create(
+        stat_group="batting", column="so", kind=Metric.Kind.CUMULATIVE, direction=Metric.Direction.LOWER
+    )
+    QualifierDefault.objects.create(stat_group="batting", qualifier_season="PA>=502")
+    Batting.objects.create(player=player, season=2018, stint=1, team="BOS", pa=600, so=90)  # mín calificado
+    Batting.objects.create(player=player, season=2019, stint=1, team="BOS", pa=600, so=145)  # el peor
+    Batting.objects.create(player=player, season=2020, stint=1, team="BOS", pa=40, so=8)  # muestra chica
+
+    seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
+    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *_qualifier_context())
+
+    assert (2018, "so") in best  # el mínimo calificado es su mejor marca
+    assert (2019, "so") not in best  # el máximo (peor) nunca
+    assert (2020, "so") not in best  # muestra chica sin calificar no cuenta
+
+
+@pytest.mark.django_db
+def test_personal_best_rate_ignores_small_sample_extreme() -> None:
+    """Un rate (BABIP) se dispara en una muestra chica de 51 PA; la verdadera mejor marca es la
+    temporada CALIFICADA más alta, no la muestra chica (el bug reportado en 1997 de Ortiz)."""
+    player = _player(12, "b02", "Bateo BABIP", "1B")
+    Metric.objects.create(
+        stat_group="batting", column="babip", kind=Metric.Kind.RATE, direction=Metric.Direction.HIGHER
+    )
+    QualifierDefault.objects.create(stat_group="batting", qualifier_season="PA>=502")
+    Batting.objects.create(player=player, season=1997, stint=1, team="MIN", pa=51, babip=0.420)  # muestra chica
+    Batting.objects.create(player=player, season=2006, stint=1, team="BOS", pa=686, babip=0.350)  # máx calificado
+    Batting.objects.create(player=player, season=2007, stint=1, team="BOS", pa=667, babip=0.330)
+
+    seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
+    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *_qualifier_context())
+
+    assert (1997, "babip") not in best  # muestra chica sin calificar no cuenta
+    assert (2006, "babip") in best  # el máximo entre temporadas calificadas

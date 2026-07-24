@@ -59,12 +59,10 @@
     {% endfor %}
   </div>
 
-  <!-- Highlight legend, right below the tables -->
-  <div class="dgl-meta small mb-4">
-    <span class="lead-career">■</span> líder de por vida &nbsp;·&nbsp;
-    <span class="lead-season">■</span> líder de temporada &nbsp;·&nbsp;
-    <span class="lead-best">■</span> su mejor marca
-  </div>
+  {% comment %}
+  The highlight legend is not here: each pane includes `profiles/_legend.html` itself, so it can
+  list only the marks that pane actually shows (a totals table has no season leader / personal best).
+  {% endcomment %}
 
 </main>
 {% endblock %}

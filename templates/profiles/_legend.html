@@ -1,0 +1,15 @@
+{% comment %}
+Highlight legend. Include it right under a table, listing only the marks that table can show:
+
+  {% include "profiles/_legend.html" %}                        -> season tables (the three marks)
+  {% include "profiles/_legend.html" with career_only=True %}  -> career/total tables (blue only)
+
+A totals table has no season leader and no personal best — every line is already a career figure —
+so naming those marks there would point at nothing.
+{% endcomment %}
+<div class="dgl-meta small mb-4">
+  <span class="lead-career px-2">&nbsp;</span> líder de por vida entre dominicanos
+  {% if not career_only %}&nbsp;·&nbsp;
+  <span class="lead-season px-2">&nbsp;</span> líder de temporada entre dominicanos &nbsp;·&nbsp;
+  <span class="lead-best px-2">&nbsp;</span> su mejor marca{% endif %}
+</div>

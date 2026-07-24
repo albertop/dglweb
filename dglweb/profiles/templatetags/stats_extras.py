@@ -24,5 +24,15 @@ def dec(value: Any, places: int = 1) -> str:  # noqa: ANN401 — a template filt
 
 @register.filter
 def num(value: Any) -> str:  # noqa: ANN401 — a template filter takes any value
-    """A counting stat, or `—` when absent (never a bare blank that misreads as zero)."""
-    return "—" if value is None else str(value)
+    """A counting stat with thousands separators (`2,472`), or `—` when absent."""
+    if value is None:
+        return "—"
+    if isinstance(value, int):
+        return f"{value:,}"
+    return str(value)
+
+
+@register.filter
+def pct(value: Any, places: int = 1) -> str:  # noqa: ANN401 — a template filter takes any value
+    """A proportion shown as a percentage number, no `%` sign: `0.452` -> `45.2`; `—` for None."""
+    return "—" if value is None else f"{float(value) * 100:.{places}f}"

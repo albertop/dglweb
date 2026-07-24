@@ -145,11 +145,23 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* Numbers right-aligned (tabular); the first column (Temporada / Team) stays left. */
 .dgl-stats-table th, .dgl-stats-table td { text-align: right; }
 .dgl-stats-table th:first-child, .dgl-stats-table td:first-child { text-align: left; }
-/* Highlights, in order of importance: deep blue = all-time (career) leader, wine = led that season,
-   black bold = the player's own career-high for that stat. */
-.lead-career { color: #0f52ba; font-weight: 800; }
-.lead-season { color: #9b2242; font-weight: 800; }
-.lead-best { color: #111; font-weight: 800; }
+/* Team is text, not a number: left-align it too so it sits next to Temporada (no wide gap).
+   Only on tables whose 2nd column IS Team (standard / advanced) — not the Team/Liga table. */
+.dgl-team-left th:nth-child(2), .dgl-team-left td:nth-child(2) { text-align: left; }
+/* Highlights (cell background + white bold), in order of importance: deep blue = all-time (career)
+   leader, wine = led that season, near-black = the player's own career-high for that stat.
+   Base rules also style the legend swatches (plain <span>). */
+.lead-career { background: #0f52ba; color: #fff; font-weight: 800; }
+.lead-season { background: #9b2242; color: #fff; font-weight: 800; }
+.lead-best   { background: #1b2430; color: #fff; font-weight: 800; }
+/* Inside a Bootstrap table the cell's own background + the .table-striped inset box-shadow both
+   sit above .lead-* — beat the specificity and kill the stripe shadow so the fill shows. */
+.dgl-stats-table td.lead-career,
+.dgl-stats-table td.lead-season,
+.dgl-stats-table td.lead-best { color: #fff; font-weight: 800; box-shadow: none; }
+.dgl-stats-table td.lead-career { background-color: #0f52ba; }
+.dgl-stats-table td.lead-season { background-color: #9b2242; }
+.dgl-stats-table td.lead-best   { background-color: #1b2430; }
 
 /* ---------- Player page ---------- */
 .dgl-player-hero {

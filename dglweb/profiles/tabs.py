@@ -7,11 +7,14 @@ Game Logs…) is a new subclass + a template partial + one line in `REGISTRY`; t
 URL and the other tabs are untouched.
 """
 
+from collections import defaultdict
 from typing import Any
 
 from django.db import models
 
 from dglweb.players.models import Player
+from dglweb.stats import qualifier
+from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
 from dglweb.stats.models import (
     Batting,
     BattingCareer,
@@ -20,8 +23,11 @@ from dglweb.stats.models import (
     Fielding,
     FieldingCareer,
     Leader,
+    Metric,
     Pitching,
     PitchingCareer,
+    QualifierDefault,
+    QualifierSeasonOverride,
 )
 
 _PITCHER_POSITIONS = {"P", "RP", "SP"}  # the master's pitcher codes (starter / reliever / generic)
@@ -50,8 +56,40 @@ def _leaderships(player: Player, group: str) -> tuple[set[tuple[int, str]], set[
 _NOT_A_STAT = {"season", "stint", "age"}
 
 
-def _personal_bests(model: type[models.Model], seasons: list[Any]) -> set[tuple[int, str]]:
-    """Per numeric column, the season(s) holding the player's own career-high (his `más alto`)."""
+def _catalog(group: str) -> dict[str, Metric]:
+    """{column: Metric} for a stat group — gives each column its ranking direction (`+`/`-`)."""
+    return {metric.column: metric for metric in Metric.objects.filter(stat_group=group)}
+
+
+def _qualifier_context() -> tuple[qualifier.Defaults, qualifier.Overrides]:
+    """The qualifier cascade lookups (group defaults + per-season overrides), preloaded once."""
+    defaults = {d.stat_group: (d.qualifier_season, d.qualifier_career) for d in QualifierDefault.objects.all()}
+    overrides = {(o.stat_group, o.season): o.qualifier_season for o in QualifierSeasonOverride.objects.all()}
+    return defaults, overrides
+
+
+def _qualifier_row(row: models.Model) -> dict[str, Any]:
+    """The columns the cascade evaluates: PA (batting), IP←outs (pitching), G←gp (fielding)."""
+    return {"pa": getattr(row, "pa", None), "outs": getattr(row, "outs", None), "gp": getattr(row, "gp", None)}
+
+
+def _personal_bests(
+    model: type[models.Model],
+    group: str,
+    seasons: list[Any],
+    catalog: dict[str, Metric],
+    defaults: qualifier.Defaults,
+    overrides: qualifier.Overrides,
+) -> set[tuple[int, str]]:
+    """Per numeric column, the season(s) holding the player's own career-best.
+
+    "Best" follows the metric's direction: the maximum for `+` (higher is better), the minimum for
+    `-` (lower is better: SO, CS, GIDP…). But the extreme only counts among seasons that clear the
+    qualifier when a small sample could fake it — i.e. for any rate (PRO: AVG, BABIP, wOBA…, in
+    either direction) and for the minimum of a count (`-`). A `+` count (or an accumulating float
+    like WAR) can't be faked by few PA, so its maximum is taken over all seasons. Columns absent
+    from the catalog have no known kind/direction, so they keep the plain maximum.
+    """
     columns = [
         field.name
         for field in model._meta.fields
@@ -59,29 +97,112 @@ def _personal_bests(model: type[models.Model], seasons: list[Any]) -> set[tuple[
     ]
     best: set[tuple[int, str]] = set()
     for column in columns:
-        values = [(row.season, getattr(row, column)) for row in seasons if getattr(row, column) is not None]
-        if values:
-            top = max(value for _, value in values)
-            best |= {(season, column) for season, value in values if value == top}
+        metric = catalog.get(column)
+        lower_is_better = metric is not None and metric.direction == Metric.Direction.LOWER
+        # Rates distort in small samples either way; the min of a "lower is better" count is trivially
+        # tiny in a short season. Both must clear the qualifier. A "+" count / accumulating float cannot.
+        needs_qualifier = lower_is_better or (metric is not None and metric.kind == Metric.Kind.RATE)
+        candidates: list[tuple[int, float]] = []
+        for row in seasons:
+            value = getattr(row, column)
+            if value is None:
+                continue
+            if needs_qualifier and metric is not None:
+                formula = qualifier.resolve_season(metric, row.season, defaults, overrides)
+                if not qualifier.qualifies(formula, group, _qualifier_row(row)):
+                    continue
+            candidates.append((row.season, value))
+        if not candidates:
+            continue
+        target = min(v for _, v in candidates) if lower_is_better else max(v for _, v in candidates)
+        best |= {(season, column) for season, value in candidates if value == target}
     return best
 
 
-def _season_highlights(
-    model: type[models.Model], seasons: list[Any], season_leads: set[tuple[int, str]]
-) -> list[tuple[Any, dict[str, str]]]:
-    """(row, {column: css class}). Priority: season leader (wine) > personal career-high (black bold)."""
-    best = _personal_bests(model, seasons)
-    rows = []
-    for row in seasons:
-        classes: dict[str, str] = {}
-        for season, column in season_leads:
-            if season == row.season:
-                classes[column] = "lead-season"
-        for season, column in best:
-            if season == row.season and column not in classes:
-                classes[column] = "lead-best"
-        rows.append((row, classes))
+def _seasons_played(model: type[models.Model], player: Player) -> tuple[dict[str, int], dict[str, int]]:
+    """How many distinct seasons the player spent with each team, and in each league.
+
+    Counted from the per-team lines, not the season totals: a season split between two clubs counts
+    once for **each** of them, so the team counts can add up to more than his career total. The
+    combined sentinels (`XXX` team / `XX` league) are bookkeeping rows, never a real club, so they
+    are skipped — otherwise a traded season would invent a third "team".
+    """
+    by_team: dict[str, set[int]] = defaultdict(set)
+    by_league: dict[str, set[int]] = defaultdict(set)
+    rows = model._default_manager.filter(player=player).values_list("season", "team", "league")
+    for season, team, league in rows:
+        if team and team != COMBINED_TEAM:
+            by_team[team].add(season)
+        if league and league != COMBINED_LEAGUE:
+            by_league[league].add(season)
+    return {t: len(s) for t, s in by_team.items()}, {lg: len(s) for lg, s in by_league.items()}
+
+
+def _totals_rows(
+    career: list[Any],
+    total: models.Model | None,
+    seasons: int,
+    model: type[models.Model],
+    player: Player,
+    total_leads: dict[str, str],
+) -> list[dict[str, Any]]:
+    """The `Totales` pane: a line per team, then per league, then the career total last — each
+    labelled with how many seasons it covers.
+
+    Only the career line carries highlights: `dgl_leader` ranks whole careers, so a team or league
+    subtotal is not a leaderboard entry and must not be painted as one.
+    """
+    by_team, by_league = _seasons_played(model, player)
+    rows = [
+        {"row": row, "label": row.team, "seasons": by_team.get(row.team, 0), "kind": "team", "leads": {}}
+        for row in career
+        if row.level == CareerLevel.TEAM
+    ]
+    rows += [
+        {
+            "row": row,
+            "label": f"Liga {row.league}",
+            "seasons": by_league.get(row.league, 0),
+            "kind": "league",
+            "leads": {},
+        }
+        for row in career
+        if row.level == CareerLevel.LEAGUE
+    ]
+    if total is not None:
+        rows.append({"row": total, "label": "Total", "seasons": seasons, "kind": "total", "leads": total_leads})
     return rows
+
+
+def _row_key(row: models.Model) -> tuple[Any, Any]:
+    """A row's identity within one player's history: (season, stint). Fielding has no stint."""
+    return getattr(row, "season", None), getattr(row, "stint", None)
+
+
+def _season_highlights(
+    rows: list[Any],
+    season_leads: set[tuple[int, str]],
+    best: set[tuple[int, str]],
+    total_keys: set[tuple[Any, Any]],
+) -> list[tuple[Any, dict[str, str]]]:
+    """(row, {column: css class}). Priority: season leader (wine) > personal career-best (dark).
+
+    `rows` may hold the per-team splits of a traded season as well as that season's combined line.
+    Only the combined line is marked: a leaderboard entry and a personal best are properties of the
+    **whole season**, so painting half of it would claim the player led on 24 games' worth of work.
+    """
+    highlighted = []
+    for row in rows:
+        classes: dict[str, str] = {}
+        if _row_key(row) in total_keys:
+            for season, column in season_leads:
+                if season == row.season:
+                    classes[column] = "lead-season"
+            for season, column in best:
+                if season == row.season and column not in classes:
+                    classes[column] = "lead-best"
+        highlighted.append((row, classes))
+    return highlighted
 
 
 class PlayerTab:
@@ -115,17 +236,38 @@ class BattingTab(PlayerTab):
         return 20 if is_pitcher(player) else 10  # pitchers push Bateo below Pitcheo
 
     def context(self, player: Player) -> dict[str, Any]:
+        # Two row sets: `seasons` is one line per season (the combined line for a traded year) and
+        # drives every calculation; `lines` also lists the per-team splits, and is what the table
+        # shows — a traded year prints each club, then that season's combined line.
         seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
+        lines = list(Batting.objects.filter(player=player).order_by("season", "stint"))
+        total_keys = {_row_key(row) for row in seasons}
         season_leads, career_leads = _leaderships(player, "batting")
+        defaults, overrides = _qualifier_context()
+        best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), defaults, overrides)
         career = list(BattingCareer.objects.filter(player=player).order_by("sort_order"))
+        total = next((row for row in career if row.level == CareerLevel.TOTAL), None)
+        rows = _season_highlights(lines, season_leads, best, total_keys)
+        total_leads = {col: "lead-career" for col in career_leads}  # blue on the career row
+        # The Statcast panes only cover seasons that actually carry batted-ball data — a player from
+        # before that coverage gets no panes at all, and rows of pure `—` are never printed.
+        # Coverage is judged on the season lines, never on the row count: a traded year contributes
+        # several rows but is still one season.
+        statcast_rows = [(row, leads) for row, leads in rows if row.balls_in_play is not None]
+        statcast_seasons = [row for row in seasons if row.balls_in_play is not None]
         return {
-            # (row, {column: css class}): season leader (wine) > personal career-high (black).
-            "rows": _season_highlights(Batting, seasons, season_leads),
-            "total": next((row for row in career if row.level == CareerLevel.TOTAL), None),
-            "total_leads": {col: "lead-career" for col in career_leads},  # blue on the career row
-            "teams": [row for row in career if row.level == CareerLevel.TEAM],
-            "leagues": [row for row in career if row.level == CareerLevel.LEAGUE],
+            # (row, {column: css class}): season leader (wine) > personal career-best (dark).
+            "rows": rows,
+            "season_count": len(seasons),  # seasons, not rows: a traded year prints several lines
+            "total": total,
+            "total_leads": total_leads,
+            "totals": _totals_rows(career, total, len(seasons), Batting, player, total_leads),
             "post": list(BattingPost.objects.filter(player=player).order_by("season", "round")),
+            "statcast_rows": statcast_rows,
+            "has_statcast": bool(statcast_rows),
+            # Only total a Statcast pane when it covers every season the player has: a career line
+            # summed over fewer seasons than the table lists would misread as his whole career.
+            "statcast_full": bool(statcast_seasons) and len(statcast_seasons) == len(seasons),
         }
 
 
