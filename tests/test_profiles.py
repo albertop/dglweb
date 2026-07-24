@@ -386,6 +386,68 @@ def test_a_pre_1956_player_has_no_leaderships_to_explain() -> None:
 
 
 @pytest.mark.django_db
+def test_a_cell_that_is_both_leader_and_personal_best_keeps_the_colour_and_adds_italics() -> None:
+    """El color se lo queda el liderazgo —es lo más fuerte— y la itálica dice que además es su
+    récord. Dos datos en una celda sin que compitan por el mismo canal."""
+    player = _player(31, "i01", "Las Dos Cosas", "LF")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    metric = Metric.objects.create(
+        stat_group="batting", column="hr", kind=Metric.Kind.CUMULATIVE, direction=Metric.Direction.HIGHER
+    )
+    Batting.objects.create(player=player, season=2018, stint=1, team="BOS", pa=600, hr=20)
+    Batting.objects.create(player=player, season=2019, stint=1, team="BOS", pa=600, hr=54)  # su máximo
+    Leader.objects.create(metric=metric, board=Leader.Board.BEST_SEASON, season=2019, player=player, value=54, rank=1)
+
+    marks = {row.season: leads.get("hr", "") for row, leads in BattingTab().context(player)["rows"]}
+
+    assert "lead-season" in marks[2019] and "lead-personal" in marks[2019]  # ambas
+    assert marks[2018] == ""  # ni líder ni su mejor marca
+
+
+@pytest.mark.django_db
+def test_exclude_zeros_keeps_a_zero_from_winning_the_personal_best() -> None:
+    """`exclude_zeros` marca las métricas donde un cero es una ausencia, no un valor: los holds de
+    un abridor, los jonrones de quien nunca sacó la bola. Sin esto la columna entera se pinta como
+    su mejor marca — un logro que nadie consiguió porque nadie lo intentó. El flag ya existía y lo
+    respetaba el motor de líderes; la página del jugador lo ignoraba."""
+    player = _player(29, "z01", "Nunca Lo Hizo", "SP")
+    Metric.objects.create(
+        stat_group="pitching",
+        column="hld",
+        kind=Metric.Kind.CUMULATIVE,
+        direction=Metric.Direction.HIGHER,
+        exclude_zeros=True,
+    )
+    Pitching.objects.create(player=player, season=2018, stint=1, team="BOS", outs=600, hld=0)
+    Pitching.objects.create(player=player, season=2019, stint=1, team="BOS", outs=600, hld=0)
+
+    seasons = list(Pitching.objects.filter(player=player).season_totals().order_by("season"))
+    best = _personal_bests(Pitching, "pitching", seasons, _catalog("pitching"), *_qualifier_context())
+
+    assert not [column for _, column in best if column == "hld"]  # ninguna temporada marcada
+
+
+@pytest.mark.django_db
+def test_exclude_zeros_still_marks_the_seasons_he_did_it() -> None:
+    player = _player(30, "z02", "Sí Lo Hizo", "RP")
+    Metric.objects.create(
+        stat_group="pitching",
+        column="hld",
+        kind=Metric.Kind.CUMULATIVE,
+        direction=Metric.Direction.HIGHER,
+        exclude_zeros=True,
+    )
+    Pitching.objects.create(player=player, season=2018, stint=1, team="BOS", outs=200, hld=0)
+    Pitching.objects.create(player=player, season=2019, stint=1, team="BOS", outs=200, hld=31)
+
+    seasons = list(Pitching.objects.filter(player=player).season_totals().order_by("season"))
+    best = _personal_bests(Pitching, "pitching", seasons, _catalog("pitching"), *_qualifier_context())
+
+    assert (2019, "hld") in best
+    assert (2018, "hld") not in best
+
+
+@pytest.mark.django_db
 def test_cs_zero_is_a_personal_best_only_when_he_actually_ran() -> None:
     """No haber sido atrapado robando no dice nada si nunca intentó robar."""
     player = _player(21, "c02", "Nunca Corre", "1B")

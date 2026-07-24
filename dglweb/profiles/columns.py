@@ -135,6 +135,11 @@ PITCHING_STANDARD: list[Column] = [
     Column("CG", "cg"),
     Column("SHO", "sho"),
     Column("SV", "sv"),
+    # El oficio del relevista. Sin estas tres, la temporada 2012 de Rodney se lee "SV=48" y se
+    # pierde lo que la hace extraordinaria: 48 de 50 con solo 2 desperdiciados.
+    Column("SVO", "save_opp"),
+    Column("BSv", "bsv"),
+    Column("HLD", "hld"),
     Column("IP", "outs", "innings"),
     Column("H", "h"),
     Column("R", "r"),

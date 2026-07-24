@@ -122,9 +122,16 @@ def _personal_bests(
         # tiny in a short season. Both must clear the qualifier. A "+" count / accumulating float cannot.
         needs_qualifier = lower_is_better or (metric is not None and metric.kind == Metric.Kind.RATE)
         candidates: list[tuple[int, float]] = []
+        # `exclude_zeros` ("Excluir ceros" en el Backoffice) marca las métricas donde un cero no es
+        # un valor sino una ausencia: HLD de un abridor, SV de quien nunca cerró. El motor de líderes
+        # ya lo respetaba; sin esto, la página pintaba la columna entera de Pedro como su mejor marca
+        # en holds — un logro que nadie consiguió porque nadie lo intentó.
+        drop_zeros = metric is not None and metric.exclude_zeros
         for row in seasons:
             value = getattr(row, column)
             if value is None or not _had_the_chance(group, column, row):
+                continue
+            if drop_zeros and value == 0:
                 continue
             if needs_qualifier and metric is not None:
                 formula = qualifier.resolve_season(metric, row.season, defaults, overrides)
@@ -274,8 +281,12 @@ def _season_highlights(
                 if season == row.season:
                     classes[column] = "lead-season"
             for season, column in best:
-                if season == row.season and column not in classes:
-                    classes[column] = "lead-best"
+                if season != row.season:
+                    continue
+                # Una celda puede ser las dos cosas. El color se lo queda el liderazgo —es la
+                # información más fuerte— y la itálica agrega la segunda sin pelear por el mismo
+                # canal: lideró entre dominicanos ESA temporada y además es su propia mejor marca.
+                classes[column] = f"{classes[column]} lead-personal" if column in classes else "lead-best"
         highlighted.append((row, classes))
     return highlighted
 
@@ -415,6 +426,7 @@ def _group_context(
         # What the legend is allowed to name: only the marks this player actually carries.
         "has_season_leads": bool(season_leads),
         "has_career_leads": bool(career_leads),
+        "has_personal_leads": any("lead-personal" in css for _, leads in rows for css in leads.values()),
         "statcast_rows": statcast_rows,
         "has_statcast": bool(statcast_rows),
         # Read back from `dgl_metric`, never hardcoded in the caption: the thresholds are tunable in

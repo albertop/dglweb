@@ -28,7 +28,7 @@ faltar en los totales.
       </table>
     </div>
   </section>
-  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
   <div class="tab-pane fade" id="bat-adv">
@@ -44,7 +44,7 @@ faltar en los totales.
     </div>
     <div class="dgl-meta px-3 py-2 border-top">Carrera = suma de componentes (índices como wRC+, ponderados por PA).</div>
   </section>
-  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
   {% if d.has_statcast %}
@@ -61,7 +61,7 @@ faltar en los totales.
     </div>
     <div class="dgl-meta px-3 py-2 border-top">AO/GO/FO/PO/LO=out al aire/roletazo/elevado/palomita/línea · FH/PH/LH/GH=hit por elevado/palomita/línea/roletazo · Sw=swings · Miss=swings y fallos · BIP=bolas en juego. La cobertura por tipo de batazo varía por temporada.</div>
   </section>
-  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
   <div class="tab-pane fade" id="bat-ratios">
@@ -77,7 +77,7 @@ faltar en los totales.
     </div>
     <div class="dgl-meta px-3 py-2 border-top">GB/FB/LD/PU% = % de bolas en juego por tipo (roletazo/elevado/línea/palomita) · GB/FB = roletazos÷elevados · Contact% = swings con contacto ÷ swings · Whiff% = swings y fallos ÷ swings.{% if d.coefficient_qualifiers %} Solo temporadas que califican: {{ d.coefficient_qualifiers|join:" o " }}.{% endif %}</div>
   </section>
-  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
   {% endif %}
 

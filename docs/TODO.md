@@ -3,6 +3,25 @@
 Lista de pendientes que van surgiendo sobre la marcha. (Ítems de decisión / afinado, no el
 roadmap de fases — eso está en `BUILD_PLAN.md`.)
 
+## Próximo: tab de Fildeo
+
+Bateo y Pitcheo están completos (seis pills cada uno: Estándar, Avanzado, Statcast, Coeficientes,
+Postemporada, Totales). **Falta Fildeo**, y arranca en buenas condiciones tras el refactor de
+columnas declarativas:
+
+- Sus columnas son una lista más en `dglweb/profiles/columns.py`, y reusa tal cual las seis
+  partials (`templates/profiles/_season_*.html`, `_label_*.html`, `_post_*.html`), la leyenda,
+  `_personal_bests`, los filtros de formato y todo el sistema de resaltado.
+- **Lo único que necesita código propio es el ensamblado del contexto**: `_group_context` NO le
+  sirve. Las líneas de fildeo son **por posición**, no por stint (un jugador tiene una fila por
+  cada posición que jugó cada temporada), así que la lógica de "temporada dividida / combinada XXX"
+  no aplica igual. `FieldingCareer` ya usa `level=pos` en vez de team/league, y `career_totals` ya
+  agrega fildeo por posición. Hay que escribir un `_fielding_context` que arme filas por posición.
+- El motor de líderes ya rankea fildeo **por posición** (`fielding_pos` en `dgl_leader`), así que
+  los liderazgos por posición ya existen en la base — solo falta consumirlos en la página.
+- `_leaderships` hoy es agnóstico de posición (bateo/pitcheo llevan `fielding_pos=NULL`); para
+  fildeo habrá que filtrar por la posición de cada fila.
+
 ## Diseño / branding
 
 - [x] ~~Definir el subtítulo del brand~~ → **descartado**: se quita, es redundante con el nombre.

@@ -14,6 +14,15 @@
   --dgl-line: #e5e7eb;
   --dgl-bg: #f6f7f9;
   --dgl-card: #ffffff;
+  /* Resaltados de las tablas: fondos pastel, matices distintos pero coordinados (un barrido de
+     matiz con luminosidad y saturación parejas — el truco de una paleta coolors), con texto en
+     tinta oscura. Suaves porque son claros, no lavados. Azul → menta → verde: distintos de verdad
+     pero de la misma familia. Contraste con --lead-ink en negrita: 11.2 / 12.7 / 13.0 : 1
+     (computados). Un solo lugar para tocarlos. */
+  --lead-career: #b0d5e8;
+  --lead-season: #b0e8d3;
+  --lead-best: #cce8b0;
+  --lead-ink: #1a1a1a;
 }
 
 body {
@@ -157,20 +166,26 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   border-right: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
 }
 .dgl-stats-table th:last-child, .dgl-stats-table td:last-child { border-right: 0; }
-/* Highlights (cell background + white bold), in order of importance: deep blue = all-time (career)
-   leader, wine = led that season, near-black = the player's own career-high for that stat.
+/* Highlights (pastel cell background + dark bold ink): azul = career leader, menta = season leader,
+   verde = the player's own career-high. Distinct hues, one coordinated family.
    Base rules also style the legend swatches (plain <span>). */
-.lead-career { background: #0f52ba; color: #fff; font-weight: 800; }
-.lead-season { background: #9b2242; color: #fff; font-weight: 800; }
-.lead-best   { background: #1b2430; color: #fff; font-weight: 800; }
+.lead-career { background: var(--lead-career); color: var(--lead-ink); font-weight: 800; }
+.lead-season { background: var(--lead-season); color: var(--lead-ink); font-weight: 800; }
+.lead-best   { background: var(--lead-best); color: var(--lead-ink); font-weight: 800; }
 /* Inside a Bootstrap table the cell's own background + the .table-striped inset box-shadow both
    sit above .lead-* — beat the specificity and kill the stripe shadow so the fill shows. */
 .dgl-stats-table td.lead-career,
 .dgl-stats-table td.lead-season,
-.dgl-stats-table td.lead-best { color: #fff; font-weight: 800; box-shadow: none; }
-.dgl-stats-table td.lead-career { background-color: #0f52ba; }
-.dgl-stats-table td.lead-season { background-color: #9b2242; }
-.dgl-stats-table td.lead-best   { background-color: #1b2430; }
+.dgl-stats-table td.lead-best { color: var(--lead-ink); font-weight: 800; box-shadow: none; }
+/* Una celda que es líder de temporada Y su mejor marca. El fondo se lo queda el liderazgo —es lo
+   más fuerte— y la itálica dice que además es su récord: se lee como "especial DENTRO de su
+   categoría", no como una cuarta categoría. Se probó un anillo interior y se descartó: quedaba
+   demasiado sutil. Ojo si algún día se intenta de nuevo con `box-shadow` — hay que declararlo
+   DESPUÉS del `box-shadow: none` de arriba o se borra solo. */
+.lead-personal { font-style: italic; }
+.dgl-stats-table td.lead-career { background-color: var(--lead-career); }
+.dgl-stats-table td.lead-season { background-color: var(--lead-season); }
+.dgl-stats-table td.lead-best   { background-color: var(--lead-best); }
 
 /* ---------- Player page ---------- */
 .dgl-player-hero {
@@ -195,6 +210,15 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-lead-val { font-weight: 800; font-variant-numeric: tabular-nums; }
 .nav-tabs .nav-link { font-weight: 700; color: var(--dgl-muted); font-size: .9rem; }
 .nav-tabs .nav-link.active { color: var(--dgl-navy); border-bottom-color: var(--dgl-red); }
+/* Pills de las tablas (Estándar / Avanzado / Statcast…). Bootstrap los trae en su azul primario,
+   tanto el texto como el fondo del activo. Acá el texto va en la tinta del sitio y el activo toma
+   el MISMO azul del topbar y el footer, para que el elemento seleccionado se lea como parte de la
+   identidad y no como un color suelto de framework.
+   site.css carga después de Bootstrap, así que a igual especificidad estas ganan. */
+.nav-pills .nav-link { color: var(--dgl-ink); font-weight: 700; }
+.nav-pills .nav-link:hover { color: var(--dgl-navy); }
+.nav-pills .nav-link.active { background-color: var(--dgl-navy); color: #fff; font-weight: 800; }
+
 .dgl-pill {
   background: #eef1f6; color: var(--dgl-blue); border: 1px solid var(--dgl-line);
   border-radius: 20px; padding: .22rem .8rem; font-size: .78rem; font-weight: 700; cursor: pointer;

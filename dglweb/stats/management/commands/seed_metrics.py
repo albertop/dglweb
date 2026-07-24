@@ -140,6 +140,9 @@ _LEADERBOARD: dict[tuple[str, str], tuple[int, ...]] = {
     ("pitching", "GB/FB"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("pitching", "Contact%"): (1, 1, 1, 1, 1, 0, 0, 1),
     ("pitching", "Whiff%"): (0, 1, 1, 1, 1, 0, 0, 1),
+    # BK se ordena por el MÁS (ver `_NEGATIVE`): un tablero de "menos balks" empata a 98 en el
+    # primer puesto porque el 43% de las temporadas calificadas está en cero.
+    ("pitching", "BK"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("pitching", "APR"): (0, 1, 1, 0, 0, 1, 0, 1),
     ("pitching", "BAA"): (1, 1, 1, 1, 1, 0, 0, 1),
     ("pitching", "BB"): (1, 1, 1, 1, 1, 0, 1, 1),
@@ -255,7 +258,10 @@ _NEGATIVE: frozenset[tuple[str, str]] = frozenset(
         ("pitching", "era_minus"),
         ("pitching", "fip_minus"),
         ("pitching", "xfip"),
-        ("pitching", "bk"),
+        # `bk` NO va aquí: es negativa, pero el 43% de las temporadas calificadas está en cero, así
+        # que un ranking "menos balks" empata a 98 en el primer puesto y no distingue a nadie. Se
+        # ordena por el MÁS, igual que GIDP en bateo (decisión del dueño). BB/ER/H/HR/L/R sí se
+        # quedan en `-`: ninguna llega a cero en una temporada calificada, medido.
         ("pitching", "wp"),
         ("pitching", "hbp"),
         ("pitching", "bsv"),

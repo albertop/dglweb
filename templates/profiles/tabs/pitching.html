@@ -27,7 +27,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
       </table>
     </div>
   </section>
-  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
   <div class="tab-pane fade" id="pit-adv">
@@ -43,7 +43,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
     </div>
     <div class="dgl-meta px-3 py-2 border-top">Carrera = suma de componentes; las tasas se recalculan desde los totales, no son promedio de promedios.</div>
   </section>
-  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
   {% if d.has_statcast %}
@@ -60,7 +60,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
     </div>
     <div class="dgl-meta px-3 py-2 border-top">AO/GO/FO/PO/LO=out al aire/roletazo/elevado/palomita/línea · FH/PH/LH/GH=hit por elevado/palomita/línea/roletazo · Sw=swings · Miss=swings y fallos · BIP=bolas en juego. Desde 1989, cuando la fuente empieza a clasificar el batazo.</div>
   </section>
-  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
   <div class="tab-pane fade" id="pit-ratios">
@@ -76,7 +76,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
     </div>
     <div class="dgl-meta px-3 py-2 border-top">Perfil del batazo que le conectan: GB/FB/LD/PU% = % de bolas en juego por tipo · GB/FB = roletazos÷elevados · Contact% y Whiff% sobre swings.{% if d.coefficient_qualifiers %} Solo temporadas que califican: {{ d.coefficient_qualifiers|join:" o " }}.{% endif %}</div>
   </section>
-  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True %}
+  {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
   {% endif %}
 
