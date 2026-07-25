@@ -134,6 +134,24 @@ def test_postseason_skips_negative_counts(players: dict[str, Player]) -> None:
 
 
 @pytest.mark.django_db
+def test_postseason_honors_best_season_and_best_career_flags(players: dict[str, Player]) -> None:
+    """Los flags gatean octubre igual que la temporada regular (review v4 DEV-03): sin `best_career`
+    no hay tablero de carrera de postemporada, y sin `best_season` no hay de temporada."""
+    from dglweb.stats.models import BattingPost
+
+    solo_season = _metric(stat_group="batting", column="hr", best_season=True, best_career=False, postseason=True)
+    solo_career = _metric(stat_group="batting", column="rbi", best_season=False, best_career=True, postseason=True)
+    BattingPost.objects.create(player=players["a"], season=2019, round="WS", hr=3, rbi=8)
+
+    build_leaders()
+
+    assert Leader.objects.filter(metric=solo_season, postseason=True, board="best_season").exists()
+    assert not Leader.objects.filter(metric=solo_season, postseason=True, board="best_career").exists()
+    assert Leader.objects.filter(metric=solo_career, postseason=True, board="best_career").exists()
+    assert not Leader.objects.filter(metric=solo_career, postseason=True, board="best_season").exists()
+
+
+@pytest.mark.django_db
 def test_postseason_rate_boards_recompute_from_totals_and_gate_by_floor(players: dict[str, Player]) -> None:
     """AVG de postemporada: el valor se RECOMPONE desde los totales (ΣH/ΣAB), no se promedian las
     tasas por ronda; y el piso fijo (25 PA temporada, 50 PA carrera) excluye muestras pequeñas."""

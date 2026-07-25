@@ -273,13 +273,15 @@ def _wants_postseason(metric: Metric) -> bool:
     A "most HR in October" board can't be faked by a small sample —you can't lead in postseason home
     runs without hitting them— so it needs no qualifier. "Fewer is better" counts (leading in fewest
     strikeouts on 2 at-bats is noise) are left out; the classic rates get their own floored board
-    (`_wants_postseason_rate`). Fielding has no postseason board at all.
+    (`_wants_postseason_rate`). Fielding has no postseason board at all. The `best_season`/`best_career`
+    flags gate October too (review v4 DEV-03): a metric with neither wants no board.
     """
     return (
         metric.postseason
         and metric.stat_group in _POST_MODEL
         and metric.kind == Metric.Kind.CUMULATIVE
         and metric.direction == Metric.Direction.HIGHER
+        and (metric.best_season or metric.best_career)
     )
 
 
@@ -302,11 +304,13 @@ _POST_QUALIFIER: dict[str, tuple[str, str]] = {  # group -> (season floor, caree
 
 
 def _wants_postseason_rate(metric: Metric) -> bool:
-    """The classic slash-line/ERA rates get a postseason board, gated by the fixed October floor."""
+    """The classic slash-line/ERA rates get a postseason board, gated by the fixed October floor —
+    and by `best_season`/`best_career` like every other board (review v4 DEV-03)."""
     return (
         metric.postseason
         and metric.kind == Metric.Kind.RATE
         and metric.column in _POST_RATE.get(metric.stat_group, frozenset())
+        and (metric.best_season or metric.best_career)
     )
 
 
@@ -331,9 +335,10 @@ def _postseason_leaders(metric: Metric) -> list[Leader]:
             for pid, value, rank in _dense_rank(pairs, descending=True)
         ]
 
-    leaders: list[Leader] = board(Leader.Board.BEST_CAREER, None, by_career)
-    for season, totals in by_season.items():
-        leaders += board(Leader.Board.BEST_SEASON, season, totals)
+    leaders: list[Leader] = board(Leader.Board.BEST_CAREER, None, by_career) if metric.best_career else []
+    if metric.best_season:
+        for season, totals in by_season.items():
+            leaders += board(Leader.Board.BEST_SEASON, season, totals)
     return leaders
 
 
@@ -371,9 +376,10 @@ def _postseason_rate_leaders(metric: Metric) -> list[Leader]:
             for pid, value, rank in _dense_rank(pairs, descending)
         ]
 
-    leaders: list[Leader] = board(Leader.Board.BEST_CAREER, None, by_career, career_floor)
-    for season, sums in by_season.items():
-        leaders += board(Leader.Board.BEST_SEASON, season, sums, season_floor)
+    leaders: list[Leader] = board(Leader.Board.BEST_CAREER, None, by_career, career_floor) if metric.best_career else []
+    if metric.best_season:
+        for season, sums in by_season.items():
+            leaders += board(Leader.Board.BEST_SEASON, season, sums, season_floor)
     return leaders
 
 

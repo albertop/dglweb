@@ -103,10 +103,10 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   ("el badge va solo en la fila Tot, nunca en filas de ronda"): en un octubre de una sola ronda no
   hay fila Tot. Opciones: (a) tratar la línea única como el agregado para el highlight, o (b) emitir
   siempre una fila Tot. **Necesita decisión de producto** antes de tocar.
-- [ ] **DEV-03 (gating) — los boards de octubre ignoran `best_season`/`best_career`.** De acuerdo, es
-  un bug de configuración: si el admin apaga un flag, la temporada regular obedece y octubre no.
-  Fix: gatear cada board de postemporada por su flag (o separar flags regular/post). Moderado, con
-  test. Pendiente.
+- [x] **DEV-03 (gating) — los boards de octubre ignoran `best_season`/`best_career`.** **Corregido**:
+  `_postseason_leaders` / `_postseason_rate_leaders` gatean el board de carrera por `best_career` y el
+  de temporada por `best_season`; los predicados `_wants_postseason*` saltan si no se quiere ninguno.
+  Con test. (No hubo que reconstruir: 0 métricas de octubre tenían un flag apagado.)
 - [ ] **DEV-04 — `_innings_to_outs` acepta fracciones imposibles (.3, .9, .25).** De acuerdo. El
   parser solo mira el primer dígito. Fix: validar que la fracción sea 0/1/2 y fallar-loud/`None` en
   ingest. Toca paridad, así que con cuidado + tests (.3/.9/basura). Pendiente.
