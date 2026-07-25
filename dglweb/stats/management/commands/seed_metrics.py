@@ -106,13 +106,17 @@ _LEADERBOARD: dict[tuple[str, str], tuple[int, ...]] = {
     ("fielding", "HEQD"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("fielding", "Inn"): (0, 1, 0, 1, 0, 0, 0, 1),
     ("fielding", "InnOuts"): (0, 1, 0, 1, 0, 0, 0, 0),
-    ("fielding", "PB"): (1, 0, 1, 0, 1, 0, 0, 1),
+    # PB y WP se rankean por el MÁS, como GIDP en bateo y BK en pitcheo (decisión del dueño): son
+    # marcas negativas, pero "menos pelotas pasadas" empata en cero y no distingue a nadie. Venían
+    # del dgl_stat viejo en `-` y solo con tableros de peores, así que nunca podían salir en el
+    # dropdown de líderes — la tabla de Primeros habría quedado vacía.
+    ("fielding", "PB"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("fielding", "PCT"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("fielding", "pickOffs"): (0, 0, 0, 1, 0, 0, 0, 1),
     ("fielding", "PO"): (0, 1, 0, 1, 0, 0, 0, 1),
     ("fielding", "RF"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("fielding", "SB"): (0, 1, 0, 1, 0, 0, 0, 0),
-    ("fielding", "WP"): (1, 0, 1, 0, 1, 0, 0, 1),
+    ("fielding", "WP"): (0, 1, 1, 1, 1, 0, 0, 1),  # ver PB
     ("fielding", "ZR"): (0, 1, 1, 1, 1, 0, 0, 0),
     # Batted-ball counts and coefficients allowed by the pitcher. Same columns and thresholds as
     # batting, but several directions are the MIRROR of it, because the same event means the opposite
