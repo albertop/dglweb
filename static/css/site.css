@@ -288,7 +288,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    para leerse de corrido y acá solo son dos párrafos de contexto. */
 .dgl-lede {
   font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
-  font-size: 1.02rem; line-height: 1.6; color: var(--dgl-ink); max-width: 46rem;
+  font-size: 1.02rem; line-height: 1.6; color: var(--dgl-ink);
 }
 .dgl-lede p { margin-bottom: .6rem; }
 /* Señal de carga entre un clic y la página nueva. El velo va casi transparente a propósito: la tabla
