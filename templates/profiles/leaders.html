@@ -29,8 +29,7 @@ muda y el usuario vuelve a hacer clic.
     <p class="mb-0">
       Elige el oficio en las pestañas —bateo, pitcheo o fildeo—, el grupo de estadísticas en los
       botones de abajo, y luego el alcance y la métrica. Cada tablero muestra dos listas: los
-      primeros y los últimos del ranking. Las tasas y los renglones donde menos es mejor exigen un
-      mínimo de turnos o entradas para calificar, y ese mínimo siempre aparece al pie de la tabla.
+      primeros y los últimos del ranking.
     </p>
   </div>
 
@@ -116,12 +115,14 @@ muda y el usuario vuelve a hacer clic.
     </div>
 
     {# Separado de las tablas: pegado al panel se leía como una fila más del tablero. #}
+    {# "Entre peloteros dominicanos" vivía acá; ahora lo dice la entradilla de arriba. #}
+    {# Cada nota en su propia línea con `d-block` y no con <br>: así ninguna depende de que exista la
+       anterior, que era el problema al quitar la primera — quedaba un salto suelto encabezando. #}
     <p class="dgl-meta mt-4">
-      <b>Entre peloteros dominicanos.</b>
-      {% if board.qualifier %}<br>{{ board.qualifier }}{% endif %}
-      {% if board.available_from %}<br>Disponible desde {{ board.available_from }}.{% endif %}
-      {% if board.shows_partial %}<br><span class="dgl-partial">*</span> Debutó antes de {{ board.available_from }}: su total no cuenta las temporadas anteriores.{% endif %}
-      {% if board.shows_active %}<br><span class="dgl-active-swatch"></span> = jugador activo.{% endif %}
+      {% if board.qualifier %}<span class="d-block">{{ board.qualifier }}</span>{% endif %}
+      {% if board.available_from %}<span class="d-block">Disponible desde {{ board.available_from }}.</span>{% endif %}
+      {% if board.shows_partial %}<span class="d-block"><span class="dgl-partial">*</span> Debutó antes de {{ board.available_from }}: su total no cuenta las temporadas anteriores.</span>{% endif %}
+      {% if board.shows_active %}<span class="d-block"><span class="dgl-active-swatch"></span> = jugador activo.</span>{% endif %}
     </p>
   </div>
   {% endwith %}
