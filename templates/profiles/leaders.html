@@ -27,7 +27,7 @@ muda y el usuario vuelve a hacer clic.
       de las mayores.
     </p>
     <p class="mb-0">
-      Elige el oficio en las pestañas —bateo, pitcheo o fildeo—, el grupo de estadísticas en los
+      Elige en las pestañas —bateo, pitcheo o fildeo—, el grupo de estadísticas en los
       botones de abajo, y luego el alcance y la métrica. Se muestran dos listas: los primeros y los
       últimos del ranking.
     </p>
@@ -116,8 +116,10 @@ muda y el usuario vuelve a hacer clic.
 
     {# Separado de las tablas: pegado al panel se leía como una fila más del tablero. #}
     {# "Entre peloteros dominicanos" vivía acá; ahora lo dice la entradilla de arriba. #}
-    {# Cada nota en su propia línea con `d-block` y no con <br>: así ninguna depende de que exista la
-       anterior, que era el problema al quitar la primera — quedaba un salto suelto encabezando. #}
+    {% comment %}
+    Cada nota en su propia línea con `d-block` y no con <br>: así ninguna depende de que exista la
+    anterior, que era el problema al quitar la primera — quedaba un salto suelto encabezando.
+    {% endcomment %}
     <p class="dgl-meta mt-4">
       {% if board.qualifier %}<span class="d-block">{{ board.qualifier }}</span>{% endif %}
       {% if board.available_from %}<span class="d-block">Disponible desde {{ board.available_from }}.</span>{% endif %}
