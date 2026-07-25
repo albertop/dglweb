@@ -710,7 +710,7 @@ def test_puestos_shows_only_the_players_trade() -> None:
 
 @pytest.mark.django_db
 def test_puestos_groups_metrics_into_table_divisions_in_order() -> None:
-    """Las filas se agrupan en las divisiones de las tablas (Estándar, Avanzado, Sabermetría,
+    """Las filas se agrupan en las divisiones de las tablas (Estándar, Avanzado, Statcast,
     Coeficientes) y en su mismo orden. Sencillos (1B) va entre H y 2B dentro de Estándar."""
     player = _player(8, "d08", "Completo D", "1B")
     metrics = {
@@ -729,7 +729,7 @@ def test_puestos_groups_metrics_into_table_divisions_in_order() -> None:
     assert [(s["label"], [r["abbrev"] for r in s["rows"]]) for s in reg["sections"]] == [
         ("Estándar", ["H", "1B", "2B"]),  # 1B entre H y 2B
         ("Avanzado", ["ISO"]),
-        ("Sabermetría", ["AO"]),
+        ("Statcast", ["AO"]),
         ("Coeficientes", ["GB%"]),
     ]
     gb = next(r for s in reg["sections"] for r in s["rows"] if r["abbrev"] == "GB%")

@@ -2,7 +2,7 @@
 
 Unlike the per-player overlay, this is the global view: pick a metric and see who leads. It reuses the
 player page's visual language and the Puestos division layout, so a metric sits under the same
-division (Estándar/Avanzado/Sabermetría/Coeficientes) in both. MVP: Bateo and Pitcheo, regular season,
+division (Estándar/Avanzado/Statcast/Coeficientes) in both. MVP: Bateo and Pitcheo, regular season,
 De por vida (career) and Por temporada (a chosen season). Postemporada and Fildeo (per position) come
 next — the board queries already carry the `postseason`/`fielding_pos` dimensions for that.
 """
@@ -173,13 +173,22 @@ def _write_rank_once(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _board_rows(metric: Metric, scope: str, season: int | None, *, best: bool = True) -> list[dict[str, Any]]:
-    """Un extremo del tablero: los `_TOP_RANK` primeros puestos de mejores (o de peores)."""
+    """Un extremo del tablero: los `_TOP_RANK` puestos de una punta.
+
+    La tabla de arriba se lee de corrido (1, 2, 3…). La de abajo NO: es la COLA del mismo ranking, así
+    que se numera contando desde arriba y se ordena al revés, con el extremo de último. `dgl_leader`
+    guarda el tablero ascendente con su propio puesto 1 en el extremo, que escrito tal cual se leía
+    como un liderato — "1º en menos jonrones". Contar desde arriba necesita saber hasta dónde llega el
+    tablero completo, no solo los diez que se muestran: de ahí el Max sobre el board sin recortar.
+    """
     flag = _board_flag(scope, best=best)
     board = Leader.objects.filter(metric=metric, board=flag, postseason=False, fielding_pos=None)
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
-    board = board.filter(rank__lte=_TOP_RANK)
-    leaders = list(board.order_by("rank", "player__full_name").select_related("player"))
+    last = 0 if best else (board.aggregate(n=Max("rank"))["n"] or 0)
+    # Al invertir el orden, el desempate por nombre se queda ascendente: solo se voltean los puestos.
+    order = ("rank", "player__full_name") if best else ("-rank", "player__full_name")
+    leaders = list(board.filter(rank__lte=_TOP_RANK).order_by(*order).select_related("player"))
     # El verde solo va en los tableros de por vida, que es donde separa a quien sigue jugando de quien
     # ya es historia. En uno de temporada no distingue nada: en la última todos jugaron ese año por
     # definición, y en una reciente casi todos siguen activos, así que se pinta la tabla entera.
@@ -187,7 +196,7 @@ def _board_rows(metric: Metric, scope: str, season: int | None, *, best: bool = 
     seasons = _seasons_played(metric.stat_group, [row.player_id for row in leaders])
     return [
         {
-            "rank": row.rank,
+            "rank": row.rank if best else last - row.rank + 1,
             "name": row.player.full_name,
             "slug": row.player.slug,
             "player_id": row.player_id,

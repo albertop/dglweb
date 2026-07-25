@@ -215,8 +215,18 @@ def test_the_page_shows_best_and_worst_side_by_side() -> None:
     board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
 
     assert [column["label"] for column in board["columns"]] == ["Primeros 10", "Últimos 10"]
-    assert [r["name"] for r in board["columns"][0]["rows"]] == ["Bueno 1", "Bueno 2", "Bueno 3"]
-    assert [r["name"] for r in board["columns"][1]["rows"]] == ["Malo 1", "Malo 2", "Malo 3"]
+    assert [(r["rank"], r["name"]) for r in board["columns"][0]["rows"]] == [
+        (1, "Bueno 1"),
+        (2, "Bueno 2"),
+        (3, "Bueno 3"),
+    ]
+    # La segunda tabla es la COLA: se numera contando desde arriba (el tablero llega al puesto 3) y el
+    # extremo queda de último, no de primero.
+    assert [(r["rank"], r["name"]) for r in board["columns"][1]["rows"]] == [
+        (1, "Malo 3"),
+        (2, "Malo 2"),
+        (3, "Malo 1"),
+    ]
 
 
 @pytest.mark.django_db

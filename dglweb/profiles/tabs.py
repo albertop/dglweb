@@ -748,14 +748,14 @@ def _puestos_layout(group: str) -> list[tuple[str, list[str]]]:
         divisions = [
             ("Estándar", standard),
             ("Avanzado", [c.attr for c in columns.BATTING_ADVANCED]),
-            ("Sabermetría", [c.attr for c in columns.BATTING_STATCAST[2:]]),
+            ("Statcast", [c.attr for c in columns.BATTING_STATCAST[2:]]),
             ("Coeficientes", [c.attr for c in columns.BATTING_RATIOS[2:]]),
         ]
     else:
         divisions = [
             ("Estándar", [c.attr for c in columns.PITCHING_STANDARD]),
             ("Avanzado", [c.attr for c in columns.PITCHING_ADVANCED]),
-            ("Sabermetría", [c.attr for c in columns.PITCHING_STATCAST[2:]]),
+            ("Statcast", [c.attr for c in columns.PITCHING_STATCAST[2:]]),
             ("Coeficientes", [c.attr for c in columns.PITCHING_RATIOS[2:]]),
         ]
     seen: set[str] = set()
