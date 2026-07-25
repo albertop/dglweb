@@ -283,6 +283,14 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* Total incompleto: el jugador ya jugaba antes de que la métrica se registrara (los batazos y
    coeficientes arrancan en 1989). En rojo para que no se confunda con el resto del nombre. */
 .dgl-partial { color: var(--dgl-red); font-weight: 800; }
+/* Entradilla de una página de sección: explica qué es y cómo se usa, antes de los controles. Serif
+   como el cuerpo de los artículos —es prosa, no dato— pero más chica que .dgl-prose, que está hecha
+   para leerse de corrido y acá solo son dos párrafos de contexto. */
+.dgl-lede {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 1.02rem; line-height: 1.6; color: var(--dgl-ink); max-width: 46rem;
+}
+.dgl-lede p { margin-bottom: .6rem; }
 /* Señal de carga entre un clic y la página nueva. El velo va casi transparente a propósito: la tabla
    vieja se sigue leyendo, así que se entiende que está por cambiar y no que desapareció. */
 .dgl-loading { position: fixed; inset: 0; z-index: 1080; display: none; background: rgba(255,255,255,.5); }
