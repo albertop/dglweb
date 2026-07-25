@@ -22,10 +22,10 @@ from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching
 
 _GROUPS: list[tuple[str, str]] = [("batting", "Bateo"), ("pitching", "Pitcheo")]
 _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por temporada")]
-# Hasta qué PUESTO llega cada tabla (no cuántas filas): un empate en el último puesto entra completo,
-# así que un top-10 con tres empatados en el 10 muestra 12 filas. La página pone dos tablas en
-# paralelo — los diez mejores y los diez peores — así que este número vale para ambas puntas.
-_TOP_RANK = 10
+# Hasta qué PUESTO llega cada tabla (no cuántas filas): un empate en el último entra completo, así que
+# un top-15 con tres empatados en el 15 muestra 17 filas. Vale para las dos puntas, y los rótulos
+# ("Primeros 15", "Los 15 más altos") se escriben desde acá. Los tests lo leen en vez de repetirlo.
+_TOP_RANK = 15
 # Display format per (group, column), read from the same column lists the profile tables use, so a
 # leader value is written exactly like it is on a player page (ERA 2.93, AVG .318, HR 703).
 _COLUMN_FMT: dict[tuple[str, str], str] = {}

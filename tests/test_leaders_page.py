@@ -7,7 +7,7 @@ from django.test import Client
 from django.urls import reverse
 
 from dglweb.players.models import Player
-from dglweb.profiles.leaderboards import leaders_context
+from dglweb.profiles.leaderboards import _TOP_RANK, leaders_context
 from dglweb.stats.models import Leader, Metric
 from tests.test_players import _other_player
 
@@ -164,26 +164,31 @@ def test_a_season_board_marks_nobody_as_active() -> None:
 
 @pytest.mark.django_db
 def test_boards_cut_by_rank_and_keep_the_whole_tie() -> None:
-    """Cada tabla llega al puesto 10 y el empate del último puesto entra entero, aunque pase de 10 filas."""
+    """Cada tabla llega hasta `_TOP_RANK` PUESTOS, y el empate del último entra entero aunque pase.
+
+    Atado a la constante a propósito: el número es una decisión editorial que ya cambió de 20 a 10 y
+    de 10 a 15, y escrito a mano acá el test se rompía cada vez sin que nada estuviera mal.
+    """
     hr = _metric("batting", "hr", "HR")
-    for rank in range(1, 31):  # puestos 1..30 en ambos tableros
+    ultimo = _TOP_RANK
+    for rank in range(1, ultimo + 21):  # bastante más allá del corte, en ambos tableros
         jugador = _player(100 + rank, f"c{rank:02d}", f"Carrera {rank}")
         _leader(hr, jugador, rank, 500.0 - rank)
-    for rank in range(1, 16):
+    for rank in range(1, ultimo + 6):
         jugador = _player(200 + rank, f"t{rank:02d}", f"Temporada {rank}")
         _leader(hr, jugador, rank, 50.0 - rank, season=2020, career=False)
-    empatado = _player(299, "t99", "Empatado E")  # tercero en el puesto 10 de la temporada
-    _leader(hr, empatado, 10, 40.0, season=2020, career=False)
+    empatado = _player(299, "t99", "Empatado E")  # segundo en el último puesto que entra
+    _leader(hr, empatado, ultimo, 50.0 - ultimo, season=2020, career=False)
 
     carrera = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
     temporada = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2020")
 
-    assert max(r["rank"] for r in _best(carrera)) == 10
-    assert len(_best(carrera)) == 10
-    assert max(r["rank"] for r in _best(temporada)) == 10
-    # 10 puestos, pero 11 filas: el puesto 10 lo comparten dos jugadores y ninguno se corta.
-    assert len(_best(temporada)) == 11
-    assert [r["tie"] for r in _best(temporada) if r["rank"] == 10] == [True, True]
+    assert max(r["rank"] for r in _best(carrera)) == ultimo
+    assert len(_best(carrera)) == ultimo
+    assert max(r["rank"] for r in _best(temporada)) == ultimo
+    # Los puestos que tocan, pero una fila de más: el último lo comparten dos y ninguno se corta.
+    assert len(_best(temporada)) == ultimo + 1
+    assert [r["tie"] for r in _best(temporada) if r["rank"] == ultimo] == [True, True]
 
 
 @pytest.mark.django_db
@@ -214,7 +219,7 @@ def test_the_page_shows_best_and_worst_side_by_side() -> None:
 
     board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
 
-    assert [column["label"] for column in board["columns"]] == ["Primeros 10", "Últimos 10"]
+    assert [column["label"] for column in board["columns"]] == [f"Primeros {_TOP_RANK}", f"Últimos {_TOP_RANK}"]
     assert [(r["rank"], r["name"]) for r in board["columns"][0]["rows"]] == [
         (1, "Bueno 1"),
         (2, "Bueno 2"),
@@ -240,7 +245,10 @@ def test_a_descriptive_metric_labels_its_two_ends_by_height_not_by_merit() -> No
         "board"
     ]
 
-    assert [column["label"] for column in board["columns"]] == ["Los 10 más altos", "Los 10 más bajos"]
+    assert [column["label"] for column in board["columns"]] == [
+        f"Los {_TOP_RANK} más altos",
+        f"Los {_TOP_RANK} más bajos",
+    ]
 
 
 @pytest.mark.django_db
