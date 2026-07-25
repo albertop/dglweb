@@ -7,7 +7,7 @@ De por vida (career) and Por temporada (a chosen season). Postemporada and Filde
 next — the board queries already carry the `postseason`/`fielding_pos` dimensions for that.
 """
 
-from collections import Counter
+from itertools import groupby
 from typing import Any
 from urllib.parse import urlencode
 
@@ -22,7 +22,10 @@ from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching
 
 _GROUPS: list[tuple[str, str]] = [("batting", "Bateo"), ("pitching", "Pitcheo")]
 _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por temporada")]
-_TOP_N = 25
+# Hasta qué PUESTO llega cada tablero (no cuántas filas): un empate en el último puesto entra
+# completo, así que un top-25 con tres jugadores empatados en el 25 muestra 27 filas. De por vida da
+# para 25 (es el registro histórico); una temporada suelta se corta en 10.
+_TOP_RANK: dict[str, int] = {"carrera": 25, "temporada": 10}
 # Display format per (group, column), read from the same column lists the profile tables use, so a
 # leader value is written exactly like it is on a player page (ERA 2.93, AVG .318, HR 703).
 _COLUMN_FMT: dict[tuple[str, str], str] = {}
@@ -121,20 +124,32 @@ def _board_rows(metric: Metric, scope: str, season: int | None) -> list[dict[str
     board = Leader.objects.filter(metric=metric, board=_board_flag(scope), postseason=False, fielding_pos=None)
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
-    leaders = list(board.order_by("rank", "player__full_name").select_related("player")[:_TOP_N])
-    shared = {rank for rank, count in Counter(row.rank for row in leaders).items() if count > 1}
-    active = _active_players([row.player_id for row in leaders], _latest_season())
-    return [
-        {
-            "rank": row.rank,
-            "tie": row.rank in shared,
-            "name": row.player.full_name,
-            "slug": row.player.slug,
-            "active": row.player_id in active,  # jugó la última temporada registrada → sigue activo
-            "value": _format(metric.stat_group, metric.column, row.value),
-        }
-        for row in leaders
-    ]
+    board = board.filter(rank__lte=_TOP_RANK[scope])
+    leaders = list(board.order_by("rank", "player__full_name").select_related("player"))
+    latest = _latest_season()
+    # En el board de la ÚLTIMA temporada, todo el que aparece jugó ese año por definición: pintar
+    # todas las filas de verde no distingue a nadie. Ahí no se marca a nadie como activo.
+    every_row_is_active = scope == "temporada" and season is not None and season == latest
+    active = set() if every_row_is_active else _active_players([row.player_id for row in leaders], latest)
+    # Una fila por jugador, pero en un empate el puesto y el valor se escriben UNA sola vez: solo la
+    # primera fila del grupo los lleva (`leads`), las demás dejan esas celdas vacías. `leaders` ya
+    # viene ordenado por rank, que es lo que groupby necesita.
+    rows: list[dict[str, Any]] = []
+    for _, group in groupby(leaders, key=lambda row: row.rank):
+        tied = list(group)
+        for position, row in enumerate(tied):
+            rows.append(
+                {
+                    "rank": row.rank,
+                    "tie": len(tied) > 1,
+                    "leads": position == 0,  # ¿abre el empate (escribe puesto y valor) o lo repite?
+                    "name": row.player.full_name,
+                    "slug": row.player.slug,
+                    "active": row.player_id in active,  # jugó la última temporada registrada
+                    "value": _format(metric.stat_group, metric.column, row.value),
+                }
+            )
+    return rows
 
 
 def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season: str) -> dict[str, Any]:
@@ -164,6 +179,7 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
         chosen_season = int(season) if season.isdigit() and int(season) in season_years else season_years[0]
 
     state = {"g": group, "d": tab, "scope": scope, "m": metric.column, "season": str(chosen_season or "")}
+    rows = _board_rows(metric, scope, chosen_season)
 
     return {
         "groups": [
@@ -196,7 +212,10 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             "qualifier": _qualifier_note(metric, scope),
             "available_from": metric.available_from,  # "disponible desde YYYY" cuando aplica (Statcast)
             "scope_label": f"temporada {chosen_season}" if scope == "temporada" else "de por vida",
-            "rows": _board_rows(metric, scope, chosen_season),
+            "rows": rows,
+            # La leyenda del verde solo tiene sentido si alguna fila está marcada (no la hay en el
+            # board de la última temporada, ni en uno viejo donde ya todos se retiraron).
+            "shows_active": any(row["active"] for row in rows),
         },
         "group_label": dict(_GROUPS)[group],
         "scope_key": scope,

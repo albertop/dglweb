@@ -219,7 +219,6 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    ancho fijo: eso encajonaba el número en 1.6rem al borde izquierdo de una columna ancha y dejaba el
    resto de la celda en blanco. El ancho se fija en la columna (th) y el número se centra. */
 .dgl-rank { color: var(--dgl-muted); }
-.dgl-rank-1 { color: var(--dgl-red); font-weight: 800; }
 .dgl-leaders-table .dgl-rank-col { width: 3rem; }
 .dgl-lead-name { font-weight: 700; }
 .dgl-lead-val { font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -273,10 +272,8 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-active-swatch { display: inline-block; width: 1.4rem; height: .85rem; vertical-align: middle;
   background: var(--lead-season); border: 1px solid var(--dgl-line); border-radius: 3px; }
 /* La columna de nombre no es un número: fuente del cuerpo, alineada a la izquierda; el valor va en
-   la mono de la tabla, en negrita, a la derecha (default de dgl-stats-table). */
+   la mono de la tabla. Sin negrita: cuando TODAS las filas la llevan no resalta nada, solo pesa. */
 .dgl-leaders-table thead th:nth-child(2) { text-align: left; }
-.dgl-leaders-table td.dgl-leader-name { text-align: left; font-family: var(--bs-body-font-family, system-ui, sans-serif);
-  font-weight: 700; }
+.dgl-leaders-table td.dgl-leader-name { text-align: left; font-family: var(--bs-body-font-family, system-ui, sans-serif); }
 .dgl-leaders-table td.dgl-leader-name a { color: var(--dgl-ink); }
 .dgl-leaders-table td.dgl-leader-name a:hover { color: var(--dgl-blue); }
-.dgl-leaders-table td.dgl-leader-val { font-weight: 800; }
