@@ -210,3 +210,13 @@ def test_innings_convert_to_a_summable_outs_column() -> None:
     assert map_fielding({"INN": "111.0"})["innings_outs"] == 333
     assert map_fielding({"INN": "9"})["innings_outs"] == 27
     assert map_fielding({})["innings_outs"] is None
+
+
+def test_impossible_innings_fractions_are_rejected_not_guessed() -> None:
+    """Review v4 DEV-04: `.1`/`.2` son los únicos outs válidos; `.3`, `.9`, `.25` o basura no existen
+    en notación beisbolera y deben dar None, no un outs plausible-pero-falso."""
+    assert map_fielding({"INN": "111.3"})["innings_outs"] is None  # .3 sería una entrada completa
+    assert map_fielding({"INN": "111.9"})["innings_outs"] is None
+    assert map_fielding({"INN": "111.25"})["innings_outs"] is None  # antes truncaba a .2 en silencio
+    assert map_fielding({"INN": "abc"})["innings_outs"] is None
+    assert map_fielding({"INN": "111.1.2"})["innings_outs"] is None

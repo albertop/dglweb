@@ -50,17 +50,19 @@ def _to_float(value: str | int | float | None) -> float | None:
 
 
 def _innings_to_outs(value: str | int | float | None) -> int | None:
-    """`"111.1"` (baseball notation: 111 innings + 1 out) -> 334 outs. `.1`/`.2` are OUTS."""
+    """`"111.1"` (baseball notation: 111 innings + 1 out) -> 334 outs. `.1`/`.2` are OUTS.
+
+    The fraction is a count of outs into the next inning, so it can only be 0, 1 or 2 — `.3` would be
+    a whole inning. Anything else (`.3`, `.9`, `.25`, a stray digit, garbage) is malformed and returns
+    `None` rather than a plausible-but-false outs count that would silently poison totals, RF/9 and the
+    fielding leaderboards (review v4 DEV-04). Ingest fails soft here; a real gap surfaces in parity.
+    """
     if value is None:
         return None
     whole, _, frac = str(value).strip().partition(".")
-    try:
-        outs = int(whole or 0) * 3
-        if frac:
-            outs += int(frac[0])  # the tenths digit is a count of outs (0, 1 or 2)
-    except ValueError:
+    if (whole and not whole.isdigit()) or frac not in ("", "0", "1", "2"):
         return None
-    return outs
+    return int(whole or 0) * 3 + int(frac or 0)
 
 
 def map_fielding(stat: dict[str, Any]) -> dict[str, Any]:

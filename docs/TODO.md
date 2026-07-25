@@ -107,9 +107,11 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   `_postseason_leaders` / `_postseason_rate_leaders` gatean el board de carrera por `best_career` y el
   de temporada por `best_season`; los predicados `_wants_postseason*` saltan si no se quiere ninguno.
   Con test. (No hubo que reconstruir: 0 métricas de octubre tenían un flag apagado.)
-- [ ] **DEV-04 — `_innings_to_outs` acepta fracciones imposibles (.3, .9, .25).** De acuerdo. El
-  parser solo mira el primer dígito. Fix: validar que la fracción sea 0/1/2 y fallar-loud/`None` en
-  ingest. Toca paridad, así que con cuidado + tests (.3/.9/basura). Pendiente.
+- [x] **DEV-04 — `_innings_to_outs` acepta fracciones imposibles (.3, .9, .25).** **Corregido**:
+  la fracción solo puede ser vacío/0/1/2; cualquier otra cosa (`.3`, `.9`, `.25`, basura, doble punto)
+  retorna `None` en vez de un outs plausible-pero-falso. Fail-soft en ingest → sale como disparidad en
+  paridad. Tests para `.3`/`.9`/`.25`/`abc`/`111.1.2`. (No re-ingesté: la fuente manda notación válida;
+  si algún día se re-ingesta fildeo, un valor malo pasaría a NULL y saltaría en paridad.)
 - [ ] **DEV-05 — todos los tabs se calculan por request.** Ya conocido (v3 DEV-01). Carga diferida
   (HTMX/endpoints por tab) sigue pendiente; el test de presupuesto de queries es el guardarrail.
 - [ ] **SAB-02 — panel de receptor sin CS% ni contexto de volumen.** De acuerdo. Derivar
