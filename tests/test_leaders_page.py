@@ -1,5 +1,7 @@
 """The public leaders page (/lideres/): board building, navigation, and the view."""
 
+from typing import Any
+
 import pytest
 from django.test import Client
 from django.urls import reverse
@@ -44,6 +46,33 @@ def _leader(
     )
 
 
+def _worst_leader(
+    metric: Metric, player: Player, rank: int, value: float, *, season: int | None = None, career: bool = True
+) -> None:
+    """Una fila del tablero de peores — el que alimenta la tabla de la derecha."""
+    Leader.objects.create(
+        metric=metric,
+        board=Leader.Board.WORST_CAREER if career else Leader.Board.WORST_SEASON,
+        season=season,
+        player=player,
+        value=value,
+        rank=rank,
+        postseason=False,
+    )
+
+
+def _best(ctx: dict[str, Any]) -> list[dict[str, Any]]:
+    """Las filas de la tabla de los primeros (la primera columna del tablero)."""
+    rows: list[dict[str, Any]] = ctx["board"]["columns"][0]["rows"]
+    return rows
+
+
+def _worst(ctx: dict[str, Any]) -> list[dict[str, Any]]:
+    """Las filas de la tabla de los últimos, o [] si esta métrica/selección no la trae."""
+    columns: list[dict[str, Any]] = ctx["board"]["columns"]
+    return columns[1]["rows"] if len(columns) > 1 else []
+
+
 @pytest.mark.django_db
 def test_career_board_ranks_and_formats_values() -> None:
     """De por vida: filas en orden de puesto, valor formateado como en el perfil, nombre enlazado."""
@@ -54,7 +83,7 @@ def test_career_board_ranks_and_formats_values() -> None:
     _leader(hr, sosa, 2, 609.0)
 
     ctx = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
-    rows = ctx["board"]["rows"]
+    rows = _best(ctx)
 
     assert [(r["rank"], r["name"], r["value"]) for r in rows] == [(1, "Albert Pujols", "703"), (2, "Sammy Sosa", "609")]
     assert ctx["board"]["name"] == "Jonrones" and ctx["board"]["abbr"] == "HR"
@@ -83,7 +112,7 @@ def test_season_scope_lists_years_newest_first_and_filters_the_board() -> None:
     ctx = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="1998")
 
     assert [y["year"] for y in ctx["seasons"]] == [2000, 1998]  # más reciente primero
-    assert [(r["name"], r["value"]) for r in ctx["board"]["rows"]] == [("Sammy Sosa", "66")]  # solo 1998
+    assert [(r["name"], r["value"]) for r in _best(ctx)] == [("Sammy Sosa", "66")]  # solo 1998
 
 
 @pytest.mark.django_db
@@ -100,7 +129,7 @@ def test_active_player_is_flagged_when_he_played_the_latest_season() -> None:
     Batting.objects.create(player=retirado, season=2010, stint=1, hr=40)  # temporada vieja -> no
 
     ctx = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
-    active = {r["name"]: r["active"] for r in ctx["board"]["rows"]}
+    active = {r["name"]: r["active"] for r in _best(ctx)}
 
     assert active["Activo A"] is True
     assert active["Retirado R"] is False
@@ -121,13 +150,13 @@ def test_the_latest_season_board_marks_nobody_as_active() -> None:
 
     ctx = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2025")
 
-    assert [r["active"] for r in ctx["board"]["rows"]] == [False, False]
+    assert [r["active"] for r in _best(ctx)] == [False, False]
     assert ctx["board"]["shows_active"] is False  # sin filas marcadas, la leyenda tampoco va
 
 
 @pytest.mark.django_db
 def test_boards_cut_by_rank_and_keep_the_whole_tie() -> None:
-    """De por vida llega al puesto 20 y una temporada al 10; el empate del último puesto entra entero."""
+    """Cada tabla llega al puesto 10 y el empate del último puesto entra entero, aunque pase de 10 filas."""
     hr = _metric("batting", "hr", "HR")
     for rank in range(1, 31):  # puestos 1..30 en ambos tableros
         jugador = _player(100 + rank, f"c{rank:02d}", f"Carrera {rank}")
@@ -141,12 +170,12 @@ def test_boards_cut_by_rank_and_keep_the_whole_tie() -> None:
     carrera = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
     temporada = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2020")
 
-    assert max(r["rank"] for r in carrera["board"]["rows"]) == 20
-    assert len(carrera["board"]["rows"]) == 20
-    assert max(r["rank"] for r in temporada["board"]["rows"]) == 10
+    assert max(r["rank"] for r in _best(carrera)) == 10
+    assert len(_best(carrera)) == 10
+    assert max(r["rank"] for r in _best(temporada)) == 10
     # 10 puestos, pero 11 filas: el puesto 10 lo comparten dos jugadores y ninguno se corta.
-    assert len(temporada["board"]["rows"]) == 11
-    assert [r["tie"] for r in temporada["board"]["rows"] if r["rank"] == 10] == [True, True]
+    assert len(_best(temporada)) == 11
+    assert [r["tie"] for r in _best(temporada) if r["rank"] == 10] == [True, True]
 
 
 @pytest.mark.django_db
@@ -157,9 +186,7 @@ def test_a_tie_writes_the_rank_and_value_only_on_its_first_row() -> None:
     _leader(hr, _player(41, "x02", "Beto B"), 1, 40.0)  # empatado en el 1
     _leader(hr, _player(42, "x03", "Ciro C"), 2, 30.0)  # sin empate
 
-    rows = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"][
-        "rows"
-    ]
+    rows = _best(leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season=""))
 
     assert [(r["name"], r["rank"], r["leads"]) for r in rows] == [
         ("Ana A", 1, True),  # abre el empate: escribe "1" y "40"
@@ -169,34 +196,53 @@ def test_a_tie_writes_the_rank_and_value_only_on_its_first_row() -> None:
 
 
 @pytest.mark.django_db
-def test_the_board_splits_at_rank_ten_so_a_tie_is_never_broken() -> None:
-    """Izquierda = top 10, derecha = 11 en adelante. Un empate en el 10 se queda entero a la izquierda."""
+def test_the_page_shows_best_and_worst_side_by_side() -> None:
+    """Dos tablas: Mejores (tablero best) a la izquierda y Peores (tablero worst) a la derecha."""
     hr = _metric("batting", "hr", "HR")
-    for rank in range(1, 21):
-        _leader(hr, _player(300 + rank, f"s{rank:02d}", f"Uno {rank:02d}"), rank, 500.0 - rank)
-    _leader(hr, _player(398, "s98", "Empate B"), 10, 490.0)  # empate justo en el corte
-    _leader(hr, _player(399, "s99", "Empate C"), 10, 490.0)
+    for rank in range(1, 4):
+        _leader(hr, _player(300 + rank, f"s{rank:02d}", f"Bueno {rank}"), rank, 500.0 - rank)
+    for rank in range(1, 4):
+        _worst_leader(hr, _player(320 + rank, f"w{rank:02d}", f"Malo {rank}"), rank, float(rank))
 
     board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
-    izquierda, derecha = board["columns"]
 
-    assert izquierda + derecha == board["rows"]  # se reparten todas las filas, sin perder ninguna
-    assert max(r["rank"] for r in izquierda) == 10
-    assert [r["rank"] for r in derecha] == list(range(11, 21))
-    assert len(izquierda) == 12  # diez PUESTOS, doce jugadores: el empate del 10 no se parte
+    assert [column["label"] for column in board["columns"]] == ["Primeros 10", "Últimos 10"]
+    assert [r["name"] for r in board["columns"][0]["rows"]] == ["Bueno 1", "Bueno 2", "Bueno 3"]
+    assert [r["name"] for r in board["columns"][1]["rows"]] == ["Malo 1", "Malo 2", "Malo 3"]
 
 
 @pytest.mark.django_db
-def test_a_board_that_never_reaches_rank_eleven_stays_in_one_column() -> None:
-    """Cualquier tablero de temporada (top 10) cabe en una sola columna."""
+def test_a_player_in_both_ends_is_dropped_from_the_worst_table() -> None:
+    """Con pocos calificados las puntas se solapan: quien sale de líder no puede salir de colista."""
     hr = _metric("batting", "hr", "HR")
-    for rank in range(1, 11):
-        _leader(hr, _player(400 + rank, f"p{rank:02d}", f"Corto {rank}"), rank, 100.0 - rank, season=2020, career=False)
+    lider = _player(500, "y01", "Líder L")
+    medio = _player(501, "y02", "Medio M")
+    _leader(hr, lider, 1, 50.0)
+    _leader(hr, medio, 2, 10.0)
+    _worst_leader(hr, medio, 1, 10.0)  # el mismo jugador en las dos puntas
+    _worst_leader(hr, lider, 2, 50.0)
 
-    board = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2020")["board"]
+    board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
 
-    assert len(board["columns"]) == 1
-    assert board["columns"][0] == board["rows"]
+    assert [r["name"] for r in board["columns"][0]["rows"]] == ["Líder L", "Medio M"]
+    assert len(board["columns"]) == 1  # los dos de Peores ya salieron en Mejores: la tabla se cae
+
+
+@pytest.mark.django_db
+def test_the_worst_table_rewrites_the_rank_after_dropping_a_repeat() -> None:
+    """Si el que abría un empate se fue por repetido, el puesto pasa al que quedó (no queda huérfano)."""
+    hr = _metric("batting", "hr", "HR")
+    repetido = _player(600, "z01", "Repetido R")
+    queda = _player(601, "z02", "Queda Q")
+    otro = _player(602, "z03", "Otro O")
+    _leader(hr, repetido, 1, 50.0)  # sale en Mejores
+    _leader(hr, otro, 2, 40.0)
+    _worst_leader(hr, repetido, 1, 5.0)  # empatados en el puesto 1 de Peores
+    _worst_leader(hr, queda, 1, 5.0)
+
+    peores = _worst(leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season=""))
+
+    assert [(r["name"], r["rank"], r["leads"], r["tie"]) for r in peores] == [("Queda Q", 1, True, False)]
 
 
 @pytest.mark.django_db
@@ -207,7 +253,7 @@ def test_shared_rank_is_flagged_as_a_tie() -> None:
 
     ctx = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
 
-    assert all(r["tie"] for r in ctx["board"]["rows"])
+    assert all(r["tie"] for r in _best(ctx))
 
 
 @pytest.mark.django_db

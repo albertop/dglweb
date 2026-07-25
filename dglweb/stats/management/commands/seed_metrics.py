@@ -547,6 +547,14 @@ _ABBREV_OVERRIDE: dict[tuple[str, str], str] = {("batting", "IsoP"): "ISO"}
 # direction) and enters BOTH best-season and best-career. The "negative" counts (WP, HBP, IBB, BSv,
 # throwing errors) rank by the MOST, like GIDP/BK — a "fewest" board ties at zero. Rates inherit the
 # group qualifier (PA/IP/G) via the cascade. All of it is tunable in the Backoffice.
+# Métricas sin tablero de "peores", por dos razones distintas:
+#   * Reparto de batazos (GB%, FB%, LD%, PU%, GB/FB): describen un perfil, no una virtud. Un GB% alto
+#     no es mejor ni peor que uno bajo, así que "los peores GB%" no significa nada.
+#   * Tiempo de juego (G, PA, AB): el tablero de peores ya exige el umbral de calificación, así que
+#     "menos turnos" entre calificados solo lista a quien apenas lo pasó — es el umbral mirándose al
+#     espejo, no una marca. (decisión del dueño)
+_NO_WORST_BOARD: frozenset[str] = frozenset({"gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb", "g", "gp", "pa", "ab"})
+
 _ACTIVATE: dict[tuple[str, str], tuple[str, str, str]] = {  # (abbrev, name_es, direction "+"/"-")
     ("batting", "war"): ("WAR", "Victorias sobre reemplazo", "+"),
     ("batting", "rar"): ("RAR", "Carreras sobre reemplazo", "+"),
@@ -638,7 +646,11 @@ def _rows() -> list[dict[str, Any]]:
             if activation:
                 abbrev, name_es, sign = activation
                 direction = Metric.Direction.HIGHER if sign == "+" else Metric.Direction.LOWER
+                # Los cuatro tableros: la página de líderes muestra el top-10 y el bottom-10 lado a
+                # lado, así que una métrica sin `worst_*` saldría con media página vacía. Los
+                # coeficientes descriptivos quedan fuera: en GB% o LD% no hay mejor ni peor.
                 bs = bc = act = 1
+                ws = wc = 0 if field.name in _NO_WORST_BOARD else 1
 
             rows.append(
                 {

@@ -7,7 +7,7 @@ De por vida (career) and Por temporada (a chosen season). Postemporada and Filde
 next — the board queries already carry the `postseason`/`fielding_pos` dimensions for that.
 """
 
-from itertools import groupby
+from collections import Counter
 from typing import Any
 from urllib.parse import urlencode
 
@@ -22,14 +22,10 @@ from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching
 
 _GROUPS: list[tuple[str, str]] = [("batting", "Bateo"), ("pitching", "Pitcheo")]
 _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por temporada")]
-# Hasta qué PUESTO llega cada tablero (no cuántas filas): un empate en el último puesto entra
-# completo, así que un top-25 con tres jugadores empatados en el 25 muestra 27 filas. De por vida da
-# para 25 (es el registro histórico); una temporada suelta se corta en 10.
-_TOP_RANK: dict[str, int] = {"carrera": 20, "temporada": 10}
-# Dónde se parte el tablero en dos columnas paralelas: el top 10 a la izquierda y del 11 en adelante
-# a la derecha. Al cortar por PUESTO (y no por número de filas) un empate nunca queda partido, porque
-# todos los que comparten puesto caen del mismo lado.
-_SPLIT_AT_RANK = 10
+# Hasta qué PUESTO llega cada tabla (no cuántas filas): un empate en el último puesto entra completo,
+# así que un top-10 con tres empatados en el 10 muestra 12 filas. La página pone dos tablas en
+# paralelo — los diez mejores y los diez peores — así que este número vale para ambas puntas.
+_TOP_RANK = 10
 # Display format per (group, column), read from the same column lists the profile tables use, so a
 # leader value is written exactly like it is on a player page (ERA 2.93, AVG .318, HR 703).
 _COLUMN_FMT: dict[tuple[str, str], str] = {}
@@ -59,8 +55,10 @@ def _format(group: str, column: str, value: float) -> str:
     return columns._FORMATS[fmt](value)
 
 
-def _board_flag(scope: str) -> str:
-    return Leader.Board.BEST_CAREER if scope == "carrera" else Leader.Board.BEST_SEASON
+def _board_flag(scope: str, *, best: bool = True) -> str:
+    if scope == "carrera":
+        return Leader.Board.BEST_CAREER if best else Leader.Board.WORST_CAREER
+    return Leader.Board.BEST_SEASON if best else Leader.Board.WORST_SEASON
 
 
 def _division_metrics(group: str, scope: str) -> list[tuple[str, list[Metric]]]:
@@ -83,9 +81,18 @@ def _direction_label(metric: Metric) -> str:
     return "Más es mejor" if higher else "Menos es mejor"
 
 
-def _qualifier_note(metric: Metric, scope: str) -> str:
-    """The minimum to qualify, for rate boards (counts carry none). Blank when there is no threshold."""
-    if metric.kind != Metric.Kind.RATE and metric.direction != Metric.Direction.LOWER:
+def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool) -> str:
+    """La frase del pie que explica el umbral. Vacía cuando no hay ninguno.
+
+    Cuál de las dos tablas filtra depende del tipo de métrica, y por eso la frase cambia:
+      * Una tasa se distorsiona en muestras chicas por los dos lados, así que el umbral vale para las
+        dos tablas.
+      * Un conteo solo lo necesita en Últimos: "más jonrones" no se logra en veinte turnos, pero
+        "menos jonrones" sin piso lo gana el que apenas jugó. Decirle "mínimo para calificar" a secas
+        haría pensar que también recorta a los líderes, y no es así.
+    """
+    is_rate = metric.kind == Metric.Kind.RATE
+    if not is_rate and not has_worst:
         return ""
     defaults, _ = _qualifier_context()
     formula = (
@@ -93,7 +100,12 @@ def _qualifier_note(metric: Metric, scope: str) -> str:
         if scope == "carrera"
         else qualifier.resolve_season(metric, 0, defaults, {})
     )
-    return _pretty_qualifier(formula) if formula else ""
+    if not formula:
+        return ""
+    pretty = _pretty_qualifier(formula)
+    if is_rate:
+        return f"Mínimo para calificar: {pretty}."
+    return f"Mínimo para entrar en Últimos {_TOP_RANK}: {pretty}. Los primeros no llevan umbral."
 
 
 def _link(state: dict[str, str], **changes: str | None) -> str:
@@ -124,48 +136,88 @@ def _active_players(player_ids: list[int], latest: int | None) -> set[int]:
     return active
 
 
-def _split_in_columns(rows: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
-    """Parte el tablero en dos columnas paralelas para que no quede una lista larga y estrecha.
+def _seasons_played(group: str, player_ids: list[int]) -> dict[int, int]:
+    """Cuántas temporadas jugó cada uno, contadas como en su perfil.
 
-    Siempre el top 10 a la izquierda y del 11 en adelante a la derecha, así el lector sabe de antemano
-    qué hay en cada lado. Con empates la izquierda puede pasar de diez filas (diez PUESTOS, no diez
-    jugadores). Un tablero que no llega al 11 —cualquiera de temporada— se queda en una sola columna.
+    Temporadas DISTINTAS de la tabla del oficio de la métrica, no la resta entre el último año y el
+    primero: quien se perdió tres años por lesión jugó tres menos, y un año repartido entre dos
+    equipos son varias filas pero una sola temporada. Es el mismo criterio del `season_count` del
+    perfil, así que el número coincide con el que ve el usuario en la página del jugador.
+
+    `order_by()` limpia el orden del modelo: si no, sus columnas se cuelan en el SELECT y el DISTINCT
+    deja de contar (player, season) para contar filas.
     """
-    left = [row for row in rows if row["rank"] <= _SPLIT_AT_RANK]
-    right = [row for row in rows if row["rank"] > _SPLIT_AT_RANK]
-    return [left, right] if right else [left]
+    if not player_ids:
+        return {}
+    model = Batting if group == "batting" else Pitching
+    pairs = model.objects.filter(player_id__in=player_ids).order_by().values_list("player_id", "season").distinct()
+    counts: dict[int, int] = {}
+    for player_id, _ in pairs:
+        counts[player_id] = counts.get(player_id, 0) + 1
+    return counts
 
 
-def _board_rows(metric: Metric, scope: str, season: int | None) -> list[dict[str, Any]]:
-    board = Leader.objects.filter(metric=metric, board=_board_flag(scope), postseason=False, fielding_pos=None)
+def _write_rank_once(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Marca qué fila escribe el puesto y el valor: la primera de cada empate, el resto los deja vacíos.
+
+    Se aplica DESPUÉS de descartar a los repetidos entre las dos tablas, no antes: si el que abría un
+    empate es justo el que se fue, el puesto tiene que pasar al que quedó o esa fila saldría huérfana.
+    """
+    shared = Counter(row["rank"] for row in rows)
+    seen: set[int] = set()
+    for row in rows:
+        row["tie"] = shared[row["rank"]] > 1
+        row["leads"] = row["rank"] not in seen
+        seen.add(row["rank"])
+    return rows
+
+
+def _board_rows(metric: Metric, scope: str, season: int | None, *, best: bool = True) -> list[dict[str, Any]]:
+    """Un extremo del tablero: los `_TOP_RANK` primeros puestos de mejores (o de peores)."""
+    flag = _board_flag(scope, best=best)
+    board = Leader.objects.filter(metric=metric, board=flag, postseason=False, fielding_pos=None)
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
-    board = board.filter(rank__lte=_TOP_RANK[scope])
+    board = board.filter(rank__lte=_TOP_RANK)
     leaders = list(board.order_by("rank", "player__full_name").select_related("player"))
     latest = _latest_season()
     # En el board de la ÚLTIMA temporada, todo el que aparece jugó ese año por definición: pintar
     # todas las filas de verde no distingue a nadie. Ahí no se marca a nadie como activo.
     every_row_is_active = scope == "temporada" and season is not None and season == latest
     active = set() if every_row_is_active else _active_players([row.player_id for row in leaders], latest)
-    # Una fila por jugador, pero en un empate el puesto y el valor se escriben UNA sola vez: solo la
-    # primera fila del grupo los lleva (`leads`), las demás dejan esas celdas vacías. `leaders` ya
-    # viene ordenado por rank, que es lo que groupby necesita.
-    rows: list[dict[str, Any]] = []
-    for _, group in groupby(leaders, key=lambda row: row.rank):
-        tied = list(group)
-        for position, row in enumerate(tied):
-            rows.append(
-                {
-                    "rank": row.rank,
-                    "tie": len(tied) > 1,
-                    "leads": position == 0,  # ¿abre el empate (escribe puesto y valor) o lo repite?
-                    "name": row.player.full_name,
-                    "slug": row.player.slug,
-                    "active": row.player_id in active,  # jugó la última temporada registrada
-                    "value": _format(metric.stat_group, metric.column, row.value),
-                }
-            )
-    return rows
+    seasons = _seasons_played(metric.stat_group, [row.player_id for row in leaders])
+    return [
+        {
+            "rank": row.rank,
+            "name": row.player.full_name,
+            "slug": row.player.slug,
+            "player_id": row.player_id,
+            "active": row.player_id in active,  # jugó la última temporada registrada
+            "seasons": seasons.get(row.player_id, 0),
+            "value": _format(metric.stat_group, metric.column, row.value),
+        }
+        for row in leaders
+    ]
+
+
+def _best_and_worst(metric: Metric, scope: str, season: int | None) -> list[dict[str, Any]]:
+    """Las dos tablas paralelas: mejores a la izquierda, peores a la derecha.
+
+    Cuando hay pocos calificados las dos puntas se solapan y un mismo jugador sale de líder y de
+    colista a la vez. Ahí manda el lado bueno: el repetido se quita de "Peores". Si con eso la tabla
+    de peores se vacía —o la métrica no tiene tablero de peores, como los coeficientes descriptivos—
+    queda una sola columna.
+    """
+    best = _write_rank_once(_board_rows(metric, scope, season, best=True))
+    honored = {row["player_id"] for row in best}
+    worst = _write_rank_once(
+        [row for row in _board_rows(metric, scope, season, best=False) if row["player_id"] not in honored]
+    )
+    # "10" son PUESTOS, no filas: con empates una tabla puede traer más de diez jugadores.
+    columns = [{"label": f"Primeros {_TOP_RANK}", "rows": best}]
+    if worst:
+        columns.append({"label": f"Últimos {_TOP_RANK}", "rows": worst})
+    return columns
 
 
 def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season: str) -> dict[str, Any]:
@@ -195,7 +247,7 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
         chosen_season = int(season) if season.isdigit() and int(season) in season_years else season_years[0]
 
     state = {"g": group, "d": tab, "scope": scope, "m": metric.column, "season": str(chosen_season or "")}
-    rows = _board_rows(metric, scope, chosen_season)
+    columns = _best_and_worst(metric, scope, chosen_season)
 
     return {
         "groups": [
@@ -225,14 +277,13 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             "name": metric.name_es or metric.abbrev,
             "abbr": metric.abbrev,
             "direction": _direction_label(metric),
-            "qualifier": _qualifier_note(metric, scope),
+            "qualifier": _qualifier_note(metric, scope, has_worst=len(columns) > 1),
             "available_from": metric.available_from,  # "disponible desde YYYY" cuando aplica (Statcast)
             "scope_label": f"temporada {chosen_season}" if scope == "temporada" else "de por vida",
-            "rows": rows,
-            "columns": _split_in_columns(rows),  # una o dos columnas paralelas, según el largo
+            "columns": columns,  # Mejores y (si existe y no quedó vacía tras el dedup) Peores
             # La leyenda del verde solo tiene sentido si alguna fila está marcada (no la hay en el
             # board de la última temporada, ni en uno viejo donde ya todos se retiraron).
-            "shows_active": any(row["active"] for row in rows),
+            "shows_active": any(row["active"] for column in columns for row in column["rows"]),
         },
         "group_label": dict(_GROUPS)[group],
         "scope_key": scope,

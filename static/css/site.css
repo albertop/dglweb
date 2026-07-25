@@ -264,10 +264,17 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* ---------- Página de líderes (/lideres/) ---------- */
 .dgl-control-label { font-size: .64rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
   color: var(--dgl-muted); margin-bottom: .25rem; display: block; }
-/* Una tabla de 3 columnas (posición, jugador, valor) no debe estirarse a toda la página. Cuando el
-   tablero es largo se parte en dos columnas paralelas y el contenedor se ensancha para las dos. */
+/* Una tabla de 3 columnas (posición, jugador, valor) no debe estirarse a toda la página. Cuando hay
+   dos tablas en paralelo (Primeros y Últimos) el contenedor se ensancha para las dos. */
 .dgl-leaders-board { max-width: 32rem; }
 .dgl-leaders-board.dgl-leaders-board-split { max-width: 62rem; }
+/* El rótulo de cada tabla. Va FUERA del panel: adentro competía con los headers de la tabla y se
+   leía como una fila más. En la tinta del sitio, no en el gris de los metadatos, porque distingue
+   dos tablas que a simple vista son idénticas. */
+.dgl-leaders-caption {
+  color: var(--dgl-ink); font-weight: 800; font-size: .78rem; letter-spacing: .06em;
+  text-transform: uppercase; margin-bottom: .35rem;
+}
 /* Jugador activo: fondo de la fila (un color del overlay de líderes) — se nota más que un asterisco.
    Gana el rayado (box-shadow del striping) igual que las celdas de liderazgo. */
 .dgl-leaders-table tr.dgl-leader-active > td { background-color: var(--lead-season); box-shadow: none; }

@@ -119,15 +119,21 @@ def _descending(metric: Metric, is_best: bool) -> bool:
     return higher_is_better if is_best else not higher_is_better
 
 
-def _needs_qualifier(metric: Metric) -> bool:
-    """Whether a threshold must gate this metric's board.
+def _needs_qualifier(metric: Metric, descending: bool) -> bool:
+    """Whether a threshold must gate this board.
 
     A rate is distorted by a small sample in either direction. And so is the MINIMUM of a count:
     "fewest walks" without a threshold crowns whoever pitched one inning — the board for BB used to
     open with a position player who threw 1.0 IP and walked nobody. A count ranked "most first"
     needs nothing: you cannot accumulate a league-leading total in a cup of coffee.
+
+    Which end a board looks at is `descending`, NOT the metric's direction — that distinction is the
+    whole point. HR points up, so its *best* board (most, descending) needs no gate, but its *worst*
+    board (fewest, ascending) does: unqualified it was 384 players tied at one homer, among them a
+    pitcher with 33 plate appearances. Reading `direction` instead of the board left every "fewest"
+    board of a +metric ungated, and needlessly gated every "most" board of a -metric.
     """
-    return metric.kind == Metric.Kind.RATE or metric.direction == Metric.Direction.LOWER
+    return metric.kind == Metric.Kind.RATE or not descending
 
 
 def _season_leaders(
@@ -144,7 +150,7 @@ def _season_leaders(
         value = row[metric.column]
         if value is None or (metric.exclude_zeros and value == 0):
             continue
-        if _needs_qualifier(metric):
+        if _needs_qualifier(metric, descending):
             formula = qualifier.resolve_season(metric, row["season"], defaults, overrides)
             if not qualifier.qualifies(formula, metric.stat_group, row):
                 continue
@@ -177,7 +183,7 @@ def _career_leaders(
 ) -> list[Leader]:
     totals: dict[int, float] = {}
     played: dict[int, dict[str, float]] = {}  # career sums of whatever the qualifier reads
-    formula = qualifier.resolve_career(metric, defaults) if _needs_qualifier(metric) else ""
+    formula = qualifier.resolve_career(metric, defaults) if _needs_qualifier(metric, descending) else ""
     threshold_column = qualifier.field_column(metric.stat_group, formula) if formula else None
     for row in rows:
         value = row[metric.column]

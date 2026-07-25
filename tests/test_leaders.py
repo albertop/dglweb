@@ -99,6 +99,28 @@ def test_counting_minimum_is_gated_by_the_qualifier(players: dict[str, Player]) 
 
 
 @pytest.mark.django_db
+def test_the_worst_board_of_a_positive_count_is_gated_too(players: dict[str, Player]) -> None:
+    """El umbral lo pide el TABLERO, no la dirección de la métrica.
+
+    HR apunta hacia arriba, así que su tablero de "más" no necesita nada; pero el de "menos" sí, o lo
+    gana quien tuvo 20 turnos y ningún jonrón. Leyendo la dirección en vez del tablero, el board de
+    "menos HR de por vida" salía con 384 jugadores empatados en un jonrón, un lanzador entre ellos.
+    """
+    QualifierDefault.objects.create(stat_group="batting", qualifier_season="PA>=100", qualifier_career="PA>=100")
+    _metric(stat_group="batting", column="hr", direction=Metric.Direction.HIGHER, best_career=True, worst_career=True)
+    Batting.objects.create(player=players["a"], season=2015, stint=1, pa=20, hr=0)  # taza de café
+    Batting.objects.create(player=players["b"], season=2015, stint=1, pa=600, hr=3)  # el peor de verdad
+    Batting.objects.create(player=players["c"], season=2015, stint=1, pa=600, hr=50)
+
+    build_leaders()
+
+    peores = Leader.objects.filter(board=Leader.Board.WORST_CAREER).order_by("rank")
+    assert [row.player for row in peores] == [players["b"], players["c"]]  # A no califica
+    # El tablero de "más" sigue sin umbral: acumular un liderato en pocos turnos es imposible.
+    assert Leader.objects.filter(board=Leader.Board.BEST_CAREER).count() == 3
+
+
+@pytest.mark.django_db
 def test_postseason_boards_aggregate_a_whole_october(players: dict[str, Player]) -> None:
     """Los tableros de postemporada suman todo octubre por (jugador, temporada), no por ronda: los 3
     HR de A en la Serie Divisional + los 2 de la Serie Mundial son 5 en 2019. Y solo conteos '+'."""

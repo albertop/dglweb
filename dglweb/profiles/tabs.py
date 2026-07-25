@@ -337,10 +337,13 @@ _PITCHING_TABLES: dict[str, list[columns.Column]] = {
 # player got better at anything — his batted-ball profile simply moved, and whether that helps him
 # depends on speed, power, park and era. Painting that extreme with the same badge as a career-high
 # HR invites a false reading, so these get no personal-best mark.
-# Their `direction` stays as it is: the engine still needs an order to rank by. Contrast with PU%,
+# Their `direction` stays as it is: the engine still needs an order to rank by. Contrast with
 # Contact% and Whiff%, which DO have a clear sporting direction (set per group, mirrored for
 # pitching) and keep their highlight.
-_DESCRIPTIVE_COLUMNS: frozenset[str] = frozenset({"gb_pct", "fb_pct", "ld_pct", "gb_fb"})
+# PU% se movió aquí (decisión del dueño): es reparto de batazos como las otras cuatro, no una virtud.
+# Antes se leía como que una palomita era un out casi automático — mala para el bateador, buena para
+# el lanzador— y quedaba con direcciones opuestas por grupo; ahora no juzga en ninguno de los dos.
+_DESCRIPTIVE_COLUMNS: frozenset[str] = frozenset({"gb_pct", "fb_pct", "ld_pct", "gb_fb", "pu_pct"})
 
 
 def _cells(
