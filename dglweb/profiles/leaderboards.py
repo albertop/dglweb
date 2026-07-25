@@ -26,6 +26,9 @@ _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por
 # completo, así que un top-25 con tres jugadores empatados en el 25 muestra 27 filas. De por vida da
 # para 25 (es el registro histórico); una temporada suelta se corta en 10.
 _TOP_RANK: dict[str, int] = {"carrera": 25, "temporada": 10}
+# A partir de cuántas filas el tablero se parte en dos columnas paralelas. Por debajo de esto, dos
+# columnas quedarían ridículamente cortas y se ve mejor una sola.
+_SPLIT_FROM = 12
 # Display format per (group, column), read from the same column lists the profile tables use, so a
 # leader value is written exactly like it is on a player page (ERA 2.93, AVG .318, HR 703).
 _COLUMN_FMT: dict[tuple[str, str], str] = {}
@@ -118,6 +121,23 @@ def _active_players(player_ids: list[int], latest: int | None) -> set[int]:
     for model in (Batting, Pitching, Fielding):
         active |= set(model.objects.filter(season=latest, player_id__in=player_ids).values_list("player_id", flat=True))
     return active
+
+
+def _split_in_columns(rows: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    """Parte el tablero en dos columnas paralelas para que no quede una lista larga y estrecha.
+
+    El corte NO puede caer dentro de un empate: las filas repetidas de un empate van sin puesto ni
+    valor (los escribe la primera), así que abrir una columna con una de ellas dejaría un nombre
+    suelto sin número. Por eso el corte se corre hasta la próxima fila que abre puesto (`leads`).
+    """
+    if len(rows) < _SPLIT_FROM:
+        return [rows]
+    cut = (len(rows) + 1) // 2
+    while cut < len(rows) and not rows[cut]["leads"]:
+        cut += 1
+    if cut >= len(rows):  # un empate gigante al final: mejor una sola columna que una vacía
+        return [rows]
+    return [rows[:cut], rows[cut:]]
 
 
 def _board_rows(metric: Metric, scope: str, season: int | None) -> list[dict[str, Any]]:
@@ -213,6 +233,7 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             "available_from": metric.available_from,  # "disponible desde YYYY" cuando aplica (Statcast)
             "scope_label": f"temporada {chosen_season}" if scope == "temporada" else "de por vida",
             "rows": rows,
+            "columns": _split_in_columns(rows),  # una o dos columnas paralelas, según el largo
             # La leyenda del verde solo tiene sentido si alguna fila está marcada (no la hay en el
             # board de la última temporada, ni en uno viejo donde ya todos se retiraron).
             "shows_active": any(row["active"] for row in rows),

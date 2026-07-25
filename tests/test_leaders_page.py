@@ -169,6 +169,36 @@ def test_a_tie_writes_the_rank_and_value_only_on_its_first_row() -> None:
 
 
 @pytest.mark.django_db
+def test_a_long_board_splits_in_two_columns_without_breaking_a_tie() -> None:
+    """El tablero largo se parte en dos columnas y el corte nunca cae en una fila repetida de empate."""
+    hr = _metric("batting", "hr", "HR")
+    # 24 puestos, con un empate de tres justo donde caería el corte a la mitad (puesto 12).
+    for rank in range(1, 25):
+        _leader(hr, _player(300 + rank, f"s{rank:02d}", f"Uno {rank:02d}"), rank, 500.0 - rank)
+    _leader(hr, _player(398, "s98", "Empate B"), 12, 488.0)
+    _leader(hr, _player(399, "s99", "Empate C"), 12, 488.0)
+
+    board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
+    izquierda, derecha = board["columns"]
+
+    assert len(board["columns"]) == 2
+    assert izquierda + derecha == board["rows"]  # se reparten todas las filas, sin perder ninguna
+    assert derecha[0]["leads"] is True  # la segunda columna abre con un puesto, no con un empate suelto
+
+
+@pytest.mark.django_db
+def test_a_short_board_stays_in_a_single_column() -> None:
+    hr = _metric("batting", "hr", "HR")
+    for rank in range(1, 6):
+        _leader(hr, _player(400 + rank, f"p{rank:02d}", f"Corto {rank}"), rank, 100.0 - rank)
+
+    board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
+
+    assert len(board["columns"]) == 1
+    assert board["columns"][0] == board["rows"]
+
+
+@pytest.mark.django_db
 def test_shared_rank_is_flagged_as_a_tie() -> None:
     hr = _metric("batting", "hr", "HR")
     _leader(hr, _player(5, "e01", "Uno"), 1, 40.0)

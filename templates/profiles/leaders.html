@@ -49,27 +49,37 @@ temporada. Postemporada y Fildeo llegan después.
     </div>
   </div>
 
-  {# Board — ancho acotado al contenido (una tabla de 3 columnas no debe estirarse a toda la página) #}
-  <div class="dgl-leaders-board">
-    <section class="dgl-panel mb-3">
-      <div class="table-responsive">
-        <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-leaders-table">
-          <thead><tr><th class="dgl-mid dgl-rank-col">Pos</th><th>Jugador</th><th class="dgl-mid">{{ board.abbr }}</th></tr></thead>
-          <tbody>
-            {% for row in board.rows %}
-            {# En un empate solo la primera fila escribe el puesto y el valor; las demás los dejan en blanco. #}
-            <tr{% if row.active %} class="dgl-leader-active" title="Jugador activo: jugó la última temporada registrada"{% endif %}>
-              <td class="dgl-mid dgl-rank">{% if row.leads %}{{ row.rank }}{% endif %}</td>
-              <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a></td>
-              <td class="dgl-mid dgl-leader-val">{% if row.leads %}{{ row.value }}{% endif %}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="dgl-meta p-3">Sin líderes para esta selección.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  {% comment %}
+  Board — ancho acotado al contenido. Un tablero largo se parte en dos columnas paralelas (el
+  contexto ya decide cuántas y dónde cortar) para no dejar una lista larga y estrecha.
+  {% endcomment %}
+  {% with split=board.columns|length %}
+  <div class="dgl-leaders-board{% if split > 1 %} dgl-leaders-board-split{% endif %}">
+    <div class="row g-3 mb-3">
+      {% for column in board.columns %}
+      <div class="{% if split > 1 %}col-md-6{% else %}col-12{% endif %}">
+        <section class="dgl-panel h-100">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-leaders-table">
+              <thead><tr><th class="dgl-mid dgl-rank-col">Pos</th><th>Jugador</th><th class="dgl-mid">{{ board.abbr }}</th></tr></thead>
+              <tbody>
+                {% for row in column %}
+                {# En un empate solo la primera fila escribe el puesto y el valor; las demás los dejan en blanco. #}
+                <tr{% if row.active %} class="dgl-leader-active" title="Jugador activo: jugó la última temporada registrada"{% endif %}>
+                  <td class="dgl-mid dgl-rank">{% if row.leads %}{{ row.rank }}{% endif %}</td>
+                  <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a></td>
+                  <td class="dgl-mid dgl-leader-val">{% if row.leads %}{{ row.value }}{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="dgl-meta p-3">Sin líderes para esta selección.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
-    </section>
+      {% endfor %}
+    </div>
 
     <p class="dgl-meta">
       <b>Entre peloteros dominicanos.</b>
@@ -78,5 +88,6 @@ temporada. Postemporada y Fildeo llegan después.
       {% if board.shows_active %}<br><span class="dgl-active-swatch"></span> = jugador activo.{% endif %}
     </p>
   </div>
+  {% endwith %}
 </div>
 {% endblock %}
