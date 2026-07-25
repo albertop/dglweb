@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% comment %}
+Página de líderes (/lideres/): boards del subconjunto dominicano desde dgl_leader. Mismo lenguaje
+visual que el perfil — tabs de grupo, pills de división, dgl-stats-table. Los controles navegan por
+GET (cada board es su propia URL, indexable). MVP: Bateo/Pitcheo, serie regular, De por vida / Por
+temporada. Postemporada y Fildeo llegan después.
+{% endcomment %}
+{% block title %}Líderes {{ board.name }} — {{ group_label }} · Dominicanos en Grandes Ligas{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h1 class="visually-hidden">Líderes dominicanos — {{ board.name }} ({{ group_label }}, {{ board.scope_label }})</h1>
+
+  {# Grupo — como los tabs del perfil #}
+  <ul class="nav nav-tabs mb-3">
+    {% for g in groups %}
+    <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}">{{ g.label }}</a></li>
+    {% endfor %}
+  </ul>
+
+  {# División — pills #}
+  <ul class="nav nav-pills mb-3">
+    {% for d in divisions %}
+    <li class="nav-item"><a class="nav-link{% if d.active %} active{% endif %}" href="{{ d.url }}">{{ d.label }}</a></li>
+    {% endfor %}
+  </ul>
+
+  {# Controles: Alcance · Temporada · Métrica #}
+  <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+    <div>
+      <label class="form-label dgl-control-label" for="scope">Alcance</label>
+      <select class="form-select form-select-sm dgl-control" id="scope" onchange="location.href=this.value">
+        {% for s in scopes %}<option value="{{ s.url }}"{% if s.active %} selected{% endif %}>{{ s.label }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if scope_key == "temporada" and seasons %}
+    <div>
+      <label class="form-label dgl-control-label" for="season">Temporada</label>
+      <select class="form-select form-select-sm dgl-control" id="season" onchange="location.href=this.value">
+        {% for y in seasons %}<option value="{{ y.url }}"{% if y.active %} selected{% endif %}>{{ y.year }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div>
+      <label class="form-label dgl-control-label" for="metric">Métrica</label>
+      <select class="form-select form-select-sm dgl-control" id="metric" onchange="location.href=this.value" style="min-width:15rem">
+        {% for m in metrics %}<option value="{{ m.url }}"{% if m.active %} selected{% endif %}>{{ m.name }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+
+  {# Board #}
+  <section class="dgl-panel mb-3">
+    <div class="dgl-embed-cap d-flex justify-content-between">
+      <span class="dgl-embed-cap-strong">{{ board.name }} · {{ board.abbr }} · {{ board.direction }}</span>
+      <span>{{ board.scope_label }} · entre dominicanos</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-leaders-table">
+        <thead><tr><th>#</th><th>Jugador</th><th>{{ board.abbr }}</th></tr></thead>
+        <tbody>
+          {% for row in board.rows %}
+          <tr>
+            <td class="{% if row.rank == 1 %}dgl-rank-1{% else %}dgl-rank{% endif %}">{{ row.rank }}{% if row.tie %}<span class="dgl-tie">*</span>{% endif %}</td>
+            <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a></td>
+            <td class="dgl-leader-val">{{ row.value }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="dgl-meta p-3">Sin líderes para esta selección.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="dgl-meta">
+    <b>Entre peloteros dominicanos.</b>
+    {% if board.qualifier %} Mínimo para calificar: {{ board.qualifier }}.{% endif %}
+    Desde 1956 (las Ligas Negras se muestran en cada perfil, pero no compiten en los rankings).
+  </p>
+</div>
+{% endblock %}
