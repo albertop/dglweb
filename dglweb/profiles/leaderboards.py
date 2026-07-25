@@ -99,9 +99,17 @@ def _division_metrics(group: str, scope: str, pos: str | None = None) -> list[tu
     # abajo (un "menos ponches" en octubre lo gana quien tuvo dos turnos) y solo acepta unas pocas
     # tasas, así que ocho métricas se ofrecían con la tabla vacía. Vale también para fildeo, donde una
     # métrica puede tener filas en una posición y no en otra.
+    # `order_by()` NO es decorativo: sin él el Meta.ordering del modelo se cuela en el SELECT, el
+    # DISTINCT pasa a operar sobre seis columnas —dos de ellas de `dgl_metric`, que entra por JOIN— y
+    # la consulta salta de milisegundos a casi cuatro segundos sobre 400k filas. Mismo tropiezo que
+    # documenta `_positions()` en el motor.
+    # `rank=1` no es un filtro más: es lo que hace barata la pregunta. "Tiene tablero" equivale a
+    # "tiene un puesto 1", así que en vez de recorrer las 400k filas para deduplicar metric_id, se
+    # miran solo las cabezas de tablero — de un scan secuencial de 300k filas a unos pocos miles.
     ranked = {
         post: set(
-            Leader.objects.filter(metric__in=active.values(), postseason=post, fielding_pos=pos)
+            Leader.objects.filter(metric__in=active.values(), postseason=post, fielding_pos=pos, rank=1)
+            .order_by()
             .values_list("metric_id", flat=True)
             .distinct()
         )
