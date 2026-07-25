@@ -220,6 +220,20 @@ def test_the_page_shows_best_and_worst_side_by_side() -> None:
 
 
 @pytest.mark.django_db
+def test_a_descriptive_metric_labels_its_two_ends_by_height_not_by_merit() -> None:
+    """Un GB% bajo no es un mal GB%, es el perfil opuesto: las tablas se rotulan sin juzgar."""
+    gb = _metric("batting", "gb_pct", "GB%", name_es="Porcentaje de rodados")
+    _leader(gb, _player(700, "g01", "Rodador R"), 1, 0.60)
+    _worst_leader(gb, _player(701, "g02", "Elevador E"), 1, 0.25)
+
+    board = leaders_context(group="batting", tab="Coeficientes", scope="carrera", metric_col="gb_pct", season="")[
+        "board"
+    ]
+
+    assert [column["label"] for column in board["columns"]] == ["Los 10 más altos", "Los 10 más bajos"]
+
+
+@pytest.mark.django_db
 def test_a_player_in_both_ends_is_dropped_from_the_worst_table() -> None:
     """Con pocos calificados las puntas se solapan: quien sale de líder no puede salir de colista."""
     hr = _metric("batting", "hr", "HR")

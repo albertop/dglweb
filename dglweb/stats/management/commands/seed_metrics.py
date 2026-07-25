@@ -547,13 +547,17 @@ _ABBREV_OVERRIDE: dict[tuple[str, str], str] = {("batting", "IsoP"): "ISO"}
 # direction) and enters BOTH best-season and best-career. The "negative" counts (WP, HBP, IBB, BSv,
 # throwing errors) rank by the MOST, like GIDP/BK — a "fewest" board ties at zero. Rates inherit the
 # group qualifier (PA/IP/G) via the cascade. All of it is tunable in the Backoffice.
-# Métricas sin tablero de "peores", por dos razones distintas:
-#   * Reparto de batazos (GB%, FB%, LD%, PU%, GB/FB): describen un perfil, no una virtud. Un GB% alto
-#     no es mejor ni peor que uno bajo, así que "los peores GB%" no significa nada.
-#   * Tiempo de juego (G, PA, AB): el tablero de peores ya exige el umbral de calificación, así que
-#     "menos turnos" entre calificados solo lista a quien apenas lo pasó — es el umbral mirándose al
-#     espejo, no una marca. (decisión del dueño)
-_NO_WORST_BOARD: frozenset[str] = frozenset({"gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb", "g", "gp", "pa", "ab"})
+# Métricas sin el segundo tablero: tiempo de juego y uso (G, GS, GF, CG, PA, AB, IP e Inn). El
+# descendente ya exige el umbral de calificación —que en pitcheo se mide justamente en entradas— así
+# que "menos entradas" o "menos aperturas" entre calificados solo lista a
+# quien apenas lo pasó — es el umbral mirándose al espejo, no una marca. GF, CG y GS además dependen
+# del rol y de la época: un abridor no termina juegos, un relevista no abre, y el juego completo casi
+# desapareció después de los setenta. "Menos" ahí no mide a nadie. (decisión del dueño)
+#
+# Los coeficientes de reparto de batazos SÍ lo llevan, aunque no sean mejor/peor: ahí el segundo
+# tablero es el extremo OPUESTO del mismo perfil (un GB% bajo no es un mal GB%, es un lanzador de
+# elevados). La página los rotula "los más altos / los más bajos" en vez de primeros y últimos.
+_NO_WORST_BOARD: frozenset[str] = frozenset({"g", "gp", "gs", "gf", "cg", "pa", "ab", "outs", "innings_outs"})
 
 _ACTIVATE: dict[tuple[str, str], tuple[str, str, str]] = {  # (abbrev, name_es, direction "+"/"-")
     ("batting", "war"): ("WAR", "Victorias sobre reemplazo", "+"),

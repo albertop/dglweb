@@ -199,23 +199,37 @@ def _board_rows(metric: Metric, scope: str, season: int | None, *, best: bool = 
     ]
 
 
-def _best_and_worst(metric: Metric, scope: str, season: int | None) -> list[dict[str, Any]]:
-    """Las dos tablas paralelas: mejores a la izquierda, peores a la derecha.
+def _column_labels(metric: Metric) -> tuple[str, str]:
+    """Cómo se llaman las dos tablas. `_TOP_RANK` son PUESTOS, no filas: con empates entran más.
 
-    Cuando hay pocos calificados las dos puntas se solapan y un mismo jugador sale de líder y de
-    colista a la vez. Ahí manda el lado bueno: el repetido se quita de "Peores". Si con eso la tabla
-    de peores se vacía —o la métrica no tiene tablero de peores, como los coeficientes descriptivos—
-    queda una sola columna.
+    En una métrica normal son los primeros y los últimos. En una descriptiva no: ahí la segunda tabla
+    no es la de los peores sino la del extremo OPUESTO del mismo perfil — un GB% bajo no es un mal
+    GB%, es un lanzador de elevados en vez de uno de rodados. Se rotulan por altura, sin juzgar.
+    El orden sale de la dirección, no se asume, para que el rótulo siga al tablero si alguien la
+    cambia en el Backoffice.
+    """
+    if metric.column not in _DESCRIPTIVE_COLUMNS:
+        return f"Primeros {_TOP_RANK}", f"Últimos {_TOP_RANK}"
+    alto, bajo = f"Los {_TOP_RANK} más altos", f"Los {_TOP_RANK} más bajos"
+    return (alto, bajo) if metric.direction == Metric.Direction.HIGHER else (bajo, alto)
+
+
+def _best_and_worst(metric: Metric, scope: str, season: int | None) -> list[dict[str, Any]]:
+    """Las dos tablas paralelas: el tablero descendente a la izquierda y el ascendente a la derecha.
+
+    Cuando hay pocos calificados las dos puntas se solapan y un mismo jugador sale en las dos. Ahí
+    manda la primera: el repetido se quita de la segunda. Si con eso la segunda se vacía —o la
+    métrica no tiene ese tablero, como G/PA/AB— queda una sola columna.
     """
     best = _write_rank_once(_board_rows(metric, scope, season, best=True))
     honored = {row["player_id"] for row in best}
     worst = _write_rank_once(
         [row for row in _board_rows(metric, scope, season, best=False) if row["player_id"] not in honored]
     )
-    # "10" son PUESTOS, no filas: con empates una tabla puede traer más de diez jugadores.
-    columns = [{"label": f"Primeros {_TOP_RANK}", "rows": best}]
+    top_label, bottom_label = _column_labels(metric)
+    columns = [{"label": top_label, "rows": best}]
     if worst:
-        columns.append({"label": f"Últimos {_TOP_RANK}", "rows": worst})
+        columns.append({"label": bottom_label, "rows": worst})
     return columns
 
 
