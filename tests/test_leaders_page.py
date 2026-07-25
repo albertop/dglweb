@@ -137,21 +137,29 @@ def test_active_player_is_flagged_when_he_played_the_latest_season() -> None:
 
 
 @pytest.mark.django_db
-def test_the_latest_season_board_marks_nobody_as_active() -> None:
-    """En el board de la última temporada todos jugaron ese año: el verde no distinguiría a nadie."""
+def test_a_season_board_marks_nobody_as_active() -> None:
+    """El verde es solo de los tableros de por vida.
+
+    En una temporada no separa nada: en la última todos jugaron ese año por definición, y en una
+    reciente casi todos siguen activos, así que se pintaría la tabla entera. Acá el mismo jugador
+    activo sale marcado de por vida y sin marcar en su temporada.
+    """
     from dglweb.stats.models import Batting
 
     hr = _metric("batting", "hr", "HR")
     uno, dos = _player(30, "u01", "Uno U"), _player(31, "d01", "Dos D")
-    _leader(hr, uno, 1, 40.0, season=2025, career=False)
-    _leader(hr, dos, 2, 30.0, season=2025, career=False)
+    _leader(hr, uno, 1, 40.0, season=2020, career=False)
+    _leader(hr, dos, 2, 30.0, season=2020, career=False)
+    _leader(hr, uno, 1, 400.0)  # el mismo, en el tablero de por vida
     Batting.objects.create(player=uno, season=2025, stint=1, hr=40)  # 2025 es la última temporada
-    Batting.objects.create(player=dos, season=2025, stint=1, hr=30)
+    Batting.objects.create(player=dos, season=2010, stint=1, hr=30)
 
-    ctx = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2025")
+    temporada = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2020")
+    carrera = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
 
-    assert [r["active"] for r in _best(ctx)] == [False, False]
-    assert ctx["board"]["shows_active"] is False  # sin filas marcadas, la leyenda tampoco va
+    assert [r["active"] for r in _best(temporada)] == [False, False]
+    assert temporada["board"]["shows_active"] is False  # sin filas marcadas, la leyenda tampoco va
+    assert [r["active"] for r in _best(carrera)] == [True]  # de por vida sí se marca
 
 
 @pytest.mark.django_db

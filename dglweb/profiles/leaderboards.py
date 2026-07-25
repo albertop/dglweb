@@ -180,11 +180,10 @@ def _board_rows(metric: Metric, scope: str, season: int | None, *, best: bool = 
         board = board.filter(season=season)
     board = board.filter(rank__lte=_TOP_RANK)
     leaders = list(board.order_by("rank", "player__full_name").select_related("player"))
-    latest = _latest_season()
-    # En el board de la ÚLTIMA temporada, todo el que aparece jugó ese año por definición: pintar
-    # todas las filas de verde no distingue a nadie. Ahí no se marca a nadie como activo.
-    every_row_is_active = scope == "temporada" and season is not None and season == latest
-    active = set() if every_row_is_active else _active_players([row.player_id for row in leaders], latest)
+    # El verde solo va en los tableros de por vida, que es donde separa a quien sigue jugando de quien
+    # ya es historia. En uno de temporada no distingue nada: en la última todos jugaron ese año por
+    # definición, y en una reciente casi todos siguen activos, así que se pinta la tabla entera.
+    active = _active_players([row.player_id for row in leaders], _latest_season()) if scope == "carrera" else set()
     seasons = _seasons_played(metric.stat_group, [row.player_id for row in leaders])
     return [
         {
