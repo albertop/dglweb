@@ -11,10 +11,25 @@ Los coeficientes no se calculan sobre PA/IP sino sobre su **propia cobertura**: 
 PA/IP dejaría que una era sin clasificación de batazo encabece el tablero (Felipe Alou lideró PU% con una
 sola bola en juego en 7,908 PA), así que el umbral es sobre la cobertura misma.
 
-El umbral de **temporada** siempre fue `BIP≥400` / `swings≥1000` — razonable, es ~una campaña calificada.
-El error: ese mismo 400/1000 se aplicó también a la **carrera**, donde es trivialmente bajo. Una carrera
-tiene miles de bolas en juego, así que `BIP≥400` de carrera admitía a cualquiera con ~una temporada
-(203 de 609 dominicanos, 33 %) — no es un tablero de líderes de por vida, es casi todo el mundo.
+El umbral de **temporada** era `BIP≥400` / `swings≥1000`. El error: ese mismo 400/1000 se aplicó también a
+la **carrera**, donde es trivialmente bajo. Una carrera tiene miles de bolas en juego, así que `BIP≥400` de
+carrera admitía a cualquiera con ~una temporada (203 de 609 dominicanos, 33 %) — no es un tablero de
+líderes de por vida, es casi todo el mundo.
+
+**Segunda pasada (revisión posterior): el piso de temporada tenía el mismo defecto, al revés.** Un solo
+par de números (400/1000) se usó para los dos grupos, pero un lanzador ve muchísimas más bolas en juego
+que un bateador. Medido sobre quien SÍ califica por la regla oficial (temporadas 1989+):
+
+| | Mínimo real de quien califica | Piso `400/1000` | Dejaba fuera |
+|---|---:|---:|---:|
+| Bateo — BIP | 288 | 400 | 112 de 685 (16 %) |
+| Bateo — swings | 722 | 1000 | 150 de 685 (22 %) |
+| Pitcheo — BIP | 394 | 400 | 1 de 210 |
+| Pitcheo — swings | 1106 | 1000 | 0 (pero admitía no calificados) |
+
+El 400 de pitcheo estaba prácticamente clavado en el mínimo real (394); el problema era copiarlo a bateo,
+donde excluía a uno de cada seis bateadores que habían calificado por el estándar oficial de MLB. Los
+pisos de temporada pasan a ser el mínimo redondeado de su propia población.
 
 ## El criterio
 
@@ -44,12 +59,16 @@ carrera.
 
 ## Los umbrales
 
-| Qualifier | Temporada (sin cambio) | **Carrera** |
+Los cuatro pisos salen del **mismo ejercicio**: medir el BIP/swings de quien ya califica por el estándar
+correspondiente y quedarse en su mínimo redondeado. Solo cambia el ancla — `PA≥502` / `IP≥162` para
+temporada, `PA≥3000` / `IP≥1000` para carrera.
+
+| Qualifier | **Temporada** | **Carrera** |
 |---|---|---|
-| Bateo — coef. de forma (GB%/FB%/LD%/PU%/GB-FB) | `BIP≥400` | **`BIP≥2000`** |
-| Bateo — Contact% / Whiff% | `swings≥1000` | **`swings≥5000`** |
+| Bateo — coef. de forma (GB%/FB%/LD%/PU%/GB-FB) | **`BIP≥300`** | **`BIP≥2000`** |
+| Bateo — Contact% / Whiff% | **`swings≥750`** | **`swings≥5000`** |
 | Pitcheo — coef. de forma | `BIP≥400` | **`BIP≥3000`** |
-| Pitcheo — Contact% / Whiff% | `swings≥1000` | **`swings≥8000`** |
+| Pitcheo — Contact% / Whiff% | **`swings≥1100`** | **`swings≥8000`** |
 
 Campo resultante de carrera: ~85 bateadores y ~27 lanzadores (comparable a los 74 con PA≥3000 y 29 con
 IP≥1000). Números redondos, anclados al estándar que ya usa el sitio.

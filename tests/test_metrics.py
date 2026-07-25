@@ -94,8 +94,13 @@ def test_seed_leaves_metric_qualifiers_blank_to_inherit_the_group_default(seeded
     # gating them on the group's PA would let an era with no batted-ball data top the board.
     own = set(Metric.objects.exclude(qualifier_season="").values_list("column", flat=True))
     assert own == {"gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb", "contact_pct", "whiff_pct"}
-    assert Metric.objects.get(stat_group="batting", column="gb_pct").qualifier_season == "BALLS_IN_PLAY>=400"
-    assert Metric.objects.get(stat_group="batting", column="whiff_pct").qualifier_season == "TOTAL_SWINGS>=1000"
+    # Atado a la constante y no al número: los pisos salen de un estudio (docs/UMBRALES_COEFICIENTES)
+    # y ya se recalcularon una vez. Lo que este test cuida es que el nivel 2 se siembre, no cuánto vale.
+    from dglweb.stats.management.commands.seed_metrics import _OWN_QUALIFIER
+
+    for group, column in (("batting", "gb_pct"), ("batting", "whiff_pct"), ("pitching", "gb_pct")):
+        metric = Metric.objects.get(stat_group=group, column=column)
+        assert (metric.qualifier_season, metric.qualifier_career) == _OWN_QUALIFIER[group, column]
 
 
 @pytest.mark.django_db

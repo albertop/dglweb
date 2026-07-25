@@ -310,25 +310,30 @@ _STATCAST_COLUMNS: frozenset[str] = frozenset(
 
 _STATCAST_GROUPS: frozenset[str] = frozenset({"batting", "pitching"})
 # The coefficients gate on their OWN coverage (balls in play / swings), not PA/IP — otherwise an era
-# without batted-ball classification tops the board. SEASON and CAREER differ: the season floor is ~a
-# qualified campaign (400 BIP / 1000 swings, both groups); the career floor is anchored to the group's
-# career rate qualifier via a statistical study (docs/UMBRALES_COEFICIENTES.md) — batting PA>=3000
-# ≈ 2000 BIP / 5000 swings, pitching IP>=1000 ≈ 3000 BIP / 8000 swings (a pitcher faces far more balls
-# in play over a career, so the same 2000 would let almost everyone in). (owner's thresholds)
+# without batted-ball classification tops the board. Los cuatro pisos salen del MISMO ejercicio:
+# medir el BIP/swings de quien ya califica por el estándar oficial y quedarse en su mínimo redondeado
+# (docs/UMBRALES_COEFICIENTES.md). Temporada anclado a PA>=502 / IP>=162; carrera a PA>=3000 /
+# IP>=1000. Los números difieren por grupo porque un lanzador ve muchísimas más bolas en juego que un
+# bateador: el 400/1000 que ajusta a pitcheo dejaba fuera al 16-22% de las temporadas de bateo que SÍ
+# calificaban.
 _SHAPE_COEFFICIENTS = ("gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb")
 _CONTACT_COEFFICIENTS = ("contact_pct", "whiff_pct")
 _OWN_QUALIFIER: dict[tuple[str, str], tuple[str, str]] = {  # (season formula, career formula)
-    **{("batting", c): ("BALLS_IN_PLAY>=400", "BALLS_IN_PLAY>=2000") for c in _SHAPE_COEFFICIENTS},
-    **{("batting", c): ("TOTAL_SWINGS>=1000", "TOTAL_SWINGS>=5000") for c in _CONTACT_COEFFICIENTS},
+    **{("batting", c): ("BALLS_IN_PLAY>=300", "BALLS_IN_PLAY>=2000") for c in _SHAPE_COEFFICIENTS},
+    **{("batting", c): ("TOTAL_SWINGS>=750", "TOTAL_SWINGS>=5000") for c in _CONTACT_COEFFICIENTS},
     **{("pitching", c): ("BALLS_IN_PLAY>=400", "BALLS_IN_PLAY>=3000") for c in _SHAPE_COEFFICIENTS},
-    **{("pitching", c): ("TOTAL_SWINGS>=1000", "TOTAL_SWINGS>=8000") for c in _CONTACT_COEFFICIENTS},
+    **{("pitching", c): ("TOTAL_SWINGS>=1100", "TOTAL_SWINGS>=8000") for c in _CONTACT_COEFFICIENTS},
 }
 
-# Default qualifiers per group (season, career). Owner tunes these in the Backoffice.
+# Umbrales por grupo (temporada, carrera). Temporada = el estándar oficial de MLB: 3.1 PA por juego
+# (502 en 162), 1.0 IP por juego, y 100 juegos en la posición para fildeo. Carrera = SEIS temporadas
+# calificadas, la regla que bateo y pitcheo ya seguían de hecho (3000/502 = 6.0, 1000/162 = 6.2) y
+# que fildeo no: pedía diez, y admitía apenas el 2.6% de las carreras-posición contra el 10.9% que
+# admite su propio piso de temporada. Ver docs/UMBRALES_CARRERA.md.
 _QUALIFIER: dict[str, tuple[str, str]] = {
     "batting": ("PA>=502", "PA>=3000"),
     "pitching": ("IP>=162", "IP>=1000"),
-    "fielding": ("G>=100", "G>=1000"),
+    "fielding": ("G>=100", "G>=600"),
 }
 
 # UI display order per (group, dgl code) — the old dgl_stat.Pos (extracted once). Unmatched -> last.
