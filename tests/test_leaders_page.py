@@ -258,7 +258,7 @@ def test_the_postseason_pill_reads_its_own_boards_and_october_floor() -> None:
 
     assert "Postemporada" in [d["label"] for d in ctx["divisions"]]
     assert [r["name"] for r in _best(ctx)] == ["Octubre O"]
-    assert ctx["board"]["qualifier"] == "Mínimo para calificar: PA ≥ 50."  # el piso de octubre
+    assert ctx["board"]["qualifier"] == "Mínimo para calificar: PA ≥ 44."  # el piso de octubre
 
 
 @pytest.mark.django_db

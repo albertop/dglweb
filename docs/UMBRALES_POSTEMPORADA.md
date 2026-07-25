@@ -1,102 +1,82 @@
-# Umbrales de las tasas en los liderazgos de postemporada
+# Umbrales de calificación en los liderazgos de postemporada
 
-Los tableros de liderazgo de postemporada de **tasas** (bateo: AVG/OBP/SLG/OPS; pitcheo: ERA) exigen
-un mínimo de turnos (PA) o entradas (IP) para que un jugador califique. Este documento explica **por
-qué existen esos pisos** y **cómo se eligieron los números**. Los conteos (HR, RBI, SO de pitcheo…)
-no llevan piso: no se puede liderar en un conteo que nunca se acumuló.
+Los tableros de postemporada exigen un mínimo de turnos (PA) o entradas (IP) para calificar. Este
+documento explica **por qué existen** y, sobre todo, **de dónde salen los números**.
 
-## El problema: octubre no tiene "qualifier"
+Llevan piso las **tasas** (bateo: AVG/OBP/SLG/OPS; pitcheo: ERA, PCT, H/9, BB/9, SO/9) y los
+**conteos que apuntan hacia abajo** (bateo: SO; pitcheo: H, ER, BB). Los conteos que apuntan hacia
+arriba (HR, RBI, SO de pitcheo…) no lo llevan: no se puede liderar en jonrones de octubre sin
+batearlos. Es la misma regla de la serie regular — el umbral lo pide el extremo que mira el tablero,
+no la dirección de la métrica.
 
-La temporada regular tiene un estándar oficial: **3.1 PA por juego** del equipo (502 PA en 162
-juegos) para bateo, **1 IP por juego** (162 IP) para pitcheo. Ese estándar existe para que una tasa
-—que se distorsiona con muestras pequeñas— se rankee solo entre jugadores con suficiente volumen.
+## El problema: octubre no tiene "qualifier" oficial
 
-La postemporada **no tiene un estándar equivalente**, y no se le puede aplicar el mismo: ni un
-octubre completo se acerca. Escalar 3.1 PA/juego a la postemporada exigiría batear en todos los
-juegos de una corrida que gane la Serie Mundial en el máximo de juegos posibles — absurdo como
-"mínimo". Por eso los libros de records usan **pisos fijos** para las tasas de postemporada, y hay
-que fijar **dos escalas distintas** (temporada ≪ carrera) porque difieren en un orden de magnitud.
+La temporada regular sí tiene un estándar: **3.1 PA por juego** del equipo (502 PA en 162 juegos)
+para bateo y **1.0 IP por juego** (162 IP) para pitcheo. Existe para que una tasa —que se distorsiona
+con muestras pequeñas— se rankee solo entre jugadores con volumen suficiente.
 
-## El ejercicio: distribución real (universo dominicano, desde 1956)
+La postemporada no tiene un equivalente, y la cascada normal no se le puede aplicar: ni la corrida
+más larga de la historia se acerca a 502 PA. Con el umbral de serie regular, todos los tableros de
+octubre saldrían vacíos.
 
-Se midió la distribución real de PA (bateo) e IP (pitcheo) de postemporada, agregando el octubre
-completo de cada jugador **por (jugador, temporada)** y **por carrera** — la misma agregación que
-usan los tableros:
+## El criterio: anclar, no elegir un percentil
+
+**La versión anterior de estos umbrales se fijó por percentil** — se eligieron los cortes que
+admitían "≈⅓ de la población". Ese criterio es arbitrario: el tercio no se deriva de nada, y si
+mañana entra una generación de dominicanos a octubre, el mismo percentil da otro número.
+
+El criterio correcto es el que ya usa el sitio para los coeficientes
+(`docs/UMBRALES_COEFICIENTES.md`): **anclar a un estándar establecido**. Acá el estándar existe y es
+el oficial de MLB; lo único que faltaba era la unidad a la que aplicarlo.
+
+En la serie regular esa unidad es la temporada (162 juegos). En octubre, la unidad natural es **una
+serie completa**. Medido sobre nuestros propios datos (305 equipos-temporada desde 1956), la ronda
+más larga son **7 juegos**, que es además el máximo estructural de cualquier serie.
+
+De ahí salen los pisos, sin ninguna elección discrecional:
+
+| Piso | Regla oficial | Unidad | Resultado |
+|---|---|---|---:|
+| Bateo, temporada | 3.1 PA/juego | 1 serie completa (7 j) | **PA ≥ 22** |
+| Bateo, carrera | 3.1 PA/juego | 2 series completas | **PA ≥ 44** |
+| Pitcheo, temporada | 1.0 IP/juego | 1 serie completa (7 j) | **IP ≥ 7** |
+| Pitcheo, carrera | 1.0 IP/juego | 2 series completas | **IP ≥ 14** |
+
+El salto de temporada a carrera es ×2, no el ×6 de la serie regular (502 → 3000). La razón es que
+octubre no se juega todos los años: exigir seis series completas dejaría los tableros de por vida en
+un puñado de nombres. Dos series es el equivalente honesto de "no fue una sola aparición".
+
+## La distribución real (universo dominicano, desde 1956)
+
+Agregando el octubre completo de cada jugador, igual que lo hacen los tableros:
 
 | Tabla | n | mediana | p75 | p90 | máx |
 |---|---:|---:|---:|---:|---:|
-| BAT PA / temporada | 521 | 13 | 32 | 53 | 89 |
-| BAT PA / carrera | 208 | 22 | 78 | 131 | 493 |
-| PIT IP / temporada | 317 | 4.3 | 8.0 | 13 | 28.7 |
+| BAT PA / temporada | 666 | 8 | 24 | 51 | 89 |
+| BAT PA / carrera | 208 | 21.5 | 78 | 131 | 493 |
+| PIT IP / temporada | 322 | 4.0 | 8.0 | — | 28.7 |
 | PIT IP / carrera | 133 | 8.7 | 19.3 | 30.7 | 96.3 |
 
-Cuántos calificarían según el corte:
+Cuánto admite cada piso:
 
-| Tablero | ≥ (elegido) | califican | alternativa estricta |
-|---|---|---:|---|
-| BAT temporada | **25 PA** | 161 (31%) | 40 PA → 19% |
-| BAT carrera | **50 PA** | 77 (37%) | 100 PA → 17% |
-| PIT temporada | **8 IP** | 82 (26%) | 10 IP → 17% |
-| PIT carrera | **15 IP** | 45 (34%) | 25 IP → 18% |
+| Tablero | Umbral | Califican |
+|---|---|---:|
+| Bateo, temporada | PA ≥ 22 | 184 de 666 (28%) |
+| Bateo, carrera | PA ≥ 44 | 78 de 208 (38%) |
+| Pitcheo, temporada | IP ≥ 7 | 96 de 322 (30%) |
+| Pitcheo, carrera | IP ≥ 14 | 51 de 133 (38%) |
 
-## La decisión
+Los cuatro dejan fuera a la mitad o más de la muestra, que es lo que se busca: un tablero de octubre
+no debe abrir con un jugador que fue de 4-3 en una serie de comodines perdida.
 
-**Criterio:** que cada tablero admita **≈⅓ de su población**. Suficientes candidatos para que "líder"
-signifique ganarle a un campo real, pero cortando el cameo de pocos turnos (un 3-de-4 en un Wild Card
-perdido no debe encabezar el AVG de octubre).
+## Nota sobre los números anteriores
 
-| Tablero | Piso | Fórmula en `_POST_QUALIFIER` |
-|---|---|---|
-| Bateo — temporada | **25 PA** | `PA>=25` |
-| Bateo — carrera | **50 PA** | `PA>=50` |
-| Pitcheo — temporada | **8 IP** | `IP>=8` |
-| Pitcheo — carrera | **15 IP** | `IP>=15` |
+Los pisos previos eran PA ≥ 25 / 50 e IP ≥ 8 / 15. El ejercicio anclado los mueve poco (22/44 y
+7/14), lo que dice que la intuición detrás de ellos era buena. Lo que cambia es que ahora el número
+**se deriva** de la regla oficial en vez de justificarse con un percentil, así que se puede defender
+—y recalcular— sin apelar al criterio de quien lo eligió.
 
-**Por qué esta tier y no la estricta (~⅕):** los pools por temporada ya son delgadísimos (mediana
-13 PA / 4.3 IP). Un piso más alto dejaría muchos años con 0–1 dominicanos calificados, volviendo el
-tablero de temporada trivial o vacío. El ⅓ mantiene honesto el estándar sin vaciarlo, y son números
-redondos, fáciles de explicar en el caption del perfil.
+## Dónde vive esto en el código
 
-## Notas de implementación
-
-- Los pisos son **fijos** y viven en `dglweb/stats/leaders.py` (`_POST_QUALIFIER`). **No** pasan por
-  la cascada del qualifier regular (que daría 502 PA / 162 IP) — la evitan a propósito.
-- El valor de la tasa se **recompone desde los totales agregados** (AVG = ΣH/ΣAB, OBP, SLG, OPS, y
-  ERA = 27·ΣER/Σouts), reutilizando `career_rate.exact_value`. Nunca es un promedio de las tasas por
-  ronda ("no son promedio de promedios").
-- La dirección la maneja el motor: ERA es **menor-es-mejor**; el resto, mayor-es-mejor. Solo hay
-  tableros "best" en postemporada (opción A, sin "peor").
-
-## Cómo reproducir el ejercicio
-
-```bash
-docker compose exec -T -e DATABASE_URL="postgres://…@10.0.0.39:5432/dglweb" web python manage.py shell
-```
-
-```python
-from collections import defaultdict
-from dglweb.stats.models import BattingPost, PitchingPost
-from dglweb.stats.leaders import FIRST_SEASON
-
-def describe(vals, label, cuts):
-    vals = sorted(vals); n = len(vals)
-    q = lambda p: vals[min(n - 1, int(p * n))]
-    print(f"\n{label} (n={n}) med={q(.5):.1f} p75={q(.75):.1f} p90={q(.9):.1f} max={vals[-1]:.1f}")
-    for c in cuts:
-        k = sum(1 for v in vals if v >= c)
-        print(f"  >= {c}: {k} ({100 * k / n:.1f}%)")
-
-bs, bc = defaultdict(float), defaultdict(float)
-for r in BattingPost._default_manager.filter(season__gte=FIRST_SEASON).values("player_id", "season", "pa"):
-    if r["pa"]:
-        bs[(r["player_id"], r["season"])] += r["pa"]; bc[r["player_id"]] += r["pa"]
-describe(list(bs.values()), "BAT PA/temporada", [15, 20, 25, 30, 40])
-describe(list(bc.values()), "BAT PA/carrera", [30, 40, 50, 75, 100])
-
-ps, pc = defaultdict(float), defaultdict(float)
-for r in PitchingPost._default_manager.filter(season__gte=FIRST_SEASON).values("player_id", "season", "outs"):
-    if r["outs"]:
-        ps[(r["player_id"], r["season"])] += r["outs"]; pc[r["player_id"]] += r["outs"]
-describe([v / 3 for v in ps.values()], "PIT IP/temporada", [5, 8, 10, 12, 15])
-describe([v / 3 for v in pc.values()], "PIT IP/carrera", [10, 15, 20, 25, 30])
-```
+`_POST_QUALIFIER` en `dglweb/stats/leaders.py`. No pasa por la cascada `QualifierDefault` /
+`Metric.qualifier_*` / `QualifierSeasonOverride`: es un piso fijo, a propósito.

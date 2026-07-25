@@ -311,14 +311,15 @@ _POST_RATE: dict[str, frozenset[str]] = {
     "pitching": frozenset({"era", "h_per9", "bb_per9", "so_per9", "win_pct"}),
 }
 
-# October has no official qualifier: not even a full deep run (max ~89 PA / ~29 IP) reaches a
-# regular-season cut. These are FIXED floors, chosen by a statistical study of the real Dominican
-# postseason distribution so each board admits ~1/3 of its population — a real field, not a 3-for-4
-# wild-card cameo. The full exercise (distributions, why these numbers) is in
-# docs/UMBRALES_POSTEMPORADA.md. They deliberately bypass the regular qualifier cascade (502 PA…).
+# October tiene su propio piso: ni una corrida completa se acerca al corte de la serie regular, así
+# que la cascada normal (502 PA…) dejaría los tableros vacíos. Pero el piso NO es un percentil
+# elegido a dedo — sale del MISMO estándar oficial que gobierna la serie regular (3.1 PA por juego
+# del equipo, 1.0 IP por juego), aplicado a la unidad natural de octubre: una serie completa, que los
+# datos confirman en 7 juegos. Temporada = una serie (3.1x7 = 22 PA, 1.0x7 = 7 IP); carrera = dos.
+# El ejercicio completo está en docs/UMBRALES_POSTEMPORADA.md.
 _POST_QUALIFIER: dict[str, tuple[str, str]] = {  # group -> (season floor, career floor)
-    "batting": ("PA>=25", "PA>=50"),
-    "pitching": ("IP>=8", "IP>=15"),
+    "batting": ("PA>=22", "PA>=44"),
+    "pitching": ("IP>=7", "IP>=14"),
 }
 
 
