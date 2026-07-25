@@ -55,11 +55,11 @@ faltar en los totales.
         {% include "profiles/_season_head.html" with cols=d.columns.statcast %}
         <tbody>
           {% for line in d.statcast_lines %}{% include "profiles/_season_row.html" with cells=line.statcast %}{% endfor %}
-          {% if d.total_cells and d.statcast_full %}{% include "profiles/_season_total.html" with cells=d.total_cells.statcast count=d.season_count totals_target="bat-team" %}{% endif %}
+          {% if d.total_cells %}{% include "profiles/_season_total.html" with cells=d.total_cells.statcast count=d.statcast_seasons partial=d.statcast_partial totals_target="bat-team" %}{% endif %}
         </tbody>
       </table>
     </div>
-    <div class="dgl-meta px-3 py-2 border-top">AO/GO/FO/PO/LO=out al aire/roletazo/elevado/palomita/línea · FH/PH/LH/GH=hit por elevado/palomita/línea/roletazo · Sw=swings · Miss=swings y fallos · BIP=bolas en juego.<br>La cobertura por tipo de batazo varía por temporada.</div>
+    <div class="dgl-meta px-3 py-2 border-top">AO/GO/FO/PO/LO=out al aire/roletazo/elevado/palomita/línea · FH/PH/LH/GH=hit por elevado/palomita/línea/roletazo · Sw=swings · Miss=swings y fallos · BIP=bolas en juego.<br>La cobertura por tipo de batazo varía por temporada.{% if d.statcast_partial %}<br><span class="dgl-partial">*</span> Ya jugaba antes de que este dato se registrara: el total cubre solo sus {{ d.statcast_seasons }} temporadas con cobertura, no toda su carrera.{% endif %}</div>
   </section>
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
@@ -71,11 +71,11 @@ faltar en los totales.
         {% include "profiles/_season_head.html" with cols=d.columns.ratios %}
         <tbody>
           {% for line in d.statcast_lines %}{% include "profiles/_season_row.html" with cells=line.ratios %}{% endfor %}
-          {% if d.total_cells and d.statcast_full %}{% include "profiles/_season_total.html" with cells=d.total_cells.ratios count=d.season_count totals_target="bat-team" %}{% endif %}
+          {% if d.total_cells %}{% include "profiles/_season_total.html" with cells=d.total_cells.ratios count=d.statcast_seasons partial=d.statcast_partial totals_target="bat-team" %}{% endif %}
         </tbody>
       </table>
     </div>
-    <div class="dgl-meta px-3 py-2 border-top">GB/FB/LD/PU% = % de bolas en juego por tipo (roletazo/elevado/línea/palomita) · GB/FB = roletazos÷elevados · Contact% = swings con contacto ÷ swings · Whiff% = swings y fallos ÷ swings.{% if d.coefficient_qualifiers %}<br>Solo temporadas que califican: {{ d.coefficient_qualifiers|join:" o " }}.{% endif %}</div>
+    <div class="dgl-meta px-3 py-2 border-top">GB/FB/LD/PU% = % de bolas en juego por tipo (roletazo/elevado/línea/palomita) · GB/FB = roletazos÷elevados · Contact% = swings con contacto ÷ swings · Whiff% = swings y fallos ÷ swings.{% if d.statcast_partial %}<br><span class="dgl-partial">*</span> Ya jugaba antes de que este dato se registrara: el total cubre solo sus {{ d.statcast_seasons }} temporadas con cobertura, no toda su carrera.{% endif %}{% if d.coefficient_qualifiers %}<br>Solo temporadas que califican: {{ d.coefficient_qualifiers|join:" o " }}.{% endif %}</div>
   </section>
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>

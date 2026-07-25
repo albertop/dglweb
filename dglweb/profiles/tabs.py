@@ -473,8 +473,14 @@ def _group_context(
                 if column in _COEFFICIENT_COLUMNS and metric.qualifier_season
             }
         ),
-        # Only total a Statcast pane when it covers every season the player has: a career line
-        # summed over fewer seasons than the table lists would misread as his whole career.
+        # Los paneles Statcast arrancan en 1989, así que a quien ya jugaba antes le cubren solo parte
+        # de la carrera. Antes el total se escondía entero para no publicar una suma que se leyera
+        # como "toda su carrera"; ahora se publica con el número de temporadas que SÍ cubre y un
+        # asterisco, que dice lo mismo sin quitarle al lector un dato que existe.
+        "statcast_seasons": len(statcast_seasons),
+        "statcast_partial": bool(statcast_seasons) and len(statcast_seasons) != len(seasons),
+        # El desglose por equipo/liga sigue escondido cuando la cobertura es parcial: un equipo donde
+        # solo jugó antes de 1989 daría una fila entera de rayas.
         "statcast_full": bool(statcast_seasons) and len(statcast_seasons) == len(seasons),
     }
 
