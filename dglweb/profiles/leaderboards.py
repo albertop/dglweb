@@ -17,7 +17,7 @@ from django.shortcuts import render
 
 from dglweb.profiles import columns
 from dglweb.profiles.tabs import _DESCRIPTIVE_COLUMNS, _pretty_qualifier, _puestos_layout, _qualifier_context
-from dglweb.stats import qualifier
+from dglweb.stats import leaders, qualifier
 from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching
 
 _GROUPS: list[tuple[str, str]] = [("batting", "Bateo"), ("pitching", "Pitcheo"), ("fielding", "Fildeo")]
@@ -27,6 +27,8 @@ _GROUPS: list[tuple[str, str]] = [("batting", "Bateo"), ("pitching", "Pitcheo"),
 _POSITIONS: list[str] = ["P", "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF"]
 # La división de receptor solo tiene sentido en C: passed balls y cERA no existen en las otras ocho.
 _CATCHER_DIVISION = "Receptor"
+# Octubre es su propio pill: otro tablero, no otra división de columnas.
+_POSTSEASON_DIVISION = "Postemporada"
 _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por temporada")]
 # Hasta qué PUESTO llega cada tabla (no cuántas filas): un empate en el último entra completo, así que
 # un top-15 con tres empatados en el 15 muestra 17 filas. Vale para las dos puntas de un mismo
@@ -82,15 +84,23 @@ def _division_metrics(group: str, scope: str, pos: str | None = None) -> list[tu
     """
     flag = "best_career" if scope == "carrera" else "best_season"
     active = {m.column: m for m in Metric.objects.filter(is_active=True, stat_group=group, **{flag: True})}
-    catcher = [cols for label, cols in _puestos_layout(group) if label == _CATCHER_DIVISION]
+    layout = _puestos_layout(group)
+    catcher = [cols for label, cols in layout if label == _CATCHER_DIVISION]
     extra = catcher[0] if catcher and pos == "C" else []
     divisions: list[tuple[str, list[Metric]]] = []
-    for label, cols in _puestos_layout(group):
+    for label, cols in layout:
         if label == _CATCHER_DIVISION:
             continue
         metrics = [active[col] for col in [*cols, *(extra if label == "Avanzado" else [])] if col in active]
         if metrics:
             divisions.append((label, metrics))
+    # Octubre es su propio pill, como en el perfil. No es una división de columnas sino otro tablero:
+    # solo las métricas marcadas para postemporada, en el mismo orden de las tablas. Fildeo no tiene
+    # (las muestras de octubre por posición son muy pequeñas), así que ahí el pill no aparece.
+    in_order = [col for _, cols in layout for col in cols]
+    october = [active[col] for col in in_order if col in active and active[col].postseason]
+    if october:
+        divisions.append((_POSTSEASON_DIVISION, october))
     return divisions
 
 
@@ -101,7 +111,7 @@ def _direction_label(metric: Metric) -> str:
     return "Más es mejor" if higher else "Menos es mejor"
 
 
-def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool) -> str:
+def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool, october: bool = False) -> str:
     """La frase del pie que explica el umbral. Vacía cuando no hay ninguno.
 
     Cuál de las dos tablas filtra depende del tipo de métrica, y por eso la frase cambia:
@@ -110,10 +120,17 @@ def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool) -> str:
       * Un conteo solo lo necesita en Últimos: "más jonrones" no se logra en veinte turnos, pero
         "menos jonrones" sin piso lo gana el que apenas jugó. Decirle "mínimo para calificar" a secas
         haría pensar que también recorta a los líderes, y no es así.
+
+    Octubre no pasa por la cascada: sus tasas usan el piso fijo del motor (docs/UMBRALES_POSTEMPORADA),
+    mucho más bajo porque una postemporada entera son unos pocos juegos.
     """
     is_rate = metric.kind == Metric.Kind.RATE
     if not is_rate and not has_worst:
         return ""
+    if october:
+        season_floor, career_floor = leaders._POST_QUALIFIER.get(metric.stat_group, ("", ""))
+        formula = career_floor if scope == "carrera" else season_floor
+        return f"Mínimo para calificar: {_pretty_qualifier(formula)}." if formula else ""
     defaults, _ = _qualifier_context()
     formula = (
         qualifier.resolve_career(metric, defaults)
@@ -203,7 +220,7 @@ def _write_rank_once(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _real_ranks(
-    metric: Metric, scope: str, season: int | None, player_ids: list[int], pos: str | None
+    metric: Metric, scope: str, season: int | None, player_ids: list[int], pos: str | None, *, october: bool
 ) -> dict[int, int]:
     """El puesto de cada jugador en el tablero DESCENDENTE — el ranking que muestra la tabla de arriba.
 
@@ -216,7 +233,7 @@ def _real_ranks(
     if not player_ids:
         return {}
     board = Leader.objects.filter(
-        metric=metric, board=_board_flag(scope), postseason=False, fielding_pos=pos, player_id__in=player_ids
+        metric=metric, board=_board_flag(scope), postseason=october, fielding_pos=pos, player_id__in=player_ids
     )
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
@@ -224,7 +241,7 @@ def _real_ranks(
 
 
 def _board_rows(
-    metric: Metric, scope: str, season: int | None, pos: str | None, *, best: bool = True
+    metric: Metric, scope: str, season: int | None, pos: str | None, *, best: bool = True, october: bool = False
 ) -> list[dict[str, Any]]:
     """Un extremo del tablero: los `_TOP_RANK` puestos de una punta.
 
@@ -233,7 +250,7 @@ def _board_rows(
     `_best_and_worst` por el puesto real del ranking.
     """
     flag = _board_flag(scope, best=best)
-    board = Leader.objects.filter(metric=metric, board=flag, postseason=False, fielding_pos=pos)
+    board = Leader.objects.filter(metric=metric, board=flag, postseason=october, fielding_pos=pos)
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
     leaders = list(
@@ -280,19 +297,25 @@ def _column_labels(metric: Metric, scope: str) -> tuple[str, str]:
     return (alto, bajo) if metric.direction == Metric.Direction.HIGHER else (bajo, alto)
 
 
-def _best_and_worst(metric: Metric, scope: str, season: int | None, pos: str | None) -> list[dict[str, Any]]:
+def _best_and_worst(
+    metric: Metric, scope: str, season: int | None, pos: str | None, *, october: bool = False
+) -> list[dict[str, Any]]:
     """Las dos tablas paralelas: el tablero descendente a la izquierda y el ascendente a la derecha.
 
     Cuando hay pocos calificados las dos puntas se solapan y un mismo jugador sale en las dos. Ahí
     manda la primera: el repetido se quita de la segunda. Si con eso la segunda se vacía —o la
     métrica no tiene ese tablero, como G/PA/AB— queda una sola columna.
     """
-    best = _write_rank_once(_board_rows(metric, scope, season, pos, best=True))
+    best = _write_rank_once(_board_rows(metric, scope, season, pos, best=True, october=october))
     honored = {row["player_id"] for row in best}
-    tail = [row for row in _board_rows(metric, scope, season, pos, best=False) if row["player_id"] not in honored]
+    tail = [
+        row
+        for row in _board_rows(metric, scope, season, pos, best=False, october=october)
+        if row["player_id"] not in honored
+    ]
     # La cola se publica con el puesto del ranking de arriba, no con el del tablero ascendente, y se
     # ordena por él: así el extremo queda de último y ningún número significa dos cosas distintas.
-    real = _real_ranks(metric, scope, season, [row["player_id"] for row in tail], pos)
+    real = _real_ranks(metric, scope, season, [row["player_id"] for row in tail], pos, october=october)
     for row in tail:
         row["rank"] = real.get(row["player_id"], row["rank"])
     tail.sort(key=lambda row: (row["rank"], row["name"]))
@@ -324,12 +347,13 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
     tab_metrics = next(metrics for label, metrics in divisions if label == tab)
 
     metric = next((m for m in tab_metrics if m.column == metric_col), tab_metrics[0])
+    october = tab == _POSTSEASON_DIVISION
 
     # Seasons this metric was ranked in (some start in 1989), newest first; the picked one is validated.
     season_years: list[int] = []
     if scope == "temporada":
         years = Leader.objects.filter(
-            metric=metric, board=Leader.Board.BEST_SEASON, postseason=False, fielding_pos=chosen_pos
+            metric=metric, board=Leader.Board.BEST_SEASON, postseason=october, fielding_pos=chosen_pos
         ).values_list("season", flat=True)
         season_years = sorted({year for year in years if year is not None}, reverse=True)
     chosen_season = None
@@ -344,7 +368,7 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
         "season": str(chosen_season or ""),
         "pos": chosen_pos or "",
     }
-    columns = _best_and_worst(metric, scope, chosen_season, chosen_pos)
+    columns = _best_and_worst(metric, scope, chosen_season, chosen_pos, october=october)
 
     return {
         "groups": [
@@ -380,7 +404,7 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             "name": metric.name_es or metric.abbrev,
             "abbr": metric.abbrev,
             "direction": _direction_label(metric),
-            "qualifier": _qualifier_note(metric, scope, has_worst=len(columns) > 1),
+            "qualifier": _qualifier_note(metric, scope, has_worst=len(columns) > 1, october=october),
             "available_from": metric.available_from,  # "disponible desde YYYY" cuando aplica (Statcast)
             "scope_label": f"temporada {chosen_season}" if scope == "temporada" else "de por vida",
             "columns": columns,  # Mejores y (si existe y no quedó vacía tras el dedup) Peores

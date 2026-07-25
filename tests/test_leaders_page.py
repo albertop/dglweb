@@ -239,6 +239,29 @@ def test_the_tail_is_numbered_by_its_place_in_the_main_ranking() -> None:
 
 
 @pytest.mark.django_db
+def test_the_postseason_pill_reads_its_own_boards_and_october_floor() -> None:
+    """Postemporada es otro tablero, no otra división de columnas.
+
+    Lee las filas con `postseason=True` —nunca las de serie regular— y su umbral sale del piso fijo
+    de octubre, no de la cascada: una postemporada entera son unos pocos juegos, así que pedir los
+    502 turnos de una campaña dejaría el tablero vacío.
+    """
+    avg = _metric("batting", "avg", "AVG", name_es="Promedio")
+    Metric.objects.filter(pk=avg.pk).update(kind=Metric.Kind.RATE, postseason=True)
+    octubre, regular = _player(800, "p01", "Octubre O"), _player(801, "p02", "Regular R")
+    Leader.objects.create(
+        metric=avg, board=Leader.Board.BEST_CAREER, player=octubre, value=0.4, rank=1, postseason=True
+    )
+    _leader(avg, regular, 1, 0.35)  # serie regular: no debe salir en el pill de octubre
+
+    ctx = leaders_context(group="batting", tab="Postemporada", scope="carrera", metric_col="avg", season="")
+
+    assert "Postemporada" in [d["label"] for d in ctx["divisions"]]
+    assert [r["name"] for r in _best(ctx)] == ["Octubre O"]
+    assert ctx["board"]["qualifier"] == "Mínimo para calificar: PA ≥ 50."  # el piso de octubre
+
+
+@pytest.mark.django_db
 def test_a_descriptive_metric_labels_its_two_ends_by_height_not_by_merit() -> None:
     """Un GB% bajo no es un mal GB%, es el perfil opuesto: las tablas se rotulan sin juzgar."""
     gb = _metric("batting", "gb_pct", "GB%", name_es="Porcentaje de rodados")
