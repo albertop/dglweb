@@ -25,10 +25,11 @@ _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por
 # Hasta qué PUESTO llega cada tablero (no cuántas filas): un empate en el último puesto entra
 # completo, así que un top-25 con tres jugadores empatados en el 25 muestra 27 filas. De por vida da
 # para 25 (es el registro histórico); una temporada suelta se corta en 10.
-_TOP_RANK: dict[str, int] = {"carrera": 25, "temporada": 10}
-# A partir de cuántas filas el tablero se parte en dos columnas paralelas. Por debajo de esto, dos
-# columnas quedarían ridículamente cortas y se ve mejor una sola.
-_SPLIT_FROM = 12
+_TOP_RANK: dict[str, int] = {"carrera": 20, "temporada": 10}
+# Dónde se parte el tablero en dos columnas paralelas: el top 10 a la izquierda y del 11 en adelante
+# a la derecha. Al cortar por PUESTO (y no por número de filas) un empate nunca queda partido, porque
+# todos los que comparten puesto caen del mismo lado.
+_SPLIT_AT_RANK = 10
 # Display format per (group, column), read from the same column lists the profile tables use, so a
 # leader value is written exactly like it is on a player page (ERA 2.93, AVG .318, HR 703).
 _COLUMN_FMT: dict[tuple[str, str], str] = {}
@@ -126,18 +127,13 @@ def _active_players(player_ids: list[int], latest: int | None) -> set[int]:
 def _split_in_columns(rows: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
     """Parte el tablero en dos columnas paralelas para que no quede una lista larga y estrecha.
 
-    El corte NO puede caer dentro de un empate: las filas repetidas de un empate van sin puesto ni
-    valor (los escribe la primera), así que abrir una columna con una de ellas dejaría un nombre
-    suelto sin número. Por eso el corte se corre hasta la próxima fila que abre puesto (`leads`).
+    Siempre el top 10 a la izquierda y del 11 en adelante a la derecha, así el lector sabe de antemano
+    qué hay en cada lado. Con empates la izquierda puede pasar de diez filas (diez PUESTOS, no diez
+    jugadores). Un tablero que no llega al 11 —cualquiera de temporada— se queda en una sola columna.
     """
-    if len(rows) < _SPLIT_FROM:
-        return [rows]
-    cut = (len(rows) + 1) // 2
-    while cut < len(rows) and not rows[cut]["leads"]:
-        cut += 1
-    if cut >= len(rows):  # un empate gigante al final: mejor una sola columna que una vacía
-        return [rows]
-    return [rows[:cut], rows[cut:]]
+    left = [row for row in rows if row["rank"] <= _SPLIT_AT_RANK]
+    right = [row for row in rows if row["rank"] > _SPLIT_AT_RANK]
+    return [left, right] if right else [left]
 
 
 def _board_rows(metric: Metric, scope: str, season: int | None) -> list[dict[str, Any]]:

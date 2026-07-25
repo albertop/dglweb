@@ -127,7 +127,7 @@ def test_the_latest_season_board_marks_nobody_as_active() -> None:
 
 @pytest.mark.django_db
 def test_boards_cut_by_rank_and_keep_the_whole_tie() -> None:
-    """De por vida llega al puesto 25 y una temporada al 10; el empate del último puesto entra entero."""
+    """De por vida llega al puesto 20 y una temporada al 10; el empate del último puesto entra entero."""
     hr = _metric("batting", "hr", "HR")
     for rank in range(1, 31):  # puestos 1..30 en ambos tableros
         jugador = _player(100 + rank, f"c{rank:02d}", f"Carrera {rank}")
@@ -141,8 +141,8 @@ def test_boards_cut_by_rank_and_keep_the_whole_tie() -> None:
     carrera = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
     temporada = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2020")
 
-    assert max(r["rank"] for r in carrera["board"]["rows"]) == 25
-    assert len(carrera["board"]["rows"]) == 25
+    assert max(r["rank"] for r in carrera["board"]["rows"]) == 20
+    assert len(carrera["board"]["rows"]) == 20
     assert max(r["rank"] for r in temporada["board"]["rows"]) == 10
     # 10 puestos, pero 11 filas: el puesto 10 lo comparten dos jugadores y ninguno se corta.
     assert len(temporada["board"]["rows"]) == 11
@@ -169,30 +169,31 @@ def test_a_tie_writes_the_rank_and_value_only_on_its_first_row() -> None:
 
 
 @pytest.mark.django_db
-def test_a_long_board_splits_in_two_columns_without_breaking_a_tie() -> None:
-    """El tablero largo se parte en dos columnas y el corte nunca cae en una fila repetida de empate."""
+def test_the_board_splits_at_rank_ten_so_a_tie_is_never_broken() -> None:
+    """Izquierda = top 10, derecha = 11 en adelante. Un empate en el 10 se queda entero a la izquierda."""
     hr = _metric("batting", "hr", "HR")
-    # 24 puestos, con un empate de tres justo donde caería el corte a la mitad (puesto 12).
-    for rank in range(1, 25):
+    for rank in range(1, 21):
         _leader(hr, _player(300 + rank, f"s{rank:02d}", f"Uno {rank:02d}"), rank, 500.0 - rank)
-    _leader(hr, _player(398, "s98", "Empate B"), 12, 488.0)
-    _leader(hr, _player(399, "s99", "Empate C"), 12, 488.0)
+    _leader(hr, _player(398, "s98", "Empate B"), 10, 490.0)  # empate justo en el corte
+    _leader(hr, _player(399, "s99", "Empate C"), 10, 490.0)
 
     board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
     izquierda, derecha = board["columns"]
 
-    assert len(board["columns"]) == 2
     assert izquierda + derecha == board["rows"]  # se reparten todas las filas, sin perder ninguna
-    assert derecha[0]["leads"] is True  # la segunda columna abre con un puesto, no con un empate suelto
+    assert max(r["rank"] for r in izquierda) == 10
+    assert [r["rank"] for r in derecha] == list(range(11, 21))
+    assert len(izquierda) == 12  # diez PUESTOS, doce jugadores: el empate del 10 no se parte
 
 
 @pytest.mark.django_db
-def test_a_short_board_stays_in_a_single_column() -> None:
+def test_a_board_that_never_reaches_rank_eleven_stays_in_one_column() -> None:
+    """Cualquier tablero de temporada (top 10) cabe en una sola columna."""
     hr = _metric("batting", "hr", "HR")
-    for rank in range(1, 6):
-        _leader(hr, _player(400 + rank, f"p{rank:02d}", f"Corto {rank}"), rank, 100.0 - rank)
+    for rank in range(1, 11):
+        _leader(hr, _player(400 + rank, f"p{rank:02d}", f"Corto {rank}"), rank, 100.0 - rank, season=2020, career=False)
 
-    board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
+    board = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2020")["board"]
 
     assert len(board["columns"]) == 1
     assert board["columns"][0] == board["rows"]
