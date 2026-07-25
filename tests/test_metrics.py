@@ -124,7 +124,10 @@ def test_seed_excludes_keys_context_and_baseball_notation(seeded: None) -> None:
 def test_seed_uses_judgment_for_columns_the_old_table_did_not_cover(seeded: None) -> None:
     xfip = Metric.objects.get(stat_group="pitching", column="xfip")  # not in the old dgl_stat
     assert xfip.direction == Metric.Direction.LOWER  # judgment: lower is better
-    assert not xfip.is_active and not xfip.best_season  # inactive until curated
+    assert xfip.is_active  # curada como tablero en _ACTIVATE (owner: "actívalas todas")
+    # Una columna sin config de tablero y sin curar (un componente de WAR) sigue inactiva.
+    component = Metric.objects.get(stat_group="batting", column="base_running")
+    assert not component.is_active and not component.best_season
 
 
 @pytest.mark.django_db

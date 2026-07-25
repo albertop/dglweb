@@ -542,6 +542,49 @@ _NAME_ES: dict[tuple[str, str], str] = {
 # _SORT_ORDER). The source calls Isolated Power "IsoP"; it shows as the standard "ISO".
 _ABBREV_OVERRIDE: dict[tuple[str, str], str] = {("batting", "IsoP"): "ISO"}
 
+# Metrics activated as leaderboards beyond the original `_LEADERBOARD` extract (owner: "activate them
+# all"). Column-keyed so it does not depend on the fiddly dgl code. Each entry is (abbrev, name_es,
+# direction) and enters BOTH best-season and best-career. The "negative" counts (WP, HBP, IBB, BSv,
+# throwing errors) rank by the MOST, like GIDP/BK — a "fewest" board ties at zero. Rates inherit the
+# group qualifier (PA/IP/G) via the cascade. All of it is tunable in the Backoffice.
+_ACTIVATE: dict[tuple[str, str], tuple[str, str, str]] = {  # (abbrev, name_es, direction "+"/"-")
+    ("batting", "war"): ("WAR", "WAR (victorias sobre reemplazo)", "+"),
+    ("batting", "rar"): ("RAR", "Carreras sobre reemplazo", "+"),
+    ("batting", "w_raa"): ("wRAA", "Bateo sobre el promedio (wRAA)", "+"),
+    ("batting", "w_rc"): ("wRC", "Carreras creadas ponderadas (wRC)", "+"),
+    ("batting", "w_gdp"): ("wGDP", "Corrido evitando doble matanza (wGDP)", "+"),
+    ("batting", "w_sb"): ("wSB", "Corrido en robos (wSB)", "+"),
+    ("batting", "ubr"): ("UBR", "Corrido de bases (UBR)", "+"),
+    ("batting", "spd"): ("SPD", "Puntaje de velocidad (SPD)", "+"),
+    ("batting", "lob"): ("LOB", "Dejados en base", "+"),
+    ("pitching", "war"): ("WAR", "WAR (victorias sobre reemplazo)", "+"),
+    ("pitching", "rar"): ("RAR", "Carreras sobre reemplazo", "+"),
+    ("pitching", "ra9_war"): ("RA9-WAR", "WAR por carreras permitidas", "+"),
+    ("pitching", "xfip"): ("xFIP", "Efectividad esperada (xFIP)", "-"),
+    ("pitching", "era_minus"): ("ERA-", "ERA ajustada (ERA-)", "-"),
+    ("pitching", "fip_minus"): ("FIP-", "FIP ajustada (FIP-)", "-"),
+    ("pitching", "babip"): ("BABIP", "Promedio en bolas en juego permitido", "-"),
+    ("pitching", "strike_pct"): ("Strike%", "Porcentaje de strikes", "+"),
+    ("pitching", "pitches_per_inning"): ("P/IP", "Lanzamientos por entrada", "-"),
+    ("pitching", "hld"): ("HLD", "Holds", "+"),
+    ("pitching", "bsv"): ("BSv", "Salvamentos volados", "+"),
+    ("pitching", "save_opp"): ("SVO", "Oportunidades de salvamento", "+"),
+    ("pitching", "gf"): ("GF", "Juegos terminados", "+"),
+    ("pitching", "ibb"): ("IBB", "Boletos intencionales", "+"),
+    ("pitching", "hbp"): ("HBP", "Golpeados", "+"),
+    ("pitching", "wp"): ("WP", "Lanzamientos descontrolados", "+"),
+    ("fielding", "uzr"): ("UZR", "Carreras defensivas (UZR)", "+"),
+    ("fielding", "catcher_era"): ("cERA", "Efectividad con él de receptor (cERA)", "-"),
+    ("fielding", "gp"): ("G", "Juegos", "+"),
+    ("fielding", "gs"): ("GS", "Aperturas", "+"),
+    ("fielding", "chances"): ("Ch", "Oportunidades", "+"),
+    ("fielding", "rf_per9"): ("RF/9", "Rango por 9 entradas", "+"),
+    ("fielding", "throwing_errors"): ("ErrT", "Errores de tiro", "+"),
+    ("fielding", "triple_plays"): ("TP", "Triple plays", "+"),
+    ("fielding", "stolen_bases"): ("SB", "Robos permitidos", "+"),
+    ("fielding", "caught_stealing"): ("CS", "Atrapados robando", "+"),
+}
+
 _MODELS: dict[str, type[models.Model]] = {"batting": Batting, "pitching": Pitching, "fielding": Fielding}
 
 
@@ -582,7 +625,14 @@ def _rows() -> list[dict[str, Any]]:
             # Abbrev = the English code (HR, AVG, ERA, DP, Inn…), never a Spanish one — it shows in the
             # leaders UI and the player-page rankings.
             abbrev = _ABBREV_OVERRIDE.get((group, code), code)
+            name_es = _NAME_ES.get((group, code), "")
             own_season, own_career = _OWN_QUALIFIER.get((group, field.name), ("", ""))
+
+            activation = _ACTIVATE.get((group, field.name))  # owner-curated extra leaderboards
+            if activation:
+                abbrev, name_es, sign = activation
+                direction = Metric.Direction.HIGHER if sign == "+" else Metric.Direction.LOWER
+                bs = bc = act = 1
 
             rows.append(
                 {
@@ -604,7 +654,7 @@ def _rows() -> list[dict[str, Any]]:
                         else None
                     ),
                     "abbrev": abbrev,
-                    "name_es": _NAME_ES.get((group, code), ""),
+                    "name_es": name_es,
                     "sort_order": _SORT_ORDER.get((group, code), _SORT_LAST),
                     "is_active": bool(act),
                 }
