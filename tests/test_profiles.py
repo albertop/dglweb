@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date
+from typing import Any
 
 import pytest
 from django.db import connection
@@ -584,7 +585,7 @@ def _puesto_career(metric: Metric, player: Player, rank: int, *, postseason: boo
     )
 
 
-def _flat(grid: dict[str, object]) -> list[dict[str, object]]:
+def _flat(grid: dict[str, Any]) -> list[dict[str, Any]]:
     """Todas las filas de una rejilla (Serie Regular o Postemporada), aplanadas por sus divisiones."""
     return [row for section in grid["sections"] for row in section["rows"]]
 
@@ -609,7 +610,7 @@ def test_puestos_grid_pivots_top10_by_metric_and_season() -> None:
 
     reg = _puestos_context(player)["regular"]
 
-    def show(cell: dict[str, object]) -> str:
+    def show(cell: dict[str, Any]) -> str:
         return "" if cell["rank"] is None else f"{cell['rank']}{'*' if cell['tied'] else ''}"
 
     assert reg["seasons"] == [2001, 2002]
@@ -682,6 +683,8 @@ def test_puestos_groups_metrics_into_table_divisions_in_order() -> None:
         ("Sabermetría", ["AO"]),
         ("Coeficientes", ["GB%"]),
     ]
+    gb = next(r for s in reg["sections"] for r in s["rows"] if r["abbrev"] == "GB%")
+    assert gb["descriptive"] is True  # SAB-01: GB% es descriptiva, no "mejor/peor"
 
 
 @pytest.mark.django_db

@@ -15,7 +15,7 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
         <tr class="table-light"><td colspan="{{ grid.seasons|length|add:3 }}" class="ps-3" style="font-weight:700">{{ section.label }}</td></tr>
         {% for row in section.rows %}
         <tr>
-          <td class="ps-3">{{ row.name }} <span class="dgl-meta" title="{% if row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>
+          <td class="ps-3">{{ row.name }} <span class="dgl-meta" title="{% if row.descriptive %}{% if row.direction == '+' %}ordena de más alto a más bajo (perfil, no mejor/peor){% else %}ordena de más bajo a más alto (perfil, no mejor/peor){% endif %}{% elif row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>
           <td class="dgl-mid dgl-meta">{{ row.abbrev }}</td>
           {% for cell in row.cells %}<td class="dgl-mid{% if cell.rank == 1 %} lead-season{% endif %}">{{ cell.rank|default_if_none:"" }}{% if cell.tied %}*{% endif %}</td>{% endfor %}
           <td class="dgl-mid pe-3{% if row.career.rank == 1 %} lead-career{% endif %}" style="border-left:2px solid var(--dgl-navy)">{{ row.career.rank|default_if_none:"" }}{% if row.career.tied %}*{% endif %}</td>

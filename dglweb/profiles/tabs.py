@@ -823,6 +823,7 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
             "name": metric.name_es or metric.abbrev,
             "abbrev": metric.abbrev,
             "direction": _DIRECTION_SIGN.get(metric.direction, ""),
+            "descriptive": metric.column in _DESCRIPTIVE_COLUMNS,  # SAB-01: perfil, no "mejor/peor"
             "cells": [
                 cell(metric.pk, Leader.Board.BEST_SEASON, s, by_metric_id.get(metric.pk, {}).get(s))
                 for s in ordered_seasons

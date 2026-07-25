@@ -778,10 +778,11 @@ class Metric(models.Model):
     worst_career = models.BooleanField(default=False, verbose_name="Peores carreras")
 
     exclude_zeros = models.BooleanField(default=False, verbose_name="Excluir ceros")
-    # Reserved: `build_leaders` does not yet produce postseason boards (they will read the *_post
-    # tables in a later phase). The flag is captured now from the source config; setting it has no
-    # effect until that dimension exists. See docs/MEJORAS_FUTURAS.md.
-    postseason = models.BooleanField(default=False, verbose_name="Postemporada (reservado)")
+    # `build_leaders` DOES produce postseason boards now (counts where more is better, and the classic
+    # rates with fixed October floors — see `_postseason_leaders` / `_postseason_rate_leaders` and
+    # docs/UMBRALES_POSTEMPORADA.md). Caveat (review v4 DEV-03): the October boards do not yet honor
+    # `best_season`/`best_career`; only `postseason` gates them. See docs/TODO.md.
+    postseason = models.BooleanField(default=False, verbose_name="Postemporada")
 
     # Qualifier cascade, level 2 (optional per-metric override). A simple formula on aggregated
     # columns, e.g. "PA>=502". Blank = inherit the group default (`QualifierDefault`, level 1);

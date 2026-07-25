@@ -82,3 +82,38 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
 - [ ] Listado exacto de métricas sabermétricas por página de jugador.
 - [ ] Redactar legal: privacidad + consentimiento de cookies + ToS.
 - [ ] Dónde/ cuándo se activa el muro de registro (post-launch).
+
+## Code review v4 — findings (2026-07-24)
+
+Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
+
+- [x] **DEV-01 — `mypy .` no estaba verde.** De acuerdo, real: el gate corría `mypy dglweb`
+  (78 archivos) y no veía los tests. `mypy .` fallaba en `tests/test_profiles.py` (`_flat`
+  iterando `object`). **Corregido** (helpers de test tipados con `Any`). **El gate ahora corre
+  `mypy .`, no `mypy dglweb`.**
+- [x] **SAB-01 — Puestos llamaba "mejor" a métricas descriptivas.** De acuerdo. GB%/FB%/LD%/GB-FB
+  no tienen dirección deportiva. **Corregido**: el tooltip del signo dice "ordena de más alto a más
+  bajo (perfil, no mejor/peor)" para descriptivas (misma regla SAB-02 que ya usa Líderes).
+- [x] **SAB-04 — fildeo de postemporada sin explicación.** De acuerdo, barato. **Corregido**: nota
+  en el caption ("registro descriptivo; no participa en liderazgos por ahora").
+- [x] **DEV-03 (parcial) — comentario/label de `Metric.postseason` decía "reservado".** Ya no lo es.
+  **Corregido** el label y el comentario (migración 0013).
+- [ ] **DEV-02 — liderazgo de postemporada de UNA sola ronda no se pinta como líder de temporada.**
+  De acuerdo que es una inconsistencia motor↔UI. **PERO** choca con la decisión previa del dueño
+  ("el badge va solo en la fila Tot, nunca en filas de ronda"): en un octubre de una sola ronda no
+  hay fila Tot. Opciones: (a) tratar la línea única como el agregado para el highlight, o (b) emitir
+  siempre una fila Tot. **Necesita decisión de producto** antes de tocar.
+- [ ] **DEV-03 (gating) — los boards de octubre ignoran `best_season`/`best_career`.** De acuerdo, es
+  un bug de configuración: si el admin apaga un flag, la temporada regular obedece y octubre no.
+  Fix: gatear cada board de postemporada por su flag (o separar flags regular/post). Moderado, con
+  test. Pendiente.
+- [ ] **DEV-04 — `_innings_to_outs` acepta fracciones imposibles (.3, .9, .25).** De acuerdo. El
+  parser solo mira el primer dígito. Fix: validar que la fracción sea 0/1/2 y fallar-loud/`None` en
+  ingest. Toca paridad, así que con cuidado + tests (.3/.9/basura). Pendiente.
+- [ ] **DEV-05 — todos los tabs se calculan por request.** Ya conocido (v3 DEV-01). Carga diferida
+  (HTMX/endpoints por tab) sigue pendiente; el test de presupuesto de queries es el guardarrail.
+- [ ] **SAB-02 — panel de receptor sin CS% ni contexto de volumen.** De acuerdo. Derivar
+  `CS% = CS/(SB+CS)` cuando `SB+CS > 0`, y etiquetar cERA como descriptiva. Feature, pendiente.
+- [ ] **SAB-03 — cobertura Statcast es piso por año, no por métrica (hueco 2000-2001).** Ya conocido
+  (v3 SAB-01, `MEJORAS_FUTURAS.md`). Barato mientras tanto: mencionar los años parciales en la nota
+  de la UI si el jugador tiene filas 2000-2001 en esos panes.

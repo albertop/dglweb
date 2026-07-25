@@ -14,9 +14,19 @@ dominicano** (carrera + temporada) + páginas de jugador, sobre el backfill hist
 - **Primera paridad real** corrida: 298 disparidades, casi todas falsos positivos de `g` (el proxy
   `career` reporta un `g` que no cuadra con su propio `yearByYear` para pitchers). Nuestros totales
   son correctos. → refinar `parity_career` (quitar `g`) — en `docs/MEJORAS_FUTURAS.md`.
-- **AQUÍ.** Pendiente Fase 4: **4c páginas de jugador** (siguiente gran entregable; totales de carrera
-  + temporada ya listos), 4d páginas de líderes, refinar paridad `g`, tabla de games, paridad de
-  fildeo. Backlog en `docs/MEJORAS_FUTURAS.md`.
+- **4c Páginas de jugador** ✅ — perfil data-driven con tabs Bateo/Pitcheo/Fildeo (Estándar, Avanzado,
+  Statcast, Coeficientes, Postemporada, Totales), overlay de liderazgos (temporada/carrera), y
+  **postemporada** (conteos + tasas con pisos fijos, `docs/UMBRALES_POSTEMPORADA.md`). Extra sobre el
+  plan: **tab Puestos** (rejilla de puestos por métrica × temporada + columna de por vida, con pills
+  Serie Regular / Postemporada). Commits hasta `e7b481a`.
+- **4d Páginas de líderes — MVP** ✅ — `/lideres/` (`profiles/leaderboards.py`): Bateo/Pitcheo, serie
+  regular, De por vida + Por temporada (selector de año), navegación por GET (cada board su URL).
+  Reusa el layout de divisiones de Puestos y el formateo de `columns`. Falta v2: Postemporada como
+  pill, Fildeo (por posición), detalle de fila (span/equipo), URLs con slug.
+- **Code review v4** procesado (`docs/reviews/code_review_v4.md`) — DEV-01 (mypy .), SAB-01, SAB-04 y
+  el label de `Metric.postseason` corregidos; resto evaluado y anotado en `docs/TODO.md`.
+- **AQUÍ.** Pendiente Fase 4: **4d v2** (postemporada + fildeo en líderes), refinar paridad `g`, tabla
+  de games, paridad de fildeo, y los findings abiertos del review v4. Backlog en `docs/MEJORAS_FUTURAS.md`.
 
 ## Decisiones cerradas
 - **Backfill desde el proxy** (no copiar de SQL Server): reproduce nuestro schema con todas las
