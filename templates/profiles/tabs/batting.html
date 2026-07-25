@@ -59,7 +59,7 @@ faltar en los totales.
         </tbody>
       </table>
     </div>
-    <div class="dgl-meta px-3 py-2 border-top">AO/GO/FO/PO/LO=out al aire/roletazo/elevado/palomita/línea · FH/PH/LH/GH=hit por elevado/palomita/línea/roletazo · Sw=swings · Miss=swings y fallos · BIP=bolas en juego. La cobertura por tipo de batazo varía por temporada.</div>
+    <div class="dgl-meta px-3 py-2 border-top">AO/GO/FO/PO/LO=out al aire/roletazo/elevado/palomita/línea · FH/PH/LH/GH=hit por elevado/palomita/línea/roletazo · Sw=swings · Miss=swings y fallos · BIP=bolas en juego.<br>La cobertura por tipo de batazo varía por temporada.</div>
   </section>
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
@@ -75,7 +75,7 @@ faltar en los totales.
         </tbody>
       </table>
     </div>
-    <div class="dgl-meta px-3 py-2 border-top">GB/FB/LD/PU% = % de bolas en juego por tipo (roletazo/elevado/línea/palomita) · GB/FB = roletazos÷elevados · Contact% = swings con contacto ÷ swings · Whiff% = swings y fallos ÷ swings.{% if d.coefficient_qualifiers %} Solo temporadas que califican: {{ d.coefficient_qualifiers|join:" o " }}.{% endif %}</div>
+    <div class="dgl-meta px-3 py-2 border-top">GB/FB/LD/PU% = % de bolas en juego por tipo (roletazo/elevado/línea/palomita) · GB/FB = roletazos÷elevados · Contact% = swings con contacto ÷ swings · Whiff% = swings y fallos ÷ swings.{% if d.coefficient_qualifiers %}<br>Solo temporadas que califican: {{ d.coefficient_qualifiers|join:" o " }}.{% endif %}</div>
   </section>
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
@@ -93,7 +93,7 @@ faltar en los totales.
         </tbody>
       </table>
     </div>
-    <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial. Los liderazgos de postemporada suman todo octubre de cada año, no por ronda.</div>
+    <div class="dgl-meta px-3 py-2 border-top">WC/DS/LCS/WS = Comodín, Serie Divisional, Serie de Campeonato, Serie Mundial.<br>Los liderazgos de postemporada suman todo octubre de cada año, no por ronda.</div>
   </section>
   {% include "profiles/_legend.html" with career=d.has_post_career_leads season=d.has_post_season_leads best=False %}
   </div>
