@@ -98,11 +98,11 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   en el caption ("registro descriptivo; no participa en liderazgos por ahora").
 - [x] **DEV-03 (parcial) — comentario/label de `Metric.postseason` decía "reservado".** Ya no lo es.
   **Corregido** el label y el comentario (migración 0013).
-- [ ] **DEV-02 — liderazgo de postemporada de UNA sola ronda no se pinta como líder de temporada.**
-  De acuerdo que es una inconsistencia motor↔UI. **PERO** choca con la decisión previa del dueño
-  ("el badge va solo en la fila Tot, nunca en filas de ronda"): en un octubre de una sola ronda no
-  hay fila Tot. Opciones: (a) tratar la línea única como el agregado para el highlight, o (b) emitir
-  siempre una fila Tot. **Necesita decisión de producto** antes de tocar.
+- [x] **DEV-02 — liderazgo de postemporada de UNA sola ronda no se pintaba como líder de temporada.**
+  El dueño eligió la **opción A**: una fila `line` que es la única de su temporada ES el agregado de
+  todo su octubre, así que lleva el badge (nunca una ronda *parcial* de un octubre de varias).
+  **Corregido** el overlay + comentarios contradictorios. Con test. Validado: Felipe Alou 1962 (SM de
+  una ronda) ahora marca sus liderazgos. Cambio de UI, no toca el motor ni requiere rebuild.
 - [x] **DEV-03 (gating) — los boards de octubre ignoran `best_season`/`best_career`.** **Corregido**:
   `_postseason_leaders` / `_postseason_rate_leaders` gatean el board de carrera por `best_career` y el
   de temporada por `best_season`; los predicados `_wants_postseason*` saltan si no se quiere ninguno.

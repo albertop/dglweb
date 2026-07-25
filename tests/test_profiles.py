@@ -412,6 +412,43 @@ def test_catcher_cs_pct_recomputes_from_counts_and_is_none_without_attempts() ->
 
 
 @pytest.mark.django_db
+def test_postseason_single_round_leader_gets_the_season_badge_on_its_lone_line() -> None:
+    """Review v4 DEV-02 (opción A): un octubre de UNA sola ronda no tiene fila Tot, así que esa línea
+    única ES el agregado y lleva el badge de líder de temporada. En un octubre de varias rondas el
+    badge va en la fila Tot, nunca en las rondas individuales."""
+    from dglweb.stats.models import BattingPost
+
+    player = _player(40, "z40", "Octubre Z", "1B")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    hr = Metric.objects.create(
+        stat_group="batting",
+        column="hr",
+        kind=Metric.Kind.CUMULATIVE,
+        direction=Metric.Direction.HIGHER,
+        postseason=True,
+        best_season=True,
+        is_active=True,
+    )
+    BattingPost.objects.create(player=player, season=2019, round="WS", hr=5)  # una sola ronda
+    BattingPost.objects.create(player=player, season=2004, round="DS", hr=2)  # dos rondas
+    BattingPost.objects.create(player=player, season=2004, round="WS", hr=3)
+    for season in (2019, 2004):  # líder de temporada de postemporada ambos años
+        Leader.objects.create(
+            metric=hr, board=Leader.Board.BEST_SEASON, season=season, player=player, value=5, rank=1, postseason=True
+        )
+
+    post = BattingTab().context(player)["post"]
+
+    def leads(season: int, kind: str) -> dict[str, str]:
+        return next(e["leads"] for e in post if e["row"].season == season and e["kind"] == kind)
+
+    assert leads(2019, "line").get("hr") == "lead-season"  # ronda única = agregado → lleva el badge
+    assert leads(2004, "season").get("hr") == "lead-season"  # multi-ronda → badge en la fila Tot
+    rounds_2004 = [e for e in post if e["row"].season == 2004 and e["kind"] == "line"]
+    assert all(not e["leads"] for e in rounds_2004)  # las rondas individuales, sin badge
+
+
+@pytest.mark.django_db
 def test_a_pitchers_batting_table_carries_no_leadership_badges() -> None:
     """Sus turnos al bate son incidentales: se ranquean contra bateadores de oficio. La mejor marca
     personal sí se queda — esa no compara con nadie."""

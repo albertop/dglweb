@@ -405,18 +405,21 @@ def _group_context(
     statcast_rows = [(row, leads) for row, leads in rows if row.season >= FIRST_STATCAST_SEASON]
     statcast_seasons = [row for row in seasons if row.season >= FIRST_STATCAST_SEASON]
     post_lines, post_totals = _postseason(post_model, group, player)
-    # Postseason leadership overlay: the mark lives on the aggregate the board ranks, never on a
-    # single round. Wine on a season's subtotal (its whole October); blue on the career total. A
-    # season with one round has no separate subtotal, so that lone line IS its aggregate and carries
-    # the mark. Only counts have postseason boards (option A) — no personal-best here.
+    # Postseason leadership overlay: the wine mark lives on the aggregate the board ranks — a whole
+    # October per season — never on a PARTIAL round. That aggregate is the "Tot" subtotal for a
+    # multi-round October; for a season the player played in a single round, that lone line already IS
+    # his whole October, so it carries the mark itself (review v4 DEV-02, option A). Blue (career)
+    # goes on the grand total below. Rates have October boards too now, but the page shows no
+    # personal-best on postseason, only the leadership overlay.
+    seasons_with_subtotal = {entry["row"].season for entry in post_lines if entry["kind"] == "season"}
     for entry in post_lines:
-        # Solo la fila "Tot" (subtotal de todo el octubre de ese año) lleva la marca de temporada,
-        # nunca una fila de ronda. Un año de una sola ronda no tiene fila Tot, así que ese liderazgo
-        # aparece solo en el total azul de carrera.
         row = entry["row"]
+        is_october_aggregate = entry["kind"] == "season" or (
+            entry["kind"] == "line" and row.season not in seasons_with_subtotal
+        )
         entry["leads"] = (
             {column: "lead-season" for season, column in post_season_leads if season == row.season}
-            if entry["kind"] == "season"
+            if is_october_aggregate
             else {}
         )
     for entry in post_totals:
