@@ -401,6 +401,16 @@ def test_catcher_total_is_scoped_to_catching_and_keeps_cera() -> None:
     assert total["catcher"][-1]["text"] == "3.65"  # cERA (última col de FIELDING_CATCHER), no blanqueado
 
 
+def test_catcher_cs_pct_recomputes_from_counts_and_is_none_without_attempts() -> None:
+    """SAB-02: CS% = atrapados ÷ intentos (SB+CS), recomputado de los conteos de la fila; sin intentos
+    es None (no 0 %), porque un catcher que nunca enfrentó un robo no tiene dato."""
+    from dglweb.stats.models import Fielding
+
+    assert Fielding(stolen_bases=70, caught_stealing=30).cs_pct == 0.30  # 30 / 100
+    assert Fielding(stolen_bases=0, caught_stealing=0).cs_pct is None  # sin intentos → dato ausente
+    assert Fielding().cs_pct is None  # ambos NULL
+
+
 @pytest.mark.django_db
 def test_a_pitchers_batting_table_carries_no_leadership_badges() -> None:
     """Sus turnos al bate son incidentales: se ranquean contra bateadores de oficio. La mejor marca

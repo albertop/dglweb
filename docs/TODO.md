@@ -114,8 +114,10 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   si algún día se re-ingesta fildeo, un valor malo pasaría a NULL y saltaría en paridad.)
 - [ ] **DEV-05 — todos los tabs se calculan por request.** Ya conocido (v3 DEV-01). Carga diferida
   (HTMX/endpoints por tab) sigue pendiente; el test de presupuesto de queries es el guardarrail.
-- [ ] **SAB-02 — panel de receptor sin CS% ni contexto de volumen.** De acuerdo. Derivar
-  `CS% = CS/(SB+CS)` cuando `SB+CS > 0`, y etiquetar cERA como descriptiva. Feature, pendiente.
+- [x] **SAB-02 — panel de receptor sin CS%.** **Corregido**: columna **CS%** (property `cs_pct` en
+  `Fielding`/`FieldingCareer`, `CS/(SB+CS)`, recomputada de los conteos de la fila; None sin intentos).
+  Caption aclara que CS% normaliza el volumen crudo y que cERA es contexto (depende del staff), no una
+  evaluación defensiva fuerte. Validado: Tony Peña carrera 34.9 %.
 - [ ] **SAB-03 — cobertura Statcast es piso por año, no por métrica (hueco 2000-2001).** Ya conocido
   (v3 SAB-01, `MEJORAS_FUTURAS.md`). Barato mientras tanto: mencionar los años parciales en la nota
   de la UI si el jugador tiene filas 2000-2001 en esos panes.

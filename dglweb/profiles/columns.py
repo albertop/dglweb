@@ -212,6 +212,7 @@ FIELDING_CATCHER: list[Column] = [
     Column("Inn", "innings_outs", "innings"),
     Column("SB", "stolen_bases"),
     Column("CS", "caught_stealing"),
+    Column("CS%", "cs_pct", "pct"),  # atrapados ÷ intentos — el volumen (SB/CS) mezcla staff y turnos
     Column("PB", "passed_balls"),
     Column("WP", "wild_pitches"),
     Column("PkO", "pickoffs"),

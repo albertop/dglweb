@@ -447,6 +447,14 @@ class Fielding(models.Model):
     # --- extra the proxy offers beyond the source table --------------------------
     age = models.PositiveSmallIntegerField(null=True, blank=True)
 
+    @property
+    def cs_pct(self) -> float | None:
+        """CS% = atrapados ÷ intentos (SB+CS); recomputa desde los conteos de esta fila (nunca
+        promedia tasas). None si no hubo intentos: eso no es 0 %, es dato ausente."""
+        caught = self.caught_stealing or 0
+        attempts = (self.stolen_bases or 0) + caught
+        return caught / attempts if attempts else None
+
     class Meta:
         db_table = "mlb_fielding"
         ordering = ["player", "season", "pos", "team"]
@@ -1223,6 +1231,14 @@ class FieldingCareer(models.Model):
     rf_per9 = models.FloatField(null=True, blank=True)
     catcher_era = models.FloatField(null=True, blank=True)
     uzr = models.FloatField(null=True, blank=True)
+
+    @property
+    def cs_pct(self) -> float | None:
+        """CS% de la carrera: atrapados ÷ intentos sobre los conteos sumados de esta fila (por
+        posición o total). None si no hubo intentos. Igual que la línea de temporada."""
+        caught = self.caught_stealing or 0
+        attempts = (self.stolen_bases or 0) + caught
+        return caught / attempts if attempts else None
 
     class Meta:
         db_table = "mlb_fielding_career"
