@@ -854,15 +854,21 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
     if postseason:
         # October has no qualifier cascade; the rate boards use the fixed floors from the engine.
         season_q, career_q = leaders._POST_QUALIFIER.get(group, ("", ""))
-        coefficient_q: list[str] = []  # no batted-ball/coefficient boards in October
+        coef_season: list[str] = []  # no batted-ball/coefficient boards in October
+        coef_career: list[str] = []
     else:
         defaults, _ = _qualifier_context()
         season_q, career_q = defaults.get(group, ("", ""))
-        coefficient_q = sorted({metric.qualifier_season for metric in metrics if metric.qualifier_season})
+        # La rejilla tiene columnas de temporada Y una de "De por vida", así que el pie muestra
+        # ambos umbrales del coeficiente (400/2000…), no solo el de temporada. Emparejados para no
+        # descolocar season y career cuando distintas métricas usan BIP vs swings.
+        pairs = sorted({(m.qualifier_season, m.qualifier_career) for m in metrics if m.qualifier_season})
+        coef_season = list(dict.fromkeys(_pretty_qualifier(s) for s, _ in pairs))
+        coef_career = list(dict.fromkeys(_pretty_qualifier(c) for _, c in pairs if c))
     qualifiers = {
         "season": _pretty_qualifier(season_q),
         "career": _pretty_qualifier(career_q),
-        "coefficients": [_pretty_qualifier(formula) for formula in coefficient_q],
+        "coefficients": {"season": coef_season, "career": coef_career},
     }
     return {"seasons": ordered_seasons, "sections": sections, "qualifiers": qualifiers}
 

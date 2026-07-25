@@ -12,7 +12,7 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
       </tr></thead>
       <tbody>
         {% for section in grid.sections %}
-        <tr class="table-light"><td colspan="{{ grid.seasons|length|add:2 }}" class="ps-3" style="font-weight:700">{{ section.label }}</td></tr>
+        <tr><td colspan="{{ grid.seasons|length|add:2 }}" class="ps-3 dgl-div-band">{{ section.label }}</td></tr>
         {% for row in section.rows %}
         <tr>
           <td class="ps-3"><span class="dgl-meta">[{{ row.abbrev }}]</span> {{ row.name }} <span class="dgl-meta" title="{% if row.descriptive %}{% if row.direction == '+' %}ordena de más alto a más bajo (perfil, no mejor/peor){% else %}ordena de más bajo a más alto (perfil, no mejor/peor){% endif %}{% elif row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>
@@ -26,6 +26,6 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
   </div>
   <div class="dgl-meta px-3 py-2 border-top">
     Cada celda de temporada es el puesto (1–10) que ocupó ese año entre dominicanos calificados; vacío = no estuvo en el top-10. La última columna es su puesto de por vida (top-25). El signo junto a la métrica indica hacia dónde manda: + más es mejor, - menos es mejor. Un * marca un puesto compartido (empate).
-    {% if grid.qualifiers.season or grid.qualifiers.career %}<br>Umbrales de calificación (solo tasas; los conteos no llevan): temporada {{ grid.qualifiers.season }}, carrera {{ grid.qualifiers.career }}.{% endif %}{% if grid.qualifiers.coefficients %} Coeficientes: {{ grid.qualifiers.coefficients|join:" o " }}.{% endif %}
+    {% if grid.qualifiers.season or grid.qualifiers.career %}<br>Umbrales de calificación (solo tasas; los conteos no llevan): temporada {{ grid.qualifiers.season }}, carrera {{ grid.qualifiers.career }}.{% endif %}{% if grid.qualifiers.coefficients.season %} Coeficientes: temporada {{ grid.qualifiers.coefficients.season|join:" o " }}{% if grid.qualifiers.coefficients.career %}, carrera {{ grid.qualifiers.coefficients.career|join:" o " }}{% endif %}.{% endif %}
   </div>
 </section>

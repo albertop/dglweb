@@ -186,6 +186,14 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    el último). Ahí quedó borrándose la vez pasada. */
 .lead-personal { font-style: italic; }
 .dgl-stats-table td.lead-personal { box-shadow: inset 0 0 0 1px var(--lead-ink); }
+/* Puestos: banda divisoria (Estándar, Avanzado, Sabermetría, Coeficientes). La tabla es larga y con
+   el rayado las secciones se perdían; una fila completa en navy —el mismo tono del borde de "De por
+   vida"— las separa de un vistazo. `box-shadow:none` vence el inset del rayado; `border-right:0` para
+   que la banda sea continua y no la corten los separadores de columna. */
+.dgl-stats-table td.dgl-div-band {
+  background: var(--dgl-navy); color: #fff; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; font-size: .74rem; box-shadow: none; border-right: 0; text-align: left;
+}
 .dgl-stats-table td.lead-career { background-color: var(--lead-career); }
 .dgl-stats-table td.lead-season { background-color: var(--lead-season); }
 .dgl-stats-table td.lead-best   { background-color: var(--lead-best); }
