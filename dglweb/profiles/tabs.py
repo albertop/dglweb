@@ -747,7 +747,16 @@ def _puestos_layout(group: str) -> list[tuple[str, list[str]]]:
     are not shown in any table: Sencillos (1B) slots between H and 2B, Boletos intencionales (IBB)
     after BB.
     """
-    if group == "batting":
+    if group == "fielding":
+        # Fildeo no tiene Statcast ni Coeficientes: los batazos (AO/GO/FH/BIP…) son del bateador y del
+        # lanzador, no de la posición defensiva. Y "Receptor" es su propia división porque solo aplica
+        # a C — la página de líderes la muestra cuando la posición elegida es esa.
+        divisions = [
+            ("Estándar", [c.attr for c in columns.FIELDING_STANDARD]),
+            ("Avanzado", [c.attr for c in columns.FIELDING_ADVANCED]),
+            ("Receptor", [c.attr for c in columns.FIELDING_CATCHER]),
+        ]
+    elif group == "batting":
         standard = [c.attr for c in columns.BATTING_STANDARD]
         standard = _insert_after(standard, "h", "x1b")  # Sencillos entre H y 2B
         standard = _insert_after(standard, "bb", "ibb")  # Boletos intencionales tras BB

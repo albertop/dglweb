@@ -536,6 +536,18 @@ _NAME_ES: dict[tuple[str, str], str] = {
     ("pitching", "Miss"): "Swings fallados inducidos",
     ("pitching", "Sw"): "Swings totales",
     ("pitching", "Whiff%"): "Porcentaje de abanicar y fallar",
+    # Fildeo. Sin estos el dropdown de líderes escribía "[PO] PO", porque cae al abrev cuando no hay
+    # nombre. Los de receptor (PB, WP, PkO, cERA) solo salen cuando la posición elegida es C.
+    ("fielding", "Inn"): "Entradas en la posición",
+    ("fielding", "PO"): "Outs realizados",
+    ("fielding", "A"): "Asistencias",
+    ("fielding", "E"): "Errores",
+    ("fielding", "DP"): "Dobles matanzas",
+    ("fielding", "PCT"): "Porcentaje de fildeo",
+    ("fielding", "RF"): "Rango por juego",
+    ("fielding", "PB"): "Pelotas pasadas",
+    ("fielding", "WP"): "Lanzamientos descontrolados",
+    ("fielding", "pickOffs"): "Atrapados fuera de base",
 }
 
 # Display abbreviation where it differs from the dgl code (which stays the join key for _LEADERBOARD /

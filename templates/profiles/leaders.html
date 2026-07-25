@@ -41,6 +41,15 @@ temporada. Postemporada y Fildeo llegan después.
       </select>
     </div>
     {% endif %}
+    {% if positions %}
+    {# Solo fildeo: cada posición es su propio ranking, un jardinero no compite con un antesalista. #}
+    <div>
+      <label class="form-label dgl-control-label" for="pos">Posición</label>
+      <select class="form-select form-select-sm dgl-control" id="pos" onchange="location.href=this.value">
+        {% for p in positions %}<option value="{{ p.url }}"{% if p.active %} selected{% endif %}>{{ p.label }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
     <div>
       <label class="form-label dgl-control-label" for="metric">Métrica</label>
       <select class="form-select form-select-sm dgl-control" id="metric" onchange="location.href=this.value" style="min-width:15rem">

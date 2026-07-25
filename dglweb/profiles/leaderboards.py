@@ -20,7 +20,13 @@ from dglweb.profiles.tabs import _DESCRIPTIVE_COLUMNS, _pretty_qualifier, _puest
 from dglweb.stats import qualifier
 from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching
 
-_GROUPS: list[tuple[str, str]] = [("batting", "Bateo"), ("pitching", "Pitcheo")]
+_GROUPS: list[tuple[str, str]] = [("batting", "Bateo"), ("pitching", "Pitcheo"), ("fielding", "Fildeo")]
+# Las nueve posiciones defensivas, en el orden del scorebook. `Fielding.pos` ya guarda "P" —el SP/RP
+# vive en `Player.pos`, que es otra cosa— así que no hay nada que agrupar. El bateador designado no
+# está: no defiende, y el motor de líderes ya lo excluye.
+_POSITIONS: list[str] = ["P", "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF"]
+# La división de receptor solo tiene sentido en C: passed balls y cERA no existen en las otras ocho.
+_CATCHER_DIVISION = "Receptor"
 _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por temporada")]
 # Hasta qué PUESTO llega cada tabla (no cuántas filas): un empate en el último entra completo, así que
 # un top-15 con tres empatados en el 15 muestra 17 filas. Vale para las dos puntas de un mismo
@@ -63,14 +69,23 @@ def _board_flag(scope: str, *, best: bool = True) -> str:
     return Leader.Board.BEST_SEASON if best else Leader.Board.WORST_SEASON
 
 
-def _division_metrics(group: str, scope: str) -> list[tuple[str, list[Metric]]]:
+def _division_metrics(group: str, scope: str, pos: str | None = None) -> list[tuple[str, list[Metric]]]:
     """The divisions and their metrics for this scope, in table order — only metrics that actually
-    feed the board (career or season), and only divisions that end up with at least one."""
+    feed the board (career or season), and only divisions that end up with at least one.
+
+    Las de receptor no abren un pill propio: se suman al dropdown de Avanzado cuando la posición
+    elegida es C, y no existen en las otras ocho — un tablero de passed balls o cERA de un jardinero
+    no significaría nada. Así fildeo mantiene los mismos pills que los otros oficios.
+    """
     flag = "best_career" if scope == "carrera" else "best_season"
     active = {m.column: m for m in Metric.objects.filter(is_active=True, stat_group=group, **{flag: True})}
+    catcher = [cols for label, cols in _puestos_layout(group) if label == _CATCHER_DIVISION]
+    extra = catcher[0] if catcher and pos == "C" else []
     divisions: list[tuple[str, list[Metric]]] = []
     for label, cols in _puestos_layout(group):
-        metrics = [active[col] for col in cols if col in active]
+        if label == _CATCHER_DIVISION:
+            continue
+        metrics = [active[col] for col in [*cols, *(extra if label == "Avanzado" else [])] if col in active]
         if metrics:
             divisions.append((label, metrics))
     return divisions
@@ -118,7 +133,7 @@ def _link(state: dict[str, str], **changes: str | None) -> str:
             merged.pop(key, None)
         else:
             merged[key] = value
-    order = ["g", "d", "scope", "m", "season"]
+    order = ["g", "pos", "d", "scope", "m", "season"]
     return "?" + urlencode({key: merged[key] for key in order if merged.get(key)})
 
 
@@ -138,13 +153,16 @@ def _active_players(player_ids: list[int], latest: int | None) -> set[int]:
     return active
 
 
-def _career_span(group: str, player_ids: list[int]) -> dict[int, tuple[int, int]]:
+def _career_span(group: str, player_ids: list[int], pos: str | None = None) -> dict[int, tuple[int, int]]:
     """Por jugador: (cuántas temporadas jugó, en cuál debutó), en la tabla del oficio de la métrica.
 
     Las temporadas se cuentan DISTINTAS, no como la resta entre el último año y el primero: quien se
     perdió tres años por lesión jugó tres menos, y un año repartido entre dos equipos son varias filas
     pero una sola temporada. Es el mismo criterio del `season_count` del perfil, así que el número
     coincide con el que ve el usuario en la página del jugador.
+
+    En fildeo se cuentan las temporadas EN ESA POSICIÓN, no las de su carrera: el tablero es por
+    posición, y a un antesalista que pasó tres años en el jardín no se le cuentan esos tres.
 
     El debut sirve para otra cosa: marcar el total como incompleto cuando la métrica empezó a
     registrarse después de que el jugador ya estaba jugando.
@@ -154,14 +172,16 @@ def _career_span(group: str, player_ids: list[int]) -> dict[int, tuple[int, int]
     """
     if not player_ids:
         return {}
-    model = Batting if group == "batting" else Pitching
-    rows = (
-        model.objects.filter(player_id__in=player_ids)
-        .order_by()
-        .values("player_id")
-        .annotate(n=Count("season", distinct=True), debut=Min("season"))
-    )
-    return {row["player_id"]: (row["n"], row["debut"]) for row in rows}
+
+    def tally(rows: Any) -> dict[int, tuple[int, int]]:  # noqa: ANN401 — tres querysets de modelos distintos
+        grouped = rows.order_by().values("player_id").annotate(n=Count("season", distinct=True), debut=Min("season"))
+        return {row["player_id"]: (row["n"], row["debut"]) for row in grouped}
+
+    if group == "fielding":
+        return tally(Fielding.objects.filter(player_id__in=player_ids, pos=pos)) if pos else {}
+    if group == "batting":
+        return tally(Batting.objects.filter(player_id__in=player_ids))
+    return tally(Pitching.objects.filter(player_id__in=player_ids))
 
 
 def _write_rank_once(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -179,7 +199,9 @@ def _write_rank_once(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
-def _real_ranks(metric: Metric, scope: str, season: int | None, player_ids: list[int]) -> dict[int, int]:
+def _real_ranks(
+    metric: Metric, scope: str, season: int | None, player_ids: list[int], pos: str | None
+) -> dict[int, int]:
     """El puesto de cada jugador en el tablero DESCENDENTE — el ranking que muestra la tabla de arriba.
 
     Lo necesita la tabla de abajo, que sale del tablero ascendente. Los dos tableros no rankean a la
@@ -191,14 +213,16 @@ def _real_ranks(metric: Metric, scope: str, season: int | None, player_ids: list
     if not player_ids:
         return {}
     board = Leader.objects.filter(
-        metric=metric, board=_board_flag(scope), postseason=False, fielding_pos=None, player_id__in=player_ids
+        metric=metric, board=_board_flag(scope), postseason=False, fielding_pos=pos, player_id__in=player_ids
     )
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
     return dict(board.values_list("player_id", "rank"))
 
 
-def _board_rows(metric: Metric, scope: str, season: int | None, *, best: bool = True) -> list[dict[str, Any]]:
+def _board_rows(
+    metric: Metric, scope: str, season: int | None, pos: str | None, *, best: bool = True
+) -> list[dict[str, Any]]:
     """Un extremo del tablero: los `_TOP_RANK` puestos de una punta.
 
     `rank` sale acá tal cual lo guarda `dgl_leader`. Para la tabla de abajo eso es su propio puesto 1
@@ -206,7 +230,7 @@ def _board_rows(metric: Metric, scope: str, season: int | None, *, best: bool = 
     `_best_and_worst` por el puesto real del ranking.
     """
     flag = _board_flag(scope, best=best)
-    board = Leader.objects.filter(metric=metric, board=flag, postseason=False, fielding_pos=None)
+    board = Leader.objects.filter(metric=metric, board=flag, postseason=False, fielding_pos=pos)
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
     leaders = list(
@@ -216,7 +240,7 @@ def _board_rows(metric: Metric, scope: str, season: int | None, *, best: bool = 
     # ya es historia. En uno de temporada no distingue nada: en la última todos jugaron ese año por
     # definición, y en una reciente casi todos siguen activos, así que se pinta la tabla entera.
     active = _active_players([row.player_id for row in leaders], _latest_season()) if scope == "carrera" else set()
-    span = _career_span(metric.stat_group, [row.player_id for row in leaders])
+    span = _career_span(metric.stat_group, [row.player_id for row in leaders], pos)
     # Un total de por vida queda TRUNCADO si la métrica se empezó a registrar después de que el
     # jugador ya estaba jugando: los batazos y coeficientes arrancan en 1989, así que a quien debutó
     # en 1985 le faltan cuatro años de cuenta. Solo pasa de por vida — los tableros de temporada ya
@@ -253,19 +277,19 @@ def _column_labels(metric: Metric, scope: str) -> tuple[str, str]:
     return (alto, bajo) if metric.direction == Metric.Direction.HIGHER else (bajo, alto)
 
 
-def _best_and_worst(metric: Metric, scope: str, season: int | None) -> list[dict[str, Any]]:
+def _best_and_worst(metric: Metric, scope: str, season: int | None, pos: str | None) -> list[dict[str, Any]]:
     """Las dos tablas paralelas: el tablero descendente a la izquierda y el ascendente a la derecha.
 
     Cuando hay pocos calificados las dos puntas se solapan y un mismo jugador sale en las dos. Ahí
     manda la primera: el repetido se quita de la segunda. Si con eso la segunda se vacía —o la
     métrica no tiene ese tablero, como G/PA/AB— queda una sola columna.
     """
-    best = _write_rank_once(_board_rows(metric, scope, season, best=True))
+    best = _write_rank_once(_board_rows(metric, scope, season, pos, best=True))
     honored = {row["player_id"] for row in best}
-    tail = [row for row in _board_rows(metric, scope, season, best=False) if row["player_id"] not in honored]
+    tail = [row for row in _board_rows(metric, scope, season, pos, best=False) if row["player_id"] not in honored]
     # La cola se publica con el puesto del ranking de arriba, no con el del tablero ascendente, y se
     # ordena por él: así el extremo queda de último y ningún número significa dos cosas distintas.
-    real = _real_ranks(metric, scope, season, [row["player_id"] for row in tail])
+    real = _real_ranks(metric, scope, season, [row["player_id"] for row in tail], pos)
     for row in tail:
         row["rank"] = real.get(row["player_id"], row["rank"])
     tail.sort(key=lambda row: (row["rank"], row["name"]))
@@ -277,14 +301,20 @@ def _best_and_worst(metric: Metric, scope: str, season: int | None) -> list[dict
     return columns
 
 
-def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season: str) -> dict[str, Any]:
+def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season: str, pos: str = "") -> dict[str, Any]:
     """Everything the leaders page needs, with every selection validated and a sensible fallback."""
     if group not in dict(_GROUPS):
         group = "batting"
     if scope not in dict(_SCOPES):
         scope = "carrera"
+    # Fildeo se rankea POR POSICIÓN — un jardinero y un antesalista no compiten por las mismas
+    # asistencias— así que siempre hay una elegida. Bateo y pitcheo no la usan: ahí `fielding_pos` es
+    # NULL en `dgl_leader` y filtrar por ella vaciaría el tablero.
+    chosen_pos = None
+    if group == "fielding":
+        chosen_pos = pos if pos in _POSITIONS else _POSITIONS[0]
 
-    divisions = _division_metrics(group, scope)
+    divisions = _division_metrics(group, scope, chosen_pos)
     division_labels = [label for label, _ in divisions]
     if tab not in division_labels:
         tab = division_labels[0]
@@ -295,16 +325,23 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
     # Seasons this metric was ranked in (some start in 1989), newest first; the picked one is validated.
     season_years: list[int] = []
     if scope == "temporada":
-        years = Leader.objects.filter(metric=metric, board=Leader.Board.BEST_SEASON, postseason=False).values_list(
-            "season", flat=True
-        )
+        years = Leader.objects.filter(
+            metric=metric, board=Leader.Board.BEST_SEASON, postseason=False, fielding_pos=chosen_pos
+        ).values_list("season", flat=True)
         season_years = sorted({year for year in years if year is not None}, reverse=True)
     chosen_season = None
     if season_years:
         chosen_season = int(season) if season.isdigit() and int(season) in season_years else season_years[0]
 
-    state = {"g": group, "d": tab, "scope": scope, "m": metric.column, "season": str(chosen_season or "")}
-    columns = _best_and_worst(metric, scope, chosen_season)
+    state = {
+        "g": group,
+        "d": tab,
+        "scope": scope,
+        "m": metric.column,
+        "season": str(chosen_season or ""),
+        "pos": chosen_pos or "",
+    }
+    columns = _best_and_worst(metric, scope, chosen_season, chosen_pos)
 
     return {
         "groups": [
@@ -316,6 +353,12 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
         ],
         "scopes": [
             {"label": label, "active": key == scope, "url": _link(state, scope=key, m=None)} for key, label in _SCOPES
+        ],
+        # Solo fildeo. Cambiar de posición suelta la métrica: las de receptor no existen en las otras
+        # ocho, así que quedarse con cERA al pasar de C a SS daría un tablero vacío.
+        "positions": [
+            {"label": p, "active": p == chosen_pos, "url": _link(state, pos=p, d=None, m=None)}
+            for p in (_POSITIONS if group == "fielding" else [])
         ],
         "metrics": [
             {
@@ -358,5 +401,6 @@ def leaders_index(request: HttpRequest) -> HttpResponse:
         scope=request.GET.get("scope", "carrera"),
         metric_col=request.GET.get("m", ""),
         season=request.GET.get("season", ""),
+        pos=request.GET.get("pos", ""),
     )
     return render(request, "profiles/leaders.html", context)
