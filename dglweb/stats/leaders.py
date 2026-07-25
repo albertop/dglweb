@@ -281,19 +281,21 @@ _POST_MODEL: dict[str, type[models.Model]] = {"batting": BattingPost, "pitching"
 
 
 def _wants_postseason(metric: Metric) -> bool:
-    """Counting stats where MORE is better get an unqualified postseason board (owner decision).
+    """Los conteos marcados para octubre llevan tablero; `_postseason_leaders` decide el umbral.
 
-    A "most HR in October" board can't be faked by a small sample —you can't lead in postseason home
-    runs without hitting them— so it needs no qualifier. "Fewer is better" counts (leading in fewest
-    strikeouts on 2 at-bats is noise) are left out; the classic rates get their own floored board
-    (`_wants_postseason_rate`). Fielding has no postseason board at all. The `best_season`/`best_career`
-    flags gate October too (review v4 DEV-03): a metric with neither wants no board.
+    Uno que apunta hacia ARRIBA no lo necesita: no se puede liderar en jonrones de octubre sin
+    batearlos. Uno que apunta hacia abajo sí, y lo lleva — antes se quedaban afuera porque "menos
+    ponches en 2 turnos es ruido", pero el ruido lo quita el piso fijo de octubre, que es justo lo
+    que existe para eso: con PA>=50 de por vida, "menos ponches" pasa a ser una marca real.
+
+    Las clásicas de tasa tienen su propio camino (`_wants_postseason_rate`). Fildeo no lleva tablero
+    de octubre. Los flags `best_season`/`best_career` mandan también acá (review v4 DEV-03): una
+    métrica sin ninguno de los dos no quiere tablero.
     """
     return (
         metric.postseason
         and metric.stat_group in _POST_MODEL
         and metric.kind == Metric.Kind.CUMULATIVE
-        and metric.direction == Metric.Direction.HIGHER
         and (metric.best_season or metric.best_career)
     )
 
@@ -302,7 +304,11 @@ def _wants_postseason(metric: Metric) -> bool:
 # rates (BABIP, ISO, the coefficients…) are left out — noisy on their own and not asked for.
 _POST_RATE: dict[str, frozenset[str]] = {
     "batting": frozenset({"avg", "obp", "slg", "ops"}),
-    "pitching": frozenset({"era"}),
+    # Las cuatro por-9 y el porcentaje de victorias entran junto a ERA: todas tienen fórmula exacta,
+    # así que el valor de octubre se recalcula desde los componentes sumados (H/9 = 27·ΣH/Σouts,
+    # PCT = ΣW/(ΣW+ΣL)) y no es un promedio de promedios por ronda. Sin esto se ofrecían en el
+    # dropdown de Postemporada con la tabla vacía.
+    "pitching": frozenset({"era", "h_per9", "bb_per9", "so_per9", "win_pct"}),
 }
 
 # October has no official qualifier: not even a full deep run (max ~89 PA / ~29 IP) reaches a
@@ -329,29 +335,60 @@ def _wants_postseason_rate(metric: Metric) -> bool:
 
 def _postseason_leaders(metric: Metric) -> list[Leader]:
     """Leaders of a count over the postseason, aggregating each player's whole October: per (player,
-    season) for the season board, per player for the career board. Never per round."""
+    season) for the season board, per player for the career board. Never per round.
+
+    Un conteo que apunta hacia ARRIBA se rankea sin umbral: no se puede liderar en jonrones de
+    octubre sin batearlos. Uno que apunta hacia abajo sí lo necesita, y es el mismo piso fijo que usan
+    las tasas — "menos ponches" sin él lo gana quien tuvo dos turnos, pero con PA>=50 de por vida
+    pasa a ser una marca real. Es la misma regla que la serie regular: el umbral lo pide el extremo
+    que mira el tablero, no la dirección de la métrica.
+    """
     model = _POST_MODEL[metric.stat_group]
+    descending = _descending(metric, is_best=True)
+    floor_column = qualifier.field_column(metric.stat_group, _POST_QUALIFIER[metric.stat_group][0]) or ""
+    fields = {f.name for f in model._meta.get_fields()}
+    tracks_floor = not descending and floor_column in fields
+    columns_ = ["player_id", "season", metric.column, *([floor_column] if tracks_floor else [])]
+
     by_season: dict[int, dict[int, float]] = defaultdict(lambda: defaultdict(float))
     by_career: dict[int, float] = defaultdict(float)
-    for row in model._default_manager.filter(season__gte=FIRST_SEASON).values("player_id", "season", metric.column):
+    floor_season: dict[int, dict[int, float]] = defaultdict(lambda: defaultdict(float))
+    floor_career: dict[int, float] = defaultdict(float)
+    for row in model._default_manager.filter(season__gte=FIRST_SEASON).values(*columns_):
         value = row[metric.column]
         if value is None:
             continue
         by_season[row["season"]][row["player_id"]] += value
         by_career[row["player_id"]] += value
+        if tracks_floor:
+            carried = row.get(floor_column) or 0
+            floor_season[row["season"]][row["player_id"]] += carried
+            floor_career[row["player_id"]] += carried
 
-    def board(scope: str, season: int | None, totals: dict[int, float]) -> list[Leader]:
-        # value > 0: you are not a "postseason leader" in a count you never recorded.
-        pairs = [(pid, _leader_value(metric, total)) for pid, total in totals.items() if total > 0]
+    def board(
+        scope: str, season: int | None, totals: dict[int, float], played: dict[int, float], gate: str
+    ) -> list[Leader]:
+        pairs: list[tuple[int, float]] = []
+        for pid, total in totals.items():
+            # value > 0: you are not a "postseason leader" in a count you never recorded. Salvo en un
+            # tablero de "menos", donde el cero ES la marca (nunca lo poncharon en 50 turnos).
+            if total <= 0 and descending:
+                continue
+            if tracks_floor and not qualifier.qualifies(gate, metric.stat_group, {floor_column: played.get(pid, 0)}):
+                continue
+            pairs.append((pid, _leader_value(metric, total)))
         return [
             Leader(metric=metric, board=scope, season=season, player_id=pid, value=value, rank=rank, postseason=True)
-            for pid, value, rank in _dense_rank(pairs, descending=True)
+            for pid, value, rank in _dense_rank(pairs, descending)
         ]
 
-    leaders: list[Leader] = board(Leader.Board.BEST_CAREER, None, by_career) if metric.best_career else []
+    season_floor, career_floor = _POST_QUALIFIER[metric.stat_group]
+    leaders: list[Leader] = (
+        board(Leader.Board.BEST_CAREER, None, by_career, floor_career, career_floor) if metric.best_career else []
+    )
     if metric.best_season:
         for season, totals in by_season.items():
-            leaders += board(Leader.Board.BEST_SEASON, season, totals)
+            leaders += board(Leader.Board.BEST_SEASON, season, totals, floor_season[season], season_floor)
     return leaders
 
 
