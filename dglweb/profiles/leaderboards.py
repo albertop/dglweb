@@ -45,6 +45,9 @@ for _group, _lists in {
         columns.PITCHING_STATCAST,
         columns.PITCHING_RATIOS,
     ),
+    # Fildeo faltaba: sin formato registrado `_format` cae al default "num", que redondea a entero, y
+    # un fildeo de .980 se publicaba como "1" (lo mismo RF/G, RF/9, UZR, CS% y cERA).
+    "fielding": (columns.FIELDING_STANDARD, columns.FIELDING_ADVANCED, columns.FIELDING_CATCHER),
 }.items():
     for _list in _lists:
         for _col in _list:
