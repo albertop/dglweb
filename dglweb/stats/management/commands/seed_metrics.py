@@ -34,7 +34,10 @@ _LEADERBOARD: dict[tuple[str, str], tuple[int, ...]] = {
     ("batting", "BB"): (0, 1, 1, 1, 1, 0, 1, 1),
     ("batting", "BBperc"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("batting", "BR"): (0, 1, 1, 0, 0, 0, 0, 1),
-    ("batting", "CS"): (1, 0, 1, 0, 1, 0, 0, 1),
+    # CS se rankea por el MÁS, como GIDP acá y BK/PB/WP en los otros grupos (decisión del dueño): es
+    # una marca negativa, pero el 60% de las filas estaba en cero, así que "menos atrapado robando"
+    # era un empate masivo que no distinguía a nadie. Con `+` el cero pasa a ser ausencia y se excluye.
+    ("batting", "CS"): (0, 1, 1, 1, 1, 1, 0, 1),
     ("batting", "EBP"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("batting", "G"): (0, 1, 1, 1, 1, 0, 1, 1),
     # GIDP is a "bad" stat but it is ranked like HR (owner decision): the leader is whoever has the
