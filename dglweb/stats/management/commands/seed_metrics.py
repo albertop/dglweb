@@ -575,6 +575,46 @@ _ABBREV_OVERRIDE: dict[tuple[str, str], str] = {("batting", "IsoP"): "ISO"}
 # elevados). La página los rotula "los más altos / los más bajos" en vez de primeros y últimos.
 _NO_WORST_BOARD: frozenset[str] = frozenset({"g", "gp", "gs", "gf", "cg", "pa", "ab", "outs", "innings_outs"})
 
+# Columnas donde un cero no es una marca sino una ausencia: quien está en cero no entra al tablero.
+# Un triple play es una rareza — sin esto el ranking de campocortos traía 190 jugadores y 175 estaban
+# en cero, así que la tabla de abajo era una lista de gente que nunca hizo uno. (decisión del dueño)
+#
+# Solo métricas que apuntan hacia ARRIBA. En una que apunta hacia abajo el cero es la MEJOR marca
+# posible —cero errores es una temporada perfecta, no una ausencia— y excluirlo borraría justo al
+# líder. Por eso E, CS de bateo, SO de bateo y las carreras/hits permitidos no están acá.
+_EXCLUDE_ZEROS: frozenset[str] = frozenset(
+    {
+        "triple_plays",
+        # Fildeo: nunca asistió, nunca hizo un doble play, nunca sacó a nadie de base.
+        "a",
+        "po",
+        "chances",
+        "double_plays",
+        "throwing_errors",
+        "gs",
+        "innings_outs",
+        "pickoffs",
+        "passed_balls",
+        "wild_pitches",
+        "stolen_bases",
+        "caught_stealing",
+        # Pitcheo: sin victorias, sin balks, sin ponches, sin una entrada lanzada.
+        "w",
+        "bk",
+        "so",
+        "ibb",
+        "hbp",
+        "wp",
+        "outs",
+        # Bateo: sin turnos, sin sencillos, sin extrabases, sin carreras producidas.
+        "pa",
+        "x1b",
+        "xbh",
+        "runs_produced",
+        "spd",
+    }
+)
+
 _ACTIVATE: dict[tuple[str, str], tuple[str, str, str]] = {  # (abbrev, name_es, direction "+"/"-")
     ("batting", "war"): ("WAR", "Victorias sobre reemplazo", "+"),
     ("batting", "rar"): ("RAR", "Carreras sobre reemplazo", "+"),
@@ -671,6 +711,7 @@ def _rows() -> list[dict[str, Any]]:
                 # coeficientes descriptivos quedan fuera: en GB% o LD% no hay mejor ni peor.
                 bs = bc = act = 1
                 ws = wc = 0 if field.name in _NO_WORST_BOARD else 1
+                qz = 1 if field.name in _EXCLUDE_ZEROS else qz
 
             rows.append(
                 {

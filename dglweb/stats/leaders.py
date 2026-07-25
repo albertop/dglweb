@@ -235,7 +235,11 @@ def _exact_career_rate_leaders(
     pairs: list[tuple[int, float]] = []
     for player_id, counts in sums.items():
         value = career_rate.exact_value(metric.stat_group, metric.column, counts)
-        if value is None or not qualifier.qualifies(formula, metric.stat_group, counts):
+        # `exclude_zeros` también acá: los otros dos caminos ya lo miraban y este no, así que una tasa
+        # marcada para excluirlos igual publicaba sus ceros en el tablero de carrera.
+        if value is None or (metric.exclude_zeros and value == 0):
+            continue
+        if not qualifier.qualifies(formula, metric.stat_group, counts):
             continue
         pairs.append((player_id, _leader_value(metric, value)))
     return [
@@ -263,7 +267,10 @@ def _prorated_career_rate_leaders(
     for player_id, (weighted_sum, total_weight) in weighted.items():
         if total_weight == 0 or not qualifier.qualifies(formula, group, {weight_col: total_weight}):
             continue
-        pairs.append((player_id, _leader_value(metric, weighted_sum / total_weight)))
+        value = weighted_sum / total_weight
+        if metric.exclude_zeros and value == 0:  # ver `_exact_career_rate_leaders`
+            continue
+        pairs.append((player_id, _leader_value(metric, value)))
     return [
         Leader(metric=metric, board=board, season=None, fielding_pos=pos, player_id=pid, value=value, rank=rank)
         for pid, value, rank in _dense_rank(pairs, descending)
