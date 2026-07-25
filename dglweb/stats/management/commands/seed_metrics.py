@@ -301,15 +301,20 @@ _STATCAST_COLUMNS: frozenset[str] = frozenset(
     }
 )
 
-# Both groups carry the same coefficients over the same columns, so they take the same thresholds.
 _STATCAST_GROUPS: frozenset[str] = frozenset({"batting", "pitching"})
-_OWN_QUALIFIER: dict[tuple[str, str], str] = {
-    **{
-        (group, column): "BALLS_IN_PLAY>=400"
-        for group in _STATCAST_GROUPS
-        for column in ("gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb")
-    },
-    **{(group, column): "TOTAL_SWINGS>=1000" for group in _STATCAST_GROUPS for column in ("contact_pct", "whiff_pct")},
+# The coefficients gate on their OWN coverage (balls in play / swings), not PA/IP — otherwise an era
+# without batted-ball classification tops the board. SEASON and CAREER differ: the season floor is ~a
+# qualified campaign (400 BIP / 1000 swings, both groups); the career floor is anchored to the group's
+# career rate qualifier via a statistical study (docs/UMBRALES_COEFICIENTES.md) — batting PA>=3000
+# ≈ 2000 BIP / 5000 swings, pitching IP>=1000 ≈ 3000 BIP / 8000 swings (a pitcher faces far more balls
+# in play over a career, so the same 2000 would let almost everyone in). (owner's thresholds)
+_SHAPE_COEFFICIENTS = ("gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb")
+_CONTACT_COEFFICIENTS = ("contact_pct", "whiff_pct")
+_OWN_QUALIFIER: dict[tuple[str, str], tuple[str, str]] = {  # (season formula, career formula)
+    **{("batting", c): ("BALLS_IN_PLAY>=400", "BALLS_IN_PLAY>=2000") for c in _SHAPE_COEFFICIENTS},
+    **{("batting", c): ("TOTAL_SWINGS>=1000", "TOTAL_SWINGS>=5000") for c in _CONTACT_COEFFICIENTS},
+    **{("pitching", c): ("BALLS_IN_PLAY>=400", "BALLS_IN_PLAY>=3000") for c in _SHAPE_COEFFICIENTS},
+    **{("pitching", c): ("TOTAL_SWINGS>=1000", "TOTAL_SWINGS>=8000") for c in _CONTACT_COEFFICIENTS},
 }
 
 # Default qualifiers per group (season, career). Owner tunes these in the Backoffice.
@@ -577,7 +582,7 @@ def _rows() -> list[dict[str, Any]]:
             # Abbrev = the English code (HR, AVG, ERA, DP, Inn…), never a Spanish one — it shows in the
             # leaders UI and the player-page rankings.
             abbrev = _ABBREV_OVERRIDE.get((group, code), code)
-            own_qualifier = _OWN_QUALIFIER.get((group, field.name), "")
+            own_season, own_career = _OWN_QUALIFIER.get((group, field.name), ("", ""))
 
             rows.append(
                 {
@@ -591,8 +596,8 @@ def _rows() -> list[dict[str, Any]]:
                     "worst_career": bool(wc),
                     "exclude_zeros": bool(qz),
                     "postseason": bool(post),
-                    "qualifier_season": own_qualifier,
-                    "qualifier_career": own_qualifier,
+                    "qualifier_season": own_season,
+                    "qualifier_career": own_career,
                     "available_from": (
                         derive.FIRST_STATCAST_SEASON
                         if group in _STATCAST_GROUPS and field.name in _STATCAST_COLUMNS
