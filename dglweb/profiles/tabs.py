@@ -716,7 +716,8 @@ class FieldingTab(PlayerTab):
         return _fielding_context(player)
 
 
-_PUESTOS_TOP_N = 10
+_PUESTOS_TOP_N = 10  # season cells: only a top-10 finish shows
+_PUESTOS_CAREER_TOP_N = 25  # the "De por vida" column reaches further — top 25
 # The ranking direction shown next to each metric: + = more is better, - = fewer/lower is better.
 # It is how the board is sorted, so it explains what "puesto 1" means for that metric.
 _DIRECTION_SIGN: dict[str, str] = {Metric.Direction.HIGHER: "+", Metric.Direction.LOWER: "-"}
@@ -780,23 +781,25 @@ def _pretty_qualifier(formula: str) -> str:
 def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, Any] | None:
     """One Puestos board — Serie Regular (`postseason=False`) or Postemporada (`True`): a
     metric-by-season matrix of where the player finished among Dominicans, plus the de-por-vida
-    column, grouped into the profile's table divisions. A cell is his rank that year; blank where he
-    was not in the top 10. A row is any metric where he was top 10 in a season OR de por vida. A
-    shared rank (dense-rank tie) is flagged with `*`. `None` when he has no top-10 for this board.
+    column, grouped into the profile's table divisions. A season cell is his rank that year, blank
+    unless he made the top 10; the de-por-vida column reaches the top 25. A row is any metric where he
+    was top 10 in a season OR top 25 de por vida. A shared rank (dense-rank tie) is flagged with `*`.
+    `None` when he has nothing to show for this board.
     """
-    board = Leader.objects.filter(
-        player=player, postseason=postseason, rank__lte=_PUESTOS_TOP_N, metric__stat_group=group
-    )
+    base = Leader.objects.filter(player=player, postseason=postseason, metric__stat_group=group)
     by_metric_id: dict[int, dict[int, int]] = defaultdict(dict)
     seasons: set[int] = set()
-    for mark in board.filter(board=Leader.Board.BEST_SEASON):
+    for mark in base.filter(board=Leader.Board.BEST_SEASON, rank__lte=_PUESTOS_TOP_N):
         if mark.season is None:  # a season board always carries one; guard keeps the types honest
             continue
         by_metric_id[mark.metric_id][mark.season] = mark.rank
         seasons.add(mark.season)
-    career_rank = {mark.metric_id: mark.rank for mark in board.filter(board=Leader.Board.BEST_CAREER)}
+    career_rank = {
+        mark.metric_id: mark.rank
+        for mark in base.filter(board=Leader.Board.BEST_CAREER, rank__lte=_PUESTOS_CAREER_TOP_N)
+    }
 
-    metric_ids = set(by_metric_id) | set(career_rank)  # union: season top-10s and career top-10s
+    metric_ids = set(by_metric_id) | set(career_rank)  # union: season top-10s and career top-25s
     if not metric_ids:
         return None
     metrics = Metric.objects.filter(pk__in=metric_ids)
@@ -808,7 +811,7 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
             metric_id__in=metric_ids,
             postseason=postseason,
             board__in=(Leader.Board.BEST_SEASON, Leader.Board.BEST_CAREER),
-            rank__lte=_PUESTOS_TOP_N,
+            rank__lte=_PUESTOS_CAREER_TOP_N,  # covers both bands; season cells only read ranks ≤ 10
         )
         .values("metric_id", "board", "season", "rank")
         .annotate(n=models.Count("player_id"))
@@ -884,12 +887,15 @@ class PuestosTab(PlayerTab):
 
     def applies_to(self, player: Player) -> bool:
         group = "pitching" if is_pitcher(player) else "batting"
-        return Leader.objects.filter(  # any top-10, regular OR October
-            player=player,
-            board__in=(Leader.Board.BEST_SEASON, Leader.Board.BEST_CAREER),
-            rank__lte=_PUESTOS_TOP_N,
-            metric__stat_group=group,
-        ).exists()
+        # A top-10 season OR a top-25 de-por-vida, regular OR October.
+        return (
+            Leader.objects.filter(player=player, metric__stat_group=group)
+            .filter(
+                models.Q(board=Leader.Board.BEST_SEASON, rank__lte=_PUESTOS_TOP_N)
+                | models.Q(board=Leader.Board.BEST_CAREER, rank__lte=_PUESTOS_CAREER_TOP_N)
+            )
+            .exists()
+        )
 
     def context(self, player: Player) -> dict[str, Any]:
         return _puestos_context(player)

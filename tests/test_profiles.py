@@ -653,7 +653,7 @@ def test_puestos_grid_pivots_top10_by_metric_and_season() -> None:
     _puesto(so, player, 2002, 5)  # SO: solo 2002
     _puesto(avg, player, 2001, 15)  # puesto 16+ no entra -> AVG no aparece
     _puesto_career(hr, player, 4)  # de por vida: HR puesto 4
-    _puesto_career(so, player, 12)  # SO carrera fuera del top-10 -> columna vacía
+    _puesto_career(so, player, 12)  # SO carrera puesto 12 (dentro del top-25 de por vida)
 
     reg = _puestos_context(player)["regular"]
 
@@ -667,28 +667,30 @@ def test_puestos_grid_pivots_top10_by_metric_and_season() -> None:
     ]
     assert grid == [
         ("HR", "+", ["3", "1*"], "4"),  # 2002 empatado -> *; de por vida #4 (sin empate)
-        ("SO", "-", ["", "5"], ""),  # menos es mejor; carrera fuera del top-10 -> vacío
+        ("SO", "-", ["", "5"], "12"),  # de por vida top-25: el puesto 12 sí aparece
     ]
     assert _flat(reg)[0]["name"] == "Jonrones"  # columna 1 = nombre largo
 
 
 @pytest.mark.django_db
-def test_puestos_includes_a_metric_that_is_top10_only_de_por_vida() -> None:
-    """Un jugador puede estar en el top-10 de por vida (última columna) sin haber estado nunca en un
+def test_puestos_includes_a_metric_that_is_top25_only_de_por_vida() -> None:
+    """Un jugador puede estar en el top-25 de por vida (última columna) sin haber estado nunca en un
     top-10 de temporada —constancia sin picos—: esa fila igual debe salir, con las celdas de temporada
-    en blanco y solo el puesto de por vida."""
+    en blanco y solo el puesto de por vida. La de-por-vida llega al 25, no solo al 10."""
     player = _player(7, "c07", "Constante C", "1B")
     hr = _metric("batting", "hr", "HR", sort_order=13, name_es="Jonrones")
     bb = _metric("batting", "bb", "BB", sort_order=15, name_es="Bases por bolas")
+    afuera = _metric("batting", "rbi", "RBI", sort_order=14, name_es="Impulsadas")
     _puesto(hr, player, 2001, 2)  # HR sí tuvo top-10 de temporada
-    _puesto_career(bb, player, 6)  # BB: solo de por vida, nunca top-10 de temporada
+    _puesto_career(bb, player, 20)  # BB: solo de por vida, puesto 20 (dentro del top-25)
+    _puesto_career(afuera, player, 30)  # RBI carrera puesto 30: fuera del top-25 -> no aparece
 
     reg = _puestos_context(player)["regular"]
 
     rows = {row["abbrev"]: row for row in _flat(reg)}
-    assert set(rows) == {"HR", "BB"}  # BB aparece aunque no tenga ningún top-10 de temporada
+    assert set(rows) == {"HR", "BB"}  # BB entra por el top-25 de por vida; RBI (30) no
     assert [c["rank"] for c in rows["BB"]["cells"]] == [None]  # celdas de temporada vacías
-    assert rows["BB"]["career"]["rank"] == 6  # solo el puesto de por vida
+    assert rows["BB"]["career"]["rank"] == 20  # solo el puesto de por vida (top-25)
 
 
 @pytest.mark.django_db

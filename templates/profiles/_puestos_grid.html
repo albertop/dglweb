@@ -6,17 +6,16 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
   <div class="table-responsive">
     <table class="table table-sm table-striped mb-0 dgl-stats-table">
       <thead><tr>
-        <th class="ps-3">Métrica</th><th class="dgl-mid">Abr</th>
+        <th class="ps-3">Métrica</th>
         {% for season in grid.seasons %}<th class="dgl-mid">{{ season }}</th>{% endfor %}
         <th class="dgl-mid pe-3" style="border-left:2px solid var(--dgl-navy)">De por vida</th>
       </tr></thead>
       <tbody>
         {% for section in grid.sections %}
-        <tr class="table-light"><td colspan="{{ grid.seasons|length|add:3 }}" class="ps-3" style="font-weight:700">{{ section.label }}</td></tr>
+        <tr class="table-light"><td colspan="{{ grid.seasons|length|add:2 }}" class="ps-3" style="font-weight:700">{{ section.label }}</td></tr>
         {% for row in section.rows %}
         <tr>
-          <td class="ps-3">{{ row.name }} <span class="dgl-meta" title="{% if row.descriptive %}{% if row.direction == '+' %}ordena de más alto a más bajo (perfil, no mejor/peor){% else %}ordena de más bajo a más alto (perfil, no mejor/peor){% endif %}{% elif row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>
-          <td class="dgl-mid dgl-meta">{{ row.abbrev }}</td>
+          <td class="ps-3"><span class="dgl-meta">[{{ row.abbrev }}]</span> {{ row.name }} <span class="dgl-meta" title="{% if row.descriptive %}{% if row.direction == '+' %}ordena de más alto a más bajo (perfil, no mejor/peor){% else %}ordena de más bajo a más alto (perfil, no mejor/peor){% endif %}{% elif row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>
           {% for cell in row.cells %}<td class="dgl-mid{% if cell.rank == 1 %} lead-season{% endif %}">{{ cell.rank|default_if_none:"" }}{% if cell.tied %}*{% endif %}</td>{% endfor %}
           <td class="dgl-mid pe-3{% if row.career.rank == 1 %} lead-career{% endif %}" style="border-left:2px solid var(--dgl-navy)">{{ row.career.rank|default_if_none:"" }}{% if row.career.tied %}*{% endif %}</td>
         </tr>
@@ -26,7 +25,7 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
     </table>
   </div>
   <div class="dgl-meta px-3 py-2 border-top">
-    Cada celda es el puesto (1–10) que ocupó esa temporada entre dominicanos calificados; vacío = no estuvo en el top-10. La última columna es su puesto de por vida. El signo junto a la métrica indica hacia dónde manda: + más es mejor, - menos es mejor. Un * marca un puesto compartido (empate).
+    Cada celda de temporada es el puesto (1–10) que ocupó ese año entre dominicanos calificados; vacío = no estuvo en el top-10. La última columna es su puesto de por vida (top-25). El signo junto a la métrica indica hacia dónde manda: + más es mejor, - menos es mejor. Un * marca un puesto compartido (empate).
     {% if grid.qualifiers.season or grid.qualifiers.career %}<br>Umbrales de calificación (solo tasas; los conteos no llevan): temporada {{ grid.qualifiers.season }}, carrera {{ grid.qualifiers.career }}.{% endif %}{% if grid.qualifiers.coefficients %} Coeficientes: {{ grid.qualifiers.coefficients|join:" o " }}.{% endif %}
   </div>
 </section>
