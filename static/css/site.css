@@ -283,6 +283,18 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* Total incompleto: el jugador ya jugaba antes de que la métrica se registrara (los batazos y
    coeficientes arrancan en 1989). En rojo para que no se confunda con el resto del nombre. */
 .dgl-partial { color: var(--dgl-red); font-weight: 800; }
+/* Señal de carga entre un clic y la página nueva. El velo va casi transparente a propósito: la tabla
+   vieja se sigue leyendo, así que se entiende que está por cambiar y no que desapareció. */
+.dgl-loading { position: fixed; inset: 0; z-index: 1080; display: none; background: rgba(255,255,255,.5); }
+.dgl-loading.is-on { display: grid; place-items: center; }
+.dgl-spinner {
+  width: 2.2rem; height: 2.2rem; border-radius: 50%;
+  border: 3px solid var(--dgl-line); border-top-color: var(--dgl-navy);
+  animation: dgl-spin .7s linear infinite;
+}
+@keyframes dgl-spin { to { transform: rotate(360deg); } }
+/* Quien pide menos movimiento igual necesita saber que algo pasa: se frena, no se apaga. */
+@media (prefers-reduced-motion: reduce) { .dgl-spinner { animation-duration: 2.4s; } }
 /* La columna de nombre no es un número: fuente del cuerpo, alineada a la izquierda; el valor va en
    la mono de la tabla. Sin negrita: cuando TODAS las filas la llevan no resalta nada, solo pesa. */
 .dgl-leaders-table thead th:nth-child(2) { text-align: left; }
