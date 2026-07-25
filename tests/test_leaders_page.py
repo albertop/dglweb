@@ -166,29 +166,30 @@ def test_a_season_board_marks_nobody_as_active() -> None:
 def test_boards_cut_by_rank_and_keep_the_whole_tie() -> None:
     """Cada tabla llega hasta `_TOP_RANK` PUESTOS, y el empate del último entra entero aunque pase.
 
-    Atado a la constante a propósito: el número es una decisión editorial que ya cambió de 20 a 10 y
-    de 10 a 15, y escrito a mano acá el test se rompía cada vez sin que nada estuviera mal.
+    De por vida corta más tarde que una temporada suelta. Atado a la constante a propósito: el número
+    es una decisión editorial que ya cambió varias veces, y escrito a mano acá el test se rompía cada
+    vez sin que nada estuviera mal.
     """
     hr = _metric("batting", "hr", "HR")
-    ultimo = _TOP_RANK
-    for rank in range(1, ultimo + 21):  # bastante más allá del corte, en ambos tableros
+    de_por_vida, de_temporada = _TOP_RANK["carrera"], _TOP_RANK["temporada"]
+    for rank in range(1, de_por_vida + 21):  # bastante más allá del corte
         jugador = _player(100 + rank, f"c{rank:02d}", f"Carrera {rank}")
         _leader(hr, jugador, rank, 500.0 - rank)
-    for rank in range(1, ultimo + 6):
+    for rank in range(1, de_temporada + 6):
         jugador = _player(200 + rank, f"t{rank:02d}", f"Temporada {rank}")
         _leader(hr, jugador, rank, 50.0 - rank, season=2020, career=False)
     empatado = _player(299, "t99", "Empatado E")  # segundo en el último puesto que entra
-    _leader(hr, empatado, ultimo, 50.0 - ultimo, season=2020, career=False)
+    _leader(hr, empatado, de_temporada, 50.0 - de_temporada, season=2020, career=False)
 
     carrera = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
     temporada = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2020")
 
-    assert max(r["rank"] for r in _best(carrera)) == ultimo
-    assert len(_best(carrera)) == ultimo
-    assert max(r["rank"] for r in _best(temporada)) == ultimo
+    assert max(r["rank"] for r in _best(carrera)) == de_por_vida
+    assert len(_best(carrera)) == de_por_vida
+    assert max(r["rank"] for r in _best(temporada)) == de_temporada
     # Los puestos que tocan, pero una fila de más: el último lo comparten dos y ninguno se corta.
-    assert len(_best(temporada)) == ultimo + 1
-    assert [r["tie"] for r in _best(temporada) if r["rank"] == ultimo] == [True, True]
+    assert len(_best(temporada)) == de_temporada + 1
+    assert [r["tie"] for r in _best(temporada) if r["rank"] == de_temporada] == [True, True]
 
 
 @pytest.mark.django_db
@@ -209,28 +210,31 @@ def test_a_tie_writes_the_rank_and_value_only_on_its_first_row() -> None:
 
 
 @pytest.mark.django_db
-def test_the_page_shows_best_and_worst_side_by_side() -> None:
-    """Dos tablas: Mejores (tablero best) a la izquierda y Peores (tablero worst) a la derecha."""
+def test_the_tail_is_numbered_by_its_place_in_the_main_ranking() -> None:
+    """La tabla de abajo publica el puesto del ranking de ARRIBA, no el del tablero ascendente.
+
+    Los dos tableros no rankean a la misma gente: en un conteo el descendente no lleva umbral y el
+    ascendente sí. Numerando la cola dentro de su propia población salían dos puestos "10" que no
+    medían lo mismo (Manny Machado décimo entre 68, Julio Rodríguez décimo entre 17). Acá el ranking
+    llega a 20 y la cola son los tres últimos, así que tienen que salir 18, 19 y 20 — con el extremo
+    de último, no de primero.
+    """
     hr = _metric("batting", "hr", "HR")
-    for rank in range(1, 4):
-        _leader(hr, _player(300 + rank, f"s{rank:02d}", f"Bueno {rank}"), rank, 500.0 - rank)
-    for rank in range(1, 4):
-        _worst_leader(hr, _player(320 + rank, f"w{rank:02d}", f"Malo {rank}"), rank, float(rank))
+    todos = {rank: _player(300 + rank, f"s{rank:02d}", f"Jugador {rank:02d}") for rank in range(1, 21)}
+    for rank, jugador in todos.items():
+        _leader(hr, jugador, rank, 500.0 - rank)
+    for cola, rank in enumerate([20, 19, 18], start=1):  # el 20 es el extremo: puesto 1 de peores
+        _worst_leader(hr, todos[rank], cola, 500.0 - rank)
 
     board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
+    top = _TOP_RANK["carrera"]
 
-    assert [column["label"] for column in board["columns"]] == [f"Primeros {_TOP_RANK}", f"Últimos {_TOP_RANK}"]
-    assert [(r["rank"], r["name"]) for r in board["columns"][0]["rows"]] == [
-        (1, "Bueno 1"),
-        (2, "Bueno 2"),
-        (3, "Bueno 3"),
-    ]
-    # La segunda tabla es la COLA: se numera contando desde arriba (el tablero llega al puesto 3) y el
-    # extremo queda de último, no de primero.
+    assert [column["label"] for column in board["columns"]] == [f"Primeros {top}", f"Últimos {top}"]
+    assert [r["rank"] for r in board["columns"][0]["rows"]] == list(range(1, top + 1))
     assert [(r["rank"], r["name"]) for r in board["columns"][1]["rows"]] == [
-        (1, "Malo 3"),
-        (2, "Malo 2"),
-        (3, "Malo 1"),
+        (18, "Jugador 18"),
+        (19, "Jugador 19"),
+        (20, "Jugador 20"),
     ]
 
 
@@ -246,8 +250,8 @@ def test_a_descriptive_metric_labels_its_two_ends_by_height_not_by_merit() -> No
     ]
 
     assert [column["label"] for column in board["columns"]] == [
-        f"Los {_TOP_RANK} más altos",
-        f"Los {_TOP_RANK} más bajos",
+        f"Los {_TOP_RANK['carrera']} más altos",
+        f"Los {_TOP_RANK['carrera']} más bajos",
     ]
 
 

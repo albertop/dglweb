@@ -280,6 +280,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-leaders-table tr.dgl-leader-active > td { background-color: var(--lead-season); box-shadow: none; }
 .dgl-active-swatch { display: inline-block; width: 1.4rem; height: .85rem; vertical-align: middle;
   background: var(--lead-season); border: 1px solid var(--dgl-line); border-radius: 3px; }
+/* Total incompleto: el jugador ya jugaba antes de que la métrica se registrara (los batazos y
+   coeficientes arrancan en 1989). En rojo para que no se confunda con el resto del nombre. */
+.dgl-partial { color: var(--dgl-red); font-weight: 800; }
 /* La columna de nombre no es un número: fuente del cuerpo, alineada a la izquierda; el valor va en
    la mono de la tabla. Sin negrita: cuando TODAS las filas la llevan no resalta nada, solo pesa. */
 .dgl-leaders-table thead th:nth-child(2) { text-align: left; }
