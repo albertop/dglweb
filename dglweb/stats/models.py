@@ -922,6 +922,15 @@ class Leader(models.Model):
                 fields=["metric", "board", "season", "fielding_pos", "postseason", "rank"],
                 name="dgl_leader_board_idx",
             ),
+            # El otro patrón de lectura: "qué métricas TIENEN tablero", que arma los dropdowns de
+            # líderes. No arranca por `metric` —pregunta justamente por cuáles hay— así que el índice
+            # de arriba no le sirve y caía en scan secuencial de 400k filas. Va por rank porque la
+            # pregunta se responde mirando solo las cabezas de tablero (rank=1), y termina en metric
+            # para que sea Index Only Scan: la respuesta sale del índice sin tocar la tabla.
+            models.Index(
+                fields=["postseason", "fielding_pos", "rank", "metric"],
+                name="dgl_leader_avail_idx",
+            ),
         ]
         constraints = [
             # One row per player per board. `nulls_distinct=False` so career boards (season NULL) and
