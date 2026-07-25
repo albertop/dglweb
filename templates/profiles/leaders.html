@@ -54,11 +54,11 @@ temporada. Postemporada y Fildeo llegan después.
     <section class="dgl-panel mb-3">
       <div class="table-responsive">
         <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-leaders-table">
-          <thead><tr><th>Posición</th><th>Jugador</th><th>{{ board.abbr }}</th></tr></thead>
+          <thead><tr><th class="dgl-mid dgl-rank-col">Pos</th><th>Jugador</th><th>{{ board.abbr }}</th></tr></thead>
           <tbody>
             {% for row in board.rows %}
             <tr{% if row.active %} class="dgl-leader-active" title="Jugador activo: jugó la última temporada registrada"{% endif %}>
-              <td class="{% if row.rank == 1 %}dgl-rank-1{% else %}dgl-rank{% endif %}">{{ row.rank }}</td>
+              <td class="dgl-mid {% if row.rank == 1 %}dgl-rank-1{% else %}dgl-rank{% endif %}">{{ row.rank }}</td>
               <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a></td>
               <td class="dgl-leader-val">{{ row.value }}</td>
             </tr>

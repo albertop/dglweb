@@ -215,8 +215,12 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-statbox .v { font-size: 1.35rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
 
 /* ---------- Leaders / leaderboards ---------- */
-.dgl-rank { color: var(--dgl-muted); width: 1.6rem; display: inline-block; text-align: right; }
+/* El puesto en la tabla de líderes. Va sobre un <td>, así que NO lleva `display:inline-block` ni un
+   ancho fijo: eso encajonaba el número en 1.6rem al borde izquierdo de una columna ancha y dejaba el
+   resto de la celda en blanco. El ancho se fija en la columna (th) y el número se centra. */
+.dgl-rank { color: var(--dgl-muted); }
 .dgl-rank-1 { color: var(--dgl-red); font-weight: 800; }
+.dgl-leaders-table .dgl-rank-col { width: 3rem; }
 .dgl-lead-name { font-weight: 700; }
 .dgl-lead-val { font-weight: 800; font-variant-numeric: tabular-nums; }
 .nav-tabs .nav-link { font-weight: 700; color: var(--dgl-muted); font-size: .9rem; }
