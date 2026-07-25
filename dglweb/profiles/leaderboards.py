@@ -194,6 +194,7 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             "abbr": metric.abbrev,
             "direction": _direction_label(metric),
             "qualifier": _qualifier_note(metric, scope),
+            "available_from": metric.available_from,  # "disponible desde YYYY" cuando aplica (Statcast)
             "scope_label": f"temporada {chosen_season}" if scope == "temporada" else "de por vida",
             "rows": _board_rows(metric, scope, chosen_season),
         },

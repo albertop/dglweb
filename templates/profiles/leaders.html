@@ -57,9 +57,9 @@ temporada. Postemporada y Fildeo llegan después.
           <thead><tr><th>Posición</th><th>Jugador</th><th>{{ board.abbr }}</th></tr></thead>
           <tbody>
             {% for row in board.rows %}
-            <tr>
+            <tr{% if row.active %} class="dgl-leader-active" title="Jugador activo: jugó la última temporada registrada"{% endif %}>
               <td class="{% if row.rank == 1 %}dgl-rank-1{% else %}dgl-rank{% endif %}">{{ row.rank }}</td>
-              <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a>{% if row.active %}<span class="dgl-active" title="Activo: jugó la última temporada registrada">*</span>{% endif %}</td>
+              <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a></td>
               <td class="dgl-leader-val">{{ row.value }}</td>
             </tr>
             {% empty %}
@@ -71,9 +71,10 @@ temporada. Postemporada y Fildeo llegan después.
     </section>
 
     <p class="dgl-meta">
-      <b>Entre peloteros dominicanos.</b> {{ board.direction }}. <span class="dgl-active">*</span> = jugador activo.
+      <b>Entre peloteros dominicanos.</b>
       {% if board.qualifier %} Mínimo para calificar: {{ board.qualifier }}.{% endif %}
-      Desde 1956 (las Ligas Negras se muestran en cada perfil, pero no compiten en los rankings).
+      {% if board.available_from %} Disponible desde {{ board.available_from }}.{% endif %}
+      <span class="dgl-active-swatch"></span> = jugador activo.
     </p>
   </div>
 </div>
