@@ -83,7 +83,8 @@ temporada. Postemporada y Fildeo llegan después.
       {% endfor %}
     </div>
 
-    <p class="dgl-meta">
+    {# Separado de las tablas: pegado al panel se leía como una fila más del tablero. #}
+    <p class="dgl-meta mt-4">
       <b>Entre peloteros dominicanos.</b>
       {% if board.qualifier %}<br>{{ board.qualifier }}{% endif %}
       {% if board.available_from %}<br>Disponible desde {{ board.available_from }}.{% endif %}
