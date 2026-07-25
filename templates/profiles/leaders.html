@@ -44,39 +44,37 @@ temporada. Postemporada y Fildeo llegan después.
     <div>
       <label class="form-label dgl-control-label" for="metric">Métrica</label>
       <select class="form-select form-select-sm dgl-control" id="metric" onchange="location.href=this.value" style="min-width:15rem">
-        {% for m in metrics %}<option value="{{ m.url }}"{% if m.active %} selected{% endif %}>{{ m.name }}</option>{% endfor %}
+        {% for m in metrics %}<option value="{{ m.url }}"{% if m.active %} selected{% endif %}>[{{ m.abbr }}] {{ m.name }}</option>{% endfor %}
       </select>
     </div>
   </div>
 
-  {# Board #}
-  <section class="dgl-panel mb-3">
-    <div class="dgl-embed-cap d-flex justify-content-between">
-      <span class="dgl-embed-cap-strong">{{ board.name }} · {{ board.abbr }} · {{ board.direction }}</span>
-      <span>{{ board.scope_label }} · entre dominicanos</span>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-leaders-table">
-        <thead><tr><th>#</th><th>Jugador</th><th>{{ board.abbr }}</th></tr></thead>
-        <tbody>
-          {% for row in board.rows %}
-          <tr>
-            <td class="{% if row.rank == 1 %}dgl-rank-1{% else %}dgl-rank{% endif %}">{{ row.rank }}{% if row.tie %}<span class="dgl-tie">*</span>{% endif %}</td>
-            <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a></td>
-            <td class="dgl-leader-val">{{ row.value }}</td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="3" class="dgl-meta p-3">Sin líderes para esta selección.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
+  {# Board — ancho acotado al contenido (una tabla de 3 columnas no debe estirarse a toda la página) #}
+  <div class="dgl-leaders-board">
+    <section class="dgl-panel mb-3">
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-leaders-table">
+          <thead><tr><th>Posición</th><th>Jugador</th><th>{{ board.abbr }}</th></tr></thead>
+          <tbody>
+            {% for row in board.rows %}
+            <tr>
+              <td class="{% if row.rank == 1 %}dgl-rank-1{% else %}dgl-rank{% endif %}">{{ row.rank }}</td>
+              <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a>{% if row.active %}<span class="dgl-active" title="Activo: jugó la última temporada registrada">*</span>{% endif %}</td>
+              <td class="dgl-leader-val">{{ row.value }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="dgl-meta p-3">Sin líderes para esta selección.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-  <p class="dgl-meta">
-    <b>Entre peloteros dominicanos.</b>
-    {% if board.qualifier %} Mínimo para calificar: {{ board.qualifier }}.{% endif %}
-    Desde 1956 (las Ligas Negras se muestran en cada perfil, pero no compiten en los rankings).
-  </p>
+    <p class="dgl-meta">
+      <b>Entre peloteros dominicanos.</b> {{ board.direction }}. <span class="dgl-active">*</span> = jugador activo.
+      {% if board.qualifier %} Mínimo para calificar: {{ board.qualifier }}.{% endif %}
+      Desde 1956 (las Ligas Negras se muestran en cada perfil, pero no compiten en los rankings).
+    </p>
+  </div>
 </div>
 {% endblock %}

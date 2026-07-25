@@ -249,8 +249,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* ---------- Página de líderes (/lideres/) ---------- */
 .dgl-control-label { font-size: .64rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
   color: var(--dgl-muted); margin-bottom: .25rem; display: block; }
-.dgl-embed-cap .dgl-embed-cap-strong { color: var(--dgl-ink); }
-.dgl-tie { color: var(--dgl-muted); font-weight: 700; font-size: .82em; }
+/* Una tabla de 3 columnas (posición, jugador, valor) no debe estirarse a toda la página. */
+.dgl-leaders-board { max-width: 32rem; }
+.dgl-active { color: var(--dgl-red); font-weight: 800; }  /* jugador activo */
 /* La columna de nombre no es un número: fuente del cuerpo, alineada a la izquierda; el valor va en
    la mono de la tabla, en negrita, a la derecha (default de dgl-stats-table). */
 .dgl-leaders-table thead th:nth-child(2) { text-align: left; }

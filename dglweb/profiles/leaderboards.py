@@ -11,13 +11,14 @@ from collections import Counter
 from typing import Any
 from urllib.parse import urlencode
 
+from django.db.models import Max
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from dglweb.profiles import columns
 from dglweb.profiles.tabs import _DESCRIPTIVE_COLUMNS, _pretty_qualifier, _puestos_layout, _qualifier_context
 from dglweb.stats import qualifier
-from dglweb.stats.models import Leader, Metric
+from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching
 
 _GROUPS: list[tuple[str, str]] = [("batting", "Bateo"), ("pitching", "Pitcheo")]
 _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por temporada")]
@@ -100,18 +101,36 @@ def _link(state: dict[str, str], **changes: str | None) -> str:
     return "?" + urlencode({key: merged[key] for key in order if merged.get(key)})
 
 
+def _latest_season() -> int | None:
+    """The most recent season anywhere in our tables — the yardstick for "still active"."""
+    seasons = [model.objects.aggregate(m=Max("season"))["m"] for model in (Batting, Pitching, Fielding)]
+    return max((s for s in seasons if s is not None), default=None)
+
+
+def _active_players(player_ids: list[int], latest: int | None) -> set[int]:
+    """Of `player_ids`, those with a batting, pitching or fielding line in the latest season — active."""
+    if not player_ids or latest is None:
+        return set()
+    active: set[int] = set()
+    for model in (Batting, Pitching, Fielding):
+        active |= set(model.objects.filter(season=latest, player_id__in=player_ids).values_list("player_id", flat=True))
+    return active
+
+
 def _board_rows(metric: Metric, scope: str, season: int | None) -> list[dict[str, Any]]:
     board = Leader.objects.filter(metric=metric, board=_board_flag(scope), postseason=False, fielding_pos=None)
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
     leaders = list(board.order_by("rank", "player__full_name").select_related("player")[:_TOP_N])
     shared = {rank for rank, count in Counter(row.rank for row in leaders).items() if count > 1}
+    active = _active_players([row.player_id for row in leaders], _latest_season())
     return [
         {
             "rank": row.rank,
             "tie": row.rank in shared,
             "name": row.player.full_name,
             "slug": row.player.slug,
+            "active": row.player_id in active,  # jugó la última temporada registrada → sigue activo
             "value": _format(metric.stat_group, metric.column, row.value),
         }
         for row in leaders
@@ -158,7 +177,12 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             {"label": label, "active": key == scope, "url": _link(state, scope=key, m=None)} for key, label in _SCOPES
         ],
         "metrics": [
-            {"name": m.name_es or m.abbrev, "active": m.column == metric.column, "url": _link(state, m=m.column)}
+            {
+                "name": m.name_es or m.abbrev,
+                "abbr": m.abbrev,
+                "active": m.column == metric.column,
+                "url": _link(state, m=m.column),
+            }
             for m in tab_metrics
         ],
         "seasons": [

@@ -87,6 +87,26 @@ def test_season_scope_lists_years_newest_first_and_filters_the_board() -> None:
 
 
 @pytest.mark.django_db
+def test_active_player_is_flagged_when_he_played_the_latest_season() -> None:
+    """Un jugador con línea (bateo/pitcheo/fildeo) en la última temporada registrada lleva `active`."""
+    from dglweb.stats.models import Batting
+
+    hr = _metric("batting", "hr", "HR", name_es="Jonrones")
+    activo = _player(20, "act", "Activo A")
+    retirado = _player(21, "ret", "Retirado R")
+    _leader(hr, activo, 1, 500.0)
+    _leader(hr, retirado, 2, 400.0)
+    Batting.objects.create(player=activo, season=2025, stint=1, hr=30)  # última temporada -> activo
+    Batting.objects.create(player=retirado, season=2010, stint=1, hr=40)  # temporada vieja -> no
+
+    ctx = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")
+    active = {r["name"]: r["active"] for r in ctx["board"]["rows"]}
+
+    assert active["Activo A"] is True
+    assert active["Retirado R"] is False
+
+
+@pytest.mark.django_db
 def test_shared_rank_is_flagged_as_a_tie() -> None:
     hr = _metric("batting", "hr", "HR")
     _leader(hr, _player(5, "e01", "Uno"), 1, 40.0)
