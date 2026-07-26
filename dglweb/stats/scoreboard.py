@@ -1,0 +1,354 @@
+"""La pizarra: el banner de juegos de ayer y de hoy, con los nuestros marcados.
+
+Toda la liga y no solo los juegos con dominicanos: quien entra a la portada quiere ver la pelota del
+día, y esconder doce juegos para mostrar tres no le ahorra nada. Lo dominicano se marca dentro de
+cada juego, que es donde el lector lo busca.
+
+DOS DÍAS, NO UNO
+----------------
+Ayer y hoy en la misma tira. Quien entra de mañana quiere ver cómo terminó lo de anoche, y quien
+entra de noche quiere el juego en curso; con un solo día siempre hay una de las dos visitas que se
+queda sin lo suyo. De paso resuelve el receso del Juego de Estrellas: si hoy no hubo pelota, ayer
+sigue ahí y el banner no queda en blanco.
+
+QUIÉNES SON LOS NUESTROS EN CADA JUEGO
+--------------------------------------
+La unión de dos fuentes, porque ninguna sola alcanza:
+
+* **La alineación anunciada** (`lineups` y `probablePitcher`, que vienen en la misma llamada del
+  calendario). Es lo único que existe antes del primer lanzamiento, y sin ella un juego que empieza
+  a las 8 no mostraría un solo dominicano hasta que alguno se embase.
+* **Quién vio acción**, del mismo `byDateRange` que alimenta los destacados. Recoge al relevista y al
+  emergente, que no salen en ninguna alineación y que en un sitio dominicano importan tanto como el
+  abridor.
+
+Ambas se cruzan contra el universo dominicano —`dgl_master`, nunca el `birthCountry` de la API— antes
+de marcar nada.
+
+POR QUÉ ESTO NO ES UN JOB NOCTURNO
+----------------------------------
+Un marcador en vivo por definición no se puede escribir la noche anterior. Se pide al proxy desde la
+página, con caché de un minuto: son tres llamadas por minuto para todo el sitio, no por visita.
+"""
+
+import logging
+from dataclasses import dataclass
+from datetime import date, timedelta
+from typing import Any
+
+from django.conf import settings
+from django.core.cache import cache
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+
+from dglweb.mlb.client import MlbProxyClient, MlbProxyError
+from dglweb.stats.leagues import team_code
+
+logger = logging.getLogger(__name__)
+
+# La portada no puede quedarse esperando al proxy: el cliente de los scrapers reintenta tres veces con
+# 20 segundos de espera, hasta un minuto colgado. En un job nocturno eso es prudencia; en una página
+# es una página rota. Acá se pide una vez, corto, y si no llega se muestra lo último bueno.
+_TIMEOUT = 4.0
+_FRESCO = 60  # segundos que vale una pizarra antes de volver a preguntar
+_RESPALDO = 6 * 60 * 60  # cuánto se guarda la última buena, por si el proxy se cae
+_CLAVE = "pizarra"
+_CLAVE_RESPALDO = "pizarra:respaldo"
+
+# Los logos viven en el sitio, bajados por `manage.py download_team_logos`, y no enlazados donde
+# están: así el banner no depende de que un tercero esté arriba.
+_LOGOS = "img/equipos/"
+
+PROGRAMADO, VIVO, FINAL = "programado", "vivo", "final"
+
+# `abstractGameState` agrupa los muchos `detailedState` en cuatro. "Other" es lo raro —pospuesto,
+# suspendido— y se trata como no jugado, que es lo que el lector necesita saber.
+_ESTADOS = {"Preview": PROGRAMADO, "Live": VIVO, "Final": FINAL, "Other": PROGRAMADO}
+
+# Los `detailedState` que cambian lo que hay que decir. El resto de los previos son «va a jugarse» y
+# se muestran con la hora de inicio, que dice más que repetir «Programado».
+_INCIDENCIAS = {
+    "Postponed": "Pospuesto",
+    "Suspended": "Suspendido",
+    "Cancelled": "Cancelado",
+    "Delayed": "Demorado",
+    "Delayed Start": "Demorado",
+}
+
+
+@dataclass(frozen=True)
+class Nuestro:
+    """Un dominicano en ese juego, con lo que hizo. `slug` para enlazar al perfil.
+
+    `linea` sale de las estadísticas del día, no del juego: para quien jugó una sola vez —la inmensa
+    mayoría— son lo mismo. En una doble cartelera el número es el de las dos juntas; es el precio de
+    no pedir un boxscore por juego, que serían quince llamadas más por refresco.
+
+    Vacía cuando el jugador está anunciado en la alineación pero todavía no ha hecho nada.
+    """
+
+    nombre: str
+    slug: str
+    linea: str
+
+
+@dataclass(frozen=True)
+class Lado:
+    codigo: str
+    nombre: str
+    logo: str
+    record: str  # "54-53", como en la pizarra de MLB
+    carreras: int | None
+    ganador: bool
+    nuestros: tuple[Nuestro, ...]
+
+
+@dataclass(frozen=True)
+class Juego:
+    estado: str
+    detalle: str  # "Final", "Baja del 7", "8:10 p. m.", "Pospuesto"
+    visitante: Lado
+    local: Lado
+
+    @property
+    def lados(self) -> tuple[Lado, Lado]:
+        """Para recorrerlos en la plantilla sin perder cuál es cuál: siempre visitante y local."""
+        return (self.visitante, self.local)
+
+    @property
+    def con_dominicanos(self) -> bool:
+        return bool(self.visitante.nuestros or self.local.nuestros)
+
+
+@dataclass(frozen=True)
+class Jornada:
+    """Un día de la tira. El banner los pinta seguidos, con su fecha al frente."""
+
+    dia: date
+    juegos: tuple[Juego, ...]
+    es_hoy: bool
+
+
+@dataclass(frozen=True)
+class Pizarra:
+    jornadas: tuple[Jornada, ...]
+
+    @property
+    def hay_juegos(self) -> bool:
+        return any(jornada.juegos for jornada in self.jornadas)
+
+    @property
+    def hay_vivos(self) -> bool:
+        """Si no hay nada en juego, el navegador deja de preguntar: no habría nada que cambiar."""
+        return any(juego.estado == VIVO for jornada in self.jornadas for juego in jornada.juegos)
+
+
+def _cliente() -> MlbProxyClient:
+    return MlbProxyClient(
+        base_url=settings.MLB_PROXY_URL,
+        api_key=settings.MLB_PROXY_API_KEY,
+        timeout=_TIMEOUT,
+        max_attempts=1,
+    )
+
+
+def _calendario(client: MlbProxyClient, desde: date, hasta: date) -> dict[date, list[dict[str, Any]]]:
+    """Los juegos de un rango, agrupados por día y ordenados por hora de inicio.
+
+    El rango en una sola llamada y no una por día: el calendario ya sabe agrupar, y pedir dos veces
+    lo mismo con un día de diferencia es trabajo de más para el proxy y para la página.
+    """
+    payload = client.get(
+        "/api/v1/schedule",
+        {
+            "sportId": 1,
+            "startDate": desde.isoformat(),
+            "endDate": hasta.isoformat(),
+            "hydrate": "linescore,team,lineups,probablePitcher",
+        },
+    )
+    por_dia = {}
+    for fecha in payload.get("dates") or []:
+        dia = parse_date(str(fecha.get("date") or ""))
+        if dia is not None:
+            por_dia[dia] = sorted(fecha.get("games") or [], key=lambda j: str(j.get("gameDate") or ""))
+    return por_dia
+
+
+@dataclass(frozen=True)
+class _Accion:
+    """Lo que pasó ese día: quién jugó por cada equipo, y qué hizo cada uno."""
+
+    por_equipo: dict[int, set[int]]
+    lineas: dict[int, str]
+
+
+def _accion_del_dia(client: MlbProxyClient, dia: date, universo: set[int]) -> _Accion:
+    """Los dominicanos que vieron acción, con su línea. Incluye al relevista y al emergente.
+
+    Las mismas dos llamadas sirven para las dos cosas —marcar el equipo y escribir la línea— porque
+    salen del mismo split. Y las líneas se arman con las funciones de `daily`, que son las que ya
+    escriben los destacados: dos formas distintas de decir «3-4, 2B, HR» sería una de más.
+    """
+    from dglweb.stats import daily
+
+    por_equipo: dict[int, set[int]] = {}
+    lineas: dict[int, list[str]] = {}
+    for grupo, describir in (("hitting", daily.linea_de_bateo), ("pitching", daily.linea_de_pitcheo)):
+        for split in daily.splits(client, grupo, dia):
+            jugador_id = (split.get("player") or {}).get("id")
+            equipo_id = (split.get("team") or {}).get("id")
+            if jugador_id not in universo or equipo_id is None:
+                continue
+            por_equipo.setdefault(equipo_id, set()).add(jugador_id)
+            lineas.setdefault(jugador_id, []).append(describir(split.get("stat") or {}))
+
+    # Un lanzador que además bateó lleva las dos, separadas: son dos oficios y una sola línea que las
+    # mezclara no se podría leer.
+    return _Accion(por_equipo=por_equipo, lineas={pid: " · ".join(partes) for pid, partes in lineas.items()})
+
+
+def _anunciados(juego: dict[str, Any], visitante: bool) -> set[int]:
+    """La alineación publicada de un lado, más su abridor. Vacía si todavía no la publican."""
+    alineaciones = juego.get("lineups") or {}
+    jugadores = alineaciones.get("awayPlayers" if visitante else "homePlayers") or []
+    ids = {jugador["id"] for jugador in jugadores if jugador.get("id") is not None}
+
+    lado = (juego.get("teams") or {}).get("away" if visitante else "home") or {}
+    abridor = (lado.get("probablePitcher") or {}).get("id")
+    if abridor is not None:
+        ids.add(abridor)
+    return ids
+
+
+def _detalle(juego: dict[str, Any], estado: str) -> str:
+    """La frase corta que sitúa el juego: el inning si está vivo, la hora si no ha empezado."""
+    detallado = str((juego.get("status") or {}).get("detailedState") or "")
+    if detallado in _INCIDENCIAS:
+        return _INCIDENCIAS[detallado]
+
+    pizarra = juego.get("linescore") or {}
+    if estado == FINAL:
+        # Solo se nombra el inning cuando la cuenta se salió de lo normal: «Final (11)» dice algo,
+        # «Final (9)» es ruido en todas las filas menos una.
+        entradas = pizarra.get("currentInning") or 9
+        return f"Final ({entradas})" if entradas != 9 else "Final"
+    if estado == VIVO:
+        # `Middle` y `End` son los cambios de lado; se cuentan con la mitad que acaba de terminar.
+        mitad = "Alta" if str(pizarra.get("inningState") or "") in ("Top", "Middle") else "Baja"
+        return f"{mitad} del {pizarra.get('currentInning') or 1}"
+
+    empieza = juego.get("gameDate")
+    if not empieza:
+        return "Por definir"
+    from django.utils.dateparse import parse_datetime
+
+    momento = parse_datetime(str(empieza))
+    return timezone.localtime(momento).strftime("%-I:%M %p").lower() if momento else "Por definir"
+
+
+def _lado(
+    juego: dict[str, Any],
+    visitante: bool,
+    estado: str,
+    por_equipo: dict[int, set[int]],
+    universo: set[int],
+    nombres: dict[int, Nuestro],
+) -> Lado:
+    datos = (juego.get("teams") or {}).get("away" if visitante else "home") or {}
+    equipo = datos.get("team") or {}
+    ids = (_anunciados(juego, visitante) & universo) | por_equipo.get(equipo.get("id") or 0, set())
+    # Por nombre y no por id: el orden de un conjunto cambia entre corridas, y una lista que se
+    # reordena sola cada minuto en la pantalla se lee como un error.
+    nuestros = sorted((nombres[pid] for pid in ids if pid in nombres), key=lambda n: n.nombre)
+    marca = datos.get("leagueRecord") or {}
+
+    return Lado(
+        codigo=team_code(equipo.get("teamCode")) or str(equipo.get("abbreviation") or ""),
+        nombre=str(equipo.get("teamName") or equipo.get("name") or ""),
+        # Ruta relativa a `static/`, que es lo que `{% static %}` espera. Los baja
+        # `manage.py download_team_logos`; si falta alguno, la plantilla lo omite y no se rompe.
+        logo=f"{_LOGOS}{codigo}.svg" if (codigo := team_code(equipo.get("teamCode"))) else "",
+        record=f"{marca['W']}-{marca['L']}" if "W" in marca and "L" in marca else "",
+        # El calendario manda 0 en los juegos que no han empezado. Mostrarlo sería anunciar un
+        # marcador que no existe: un juego de las 8 de la noche no va 0-0 a las 3 de la tarde.
+        carreras=None if estado == PROGRAMADO else datos.get("score"),
+        ganador=bool(datos.get("isWinner")),
+        nuestros=tuple(nuestros),
+    )
+
+
+def _nombres(ids: set[int], lineas: dict[int, str]) -> dict[int, Nuestro]:
+    """Los nombres salen de nuestro maestro, no del feed: es el que el sitio usa en todas partes."""
+    from dglweb.players.models import Player
+
+    nombres = {}
+    for jugador in Player.objects.filter(player_id__in=ids):
+        inicial = f"{jugador.firstname[:1]}. " if jugador.firstname else ""
+        nombres[jugador.player_id] = Nuestro(
+            nombre=f"{inicial}{jugador.lastname_1}",
+            slug=jugador.slug,
+            linea=lineas.get(jugador.player_id, ""),
+        )
+    return nombres
+
+
+def jornada(client: MlbProxyClient, dia: date, crudos: list[dict[str, Any]], universo: set[int]) -> tuple[Juego, ...]:
+    """Los juegos de un día, con los dominicanos de cada lado ya resueltos."""
+    if not crudos:
+        return ()
+
+    accion = _accion_del_dia(client, dia, universo)
+    candidatos = {pid for equipo in accion.por_equipo.values() for pid in equipo}
+    for juego in crudos:
+        candidatos |= (_anunciados(juego, visitante=True) | _anunciados(juego, visitante=False)) & universo
+    nombres = _nombres(candidatos, accion.lineas)
+
+    return tuple(
+        Juego(
+            estado=(estado := _ESTADOS.get(str((juego.get("status") or {}).get("abstractGameState")), PROGRAMADO)),
+            detalle=_detalle(juego, estado),
+            visitante=_lado(juego, True, estado, accion.por_equipo, universo, nombres),
+            local=_lado(juego, False, estado, accion.por_equipo, universo, nombres),
+        )
+        for juego in crudos
+    )
+
+
+def _armar() -> Pizarra:
+    from dglweb.players import universe
+
+    hoy = timezone.localdate()
+    ayer = hoy - timedelta(days=1)
+    universo = universe.debuted()
+    with _cliente() as client:
+        calendario = _calendario(client, ayer, hoy)
+        # Los días sin pelota se caen de la tira en vez de dejar un hueco con la fecha y nada debajo.
+        jornadas = tuple(
+            Jornada(dia=dia, juegos=jornada(client, dia, calendario.get(dia) or [], universo), es_hoy=dia == hoy)
+            for dia in (ayer, hoy)
+            if calendario.get(dia)
+        )
+    return Pizarra(jornadas=jornadas)
+
+
+def del_dia() -> Pizarra | None:
+    """La pizarra que muestra la portada. `None` solo si nunca se pudo armar una.
+
+    Dos cachés a propósito. La corta evita pedirle al proxy una vez por visita. La larga guarda la
+    última que salió bien: si el proxy se cae, la portada muestra un marcador de hace unos minutos en
+    vez de un hueco. Un marcador levemente viejo es un problema mucho menor que un widget en blanco.
+    """
+    fresca = cache.get(_CLAVE)
+    if fresca is not None:
+        return fresca  # type: ignore[no-any-return]
+
+    try:
+        pizarra = _armar()
+    except MlbProxyError:
+        logger.warning("No se pudo armar la pizarra; se muestra la última buena.", exc_info=True)
+        return cache.get(_CLAVE_RESPALDO)  # type: ignore[no-any-return]
+
+    cache.set(_CLAVE, pizarra, _FRESCO)
+    cache.set(_CLAVE_RESPALDO, pizarra, _RESPALDO)
+    return pizarra

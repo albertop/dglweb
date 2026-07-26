@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block nav_home %}active{% endblock %}
 {% block nav_home_current %}aria-current="page"{% endblock %}
@@ -9,6 +10,14 @@
 </div>
 
 <main class="container my-4">
+  {% comment %}
+    La franja de widgets: lo que cambia todos los días va arriba, antes del contenido editorial.
+    La pizarra ocupa el ancho completo porque es una tira que se desplaza; partirla en media columna
+    dejaría tres juegos a la vista y las flechas haciendo todo el trabajo.
+  {% endcomment %}
+  <div class="mb-4">{% include "widgets/_pizarra.html" %}</div>
+  <div class="mb-4">{% include "widgets/_destacados.html" %}</div>
+
   <div class="row g-4">
 
     <div class="col-lg-8">
@@ -59,28 +68,6 @@
     </div>
 
     <aside class="col-lg-4">
-      <section class="dgl-panel mb-4">
-        <div class="d-flex align-items-center justify-content-between px-3 pt-3">
-          <h2 class="dgl-section-title mb-0" style="font-size:.95rem">Destacados de la jornada</h2>
-          <span class="dgl-final">Ayer · 15 jul</span>
-        </div>
-        <div class="px-3 pb-2 pt-2">
-          <div class="dgl-group-label mb-2">🏏 Bateadores</div>
-          <div class="dgl-standout py-2"><div class="name">Juan Soto <span class="team">NYY</span></div>
-            <div class="line">3-4, 2 HR, 4 CI, 2 CA</div></div>
-          <div class="dgl-standout py-2"><div class="name">José Ramírez <span class="team">CLE</span></div>
-            <div class="line">4-5, 2B, 3 CA, SB</div></div>
-          <div class="dgl-standout py-2"><div class="name">Rafael Devers <span class="team">BOS</span></div>
-            <div class="line">2-4, HR, 3 CI</div></div>
-          <div class="dgl-group-label mb-2 mt-3">⚾ Lanzadores</div>
-          <div class="dgl-standout py-2"><div class="name">Cristopher Sánchez <span class="team">PHI</span></div>
-            <div class="line">7.0 IP, 9 K, 0 CL &nbsp;(G)</div></div>
-          <div class="dgl-standout py-2"><div class="name">Framber Valdez <span class="team">HOU</span></div>
-            <div class="line">6.2 IP, 8 K, 1 CL</div></div>
-        </div>
-        <a href="#" class="d-block text-center small py-2 border-top">Ver resumen completo de la jornada →</a>
-      </section>
-
       <div class="dgl-ad dgl-ad-rect mb-4">Espacio publicitario · 300×250</div>
 
       <section class="dgl-panel mb-4 p-3">
@@ -99,3 +86,5 @@
   <div class="dgl-ad dgl-ad-leader mt-2">Espacio publicitario · 728×90</div>
 </main>
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/pizarra.js' %}?v=1" defer></script>{% endblock %}

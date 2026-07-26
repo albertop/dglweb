@@ -45,9 +45,40 @@ def test_home_renders_landing_modules_when_requested():
 
     response = client.get("/")
 
-    body = response.content
+    assert "Líderes dominicanos".encode() in response.content
+
+
+@pytest.mark.django_db
+def test_the_widget_zone_shows_the_stored_standouts(db):
+    """La franja de arriba es dato real, no la maqueta: si hay jornada guardada, sale la jornada."""
+    from datetime import date
+
+    from dglweb.players.models import Player
+    from dglweb.stats.models import DailyStandout
+    from tests.test_players import _other_player
+
+    jugador = Player.objects.create(**_other_player(full_name="Rafael Devers"))
+    DailyStandout.objects.create(
+        fecha=date(2026, 7, 25),
+        grupo=DailyStandout.Grupo.BATEO,
+        player=jugador,
+        team="SFN",
+        linea="3-4, 2B, HR, 4 RBI",
+        valor=2.35,
+    )
+
+    body = Client().get("/").content
+
     assert b"Destacados de la jornada" in body
-    assert "Líderes dominicanos".encode() in body
+    assert b"3-4, 2B, HR, 4 RBI" in body
+
+
+@pytest.mark.django_db
+def test_an_empty_widget_zone_is_left_out_instead_of_drawn_hollow():
+    """Un panel vacío se lee como un sitio roto; que no esté se lee como que hoy no hubo nada."""
+    body = Client().get("/").content
+
+    assert b"Destacados de la jornada" not in body
 
 
 @pytest.mark.django_db

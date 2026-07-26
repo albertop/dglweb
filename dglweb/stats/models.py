@@ -86,7 +86,7 @@ class Batting(models.Model):
     # --- counting stats ----------------------------------------------------------
     g = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="J")
     pa = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="AP")
-    ab = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="VB")
+    ab = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="AB")
     r = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="C")
     h = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="H")
     x1b = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="1B")
@@ -94,7 +94,7 @@ class Batting(models.Model):
     x3b = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="3B")
     hr = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="HR")
     xbh = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="XBH")
-    rbi = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="CI")
+    rbi = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="RBI")
     sb = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="BR")
     cs = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="AR")
     bb = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="BB")
@@ -111,11 +111,11 @@ class Batting(models.Model):
     catcher_int = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="ICat")
 
     # --- rate stats --------------------------------------------------------------
-    avg = models.FloatField(null=True, blank=True, verbose_name="AVE")
+    avg = models.FloatField(null=True, blank=True, verbose_name="AVG")
     obp = models.FloatField(null=True, blank=True, verbose_name="OBP")
     slg = models.FloatField(null=True, blank=True, verbose_name="SLG")
     ops = models.FloatField(null=True, blank=True, verbose_name="OPS")
-    ab_per_hr = models.FloatField(null=True, blank=True, verbose_name="VB/HR")
+    ab_per_hr = models.FloatField(null=True, blank=True, verbose_name="AB/HR")
     babip = models.FloatField(null=True, blank=True, verbose_name="BABIP")
     bb_per_so = models.FloatField(null=True, blank=True, verbose_name="BB/P")
     bsr = models.FloatField(null=True, blank=True, verbose_name="BsR")

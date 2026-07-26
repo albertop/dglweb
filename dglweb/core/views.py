@@ -6,8 +6,21 @@ from django.utils import timezone
 
 
 def home(request: HttpRequest) -> HttpResponse:
-    """Render the landing page (the approved mock, integrated as a Django template)."""
-    return render(request, "home.html")
+    """La portada. La franja de arriba son widgets: los destacados de la jornada y la pizarra."""
+    from dglweb.stats import daily, scoreboard
+
+    return render(request, "home.html", {"destacados": daily.portada(), "pizarra": scoreboard.del_dia()})
+
+
+def pizarra(request: HttpRequest) -> HttpResponse:
+    """Solo el widget de la pizarra, para que el navegador lo refresque sin recargar la página.
+
+    Existe porque «en vivo» que solo se actualiza al recargar no está en vivo. Devuelve el mismo
+    fragmento que la portada incrusta, así hay una sola plantilla y no dos que se van separando.
+    """
+    from dglweb.stats import scoreboard
+
+    return render(request, "widgets/_pizarra.html", {"pizarra": scoreboard.del_dia()})
 
 
 def health(request: HttpRequest) -> JsonResponse:

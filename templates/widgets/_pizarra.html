@@ -1,0 +1,37 @@
+{% load static %}{% comment %}
+La pizarra: una tira horizontal de juegos, ayer y hoy, con flechas a los dos lados.
+
+La tira se desplaza sola hasta el primer juego de hoy al cargar, así que lo de ayer queda a la
+izquierda para quien lo busque y lo de hoy es lo primero que se ve.
+
+El `data-vivo` es lo que el JS mira para decidir si sigue refrescando: con todo terminado no queda
+nada que pueda cambiar. Al ser la misma plantilla la que responde el fragmento y la que incrusta la
+portada, no hay dos versiones que se vayan separando.
+{% endcomment %}
+{% if pizarra and pizarra.hay_juegos %}
+<section class="dgl-banner" id="pizarra" aria-label="Pizarra de resultados"
+         data-vivo="{% if pizarra.hay_vivos %}1{% else %}0{% endif %}">
+
+  <button class="dgl-flecha dgl-flecha-izq" type="button" data-mover="-1" aria-label="Juegos anteriores">‹</button>
+
+  <div class="dgl-tira">
+    {% for jornada in pizarra.jornadas %}
+      <div class="dgl-fecha{% if jornada.es_hoy %} dgl-fecha-hoy{% endif %}"
+           {% if jornada.es_hoy %}data-hoy="1"{% endif %}>
+        <span>{{ jornada.dia|date:"M"|upper }}</span><b>{{ jornada.dia|date:"j" }}</b>
+      </div>
+      {% for juego in jornada.juegos %}
+        {% include "widgets/_pizarra_juego.html" %}
+      {% endfor %}
+    {% endfor %}
+  </div>
+
+  <button class="dgl-flecha dgl-flecha-der" type="button" data-mover="1" aria-label="Juegos siguientes">›</button>
+
+  {% comment %}
+    El detalle del hover se pinta acá y no dentro de la tira: la tira recorta lo que se sale de ella,
+    y un panel que asoma por debajo se vería cortado a la mitad.
+  {% endcomment %}
+  <div class="dgl-detalle" id="pizarra-detalle" hidden></div>
+</section>
+{% endif %}

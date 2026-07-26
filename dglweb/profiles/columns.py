@@ -75,7 +75,7 @@ BATTING_ADVANCED: list[Column] = [
     Column("TB", "tb"),
     Column("XBH", "xbh"),
     Column("LOB", "lob"),
-    Column("CP", "runs_produced"),
+    Column("RP", "runs_produced"),
     Column("ISO", "iso", "rate"),
     Column("BABIP", "babip", "rate"),
     Column("TotAvg", "total_avg", "rate"),

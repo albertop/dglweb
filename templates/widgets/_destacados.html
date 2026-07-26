@@ -1,0 +1,43 @@
+{% comment %}
+Los destacados de la jornada, a lo ancho: bateadores a un lado, lanzadores al otro.
+
+En dos columnas y no en una lista larga porque son dos oficios distintos y no compiten entre sí — el
+valor de un 3-4 y el de siete entradas de una carrera no están en la misma escala.
+
+El panel entero desaparece si no hay nada guardado: un widget vacío se lee como un sitio roto, y es
+mejor que no esté a que esté hueco.
+{% endcomment %}
+{% if destacados %}
+<section class="dgl-panel p-3" aria-labelledby="destacados-titulo">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="destacados-titulo">Destacados de la jornada</h2>
+    <span class="dgl-final">{{ destacados.dia|date:"j M" }}</span>
+  </div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="dgl-group-label mb-1">🏏 Bateadores</div>
+      {% for actuacion in destacados.bateo %}
+        <div class="dgl-standout py-2">
+          <div class="name">
+            <a href="{% url 'player_detail' actuacion.player.slug %}">{{ actuacion.player.full_name }}</a>
+            <span class="team">{{ actuacion.team }}</span>
+          </div>
+          <div class="line">{{ actuacion.linea }}</div>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="col-md-6">
+      <div class="dgl-group-label mb-1">⚾ Lanzadores</div>
+      {% for actuacion in destacados.pitcheo %}
+        <div class="dgl-standout py-2">
+          <div class="name">
+            <a href="{% url 'player_detail' actuacion.player.slug %}">{{ actuacion.player.full_name }}</a>
+            <span class="team">{{ actuacion.team }}</span>
+          </div>
+          <div class="line">{{ actuacion.linea }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}

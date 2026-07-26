@@ -1,0 +1,41 @@
+{% load static %}{% comment %}
+Una tarjeta del banner: estado arriba, y debajo los dos equipos con su logo, su marca y su carrera.
+
+El detalle de los dominicanos va escondido dentro de la propia tarjeta y el JS lo saca al panel de
+abajo cuando se le pasa el mouse por encima. Se genera en el servidor y no se pide aparte para que
+aparezca al instante y para que no haya una llamada por cada juego sobre el que uno pasa.
+{% endcomment %}
+<div class="dgl-juego{% if juego.estado == 'final' %} dgl-con-detalle{% endif %}">
+  <div class="dgl-juego-estado{% if juego.estado == 'vivo' %} dgl-vivo{% endif %}">
+    {{ juego.detalle }}
+    {% comment %}
+      La banderita dice de un vistazo en cuáles de los quince juegos hay algo nuestro, sin tener que
+      leer los treinta códigos de equipo. Va con `title` porque un emoji solo no le dice nada a quien
+      navega con lector de pantalla.
+    {% endcomment %}
+    {% if juego.con_dominicanos %}<span class="dgl-bandera" title="Con dominicanos en acción">🇩🇴</span>{% endif %}
+  </div>
+  {% include "widgets/_pizarra_lado.html" with lado=juego.visitante %}
+  {% include "widgets/_pizarra_lado.html" with lado=juego.local %}
+
+  {% if juego.estado == 'final' and juego.con_dominicanos %}
+    <template class="dgl-juego-detalle">
+      <div class="dgl-detalle-caja">
+        {% for lado in juego.lados %}
+          {% if lado.nuestros %}
+            <div class="dgl-detalle-equipo">
+              {% if lado.logo %}<img src="{% static lado.logo %}" alt="" width="18" height="18">{% endif %}
+              <span>{{ lado.codigo }}</span>
+            </div>
+            {% for nuestro in lado.nuestros %}
+              <div class="dgl-detalle-jugador">
+                <a href="{% url 'player_detail' nuestro.slug %}">{{ nuestro.nombre }}</a>
+                <span class="line">{{ nuestro.linea }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </template>
+  {% endif %}
+</div>

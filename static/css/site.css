@@ -136,11 +136,92 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-game .score { font-weight: 800; font-variant-numeric: tabular-nums; }
 .dgl-dom { color: var(--dgl-blue); font-weight: 700; }  /* dominican highlight */
 .dgl-final { color: var(--dgl-muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+/* El banner de juegos: una tira horizontal, ayer y hoy, con flechas a los dos lados.
+   `position: relative` porque el panel del hover se cuelga de acá — dentro de la tira quedaría
+   recortado, ya que un contenedor con scroll horizontal no deja asomar nada por debajo. */
+.dgl-banner { position: relative; background: var(--dgl-card); border-bottom: 1px solid var(--dgl-line); }
+.dgl-tira {
+  display: flex; align-items: stretch; overflow-x: auto; scroll-behavior: smooth;
+  scrollbar-width: none;  /* la barra sobra: para eso están las flechas */
+}
+.dgl-tira::-webkit-scrollbar { display: none; }
+
+/* La fecha que separa un día del otro. Se queda pegada al borde al desplazar, para que nunca se
+   pierda de vista a qué jornada pertenece lo que se está mirando. */
+.dgl-fecha {
+  position: sticky; left: 0; z-index: 2; flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 3.2rem; padding: .5rem .4rem; background: var(--dgl-navy); color: #fff;
+  font-size: .62rem; letter-spacing: .08em; line-height: 1.1;
+}
+.dgl-fecha b { font-size: 1rem; font-weight: 800; }
+.dgl-fecha-hoy { background: var(--dgl-red); }
+
+.dgl-juego {
+  flex: 0 0 auto; min-width: 10.5rem; padding: .45rem .7rem;
+  border-left: 1px solid var(--dgl-line);
+}
+.dgl-con-detalle { cursor: default; }
+.dgl-con-detalle:hover { background: #f7f9fc; }
+.dgl-juego-estado {
+  display: flex; align-items: center; gap: .3rem;
+  color: var(--dgl-muted); font-size: .62rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; margin-bottom: .2rem;
+}
+/* La bandera va al final de la línea de estado y con su tamaño propio: heredar el .62rem del estado
+   la dejaría en un punto ilegible. */
+.dgl-bandera { margin-left: auto; font-size: .85rem; line-height: 1; }
+.dgl-lado { display: flex; align-items: center; gap: .35rem; line-height: 1.5; color: var(--dgl-muted); }
+/* El que ganó en tinta plena y el que perdió apagado: es la jerarquía que hace legible una tira de
+   quince juegos sin leer los números. */
+.dgl-ganador { color: var(--dgl-ink); }
+.dgl-logo { flex: 0 0 auto; }
+.dgl-lado .team { font-weight: 700; font-size: .8rem; min-width: 2.2rem; }
+.dgl-lado .dgl-record { font-size: .62rem; margin-left: auto; font-variant-numeric: tabular-nums; }
+.dgl-lado .score { font-weight: 800; font-size: .9rem; min-width: 1.2rem; text-align: right;
+  font-variant-numeric: tabular-nums; }
+
+.dgl-flecha {
+  position: absolute; top: 0; bottom: 0; z-index: 3; width: 1.6rem; padding: 0;
+  border: 0; border-left: 1px solid var(--dgl-line); background: var(--dgl-card);
+  color: var(--dgl-muted); font-size: 1.2rem; line-height: 1; cursor: pointer;
+}
+.dgl-flecha:hover { color: var(--dgl-ink); background: #f0f3f8; }
+.dgl-flecha[disabled] { opacity: .25; cursor: default; }
+.dgl-flecha-izq { left: 0; border-left: 0; border-right: 1px solid var(--dgl-line); }
+.dgl-flecha-der { right: 0; }
+
+/* El panel que baja al pasar el mouse por un juego terminado. */
+.dgl-detalle {
+  position: absolute; top: 100%; z-index: 20; min-width: 15rem; max-width: 22rem;
+  background: var(--dgl-card); border: 1px solid var(--dgl-line); border-top: 0;
+  border-radius: 0 0 .4rem .4rem; box-shadow: 0 6px 18px rgb(0 0 0 / .12); padding: .5rem .7rem;
+}
+.dgl-detalle-equipo {
+  display: flex; align-items: center; gap: .35rem; margin: .35rem 0 .2rem;
+  font-size: .68rem; font-weight: 700; letter-spacing: .06em; color: var(--dgl-muted);
+}
+.dgl-detalle-equipo:first-child { margin-top: 0; }
+.dgl-detalle-jugador { display: flex; justify-content: space-between; gap: .8rem; padding: .1rem 0; }
+.dgl-detalle-jugador a { font-size: .8rem; font-weight: 600; color: var(--dgl-ink); }
+.dgl-detalle-jugador a:hover { color: var(--dgl-blue); }
+.dgl-detalle-jugador .line {
+  color: var(--dgl-blue); font-size: .75rem; font-weight: 600; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Un juego en curso tiene que distinguirse de uno terminado de un vistazo; el rojo es el acento del
+   sitio y acá dice «esto está pasando ahora». */
+.dgl-vivo { color: var(--dgl-red); font-weight: 700; }
 
 /* ---------- Destacados de la jornada ---------- */
 .dgl-standout { border-bottom: 1px solid var(--dgl-line); }
 .dgl-standout:last-child { border-bottom: 0; }
 .dgl-standout .name { font-weight: 700; }
+/* El nombre enlaza al perfil pero se lee como texto: en azul, cinco enlaces seguidos convierten el
+   panel en una lista de links y el dato —que es la línea— pasa a segundo plano. */
+.dgl-standout .name a { color: var(--dgl-ink); }
+.dgl-standout .name a:hover { color: var(--dgl-blue); }
 .dgl-standout .team { color: var(--dgl-muted); font-size: .72rem; }
 .dgl-standout .line { color: var(--dgl-blue); font-weight: 600; font-size: .82rem;
   font-variant-numeric: tabular-nums; }

@@ -1,0 +1,13 @@
+{% load static %}{% comment %}
+Un lado de un juego en el banner: logo, código, marca de la temporada y carreras.
+
+El código se resalta cuando ese equipo lleva dominicanos, que es la marca que el sitio usa en todas
+partes. Los nombres no van acá —quince juegos con hasta cinco nombres por lado eran un muro de
+texto—: salen en el panel de abajo al pasar el mouse.
+{% endcomment %}
+<div class="dgl-lado{% if lado.ganador %} dgl-ganador{% endif %}">
+  {% if lado.logo %}<img class="dgl-logo" src="{% static lado.logo %}" alt="" width="20" height="20">{% endif %}
+  <span class="team{% if lado.nuestros %} dgl-dom{% endif %}">{{ lado.codigo }}</span>
+  <span class="dgl-record">{{ lado.record }}</span>
+  <span class="score">{{ lado.carreras|default_if_none:"" }}</span>
+</div>

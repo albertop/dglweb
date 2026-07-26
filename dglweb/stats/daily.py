@@ -117,9 +117,12 @@ def game_score(stat: dict[str, Any]) -> float:
 
 
 def linea_de_bateo(stat: dict[str, Any]) -> str:
-    """«3-4, 2B, HR, 4 CI» — lo que un dominicano lee de un vistazo.
+    """«3-4, 2B, HR, 4 RBI» — lo que un dominicano lee de un vistazo.
 
-    Solo se nombra lo que ocurrió: un cero no se escribe. Una línea con «0 HR, 0 CI» ocupa el mismo
+    Las siglas van en inglés, que es como se leen en el béisbol dominicano: RBI y no CI, R y no CA.
+    Es regla del sitio, no preferencia de esta función — ver `docs/AUTORIDAD.md`.
+
+    Solo se nombra lo que ocurrió: un cero no se escribe. Una línea con «0 HR, 0 RBI» ocupa el mismo
     espacio y no dice nada.
     """
     partes = [f"{int(_numero(stat, 'H'))}-{int(_numero(stat, 'AB'))}"]
@@ -127,27 +130,29 @@ def linea_de_bateo(stat: dict[str, Any]) -> str:
         cantidad = int(_numero(stat, clave))
         if cantidad:
             partes.append(etiqueta if cantidad == 1 else f"{cantidad} {etiqueta}")
-    for clave, etiqueta in (("RBI", "CI"), ("R", "CA"), ("BB", "BB"), ("SB", "SB")):
+    for clave in ("RBI", "R", "BB", "SB"):
         cantidad = int(_numero(stat, clave))
         if cantidad:
-            partes.append(f"{cantidad} {etiqueta}")
+            partes.append(f"{cantidad} {clave}")
     return ", ".join(partes)
 
 
 def linea_de_pitcheo(stat: dict[str, Any]) -> str:
-    """«7.0 IP, 9 K, 0 CL (G)» — las entradas primero, que es lo que sitúa la actuación."""
-    partes = [f"{stat.get('IP', '0.0')} IP", f"{int(_numero(stat, 'K'))} K", f"{int(_numero(stat, 'ER'))} CL"]
-    if _numero(stat, "W"):
-        partes.append("(G)")
-    elif _numero(stat, "SV"):
-        partes.append("(S)")
-    elif _numero(stat, "HLD"):
-        partes.append("(H)")
+    """«7.0 IP, 9 K, 0 ER (W)» — las entradas primero, que es lo que sitúa la actuación."""
+    partes = [f"{stat.get('IP', '0.0')} IP", f"{int(_numero(stat, 'K'))} K", f"{int(_numero(stat, 'ER'))} ER"]
+    for clave in ("W", "SV", "HLD"):
+        if _numero(stat, clave):
+            partes.append(f"({'H' if clave == 'HLD' else clave})")
+            break
     return ", ".join(partes)
 
 
-def _splits(client: MlbProxyClient, grupo: str, dia: date) -> list[dict[str, Any]]:
-    """Toda la liga en ese día, en una llamada. Sin juegos devuelve lista vacía, no error."""
+def splits(client: MlbProxyClient, grupo: str, dia: date) -> list[dict[str, Any]]:
+    """Toda la liga en ese día, en una llamada. Sin juegos devuelve lista vacía, no error.
+
+    Pública porque la pizarra la usa para saber quién vio acción: es la misma pregunta y no tiene
+    sentido que existan dos formas distintas de hacerla.
+    """
     payload = client.get(
         "/api/v1/stats",
         {
@@ -173,7 +178,7 @@ def _actuaciones(
     describir: Descripcion,
 ) -> list[Actuacion]:
     salida = []
-    for split in _splits(client, grupo, dia):
+    for split in splits(client, grupo, dia):
         jugador = split.get("player") or {}
         if jugador.get("id") not in universo:
             continue
@@ -234,6 +239,30 @@ def guardar(dia: date, listas: dict[str, list[Actuacion]]) -> int:
         DailyStandout.objects.filter(fecha=dia).delete()
         DailyStandout.objects.bulk_create(filas)
     return len(filas)
+
+
+def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
+    """Los destacados que muestra la portada, de la jornada más reciente que haya guardada.
+
+    «La más reciente que haya» y no «ayer» a propósito: en el receso del Juego de Estrellas ayer no
+    hubo pelota, y pedir literalmente ayer dejaría el widget vacío cuatro días. Se muestra la última
+    jornada real, y la fecha va al lado para que nadie la confunda con la de hoy.
+
+    Devuelve `None` cuando la tabla está vacía —sitio recién levantado, o el refresco nunca corrió—
+    para que la plantilla pueda decidir no dibujar el panel en vez de dibujarlo hueco.
+    """
+    from dglweb.stats.models import DailyStandout
+
+    ultima = DailyStandout.objects.order_by("-fecha").values_list("fecha", flat=True).first()
+    if ultima is None:
+        return None
+
+    del_dia = DailyStandout.objects.filter(fecha=ultima).select_related("player").order_by("-valor")
+    return {
+        "dia": ultima,
+        "bateo": list(del_dia.filter(grupo=DailyStandout.Grupo.BATEO)[:bateadores]),
+        "pitcheo": list(del_dia.filter(grupo=DailyStandout.Grupo.PITCHEO)[:lanzadores]),
+    }
 
 
 def podar(temporada_activa: int | None) -> int:

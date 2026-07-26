@@ -11,7 +11,7 @@ from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
 
-from dglweb.core.views import health, home, pipeline_health
+from dglweb.core.views import health, home, pipeline_health, pizarra
 from dglweb.stats.staticdata import views as staticdata_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
@@ -27,6 +27,8 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("cms/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     path("", home, name="home"),
+    # El fragmento de la pizarra, que el navegador vuelve a pedir mientras haya juegos vivos.
+    path("pizarra/", pizarra, name="pizarra"),
     path("", include("dglweb.profiles.urls")),  # /jugador/<slug>/ — before Wagtail's catch-all
     # Wagtail page-serving catch-all (pages appear in Fase 5).
     path("", include(wagtail_urls)),

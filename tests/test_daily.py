@@ -130,10 +130,10 @@ def test_a_home_run_costs_more_than_a_hit(db: None) -> None:
 
 @pytest.mark.django_db
 def test_the_line_only_names_what_happened(db: None) -> None:
-    """«3-4, 2B, HR, 4 CI» y no «3-4, 0 3B, 1 HR, 0 SB»: un cero ocupa lugar y no dice nada."""
+    """«3-4, 2B, HR, 4 RBI» y no «3-4, 0 3B, 1 HR, 0 SB»: un cero ocupa lugar y no dice nada."""
     linea = daily.linea_de_bateo(_bateo(AB=4, H=3, X2B=1, HR=1, RBI=4, R=2))
 
-    assert linea == "3-4, 2B, HR, 4 CI, 2 CA"
+    assert linea == "3-4, 2B, HR, 4 RBI, 2 R"
 
 
 @pytest.mark.django_db
@@ -144,8 +144,8 @@ def test_two_of_the_same_are_counted(db: None) -> None:
 @pytest.mark.django_db
 def test_the_pitching_line_leads_with_innings_and_flags_the_decision(db: None) -> None:
     """Las entradas primero porque son lo que sitúa la actuación; la decisión al final."""
-    assert daily.linea_de_pitcheo(_pitcheo(IP="7.0", K=9, ER=0, W=1)) == "7.0 IP, 9 K, 0 CL, (G)"
-    assert "(S)" in daily.linea_de_pitcheo(_pitcheo(IP="1.0", SV=1))
+    assert daily.linea_de_pitcheo(_pitcheo(IP="7.0", K=9, ER=0, W=1)) == "7.0 IP, 9 K, 0 ER, (W)"
+    assert "(SV)" in daily.linea_de_pitcheo(_pitcheo(IP="1.0", SV=1))
 
 
 # ── La tabla ────────────────────────────────────────────────────────────────────────────────────
