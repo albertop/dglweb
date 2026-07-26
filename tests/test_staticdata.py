@@ -109,12 +109,12 @@ def test_a_missing_column_stops_everything_before_reading_rows() -> None:
 
 
 @pytest.mark.django_db
-def test_the_real_loader_checks_that_the_four_types_add_up_to_h() -> None:
-    """La prueba de aceptación del dataset de batazos: exacta, no un umbral."""
+def test_the_real_loader_checks_the_four_types_against_the_typed_total() -> None:
+    """Dos niveles: contra los tipificados es exacta; contra el total se tolera lo que falta."""
     from dglweb.stats.staticdata.loaders import BattedBallHitsLoader
 
-    filas = [
-        {
+    def fila(**extra: int) -> dict[str, Any]:
+        base = {
             "player_id": 1,
             "season": 2000,
             "stat_group": "batting",
@@ -122,23 +122,24 @@ def test_the_real_loader_checks_that_the_four_types_add_up_to_h() -> None:
             "fly_hits": 3,
             "line_hits": 2,
             "pop_hits": 1,
-            "__h": 11,
-        },  # 5+3+2+1 = 11 ✓
-        {
-            "player_id": 2,
-            "season": 2000,
-            "stat_group": "batting",
-            "ground_hits": 5,
-            "fly_hits": 3,
-            "line_hits": 2,
-            "pop_hits": 1,
-            "__h": 99,
-        },  # no suma
-    ]
-    problems = BattedBallHitsLoader().checks(filas)
+            "__h_typed": 11,
+            "__h_all": 11,
+        }
+        return {**base, **extra}
 
-    assert len(problems) == 1
-    assert "no suman H en 1" in problems[0].message
+    # Suma exacta contra los tipificados y cobertura completa: sin problemas.
+    assert BattedBallHitsLoader().checks([fila()]) == []
+
+    # Los cuatro no suman los tipificados: error de armado del CSV, no del dato.
+    rotas = BattedBallHitsLoader().checks([fila(__h_typed=99)])
+    assert len(rotas) == 1 and "no suman los hits tipificados" in rotas[0].message
+
+    # Suman bien, pero solo 11 de 100 hits traen trayectoria: eso es un export incompleto.
+    flojas = BattedBallHitsLoader().checks([fila(__h_all=100)])
+    assert len(flojas) == 1 and "con trayectoria" in flojas[0].rows[0]
+
+    # El ~2,5% que Retrosheet no tipifica es esperado y NO debe bloquear.
+    assert BattedBallHitsLoader().checks([fila(__h_all=12)]) == []
 
 
 @pytest.mark.django_db

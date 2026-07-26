@@ -13,6 +13,8 @@ from dglweb.stats.models import BattedBallHits, Batting, Pitching
 from dglweb.stats.staticdata.engine import Loader, Problem, register
 
 _GROUPS = {"batting", "pitching"}
+# Retrosheet tipifica ~97,5% de los hits. Por debajo de esto la fila no es ruido, es un export malo.
+_COBERTURA_MINIMA = 0.90
 
 
 @register
@@ -22,40 +24,44 @@ class BattedBallHitsLoader(Loader):
     Por qué existe: a la API de MLB le faltan hits por tipo en diez temporadas (1989-90, 1993-97,
     2000-02) y en 2000-2001 entrega menos del 2%. Retrosheet los tiene con ~97% de cobertura.
 
-    El CSV lo produce `static_data/export_batted_ball_hits.ps1` y viene por `retro_id` porque es la
-    llave con la que Retrosheet identifica al jugador; acá se traduce a nuestra FK.
+    El CSV lo produce `static_data/scripts/export_batted_ball_hits.ps1`. Viene por `mlb_id` —la misma
+    llave con la que trabaja el sitio— así que acá solo se traduce a la FK; el retroID se queda del
+    lado de SQL Server, que es donde sirve para unir con los eventos de Retrosheet.
+
+    Arranca en 1989, igual que `derive.FIRST_STATCAST_SEASON`: antes del 88 la clasificación de
+    batazos de Retrosheet tampoco está completa, así que los dos cortes coinciden.
     """
 
     table = "dgl_batted_ball_hits"
     model = BattedBallHits
     columns: ClassVar[dict[str, str]] = {
-        "retro_id": "player",
+        "mlb_id": "player",
         "season": "season",
         "stat_group": "stat_group",
         "ground_hits": "ground_hits",
         "fly_hits": "fly_hits",
         "line_hits": "line_hits",
         "pop_hits": "pop_hits",
-        # Solo para la prueba de aceptación: es el total de hits que el proxy ya tiene, y sirve para
-        # comprobar que los cuatro tipos suman. No se guarda.
-        "h": "__h",
+        # Solo para la prueba de aceptación, no se guardan. `h_typed` son los hits CON trayectoria
+        # y `h_all` todos: a Retrosheet le falta la trayectoria en ~2,5%, así que no coinciden.
+        "h_typed": "__h_typed",
+        "h_all": "__h_all",
     }
 
     def __init__(self) -> None:
-        self._by_retro: dict[str, int] = {}  # lo llena `prepare`
+        self._by_mlb: dict[int, int] = {}  # lo llena `prepare`
 
     def prepare(self) -> None:
         # Una sola consulta para todo el CSV. Sin esto, `resolve` haría una por línea.
-        pares = Player.objects.exclude(retro_id="").exclude(retro_id=None).values_list("retro_id", "pk")
-        self._by_retro = {retro: pk for retro, pk in pares if retro}
+        self._by_mlb = dict(Player.objects.values_list("player_id", "pk"))
 
     def resolve(self, row: dict[str, str]) -> dict[str, Any] | None:
-        retro = (row.get("retro_id") or "").strip()
-        if not retro:
-            return None  # Retrosheet trae eventos de todos; sin retro_id no es de los nuestros
-        player_id = self._by_retro.get(retro)
+        crudo = (row.get("mlb_id") or "").strip()
+        if not crudo:
+            return None  # una fila de dglMaster sin mlbID: no la podemos casar
+        player_id = self._by_mlb.get(int(crudo))
         if player_id is None:
-            return None  # no está en nuestro maestro: no es dominicano, o es un alta que falta
+            return None  # no está en nuestro maestro: es un alta que falta
         group = (row.get("stat_group") or "").strip()
         if group not in _GROUPS:
             raise ValueError(f"stat_group inválido: {group!r}")
@@ -67,26 +73,43 @@ class BattedBallHitsLoader(Loader):
             "fly_hits": int(row["fly_hits"] or 0),
             "line_hits": int(row["line_hits"] or 0),
             "pop_hits": int(row["pop_hits"] or 0),
-            "__h": int(row["h"] or 0),
+            "__h_typed": int(row["h_typed"] or 0),
+            "__h_all": int(row["h_all"] or 0),
         }
 
     def checks(self, rows: list[dict[str, Any]]) -> list[Problem]:
-        """Los cuatro tipos son una partición de los hits, así que TIENEN que sumar H.
+        """Los cuatro tipos son una partición de los hits, así que tienen que sumar el total.
 
-        Es una prueba exacta, no un umbral: con datos sanos da clavado (1999 = 4.957 = 4.957). Es
-        justo la prueba que le faltaba a nuestra fuente y que dejó pasar diez temporadas rotas.
+        Contra `h_typed` la prueba es EXACTA: son los mismos hits que se repartieron en los cuatro
+        conteos, así que cualquier diferencia es un error de armado del CSV y no del dato.
+
+        Contra `h_all` no puede serlo: a Retrosheet le falta la trayectoria en ~2,5% de los hits
+        (126 filas en 2000, 115 en 2001, 0 en 1999). Esa diferencia es esperada, así que se tolera
+        hasta un 10% por fila — suficiente para no castigar el ruido normal y para seguir atajando
+        lo que esta prueba existe para cazar: un export que vino cortado.
         """
-        malas = []
+        rotas, flojas = [], []
         for row in rows:
             tipos = row["ground_hits"] + row["fly_hits"] + row["line_hits"] + row["pop_hits"]
-            if tipos != row["__h"]:
-                quien = f"jugador {row['player_id']} {row['season']} ({row['stat_group']})"
-                malas.append(f"{quien}: {tipos} ≠ {row['__h']}")
-        if not malas:
-            return []
-        return [
-            Problem(f"Los cuatro tipos no suman H en {len(malas)} fila(s).", malas[:10]),
-        ]
+            quien = f"jugador {row['player_id']} {row['season']} ({row['stat_group']})"
+            if tipos != row["__h_typed"]:
+                rotas.append(f"{quien}: {tipos} ≠ {row['__h_typed']} tipificados")
+            elif row["__h_all"] and tipos / row["__h_all"] < _COBERTURA_MINIMA:
+                flojas.append(f"{quien}: {tipos} de {row['__h_all']} hits con trayectoria")
+        problems = []
+        if rotas:
+            problems.append(
+                Problem(f"Los cuatro tipos no suman los hits tipificados en {len(rotas)} fila(s).", rotas[:10])
+            )
+        if flojas:
+            problems.append(
+                Problem(
+                    f"{len(flojas)} fila(s) con menos del {_COBERTURA_MINIMA:.0%} de los hits tipificados. "
+                    "Esperable es ~97,5%; muy por debajo suele ser un export incompleto.",
+                    flojas[:10],
+                )
+            )
+        return problems
 
     def post_apply(self, rows: list[dict[str, Any]]) -> None:
         """Reescribe los hits por tipo en la fila de temporada y recalcula sus coeficientes.
