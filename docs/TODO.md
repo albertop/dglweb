@@ -118,26 +118,20 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   `Fielding`/`FieldingCareer`, `CS/(SB+CS)`, recomputada de los conteos de la fila; None sin intentos).
   Caption aclara que CS% normaliza el volumen crudo y que cERA es contexto (depende del staff), no una
   evaluación defensiva fuerte. Validado: Tony Peña carrera 34.9 %.
-- [ ] **SAB-03 — cobertura Statcast es piso por año, no por métrica (hueco 2000-2001).** Ya conocido
-  (v3 SAB-01, `MEJORAS_FUTURAS.md`). **Mitigado en la UI**: los paneles Statcast y Coeficientes
-  nombran las temporadas afectadas del propio jugador (`derive.UNDERTYPED_STATCAST_SEASONS`) y
-  explican qué columnas mirar con reservas — Sosa marca 2000 y 2001, Pujols solo 2001, y quien no
-  jugó esos años no ve nada. Medido: los cuatro coeficientes de Sosa suman 99.8% en 1999 y 55.9% en
-  2000, con LD% cayendo de .204 a .036. **Son diez temporadas, no dos** — la prueba que las encuentra
-  es exacta: los cuatro tipos de hit son una partición de H.
-  **El arreglo de fondo ya está diseñado y no es "cobertura por métrica" sino traer el dato**:
-  Retrosheet SÍ tiene la trayectoria en esos años (97% en 2000-2001), así que el hueco es de nuestra
-  fuente y no del registro histórico. Ver **Fase 4e** y `docs/DATOS_DE_APOYO.md`. Al cargarlo se
-  borra `derive.UNDERTYPED_STATCAST_SEASONS` y esto cierra.
-
-## Code review v5 — findings (2026-07-25)
-
-Ver `docs/reviews/code_review_v5.md`. 22 findings en seis personas. Evaluados uno a uno; mi
-acuerdo/decisión. **De acuerdo con casi todo**: el review acertó sobre todo en la Fase 4e, que es
-código de esta misma sesión y donde varios huecos son míos y verificables.
-
-### Aceptados y verificados — arreglar primero
-
+- [x] **SAB-03 — cobertura Statcast es piso por año, no por métrica (hueco 2000-2001).**
+  **Resuelto, pero no como proponía el finding.** La salida no fue "cobertura por métrica" sino
+  **traer el dato que faltaba**: Retrosheet tenía la trayectoria de esos años con 97% de cobertura,
+  o sea que el hueco era de nuestra fuente y no del registro histórico. Cargado por la Fase 4e
+  (`docs/DATOS_DE_APOYO.md`), 2000 pasó de 1,8% a 97,3%, 2001 de 2,2% a 97,6% y 2002 de 86,5% a
+  98,2%. Sammy Sosa 2000 pasó de que sus coeficientes sumaran 55,9% a sumar 97,3%, y su LD% de .036
+  a .218. La advertencia de la UI bajó de diez temporadas a siete.
+  **Residuo, separado abajo**: la advertencia sigue siendo por año.
+- [ ] **SAB-03b — la advertencia marca el panel entero cuando solo faltan los hits.** En las siete
+  temporadas que quedan (1989-90, 1993-97) los OUTS por tipo están completos: solo faltan los hits,
+  y por arrastre los coeficientes. Hoy se advierte sobre todo el panel Statcast, incluidas las cinco
+  columnas de outs que están sanas. Un piso por (métrica, temporada) lo diría con precisión.
+  **Prioridad baja**: son siete temporadas viejas donde ~90% es el techo real del dato y no hay
+  fuente que lo mejore, así que la advertencia sobra pero no miente.
 - [ ] **DEV-02 / FE-03 — `leaders_context()` revienta con la base vacía.** **Reproducido**:
   `IndexError: list index out of range` en `division_labels[0]`. Pasa en staging limpio, base recién
   migrada, o si alguien desactiva las métricas de un grupo desde el Backoffice. Es el más grave
