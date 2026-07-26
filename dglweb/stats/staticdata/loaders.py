@@ -157,6 +157,17 @@ class BattedBallHitsLoader(Loader):
                 nuevo = objetivo.get((linea.player_id, linea.season))
                 if nuevo is None:
                     continue
+                # Solo se pisa el dato del proxy cuando el de Retrosheet tipifica MÁS. Sin esta
+                # guarda, cargar el CSV completo degradaba las temporadas sanas: el proxy tipifica el
+                # 100% desde 2004 y Retrosheet ~97,5%, así que sobrescribir a ciegas cambiaba dato
+                # bueno por dato peor. El CSV trae todo el rango a propósito —no hay que mantener una
+                # lista de años rotos— y es acá donde se decide fila por fila cuál fuente gana.
+                actual = sum(
+                    getattr(linea, campo) or 0 for campo in ("ground_hits", "fly_hits", "line_hits", "pop_hits")
+                )
+                entrante = sum(nuevo[campo] for campo in ("ground_hits", "fly_hits", "line_hits", "pop_hits"))
+                if entrante <= actual:
+                    continue
                 for campo in ("ground_hits", "fly_hits", "line_hits", "pop_hits"):
                     setattr(linea, campo, nuevo[campo])
                 for campo, valor in batted_ball_coefficients(_as_dict(linea)).items():

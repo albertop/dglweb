@@ -199,3 +199,52 @@ def test_loading_the_hits_also_fixes_the_coefficients_they_feed() -> None:
     assert None not in reparto
     assert round(sum(v for v in reparto if v is not None), 6) == 1.0
     assert linea.gb_pct == 0.5  # 50 roletazos de 100
+
+
+@pytest.mark.django_db
+def test_the_override_never_replaces_better_data_with_worse() -> None:
+    """Retrosheet tipifica ~97,5% y el proxy 100% desde 2004: pisar a ciegas degradaba lo sano.
+
+    El CSV trae todo el rango a propósito —así no hay que mantener una lista de años rotos— y la
+    decisión de cuál fuente gana se toma fila por fila.
+    """
+    from dglweb.stats.models import Batting
+    from dglweb.stats.staticdata.loaders import BattedBallHitsLoader
+
+    p = _player(1)
+    # Temporada sana: el proxy ya tipificó los 40 hits.
+    Batting.objects.create(
+        player=p,
+        season=2010,
+        stint=1,
+        team="XXX",
+        h=40,
+        balls_in_play=100,
+        ground_outs=30,
+        fly_outs=20,
+        line_outs=8,
+        pop_outs=2,
+        ground_hits=20,
+        fly_hits=12,
+        line_hits=7,
+        pop_hits=1,
+    )
+    # Retrosheet trae menos (39 de 40): no debe pisar.
+    BattedBallHitsLoader().post_apply(
+        [
+            {
+                "player_id": p.pk,
+                "season": 2010,
+                "stat_group": "batting",
+                "ground_hits": 20,
+                "fly_hits": 12,
+                "line_hits": 6,
+                "pop_hits": 1,
+                "__h_typed": 39,
+                "__h_all": 40,
+            }
+        ]
+    )
+
+    linea = Batting.objects.get(player=p, season=2010)
+    assert linea.line_hits == 7  # se queda el del proxy, que es mejor
