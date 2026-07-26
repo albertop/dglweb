@@ -72,6 +72,12 @@ class Loader:
     # correr `build_leaders` a mano. Ver `rebuild`.
     rebuilds: ClassVar[tuple[str, ...]] = ()
 
+    # Columnas numéricas que NO son medidas. La pantalla de comparación suma cada columna numérica
+    # para que un cambio grande salte a la vista, y eso vale para los conteos —hits, carreras— pero
+    # no para los atributos: la suma de los pesos de 9.133 peloteros es un número sin significado
+    # que solo ensucia la tabla. Ver `compare`.
+    no_sum: ClassVar[tuple[str, ...]] = ()
+
     def prepare(self) -> None:
         """Se corre UNA vez antes de leer las filas. Acá van los lookups que si no serían por fila.
 
@@ -204,9 +210,9 @@ def compare(
     # Con upsert la tabla crece solo por las claves que no estaban; las repetidas actualizan en sitio.
     despues = len(rows) if truncating else antes + len(claves_entrantes - claves_actuales)
 
-    # Las columnas de la clave natural quedan fuera: son identificadores, no medidas. Sumar `season`
-    # daba 9.644.972 —la suma de todos los años— que no significa nada y ensuciaba la tabla.
-    fuera = {"id", *key_columns}
+    # Fuera de la suma: los identificadores (la clave natural es eso, no una medida — sumar `season`
+    # daba 9.644.972, la suma de todos los años) y lo que el loader declare como atributo.
+    fuera = {"id", *key_columns, *loader.no_sum}
     numericas = [
         f.name
         for f in loader.model._meta.fields

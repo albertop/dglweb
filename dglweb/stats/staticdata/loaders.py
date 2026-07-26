@@ -248,6 +248,10 @@ class DomPlayersLoader(Loader):
 
     table = "dom_players"
     model = DomPlayer
+    # El peso es un atributo del pelotero, no una medida acumulable: sumarlo daba 1.640.576 libras,
+    # un número que no dice nada. Sin medidas que mostrar, la comparación se queda con las filas,
+    # que acá es justamente lo único que importa.
+    no_sum: ClassVar[tuple[str, ...]] = ("weight",)
     columns: ClassVar[dict[str, str]] = {
         "player_id": "player_id",
         "last_name": "last_name",

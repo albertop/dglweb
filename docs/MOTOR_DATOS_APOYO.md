@@ -113,7 +113,7 @@ No hay que escribirlo en cada loader:
 | Clave duplicada | Se evalúa la combinación entera. Corre **en los dos modos** |
 | Filas ilegibles | Las agrupa y muestra una muestra con el número de línea |
 | Qué desaparece | Claves que están en la tabla y no en el CSV. Solo con truncate |
-| Sumas por columna | Antes, después y % de cambio, en cada columna numérica |
+| Sumas por columna | Antes, después y % de cambio, en cada columna numérica que sea una **medida** |
 | Atomicidad | El truncate y el insert van juntos: o queda todo, o queda lo viejo |
 
 ## Por qué la unicidad se valida siempre
@@ -161,6 +161,23 @@ los porcentajes viejos.
 ```
 
 La mayoría de los datasets no lo necesitan. Un salario no alimenta ningún cálculo derivado.
+
+## `no_sum` — las columnas numéricas que no son medidas
+
+La pantalla de comparación suma cada columna numérica antes y después, para que un cambio grande
+salte a la vista. Eso sirve para los **conteos** —hits, carreras, entradas— y no sirve para los
+**atributos**: la suma de los pesos de 9.133 peloteros dio 1.640.576 libras, un número sin
+significado en una fila que invitaba a interpretarlo.
+
+Los identificadores ya quedan fuera solos (la clave natural no es una medida; sumar `season` daba la
+suma de todos los años). Lo demás lo declara el loader:
+
+```python
+    no_sum = ("weight",)
+```
+
+Un dataset puro de atributos, como `dom_players`, termina sin ninguna columna en la comparación — y
+está bien: ahí lo único que importa es cuántas filas entran y cuántas se van.
 
 ## `rebuilds` — lo que hay que rehacer después
 

@@ -110,3 +110,18 @@ def test_the_load_replaces_the_table_whole() -> None:
 def test_loading_it_rebuilds_nothing() -> None:
     """No alimenta ningún cálculo: no hay liderazgos ni totales que rehacer."""
     assert engine.REGISTRY[TABLA].rebuilds == ()
+
+
+@pytest.mark.django_db
+def test_the_comparison_does_not_add_up_the_weights() -> None:
+    """El peso es un atributo del pelotero, no una medida.
+
+    La pantalla suma cada columna numérica para que un cambio grande salte a la vista, y eso sirve
+    para los conteos. Sumar el peso de 9.133 peloteros daba 1.640.576 libras: un número sin
+    significado, en una fila que invitaba a interpretarlo.
+    """
+    filas, _ = _validar(_fila())
+
+    comparacion = engine.compare(engine.REGISTRY[TABLA], filas, ["player_id"], [], truncating=True)
+
+    assert [columna["name"] for columna in comparacion.columns] == []
