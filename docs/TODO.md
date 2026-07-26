@@ -76,6 +76,45 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   del dueño: dejarlo así por ahora. Su sugerencia extra —advertirlo en la UI, no solo en el backlog—
   sigue disponible y es barata.
 
+## Incidente — el scheduler llevaba días sin correr (2026-07-26)
+
+**Encontrado por accidente**, midiendo duraciones de jobs para evaluar QA-01 del review v6: los
+`update_*` no tenían **ni una sola** corrida en `IngestRun`. El log de Ofelia lo confirmó:
+
+```
+27 corridas fallidas · 1 exitosa
+error creating exec: No such container: dglweb-web-run-9eeececf11da
+```
+
+**Causa raíz.** Los jobs vivían como `labels` del servicio `web` y Ofelia los descubría por el socket
+de Docker. Pero **`docker compose run` clona las etiquetas del servicio**: cada comando suelto creaba
+un contenedor efímero con `ofelia.enabled=true`, Ofelia se re-apuntaba a él, el contenedor moría con
+`--rm`, y desde ahí todos los jobs fallaban para siempre. Verificado en vivo antes y después del
+arreglo.
+
+**Lo que lo hizo invisible.** `IngestRun` existe para que un fallo silencioso sea una fila roja en el
+Backoffice — pero **no puede registrar un job que nunca llegó a arrancar**. El log se veía limpio
+porque no había nada que registrar. Los datos estaban al día solo porque los `import_*` se corrieron
+a mano.
+
+**Corregido**: el calendario salió a `ofelia/config.ini`, apuntando por **nombre de contenedor** en
+vez de por etiqueta, y el scheduler arranca con `--config` en lugar de `--docker`. Un contenedor
+efímero ya no puede robarle el objetivo (comprobado: los `-run-` ahora nacen sin la etiqueta).
+Verificado que registra los 11 jobs y que el `exec` por nombre ejecuta el comando.
+De paso la imagen de Ofelia queda pinneada por digest — es el contenedor con el socket de Docker
+montado, o sea donde menos conviene una actualización sorpresa (parte de SEC-01 del v6).
+
+### Pendiente de este incidente
+
+- [ ] **Recrear el servicio `web` para que tome el `container_name`.** El compose ahora fija
+  `container_name: dglweb-web-live`, que es el nombre al que apunta el scheduler. Hoy el contenedor
+  que sirve YA se llama así, pero quedó además un `dglweb-web-1` **parado desde hace dos días** que
+  bloquea la recreación por conflicto de nombre. Hay que borrar ese contenedor muerto y levantar de
+  nuevo — es cosa de una vez, y sin eso un `docker compose up -d web` futuro fallaría.
+- [ ] **Vigilar que el scheduler se note cuando falla.** Este incidente duró días sin señal. Una
+  alerta barata: si `IngestRun` no tiene ninguna corrida de `update_batting` en las últimas 48 horas
+  dentro de temporada, algo está roto. Encaja natural en el orquestador de QA-01+ARCH-01.
+
 ## Code review v6 — findings (2026-07-26)
 
 Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación completa. Acá va solo lo

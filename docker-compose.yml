@@ -48,64 +48,32 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    # The scraper schedule lives here as labels; the `scheduler` service reads them and runs the
-    # command inside this container (job-exec), so it inherits the DB and proxy env. Only the
-    # current season is refreshed daily; the historical backfill stays a manual import_batting.
-    #
-    # OJO: el horario NO es la única puerta. Todos estos jobs salvo `prune_ingest_log` consultan
-    # `seasons_dates` al despertar y no hacen nada fuera de temporada — ver `stats/season_window.py`.
-    # O sea que la ventana de trabajo la manda el DATO y se corrige en el Backoffice (Calendario de
-    # temporadas), sin tocar este archivo ni desplegar. Un salto queda como fila `skipped` en el log
-    # de ingesta, con el motivo; `prune_ingest_log` queda fuera de la puerta a propósito, porque
-    # podar el log es mantenimiento y no pelota, y tiene que correr los doce meses.
-    #
-    # Los horarios siguen encadenando por reloj y no por dependencia: cada job arranca cuando
-    # calcula que el anterior ya terminó. Es lo que dice QA-03 en el TODO y sigue abierto.
-    #
-    # Los tres jobs `*_post` usan una ventana MÁS CORTA: arrancan en `post_season_start_date` y no de
-    # marzo, porque en junio no hay postemporada que buscar. Si esa fecha falta —MLB la publica
-    # tarde— caen al fin de la serie regular, y si tampoco está, a la apertura: se degrada hacia
-    # correr y nunca hacia callar.
-    labels:
-      ofelia.enabled: "true"
-      ofelia.job-exec.batting-daily.schedule: "0 0 6 * * *"  # 6am, TZ below; solo si hay temporada abierta
-      ofelia.job-exec.batting-daily.command: "python manage.py update_batting"
-      ofelia.job-exec.pitching-daily.schedule: "0 15 6 * * *"  # 6:15am, tras bateo
-      ofelia.job-exec.pitching-daily.command: "python manage.py update_pitching"
-      ofelia.job-exec.fielding-daily.schedule: "0 30 6 * * *"  # 6:30am, tras pitcheo
-      ofelia.job-exec.fielding-daily.command: "python manage.py update_fielding"
-      ofelia.job-exec.batting-post-daily.schedule: "0 45 6 * * *"  # 6:45am; solo desde post_season_start_date
-      ofelia.job-exec.batting-post-daily.command: "python manage.py update_batting_post"
-      ofelia.job-exec.pitching-post-daily.schedule: "0 0 7 * * *"  # 7:00am; ídem
-      ofelia.job-exec.pitching-post-daily.command: "python manage.py update_pitching_post"
-      ofelia.job-exec.fielding-post-daily.schedule: "0 15 7 * * *"  # 7:15am; ídem
-      ofelia.job-exec.fielding-post-daily.command: "python manage.py update_fielding_post"
-      ofelia.job-exec.build-career-totals-daily.schedule: "0 20 7 * * *"  # 7:20am; tras refrescar todas las stats
-      ofelia.job-exec.build-career-totals-daily.command: "python manage.py build_career_totals"
-      ofelia.job-exec.build-leaders-daily.schedule: "0 30 7 * * *"  # 7:30am; tras los totales de carrera, que lee
-      ofelia.job-exec.build-leaders-daily.command: "python manage.py build_leaders"
-      # Después de refrescar las stats, porque lee justamente lo que acaban de traer: quién de
-      # `dom_players` ya tiene números. No escribe nada — avisa, y el dueño carga al jugador.
-      ofelia.job-exec.detect-debuts-daily.schedule: "0 35 7 * * *"  # 7:35am; tras los liderazgos
-      ofelia.job-exec.detect-debuts-daily.command: "python manage.py detect_debuts"
-      ofelia.job-exec.prune-log-daily.schedule: "0 45 7 * * *"  # 7:45am; poda el log, va último — SIN puerta de temporada
-      ofelia.job-exec.prune-log-daily.command: "python manage.py prune_ingest_log"
-      ofelia.job-exec.parity-career-weekly.schedule: "0 0 8 * * 0"  # domingos 8am; verifica carrera contra el proxy
-      ofelia.job-exec.parity-career-weekly.command: "python manage.py parity_career"
+    # El calendario NO vive acá. Estuvo como `labels` de este servicio y se rompió: `docker compose
+    # run` clona las etiquetas del servicio, así que cada comando suelto creaba un contenedor efímero
+    # con `ofelia.enabled=true`, Ofelia se re-apuntaba a él y al morir el contenedor todos los jobs
+    # fallaban para siempre. Ahora está en `ofelia/config.ini`, apuntando por nombre de contenedor.
+    container_name: dglweb-web-live  # el nombre al que apunta el scheduler; que sea fijo es el punto
 
-  # Ofelia: a lean, Docker-native cron. It reads the labels above via the Docker socket and
-  # execs the command on schedule — same image, separate lifecycle, no cron files.
-  # If the daily refresh ever grows heavy, switch to job-run (an ephemeral container) for full
-  # isolation; documented in docs/BUILD_PLAN.md.
+  # Ofelia: un cron liviano y nativo de Docker. Lee su calendario de `ofelia/config.ini` y hace
+  # `exec` dentro del contenedor web, así que hereda su entorno de DB y de proxy.
+  #
+  # `--config` y no `--docker`: el descubrimiento por etiquetas elegía cualquier contenedor que las
+  # tuviera, y `docker compose run` las clona. Apuntar por nombre es lo que impide que un contenedor
+  # efímero le robe el objetivo — ver la cabecera de `ofelia/config.ini`.
+  #
+  # La imagen va pinneada por digest. Con `latest`, un cambio no revisado entra en el próximo `pull`
+  # y este servicio tiene el socket de Docker montado: es el contenedor donde menos se quiere una
+  # actualización sorpresa (SEC-01 del review v6).
   scheduler:
-    image: mcuadros/ofelia:latest
+    image: mcuadros/ofelia@sha256:efcbe2c5cf658a25de6443c1462d653f9cc03791d642e01fc6c638a00f97e492
     depends_on:
       - web
-    command: daemon --docker
+    command: daemon --config=/etc/ofelia/config.ini
     environment:
-      TZ: America/Santo_Domingo  # so "6am" is Dominican time, not UTC
+      TZ: America/Santo_Domingo  # para que "6am" sea hora dominicana y no UTC
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ofelia/config.ini:/etc/ofelia/config.ini:ro
     restart: unless-stopped
 
 volumes:
