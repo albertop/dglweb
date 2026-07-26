@@ -796,6 +796,17 @@ def _pretty_qualifier(formula: str) -> str:
     )
 
 
+_POSITION_ORDER: dict[str, int] = {p: i for i, p in enumerate(["P", "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF"])}
+# La fila de la rejilla es una métrica EN una posición. La posición es None fuera de fildeo, que es
+# donde el ranking no se parte por posición.
+_PuestoKey = tuple[int, str | None]
+
+
+def _position_order(key: _PuestoKey) -> tuple[int, int]:
+    """Ordena las filas de una métrica de fildeo por posición, en el orden del scorebook."""
+    return (key[0], _POSITION_ORDER.get(key[1] or "", 99))
+
+
 def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, Any] | None:
     """One Puestos board — Serie Regular (`postseason=False`) or Postemporada (`True`): a
     metric-by-season matrix of where the player finished among Dominicans, plus the de-por-vida
@@ -804,71 +815,87 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
     was top 10 in a season OR top 25 de por vida. A shared rank (dense-rank tie) is flagged with `*`.
     `None` when he has nothing to show for this board.
     """
-    base = Leader.objects.filter(player=player, postseason=postseason, metric__stat_group=group)
-    by_metric_id: dict[int, dict[int, int]] = defaultdict(dict)
+    # Su oficio MÁS fildeo. La defensa se rankea por posición, así que la fila ya no es una métrica
+    # sino una métrica EN una posición: un antesalista que también jugó el jardín tiene dos filas de
+    # asistencias, con puestos distintos, y por eso la posición va en la descripción.
+    groups = [group, "fielding"]
+    base = Leader.objects.filter(player=player, postseason=postseason, metric__stat_group__in=groups)
+    by_key: dict[_PuestoKey, dict[int, int]] = defaultdict(dict)
     seasons: set[int] = set()
     for mark in base.filter(board=Leader.Board.BEST_SEASON, rank__lte=_PUESTOS_TOP_N):
         if mark.season is None:  # a season board always carries one; guard keeps the types honest
             continue
-        by_metric_id[mark.metric_id][mark.season] = mark.rank
+        by_key[mark.metric_id, mark.fielding_pos][mark.season] = mark.rank
         seasons.add(mark.season)
     career_rank = {
-        mark.metric_id: mark.rank
+        (mark.metric_id, mark.fielding_pos): mark.rank
         for mark in base.filter(board=Leader.Board.BEST_CAREER, rank__lte=_PUESTOS_CAREER_TOP_N)
     }
 
-    metric_ids = set(by_metric_id) | set(career_rank)  # union: season top-10s and career top-25s
-    if not metric_ids:
+    keys = set(by_key) | set(career_rank)  # union: season top-10s and career top-25s
+    if not keys:
         return None
-    metrics = Metric.objects.filter(pk__in=metric_ids)
+    metrics = {m.pk: m for m in Metric.objects.filter(pk__in={pk for pk, _ in keys})}
 
-    # A rank is shared when >1 player sits on it in that (metric, board, season). One grouped query
-    # over the player's own metrics; the board index (metric, board, season, …, rank) serves the GROUP BY.
+    # A rank is shared when >1 player sits on it in that (metric, board, season, position). One
+    # grouped query; the board index (metric, board, season, pos, …, rank) serves the GROUP BY.
     shared = (
         Leader.objects.filter(
-            metric_id__in=metric_ids,
+            metric_id__in=metrics,
             postseason=postseason,
             board__in=(Leader.Board.BEST_SEASON, Leader.Board.BEST_CAREER),
             rank__lte=_PUESTOS_CAREER_TOP_N,  # covers both bands; season cells only read ranks ≤ 10
         )
-        .values("metric_id", "board", "season", "rank")
+        .values("metric_id", "board", "season", "fielding_pos", "rank")
         .annotate(n=models.Count("player_id"))
         .filter(n__gt=1)
     )
-    tied = {(g["metric_id"], g["board"], g["season"], g["rank"]) for g in shared}
+    tied = {(g["metric_id"], g["board"], g["season"], g["fielding_pos"], g["rank"]) for g in shared}
 
-    def cell(metric_pk: int, board_value: str, season: int | None, rank: int | None) -> dict[str, Any]:
-        return {"rank": rank, "tied": rank is not None and (metric_pk, board_value, season, rank) in tied}
+    def cell(key: _PuestoKey, board_value: str, season: int | None, rank: int | None) -> dict[str, Any]:
+        metric_pk, pos = key
+        return {"rank": rank, "tied": rank is not None and (metric_pk, board_value, season, pos, rank) in tied}
 
     ordered_seasons = sorted(seasons)
 
-    def row(metric: Metric) -> dict[str, Any]:
+    def row(key: _PuestoKey) -> dict[str, Any]:
+        metric, pos = metrics[key[0]], key[1]
+        name = metric.name_es or metric.abbrev
         return {
-            "name": metric.name_es or metric.abbrev,
+            # La posición va en la descripción y no en una columna aparte: solo la llevan las filas de
+            # fildeo, y una columna vacía en todas las demás pesaría más de lo que aclara.
+            "name": f"{name} ({pos})" if pos else name,
             "abbrev": metric.abbrev,
             "direction": _DIRECTION_SIGN.get(metric.direction, ""),
             "descriptive": metric.column in _DESCRIPTIVE_COLUMNS,  # SAB-01: perfil, no "mejor/peor"
-            "cells": [
-                cell(metric.pk, Leader.Board.BEST_SEASON, s, by_metric_id.get(metric.pk, {}).get(s))
-                for s in ordered_seasons
-            ],
-            "career": cell(metric.pk, Leader.Board.BEST_CAREER, None, career_rank.get(metric.pk)),
+            "cells": [cell(key, Leader.Board.BEST_SEASON, s, by_key.get(key, {}).get(s)) for s in ordered_seasons],
+            "career": cell(key, Leader.Board.BEST_CAREER, None, career_rank.get(key)),
         }
 
     # Group the player's metrics into the profile's divisions, in table order. A division with no
-    # top-10 metric for this player is dropped (no empty header).
-    metric_by_col = {metric.column: metric for metric in metrics}
-    placed: set[str] = set()
+    # top-10 metric for this player is dropped (no empty header). Fildeo lleva sus divisiones aparte y
+    # rotuladas, o su "Estándar" chocaría con el del oficio.
+    by_column: dict[str, dict[str, list[_PuestoKey]]] = defaultdict(lambda: defaultdict(list))
+    for key in keys:
+        metric = metrics[key[0]]
+        by_column[metric.stat_group][metric.column].append(key)
+    placed: set[_PuestoKey] = set()
     sections: list[dict[str, Any]] = []
-    for label, cols in _puestos_layout(group):
-        section_rows = [row(metric_by_col[col]) for col in cols if col in metric_by_col]
-        placed.update(col for col in cols if col in metric_by_col)
-        if section_rows:
-            sections.append({"label": label, "rows": section_rows})
-    leftover = [row(metric) for col, metric in metric_by_col.items() if col not in placed]
+    for stat_group in groups:
+        cols_here = by_column[stat_group]
+        for label, cols in _puestos_layout(stat_group):
+            # Varias posiciones en la misma métrica: una fila por posición, en el orden del scorebook.
+            section_keys = [k for col in cols for k in sorted(cols_here.get(col, []), key=_position_order)]
+            placed.update(section_keys)
+            if section_keys:
+                title = f"Fildeo · {label}" if stat_group == "fielding" else label
+                sections.append({"label": title, "rows": [row(k) for k in section_keys]})
+    leftover = [row(k) for k in sorted(keys - placed, key=_position_order)]
     if leftover:  # defensive: a rankable metric no table lists — never silently dropped
         sections.append({"label": "Otras", "rows": leftover})
 
+    shown_groups = {metrics[pk].stat_group for pk, _ in keys}
+    fielding_q = ("", "")
     if postseason:
         # October has no qualifier cascade; the rate boards use the fixed floors from the engine.
         season_q, career_q = leaders._POST_QUALIFIER.get(group, ("", ""))
@@ -877,24 +904,33 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
     else:
         defaults, _ = _qualifier_context()
         season_q, career_q = defaults.get(group, ("", ""))
+        # Fildeo se mide en juegos EN LA POSICIÓN, no en turnos ni entradas, así que su umbral es otro
+        # y va en su propia línea cuando la rejilla trae filas de defensa.
+        if "fielding" in shown_groups:
+            fielding_q = defaults.get("fielding", ("", ""))
         # La rejilla tiene columnas de temporada Y una de "De por vida", así que el pie muestra
         # ambos umbrales del coeficiente (400/2000…), no solo el de temporada. Emparejados para no
         # descolocar season y career cuando distintas métricas usan BIP vs swings.
-        pairs = sorted({(m.qualifier_season, m.qualifier_career) for m in metrics if m.qualifier_season})
+        pairs = sorted({(m.qualifier_season, m.qualifier_career) for m in metrics.values() if m.qualifier_season})
         coef_season = list(dict.fromkeys(_pretty_qualifier(s) for s, _ in pairs))
         coef_career = list(dict.fromkeys(_pretty_qualifier(c) for _, c in pairs if c))
     qualifiers = {
         "season": _pretty_qualifier(season_q),
         "career": _pretty_qualifier(career_q),
+        "fielding": {"season": _pretty_qualifier(fielding_q[0]), "career": _pretty_qualifier(fielding_q[1])},
         "coefficients": {"season": coef_season, "career": coef_career},
     }
     return {"seasons": ordered_seasons, "sections": sections, "qualifiers": qualifiers}
 
 
 def _puestos_context(player: Player) -> dict[str, Any]:
-    """The two Puestos boards: Serie Regular and Postemporada, for the player's OWN trade only (a
-    pitcher's incidental batting is ranked against people whose job it is, so it is not his puesto).
-    Either can be `None` when he has no top-10 there."""
+    """The two Puestos boards: Serie Regular and Postemporada.
+
+    El oficio es el suyo y solo el suyo —el bateo incidental de un lanzador se rankea contra gente
+    cuyo trabajo es batear, así que no es su puesto— pero el FILDEO va siempre: defender es parte del
+    oficio de los dos, y se rankea por posición, que es su propia comparación justa.
+    Cualquiera de los dos tableros puede ser `None` si no tiene nada que mostrar.
+    """
     group = "pitching" if is_pitcher(player) else "batting"
     return {
         "group": group,
@@ -911,9 +947,9 @@ class PuestosTab(PlayerTab):
 
     def applies_to(self, player: Player) -> bool:
         group = "pitching" if is_pitcher(player) else "batting"
-        # A top-10 season OR a top-25 de-por-vida, regular OR October.
+        # A top-10 season OR a top-25 de-por-vida, regular OR October, en su oficio o en la defensa.
         return (
-            Leader.objects.filter(player=player, metric__stat_group=group)
+            Leader.objects.filter(player=player, metric__stat_group__in=[group, "fielding"])
             .filter(
                 models.Q(board=Leader.Board.BEST_SEASON, rank__lte=_PUESTOS_TOP_N)
                 | models.Q(board=Leader.Board.BEST_CAREER, rank__lte=_PUESTOS_CAREER_TOP_N)

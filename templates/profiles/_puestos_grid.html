@@ -29,6 +29,7 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
     La última columna es su puesto de por vida (top-25).<br>
     El signo junto a la métrica indica hacia dónde manda: + más es mejor, - menos es mejor.<br>
     Un * marca un puesto compartido (empate).
-    {% if grid.qualifiers.season or grid.qualifiers.career %}<br>Umbrales de calificación (solo tasas; los conteos no llevan): temporada {{ grid.qualifiers.season }}, carrera {{ grid.qualifiers.career }}.{% endif %}{% if grid.qualifiers.coefficients.season %}<br>Coeficientes: temporada {{ grid.qualifiers.coefficients.season|join:" o " }}{% if grid.qualifiers.coefficients.career %}, carrera {{ grid.qualifiers.coefficients.career|join:" o " }}{% endif %}.{% endif %}
+    {% if grid.qualifiers.season or grid.qualifiers.career %}<br>Umbrales de calificación (solo tasas; los conteos no llevan): temporada {{ grid.qualifiers.season }}, carrera {{ grid.qualifiers.career }}.{% endif %}
+    {% if grid.qualifiers.fielding.season %}<br>En fildeo se mide por juegos en la posición: temporada {{ grid.qualifiers.fielding.season }}, carrera {{ grid.qualifiers.fielding.career }}.{% endif %}{% if grid.qualifiers.coefficients.season %}<br>Coeficientes: temporada {{ grid.qualifiers.coefficients.season|join:" o " }}{% if grid.qualifiers.coefficients.career %}, carrera {{ grid.qualifiers.coefficients.career|join:" o " }}{% endif %}.{% endif %}
   </div>
 </section>
