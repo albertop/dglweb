@@ -236,3 +236,27 @@ def test_this_season_debutants_are_flagged_and_the_footnote_explains_it(db: None
     assert "Debutó en Grandes Ligas en 2026" in cuerpo
     # El veterano no lo lleva: su nombre no va seguido del asterisco.
     assert "Veterano V</a>" in cuerpo and 'Veterano V</a><span\n        class="dgl-debut"' not in cuerpo
+
+
+@pytest.mark.django_db
+def test_a_player_who_only_took_the_field_is_still_active(db: None) -> None:
+    """«Ver acción» no siempre deja línea de bateo: un sustituto defensivo puede entrar solo a defender.
+
+    Hoy en la base no hay ninguno —todos los que fildearon tienen también línea de bateo— pero la
+    consulta lo contempla, que es lo que este test protege de una simplificación futura.
+    """
+    from dglweb.stats.models import Fielding
+
+    solo_guante = Player.objects.create(
+        **_other_player(player_id=1, dgl_id="g1", full_name="Solo Guante", lastname_1="Guante", pos="2B")
+    )
+    Fielding.objects.create(player=solo_guante, season=2026, pos="2B", gp=1)
+    # Otro jugador con las tres tablas, para que 2026 sea "temporada completa".
+    otro = Player.objects.create(**_other_player(player_id=2, dgl_id="o2", full_name="Otro O", lastname_1="O"))
+    Batting.objects.create(player=otro, season=2026, stint=1)
+    Pitching.objects.create(player=otro, season=2026, stint=1)
+    Fielding.objects.create(player=otro, season=2026, pos="P", gp=1)
+
+    cuerpo = Client().get(reverse("players_index")).content.decode()
+
+    assert "Solo Guante" in cuerpo

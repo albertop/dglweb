@@ -103,16 +103,22 @@ def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
 
 
 def _latest_full_season() -> int | None:
-    """La última temporada que tiene bateo Y pitcheo cargados.
+    """La última temporada que tienen cargados los TRES oficios.
 
-    Se toma el mínimo de los dos máximos a propósito: si un oficio ya se refrescó hoy y el otro no,
-    la última temporada "completa" es la del que va atrás. Mostrar la del que va adelante daría una
-    lista a medias que parecería la plantilla entera.
+    El mínimo de los máximos, a propósito: si uno ya se refrescó hoy y otro no, la última temporada
+    "completa" es la del que va atrás. Mostrar la del que va adelante daría una lista a medias con
+    pinta de plantilla entera. Los tres jobs corren seguidos a las 6:00, 6:15 y 6:30, así que un
+    desfase dura minutos.
+
+    Una tabla VACÍA no cuenta: no dice nada sobre cuál es la última temporada, solo que ese oficio
+    nunca se importó. Incluirla en el mínimo dejaría la sección entera en blanco por algo que no es
+    un problema de esta página — el guardián existe para atajar una carga a medias, no una ausencia.
     """
-    from dglweb.stats.models import Batting, Pitching
+    from dglweb.stats.models import Batting, Fielding, Pitching
 
-    ultimas = [modelo.objects.aggregate(m=models.Max("season"))["m"] for modelo in (Batting, Pitching)]
-    return min(ultimas) if all(u is not None for u in ultimas) else None
+    ultimas = [modelo.objects.aggregate(m=models.Max("season"))["m"] for modelo in (Batting, Pitching, Fielding)]
+    cargadas = [u for u in ultimas if u is not None]
+    return min(cargadas) if cargadas else None
 
 
 def players_index(request: HttpRequest) -> HttpResponse:
@@ -127,8 +133,13 @@ def players_index(request: HttpRequest) -> HttpResponse:
     activos: list[Player] = []
     if temporada is not None:
         activos = list(
+            # Los TRES oficios. Fildeo va porque «ver acción» no siempre deja línea de bateo ni de
+            # pitcheo: un sustituto defensivo puede entrar solo a defender. Hoy no suma a nadie —los
+            # que fildearon tienen todos línea de bateo— pero la red queda puesta para el día que sí.
             Player.objects.filter(
-                models.Q(batting_seasons__season=temporada) | models.Q(pitching_seasons__season=temporada)
+                models.Q(batting_seasons__season=temporada)
+                | models.Q(pitching_seasons__season=temporada)
+                | models.Q(fielding_seasons__season=temporada)
             )
             .distinct()
             # Quién llegó este año. Se marca con asterisco: en una lista de 132 nombres, el que acaba
