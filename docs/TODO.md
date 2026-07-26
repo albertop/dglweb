@@ -42,8 +42,8 @@ columnas declarativas:
 
 ## Templates — cuando existan las páginas (Fases 4–5)
 
-- [ ] Nav (Artículos/Líderes/Jugadores/Entrar) y buscador apuntan a `#`/submit desactivado.
-  Poner URLs reales o esconderlos hasta que las páginas existan.
+- [x] ~~Nav (Artículos/Líderes/Jugadores/Entrar) y buscador apuntan a `#`/submit desactivado.~~
+  **Hecho en FE-01**: escondidos hasta que las páginas existan, con el markup preservado en comentarios.
 
 ## Code review v3 — findings
 
@@ -202,9 +202,11 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 
 ### Aceptados pero ya conocidos (no son de esta sesión)
 
-- [ ] **FE-01 — enlaces públicos que no hacen nada.** Verificado: 7 `href="#"` en `base.html` y 8 en
-  `home.html`, más el buscador con `onsubmit="return false"`. Es el andamiaje de Fase 0 esperando
-  Fase 5 (editorial) y Fase 7 (auth/búsqueda). Vale ocultarlos antes de que alguien externo lo vea.
+- [x] **FE-01 — enlaces públicos que no hacen nada.** **Corregido**: cero `href="#"` renderizados en portada, perfil y Líderes, con un test que lo fija sobre el HTML servido. Se ocultaron nav (Artículos, Jugadores, Entrar), buscador y la columna Legal del pie; los "desglose ▸" pasaron a `<button>` porque sí hacen algo y eran acción, no destino.
+  **Y apareció algo más grave que el finding**: los ocho enlaces de `home.html` estaban pegados a contenido INVENTADO —cinco titulares con fecha y firma, líneas de juego atribuidas a peloteros reales («Juan Soto 3-4, 2 HR», «Ayer · 15 jul») y una tabla de líderes de jonrones 2026 con números falsos—. En un sitio de estadísticas eso no es maquetado: son cifras falsas sobre personas reales en la primera página. Se sacó completo y NO se reemplazó por otros titulares o números. La portada quedó con un `h1` de verdad (no tenía) y el enlace a Líderes.
+  **Pendiente de Fase 5**: la portada necesita contenido. El panel de líderes es el primero que conviene rehacer, porque el dato ya existe en `dgl_leader` y solo falta la consulta.
+  ~~ Verificado: 7 `href="#"` en `base.html` y 8 en
+  `home.html`, más el buscador con `onsubmit="return false"`.
 - [ ] **QA-03 — el scheduler encadena por horario, no por workflow.** Ya está en `MEJORAS_FUTURAS.md`
   como "A DISCUTIR". El review coincide.
 - [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** Mismo caso: ya identificado.

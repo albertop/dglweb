@@ -1,6 +1,6 @@
 {% comment %}La línea de carrera de una tabla por temporada. `totals_target` = id del pill Totales,
 para el enlace "desglose".{% endcomment %}
 <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-  <td class="ps-3 dgl-mid"><b>{{ count }} temporada{{ count|pluralize:"s" }}</b>{% if partial %}<span class="dgl-partial" title="Solo las temporadas con este dato registrado, no toda su carrera">*</span>{% endif %}{% if totals_target %}<br><a href="#" class="dgl-meta small" style="font-weight:400" onclick="dglShowPill('{{ totals_target }}');return false;">desglose ▸</a>{% endif %}</td><td class="dgl-mid"></td><td></td>
+  <td class="ps-3 dgl-mid"><b>{{ count }} temporada{{ count|pluralize:"s" }}</b>{% if partial %}<span class="dgl-partial" title="Solo las temporadas con este dato registrado, no toda su carrera">*</span>{% endif %}{% if totals_target %}<br><button type="button" class="dgl-meta small dgl-linkbtn" onclick="dglShowPill('{{ totals_target }}')">desglose ▸</button>{% endif %}</td><td class="dgl-mid"></td><td></td>
   {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}">{{ cell.text }}</td>{% endfor %}
 </tr>

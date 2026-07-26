@@ -72,10 +72,14 @@ def test_the_two_navigation_regions_have_distinct_names(perfil: str) -> None:
 
 
 @pytest.mark.django_db
-def test_the_search_box_has_a_name_that_is_not_the_placeholder(perfil: str) -> None:
-    """El placeholder no sirve como nombre: desaparece al escribir y varios lectores no lo leen."""
-    assert '<label class="visually-hidden" for="buscar">' in perfil
-    assert 'role="search"' in perfil
+def test_the_search_box_is_not_rendered_while_it_does_nothing(perfil: str) -> None:
+    """Hoy no se dibuja (FE-01): una caja que invita a escribir y no busca es peor que no tenerla.
+
+    El nombre accesible y el `role="search"` quedaron puestos en el markup comentado de `base.html`,
+    así que cuando Fase 7 lo reactive no vuelve sin ellos. Este test cuida lo de ahora: seguir
+    exigiendo el label habría sido un verde sobre un campo que ni existe.
+    """
+    assert 'id="buscar"' not in perfil
 
 
 @pytest.mark.django_db
@@ -157,3 +161,16 @@ def test_each_pill_group_has_its_own_name(perfil: str) -> None:
     nombres = re.findall(r'<ul[^>]*role="tablist"[^>]*aria-label="([^"]+)"', perfil)
 
     assert len(nombres) == len(set(nombres))
+
+
+@pytest.mark.django_db
+def test_no_public_page_ships_a_link_that_goes_nowhere(perfil: str, lideres: str) -> None:
+    """FE-01, fijado donde importa: un `href="#"` deja al visitante sin saber si falló el sitio.
+
+    Se comprueba en el HTML RENDERIZADO y no en las plantillas: el markup que quedó comentado
+    esperando su fase conserva su `href="#"` a propósito, y buscarlo en el archivo daría un rojo falso.
+    """
+    portada = Client().get("/").content.decode()
+
+    for pagina, cuerpo in (("portada", portada), ("perfil", perfil), ("líderes", lideres)):
+        assert 'href="#"' not in cuerpo, f"la {pagina} sigue con un enlace muerto"

@@ -3,6 +3,7 @@
 import pytest
 from django.conf import settings
 from django.test import Client
+from django.urls import reverse
 
 
 @pytest.mark.django_db
@@ -40,14 +41,23 @@ def test_static_url_is_absolute():
 
 
 @pytest.mark.django_db
-def test_home_renders_landing_modules_when_requested():
+def test_home_shows_only_what_is_actually_published():
+    """La portada no puede afirmar nada que no tengamos (FE-01).
+
+    Este test verificaba lo contrario: exigía los módulos «Destacados de la jornada» y «Líderes
+    dominicanos · 2026», que eran maquetado con líneas de juego y totales de jonrones INVENTADOS
+    sobre peloteros reales. En un sitio de estadísticas eso no es andamiaje, y un test que lo exigía
+    lo convertía en requisito. Ahora fija lo contrario: que la portada ofrezca lo que sí existe.
+    """
     client = Client()
 
     response = client.get("/")
 
-    body = response.content
-    assert b"Destacados de la jornada" in body
-    assert b"L\xc3\xadderes dominicanos" in body  # "Líderes dominicanos" (utf-8)
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert "<h1" in body  # la portada no tenía encabezado principal: el título era un <a class="h3">
+    assert reverse("leaders") in body  # lo único publicado hoy, y el enlace funciona
+    assert 'href="#"' not in body
 
 
 @pytest.mark.django_db
