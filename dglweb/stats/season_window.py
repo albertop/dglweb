@@ -14,8 +14,12 @@ MLB (1); si mañana entra otra, sus jobs consultan su propia ventana sin tocar e
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import TYPE_CHECKING
 
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from dglweb.stats.models import SeasonDates
 
 MLB = 1
 
@@ -35,8 +39,33 @@ class Ventana:
     motivo: str
 
 
-def evaluate(*, sports_id: int = MLB, on: date | None = None) -> Ventana:
-    """La decisión, sin efectos. `on` es para los tests; en producción es hoy."""
+def _apertura(temporada: "SeasonDates", *, postseason: bool) -> tuple[date, str]:
+    """Desde cuándo hay trabajo, y cómo se llama esa fecha (el nombre va al motivo del salto).
+
+    Los jobs de octubre no tienen nada que hacer en junio, así que arrancan en
+    `post_season_start_date`. Pero esa fecha puede faltar —MLB la publica tarde, y en 1994 no hubo
+    postemporada— y ahí la regla es **degradar hacia correr, nunca hacia callar**: primero el fin de
+    la serie regular (la postemporada empieza justo después), y si tampoco está, la apertura de la
+    temporada, que es el comportamiento de siempre.
+
+    El sesgo es deliberado. Una llamada de más al proxy no cuesta nada; que a nadie se le ocurra
+    llenar la fecha y la Serie Mundial no se raspe nunca, sí. Y el motivo del salto dice qué fecha se
+    usó, así que si se cae al respaldo se ve en el log en vez de adivinarse.
+    """
+    if not postseason:
+        return temporada.season_start_date, "la temporada"
+    if temporada.post_season_start_date:
+        return temporada.post_season_start_date, "la postemporada"
+    if temporada.reg_season_end_date:
+        return temporada.reg_season_end_date, "la postemporada (sin fecha propia: se usa el fin de la regular)"
+    return temporada.season_start_date, "la postemporada (sin fecha propia ni fin de regular: se usa la apertura)"
+
+
+def evaluate(*, sports_id: int = MLB, on: date | None = None, postseason: bool = False) -> Ventana:
+    """La decisión, sin efectos. `on` es para los tests; en producción es hoy.
+
+    `postseason=True` es para los tres jobs de octubre: misma temporada, ventana más corta.
+    """
     from dglweb.stats.models import SeasonDates
 
     hoy = on or timezone.localdate()
@@ -53,15 +82,18 @@ def evaluate(*, sports_id: int = MLB, on: date | None = None) -> Ventana:
             ),
         )
 
+    apertura, que = _apertura(temporada, postseason=postseason)
     cierre = temporada.season_end_date + GRACIA_FINAL
-    if hoy < temporada.season_start_date:
-        return Ventana(corre=False, motivo=f"La temporada {temporada.season} empieza el {temporada.season_start_date}.")
+    if hoy < apertura:
+        return Ventana(corre=False, motivo=f"{temporada.season}: {que} empieza el {apertura}.")
     if hoy > cierre:
         return Ventana(corre=False, motivo=f"La temporada {temporada.season} terminó el {temporada.season_end_date}.")
-    return Ventana(corre=True, motivo=f"Temporada {temporada.season} en curso.")
+    return Ventana(corre=True, motivo=f"{temporada.season}: {que} está en curso.")
 
 
-def skip(command: str, *, note: object = None, sports_id: int = MLB, force: bool = False) -> bool:
+def skip(
+    command: str, *, note: object = None, sports_id: int = MLB, force: bool = False, postseason: bool = False
+) -> bool:
     """`True` si el job NO debe correr hoy. Deja el salto anotado en el log de ingesta.
 
     Se registra a propósito, en vez de salir callado. El log de ingesta es la pantalla donde se mira
@@ -79,7 +111,7 @@ def skip(command: str, *, note: object = None, sports_id: int = MLB, force: bool
     if force:
         return False
 
-    ventana = evaluate(sports_id=sports_id)
+    ventana = evaluate(sports_id=sports_id, postseason=postseason)
     if ventana.corre:
         return False
 

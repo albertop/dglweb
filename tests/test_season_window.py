@@ -163,3 +163,85 @@ def test_work_triggered_by_a_person_ignores_the_season_gate(temporada: SeasonDat
     assert not IngestRun.objects.filter(status=IngestRun.Status.SKIPPED).exists()
     hechos = set(IngestRun.objects.filter(status=IngestRun.Status.SUCCESS).values_list("command", flat=True))
     assert hechos == set(rebuilds.DERIVED)
+
+
+# ── La ventana corta de octubre ─────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def con_postemporada(temporada: SeasonDates) -> SeasonDates:
+    """La misma 2026, con su octubre: regular hasta el 27/9, postemporada desde el 30/9."""
+    temporada.reg_season_end_date = date(2026, 9, 27)
+    temporada.post_season_start_date = date(2026, 9, 30)
+    temporada.save()
+    return temporada
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("dia", "regular", "octubre"),
+    [
+        (date(2026, 3, 25), True, False),  # día inaugural: solo la regular
+        (date(2026, 7, 26), True, False),  # mitad de temporada: octubre todavía no
+        (date(2026, 9, 29), True, False),  # entre el fin de la regular y el inicio de la post
+        (date(2026, 9, 30), True, True),  # arranca octubre
+        (date(2026, 11, 2), True, True),  # gracia final: las dos siguen
+        (date(2026, 11, 4), False, False),  # cerrado
+    ],
+)
+def test_the_october_jobs_have_a_shorter_window(
+    con_postemporada: SeasonDates, dia: date, regular: bool, octubre: bool
+) -> None:
+    """Lo que esto ahorra: de marzo a septiembre los tres jobs de octubre ya no salen a buscar nada."""
+    assert season_window.evaluate(on=dia).corre is regular
+    assert season_window.evaluate(on=dia, postseason=True).corre is octubre
+
+
+@pytest.mark.django_db
+def test_without_a_postseason_date_it_falls_back_to_the_end_of_the_regular_season(
+    con_postemporada: SeasonDates,
+) -> None:
+    """MLB publica esa fecha tarde, así que falta a menudo. La postemporada empieza justo después.
+
+    La regla es degradar hacia CORRER: una llamada de más al proxy no cuesta nada, que a nadie se le
+    ocurra llenar la fecha y la Serie Mundial no se raspe nunca, sí.
+    """
+    con_postemporada.post_season_start_date = None
+    con_postemporada.save()
+
+    assert season_window.evaluate(on=date(2026, 9, 26), postseason=True).corre is False
+    assert season_window.evaluate(on=date(2026, 9, 28), postseason=True).corre is True
+
+
+@pytest.mark.django_db
+def test_with_neither_date_the_october_jobs_behave_as_before_instead_of_going_silent(
+    temporada: SeasonDates,
+) -> None:
+    """El último respaldo. Sin ninguna de las dos fechas se vuelve al comportamiento de siempre."""
+    assert temporada.post_season_start_date is None
+    assert temporada.reg_season_end_date is None
+
+    assert season_window.evaluate(on=date(2026, 7, 26), postseason=True).corre is True
+
+
+@pytest.mark.django_db
+def test_the_skip_says_which_date_it_used(con_postemporada: SeasonDates) -> None:
+    """Si se cayó al respaldo tiene que verse en el log, no adivinarse."""
+    con_postemporada.post_season_start_date = None
+    con_postemporada.save()
+
+    motivo = season_window.evaluate(on=date(2026, 7, 26), postseason=True).motivo
+
+    assert "sin fecha propia" in motivo
+
+
+@pytest.mark.django_db
+def test_the_october_command_skips_in_july_but_the_daily_one_does_not(con_postemporada: SeasonDates) -> None:
+    """De punta a punta, con los comandos de verdad y la temporada real abierta."""
+    from unittest.mock import patch
+
+    with patch("dglweb.stats.season_window.timezone.localdate", return_value=date(2026, 7, 26)):
+        call_command("update_batting_post")
+
+    saltados = list(IngestRun.objects.filter(status=IngestRun.Status.SKIPPED).values_list("command", flat=True))
+    assert saltados == ["update_batting_post"]

@@ -62,9 +62,10 @@ services:
     # Los horarios siguen encadenando por reloj y no por dependencia: cada job arranca cuando
     # calcula que el anterior ya terminó. Es lo que dice QA-03 en el TODO y sigue abierto.
     #
-    # Los tres jobs `*_post` corren toda la temporada aunque la postemporada sea octubre: hoy la
-    # puerta es la ventana COMPLETA, así que de marzo a septiembre salen a buscar y no encuentran
-    # nada. Afinarlo con `post_season_start_date` —que ya está en la misma tabla— está pendiente.
+    # Los tres jobs `*_post` usan una ventana MÁS CORTA: arrancan en `post_season_start_date` y no de
+    # marzo, porque en junio no hay postemporada que buscar. Si esa fecha falta —MLB la publica
+    # tarde— caen al fin de la serie regular, y si tampoco está, a la apertura: se degrada hacia
+    # correr y nunca hacia callar.
     labels:
       ofelia.enabled: "true"
       ofelia.job-exec.batting-daily.schedule: "0 0 6 * * *"  # 6am, TZ below; solo si hay temporada abierta
@@ -73,7 +74,7 @@ services:
       ofelia.job-exec.pitching-daily.command: "python manage.py update_pitching"
       ofelia.job-exec.fielding-daily.schedule: "0 30 6 * * *"  # 6:30am, tras pitcheo
       ofelia.job-exec.fielding-daily.command: "python manage.py update_fielding"
-      ofelia.job-exec.batting-post-daily.schedule: "0 45 6 * * *"  # 6:45am; sin datos hasta que empiece octubre
+      ofelia.job-exec.batting-post-daily.schedule: "0 45 6 * * *"  # 6:45am; solo desde post_season_start_date
       ofelia.job-exec.batting-post-daily.command: "python manage.py update_batting_post"
       ofelia.job-exec.pitching-post-daily.schedule: "0 0 7 * * *"  # 7:00am; ídem
       ofelia.job-exec.pitching-post-daily.command: "python manage.py update_pitching_post"

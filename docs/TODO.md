@@ -171,11 +171,11 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 
 ### Afinado del scheduler
 
-- [ ] **Los jobs `*_post` corren toda la temporada, no solo en octubre.** La puerta de temporada
-  (`stats/season_window.py`) usa la ventana COMPLETA, así que de marzo a septiembre los tres jobs de
-  postemporada salen a buscar al proxy y no encuentran nada — unas 550 llamadas inútiles por
-  temporada. El dato para afinarlo ya está en la misma tabla: `post_season_start_date`. Es chico
-  (un parámetro en `evaluate`), pero es un cambio de comportamiento y conviene decidirlo aparte.
+- [x] **Los jobs `*_post` corrían toda la temporada, no solo en octubre.** **Corregido**: usan una
+  ventana más corta, desde `post_season_start_date`. Medido con el dato real de 2026, dejan de correr
+  del 25 de marzo al 28 de septiembre — unas 550 llamadas al proxy que ya no se hacen. Si la fecha
+  falta caen al fin de la serie regular, y si tampoco está, a la apertura: se degrada hacia correr y
+  nunca hacia callar, y el motivo del salto dice qué fecha se usó.
 
 ### Esperando dato, no código
 

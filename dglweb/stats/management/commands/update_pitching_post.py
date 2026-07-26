@@ -27,7 +27,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        if season_window.skip("update_pitching_post", note=self.stdout.write, force=options["force"]):
+        if season_window.skip("update_pitching_post", note=self.stdout.write, force=options["force"], postseason=True):
             return
 
         season = timezone.now().year
