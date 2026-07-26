@@ -275,9 +275,11 @@ un export corto; la suma de las edades no significa nada.
 
 **No declara `rebuilds`:** no alimenta ningún cálculo.
 
-### 4. Transacciones — pendiente de especificar
+### 4. Transacciones — diferido a después del lanzamiento
 
-Existe en DGL. Sin diseño todavía.
+Existe en DGL y sin diseño todavía. **Decisión del dueño (2026-07-26): no es prioritario para el
+lanzamiento**, así que no se especifica ni se construye por ahora. El motor ya soporta agregarlo
+cuando toque —es un loader más— y no bloquea nada de lo que sí entra.
 
 ## Decisiones abiertas
 
