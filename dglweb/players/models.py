@@ -3,8 +3,13 @@
 Source: DGL SQL Server `dbo.dglMaster` (migrated per the owner's mapping query).
 Schema derived from the real source columns/types — nothing assumed.
 
-**Authority rule:** being in this table is what makes a player "a Dominican MLB player".
-`birth_country_code` is informational input from the source, NOT the rule.
+**REGLA DE AUTORIDAD — la única forma de saber si un jugador es dominicano es su pertenencia a
+esta tabla o a `dom_players`.** La unión de las dos es el "universo dominicano".
+
+Ningún campo de país decide: ni `birth_country_code` de acá, que es dato informativo del origen, ni
+—sobre todo— el `birthCountry` que devuelve la API de MLB, **que no es confiable y no se usa jamás
+para esto**. Si un jugador que juega no está en el universo, la respuesta no es mirarle el país: es
+que falta agregarlo al maestro.
 
 **ETL rule — the source uses 0 as a "no value" sentinel; these are converted to NULL:**
 `statsID`→`yahoo_id`, `fanGraphID`→`fangraphs_id`, `signYear`→`sign_year`,

@@ -1,5 +1,18 @@
 # Datos de apoyo desde DGL (CSV → Postgres)
 
+## Regla de autoridad — quién es dominicano
+
+Antes que nada, porque gobierna todo lo demás: **un jugador es dominicano si y solo si está en
+`dgl_master` o en `dom_players`.** La unión de las dos es el *universo dominicano*.
+
+Ningún campo de país decide. Ni `birth_country_code` de `dgl_master`, que es dato informativo de la
+fuente. Ni —sobre todo— el `birthCountry` que devuelve la API de MLB, **que no es confiable**: no se
+usa para esto en ninguna parte del sistema, ni siquiera como pista.
+
+La consecuencia práctica: si un jugador está jugando y no aparece en el universo, la respuesta no es
+mirarle el país en la API, es que **falta agregarlo al maestro**. Mantener esas dos tablas al día es
+lo que hace correcto todo lo que viene después.
+
 ## El principio
 
 El sitio se alimenta del **proxy de MLB**, y así se queda. Cuanto más venga por ahí, más simple es

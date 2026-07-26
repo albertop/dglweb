@@ -1466,9 +1466,13 @@ class BattedBallHits(models.Model):
 class DomPlayer(models.Model):
     """Dominicanos en el sistema profesional, con y sin debut en Grandes Ligas — Fase 4e.
 
-    No confundir con `dgl_master`: ese es el maestro de los que SÍ llegaron a las mayores, y es la
-    autoridad del sitio. Esta es más ancha —incluye ligas menores— y sirve para ver quién viene
-    subiendo: detectar debuts y movimientos de roster.
+    No confundir con `dgl_master`: ese es el maestro de los que SÍ llegaron a las mayores. Esta es más
+    ancha —incluye ligas menores— y sirve para ver quién viene subiendo: detectar debuts y
+    movimientos de roster.
+
+    **Junto con `dgl_master` forma el "universo dominicano", y esa unión es la ÚNICA autoridad sobre
+    quién es dominicano.** El `birthCountry` de la API de MLB no es confiable y no se usa nunca para
+    decidirlo — ver la regla de autoridad en el docstring de `players.models.Player`.
 
     La tabla existía en Postgres desde antes, cargada por fuera de Django y con 27 columnas. Se
     rehízo con las trece que se usan, porque el dato viejo no servía: se reemplaza entero desde la
