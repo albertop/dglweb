@@ -197,7 +197,8 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [ ] **DEV-03 / DEV-04 — `compare()` carga todo en memoria; el upsert hace una query por fila.**
   Ciertos. Con 1.500 filas no se nota; el propio review dice que es tolerable. Documentar el límite
   del motor y volver si aparece un dataset grande.
-- [ ] **FE-02 — falta ARIA básico en nav/tabs/pills.** Cierto y barato.
+- [x] **FE-02 — falta ARIA básico en nav/tabs/pills.** **Corregido**: cabecera (nav con nombre, `role="search"` + label del buscador, hamburguesa con `aria-label`/`aria-expanded`/`aria-controls`), pestañas del perfil con el juego completo (`aria-selected`, `aria-controls`↔`aria-labelledby`, `role="presentation"` en los `<li>`) y los cinco tablists con nombre propio. En Líderes NO se pusieron roles de pestaña a propósito: son enlaces que recargan, así que van en `<nav>` con nombre y `aria-current="page"`. Con tests (`tests/test_accessibility.py`) que fijan el acuerdo, incluido que cada tablist anuncie exactamente una seleccionada.
+  ~~ Cierto y barato.
 
 ### Aceptados pero ya conocidos (no son de esta sesión)
 

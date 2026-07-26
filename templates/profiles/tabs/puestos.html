@@ -5,18 +5,18 @@ divisiones de las tablas del perfil. Dos pills que comparten la misma rejilla (`
 Serie Regular y Postemporada. La Postemporada suma todo octubre de cada año (no por ronda) y sus
 tasas usan pisos fijos. Solo su oficio. Un pill solo aparece si tiene datos.
 {% endcomment %}
-<ul class="nav nav-pills mb-3" role="tablist">
-  {% if d.regular %}<li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pue-reg" type="button">Serie Regular</button></li>{% endif %}
-  {% if d.postseason %}<li class="nav-item"><button class="nav-link{% if not d.regular %} active{% endif %}" data-bs-toggle="pill" data-bs-target="#pue-post" type="button">Postemporada</button></li>{% endif %}
+<ul class="nav nav-pills mb-3" role="tablist" aria-label="Vistas de Puestos">
+  {% if d.regular %}<li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pue-reg" type="button" role="tab" id="pue-reg-btn" aria-controls="pue-reg" aria-selected="true">Serie Regular</button></li>{% endif %}
+  {% if d.postseason %}<li class="nav-item" role="presentation"><button class="nav-link{% if not d.regular %} active{% endif %}" data-bs-toggle="pill" data-bs-target="#pue-post" type="button" role="tab" id="pue-post-btn" aria-controls="pue-post" aria-selected="{% if not d.regular %}true{% else %}false{% endif %}">Postemporada</button></li>{% endif %}
 </ul>
 <div class="tab-content">
   {% if d.regular %}
-  <div class="tab-pane fade show active" id="pue-reg">
+  <div class="tab-pane fade show active" id="pue-reg" role="tabpanel" aria-labelledby="pue-reg-btn" tabindex="0">
     {% include "profiles/_puestos_grid.html" with grid=d.regular %}
   </div>
   {% endif %}
   {% if d.postseason %}
-  <div class="tab-pane fade{% if not d.regular %} show active{% endif %}" id="pue-post">
+  <div class="tab-pane fade{% if not d.regular %} show active{% endif %}" id="pue-post" role="tabpanel" aria-labelledby="pue-post-btn" tabindex="0">
     {% include "profiles/_puestos_grid.html" with grid=d.postseason %}
   </div>
   {% endif %}

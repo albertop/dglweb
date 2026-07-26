@@ -45,18 +45,28 @@
     </div>
   </div>
 
-  <!-- Stat tabs (extensible: a new tab is a class + a partial, the shell never changes) -->
-  <ul class="nav nav-tabs mb-3" role="tablist">
+  {% comment %}
+  Stat tabs (extensible: a new tab is a class + a partial, the shell never changes).
+
+  Estos SÍ son pestañas de verdad —cambian de panel sin recargar— así que llevan el juego completo de
+  ARIA: `aria-selected` dice cuál está elegida, `aria-controls`/`aria-labelledby` emparejan botón y
+  panel, y el `role="presentation"` del <li> evita que se anuncie como ítem de lista además de como
+  pestaña. Con eso puesto, Bootstrap además habilita las flechas del teclado para moverse entre ellas.
+  {% endcomment %}
+  <ul class="nav nav-tabs mb-3" role="tablist" aria-label="Estadísticas del jugador">
     {% for tab in tabs %}
-    <li class="nav-item">
+    <li class="nav-item" role="presentation">
       <button class="nav-link {% if tab.active %}active{% endif %}" data-bs-toggle="tab"
-              data-bs-target="#tab-{{ tab.key }}" type="button" role="tab">{{ tab.label }}</button>
+              id="tab-{{ tab.key }}-btn" data-bs-target="#tab-{{ tab.key }}" type="button" role="tab"
+              aria-controls="tab-{{ tab.key }}" aria-selected="{% if tab.active %}true{% else %}false{% endif %}"
+              >{{ tab.label }}</button>
     </li>
     {% endfor %}
   </ul>
   <div class="tab-content">
     {% for tab in tabs %}
-    <div class="tab-pane fade {% if tab.active %}show active{% endif %}" id="tab-{{ tab.key }}" role="tabpanel">
+    <div class="tab-pane fade {% if tab.active %}show active{% endif %}" id="tab-{{ tab.key }}"
+         role="tabpanel" aria-labelledby="tab-{{ tab.key }}-btn" tabindex="0">
       {% include tab.template %}
     </div>
     {% endfor %}

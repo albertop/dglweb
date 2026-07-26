@@ -38,11 +38,14 @@ muda y el usuario vuelve a hacer clic.
   Sin métricas activas no hay tablero. Se dibujan igual las pestañas de oficio, que es lo único
   navegable: con una base a medio migrar, Bateo puede estar vacío y Pitcheo no.
   {% endcomment %}
-  <ul class="nav nav-tabs mb-3">
-    {% for g in groups %}
-    <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}">{{ g.label }}</a></li>
-    {% endfor %}
-  </ul>
+  <nav aria-label="Renglón">
+    <ul class="nav nav-tabs mb-3">
+      {% for g in groups %}
+      <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}"
+         {% if g.active %}aria-current="page"{% endif %}>{{ g.label }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>
   <section class="dgl-panel p-4">
     <p class="mb-0">Todavía no hay líderes publicados para <b>{{ group_label }}</b>.</p>
     <p class="dgl-meta mb-0 mt-2">Ocurre mientras se carga el histórico, o si las métricas de este
@@ -51,18 +54,24 @@ muda y el usuario vuelve a hacer clic.
   {% else %}
 
   {# Grupo — como los tabs del perfil #}
-  <ul class="nav nav-tabs mb-3">
-    {% for g in groups %}
-    <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}">{{ g.label }}</a></li>
-    {% endfor %}
-  </ul>
+  <nav aria-label="Renglón">
+    <ul class="nav nav-tabs mb-3">
+      {% for g in groups %}
+      <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}"
+         {% if g.active %}aria-current="page"{% endif %}>{{ g.label }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>
 
   {# División — pills #}
-  <ul class="nav nav-pills mb-3">
-    {% for d in divisions %}
-    <li class="nav-item"><a class="nav-link{% if d.active %} active{% endif %}" href="{{ d.url }}">{{ d.label }}</a></li>
-    {% endfor %}
-  </ul>
+  <nav aria-label="Grupo de estadísticas">
+    <ul class="nav nav-pills mb-3">
+      {% for d in divisions %}
+      <li class="nav-item"><a class="nav-link{% if d.active %} active{% endif %}" href="{{ d.url }}"
+         {% if d.active %}aria-current="page"{% endif %}>{{ d.label }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>
 
   {# Controles: Alcance · Temporada · Métrica #}
   <div class="d-flex flex-wrap align-items-end gap-3 mb-3">

@@ -15,18 +15,23 @@
 <body>
 
 <header class="dgl-topbar">
-  <nav class="navbar navbar-expand-lg py-2">
+  <nav class="navbar navbar-expand-lg py-2" aria-label="Navegación principal">
     <div class="container">
       <a class="navbar-brand dgl-brand me-3" href="{% url 'home' %}">Dominicanos en Grandes Ligas</a>
-      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nav"
+              aria-controls="nav" aria-expanded="false" aria-label="Abrir el menú">
         <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
       </button>
       <div class="collapse navbar-collapse" id="nav">
-        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" onsubmit="return false">
-          <input class="form-control form-control-sm" type="search" placeholder="🔎 Buscar jugador… (ej. Soto)">
+        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" onsubmit="return false"
+              role="search" aria-label="Buscar jugador">
+          <label class="visually-hidden" for="buscar">Buscar jugador</label>
+          <input class="form-control form-control-sm" id="buscar" type="search"
+                 placeholder="🔎 Buscar jugador… (ej. Soto)">
         </form>
         <ul class="navbar-nav ms-auto align-items-lg-center">
-          <li class="nav-item"><a class="nav-link dgl-navlink {% block nav_home %}{% endblock %}" href="{% url 'home' %}">Inicio</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink {% block nav_home %}{% endblock %}" href="{% url 'home' %}"
+            {% block nav_home_current %}{% endblock %}>Inicio</a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="#">Artículos</a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'leaders' %}">Líderes</a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="#">Jugadores</a></li>
@@ -52,11 +57,11 @@
         <p class="small mb-0" style="max-width:32ch">Estadísticas y sabermetría del béisbol de las
           Grandes Ligas, vistas a través del lente dominicano.</p>
       </div>
-      <div class="col-6 col-md-3"><h6>Secciones</h6>
-        <ul class="list-unstyled small"><li><a href="#">Artículos</a></li>
+      <div class="col-6 col-md-3"><h6 id="pie-secciones">Secciones</h6>
+        <ul class="list-unstyled small" aria-labelledby="pie-secciones"><li><a href="#">Artículos</a></li>
           <li><a href="{% url 'leaders' %}">Líderes</a></li><li><a href="#">Jugadores</a></li></ul></div>
-      <div class="col-6 col-md-4"><h6>Legal</h6>
-        <ul class="list-unstyled small"><li><a href="#">Política de privacidad</a></li>
+      <div class="col-6 col-md-4"><h6 id="pie-legal">Legal</h6>
+        <ul class="list-unstyled small" aria-labelledby="pie-legal"><li><a href="#">Política de privacidad</a></li>
           <li><a href="#">Términos de servicio</a></li><li><a href="#">Cookies</a></li></ul></div>
     </div>
     <hr style="border-color:#25406b">

@@ -5,16 +5,16 @@ Fildeo va por POSICIÓN, no por stint: cada fila es una (temporada, posición), 
 prefijo (partials `_fielding_*`). Las columnas viven en `profiles/columns.py`. El pill Receptor solo
 aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar por posición es turbio).
 {% endcomment %}
-<ul class="nav nav-pills mb-3" role="tablist">
-  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#fld-std" type="button">Estándar</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-adv" type="button">Avanzado</button></li>
-  {% if d.has_catcher %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-cat" type="button">Receptor</button></li>{% endif %}
-  {% if d.post_lines %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-post" type="button">Postemporada</button></li>{% endif %}
-  {% if d.totals_rows %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-team" type="button">Totales</button></li>{% endif %}
+<ul class="nav nav-pills mb-3" role="tablist" aria-label="Vistas de Fildeo">
+  <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#fld-std" type="button" role="tab" id="fld-std-btn" aria-controls="fld-std" aria-selected="true">Estándar</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-adv" type="button" role="tab" id="fld-adv-btn" aria-controls="fld-adv" aria-selected="false">Avanzado</button></li>
+  {% if d.has_catcher %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-cat" type="button" role="tab" id="fld-cat-btn" aria-controls="fld-cat" aria-selected="false">Receptor</button></li>{% endif %}
+  {% if d.post_lines %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-post" type="button" role="tab" id="fld-post-btn" aria-controls="fld-post" aria-selected="false">Postemporada</button></li>{% endif %}
+  {% if d.totals_rows %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#fld-team" type="button" role="tab" id="fld-team-btn" aria-controls="fld-team" aria-selected="false">Totales</button></li>{% endif %}
 </ul>
 <div class="tab-content">
 
-  <div class="tab-pane fade show active" id="fld-std">
+  <div class="tab-pane fade show active" id="fld-std" role="tabpanel" aria-labelledby="fld-std-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -30,7 +30,7 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
-  <div class="tab-pane fade" id="fld-adv">
+  <div class="tab-pane fade" id="fld-adv" role="tabpanel" aria-labelledby="fld-adv-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -47,7 +47,7 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
   </div>
 
   {% if d.has_catcher %}
-  <div class="tab-pane fade" id="fld-cat">
+  <div class="tab-pane fade" id="fld-cat" role="tabpanel" aria-labelledby="fld-cat-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -65,7 +65,7 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
   {% endif %}
 
   {% if d.post_lines %}
-  <div class="tab-pane fade" id="fld-post">
+  <div class="tab-pane fade" id="fld-post" role="tabpanel" aria-labelledby="fld-post-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -83,7 +83,7 @@ aparece si el jugador atrapó. Postemporada de fildeo queda diferida (agregar po
   {% endif %}
 
   {% if d.totals_rows %}
-  <div class="tab-pane fade" id="fld-team">
+  <div class="tab-pane fade" id="fld-team" role="tabpanel" aria-labelledby="fld-team-btn" tabindex="0">
     <section class="dgl-panel mb-4">
       <div class="dgl-embed-cap">Estándar</div>
       <div class="table-responsive">

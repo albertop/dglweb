@@ -5,17 +5,17 @@ Mismo molde que bateo, y las mismas partials: solo cambian las listas de columna
 `profiles/columns.py`. IP nunca sale de la columna `ip` del modelo —esa es notación de béisbol y no
 se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
 {% endcomment %}
-<ul class="nav nav-pills mb-3" role="tablist">
-  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pit-std" type="button">Estándar</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-adv" type="button">Avanzado</button></li>
-  {% if d.has_statcast %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-statcast" type="button">Statcast</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-ratios" type="button">Coeficientes</button></li>{% endif %}
-  {% if d.post %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-post" type="button">Postemporada</button></li>{% endif %}
-  {% if d.totals %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-team" type="button">Totales</button></li>{% endif %}
+<ul class="nav nav-pills mb-3" role="tablist" aria-label="Vistas de Pitcheo">
+  <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pit-std" type="button" role="tab" id="pit-std-btn" aria-controls="pit-std" aria-selected="true">Estándar</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-adv" type="button" role="tab" id="pit-adv-btn" aria-controls="pit-adv" aria-selected="false">Avanzado</button></li>
+  {% if d.has_statcast %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-statcast" type="button" role="tab" id="pit-statcast-btn" aria-controls="pit-statcast" aria-selected="false">Statcast</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-ratios" type="button" role="tab" id="pit-ratios-btn" aria-controls="pit-ratios" aria-selected="false">Coeficientes</button></li>{% endif %}
+  {% if d.post %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-post" type="button" role="tab" id="pit-post-btn" aria-controls="pit-post" aria-selected="false">Postemporada</button></li>{% endif %}
+  {% if d.totals %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#pit-team" type="button" role="tab" id="pit-team-btn" aria-controls="pit-team" aria-selected="false">Totales</button></li>{% endif %}
 </ul>
 <div class="tab-content">
 
-  <div class="tab-pane fade show active" id="pit-std">
+  <div class="tab-pane fade show active" id="pit-std" role="tabpanel" aria-labelledby="pit-std-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -30,7 +30,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
-  <div class="tab-pane fade" id="pit-adv">
+  <div class="tab-pane fade" id="pit-adv" role="tabpanel" aria-labelledby="pit-adv-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -47,7 +47,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
   </div>
 
   {% if d.has_statcast %}
-  <div class="tab-pane fade" id="pit-statcast">
+  <div class="tab-pane fade" id="pit-statcast" role="tabpanel" aria-labelledby="pit-statcast-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -63,7 +63,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
-  <div class="tab-pane fade" id="pit-ratios">
+  <div class="tab-pane fade" id="pit-ratios" role="tabpanel" aria-labelledby="pit-ratios-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -81,7 +81,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
   {% endif %}
 
   {% if d.post %}
-  <div class="tab-pane fade" id="pit-post">
+  <div class="tab-pane fade" id="pit-post" role="tabpanel" aria-labelledby="pit-post-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -99,7 +99,7 @@ se puede sumar—; la spec la declara sobre `outs`, que es la canónica.
   {% endif %}
 
   {% if d.totals %}
-  <div class="tab-pane fade" id="pit-team">
+  <div class="tab-pane fade" id="pit-team" role="tabpanel" aria-labelledby="pit-team-btn" tabindex="0">
     <section class="dgl-panel mb-4">
       <div class="dgl-embed-cap">Estándar</div>
       <div class="table-responsive">

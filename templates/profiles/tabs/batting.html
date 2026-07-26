@@ -6,17 +6,17 @@ Las columnas NO se escriben aquí: viven en `profiles/columns.py` y llegan ya re
 que agregar una métrica se toca en un solo lugar y una columna no puede existir en las temporadas y
 faltar en los totales.
 {% endcomment %}
-<ul class="nav nav-pills mb-3" role="tablist">
-  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#bat-std" type="button">Estándar</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-adv" type="button">Avanzado</button></li>
-  {% if d.has_statcast %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-statcast" type="button">Statcast</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-ratios" type="button">Coeficientes</button></li>{% endif %}
-  {% if d.post %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-post" type="button">Postemporada</button></li>{% endif %}
-  {% if d.totals %}<li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-team" type="button">Totales</button></li>{% endif %}
+<ul class="nav nav-pills mb-3" role="tablist" aria-label="Vistas de Bateo">
+  <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#bat-std" type="button" role="tab" id="bat-std-btn" aria-controls="bat-std" aria-selected="true">Estándar</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-adv" type="button" role="tab" id="bat-adv-btn" aria-controls="bat-adv" aria-selected="false">Avanzado</button></li>
+  {% if d.has_statcast %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-statcast" type="button" role="tab" id="bat-statcast-btn" aria-controls="bat-statcast" aria-selected="false">Statcast</button></li>
+  <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-ratios" type="button" role="tab" id="bat-ratios-btn" aria-controls="bat-ratios" aria-selected="false">Coeficientes</button></li>{% endif %}
+  {% if d.post %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-post" type="button" role="tab" id="bat-post-btn" aria-controls="bat-post" aria-selected="false">Postemporada</button></li>{% endif %}
+  {% if d.totals %}<li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#bat-team" type="button" role="tab" id="bat-team-btn" aria-controls="bat-team" aria-selected="false">Totales</button></li>{% endif %}
 </ul>
 <div class="tab-content">
 
-  <div class="tab-pane fade show active" id="bat-std">
+  <div class="tab-pane fade show active" id="bat-std" role="tabpanel" aria-labelledby="bat-std-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -31,7 +31,7 @@ faltar en los totales.
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
-  <div class="tab-pane fade" id="bat-adv">
+  <div class="tab-pane fade" id="bat-adv" role="tabpanel" aria-labelledby="bat-adv-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -48,7 +48,7 @@ faltar en los totales.
   </div>
 
   {% if d.has_statcast %}
-  <div class="tab-pane fade" id="bat-statcast">
+  <div class="tab-pane fade" id="bat-statcast" role="tabpanel" aria-labelledby="bat-statcast-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -64,7 +64,7 @@ faltar en los totales.
   {% include "profiles/_legend.html" with career=d.has_career_leads season=d.has_season_leads best=True personal=d.has_personal_leads %}
   </div>
 
-  <div class="tab-pane fade" id="bat-ratios">
+  <div class="tab-pane fade" id="bat-ratios" role="tabpanel" aria-labelledby="bat-ratios-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -82,7 +82,7 @@ faltar en los totales.
   {% endif %}
 
   {% if d.post %}
-  <div class="tab-pane fade" id="bat-post">
+  <div class="tab-pane fade" id="bat-post" role="tabpanel" aria-labelledby="bat-post-btn" tabindex="0">
   <section class="dgl-panel mb-4">
     <div class="table-responsive">
       <table class="table table-sm table-striped mb-0 dgl-stats-table">
@@ -100,7 +100,7 @@ faltar en los totales.
   {% endif %}
 
   {% if d.totals %}
-  <div class="tab-pane fade" id="bat-team">
+  <div class="tab-pane fade" id="bat-team" role="tabpanel" aria-labelledby="bat-team-btn" tabindex="0">
     <section class="dgl-panel mb-4">
       <div class="dgl-embed-cap">Estándar</div>
       <div class="table-responsive">
