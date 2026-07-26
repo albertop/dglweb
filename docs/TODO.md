@@ -193,6 +193,11 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 
 - [ ] **ARCH-02 — el borrador vive en sesión, no en staging auditable.** Buen señalamiento: sin id de
   revisión ni hash, dos admins pueden confirmar en orden cruzado. Es rediseño, no parche.
+  **Decisión del dueño (2026-07-26): prioridad muy baja, no entra antes del lanzamiento.** El
+  escenario que arregla exige DOS administradores cargando el mismo dataset a la vez, y hoy carga una
+  sola persona una o dos veces al año. La parte urgente del finding —un CSV enorme decodificado
+  entero en memoria— ya se cerró en SEC-01. Sube de prioridad el día que entre otra persona a cargar
+  datos.
 - [x] **ARCH-03 — `leaderboards.py` importa helpers privados de `tabs.py`.** **Corregido**: nace `profiles/metric_layout.py`, público, con lo que las dos pantallas comparten — `DESCRIPTIVE_COLUMNS`, `divisions_for()`, `pretty_qualifier()` y `qualifier_lookups()`. Ya no hay imports de nombres privados entre módulos de `profiles`. Con tests propios que fijan el acuerdo (ninguna métrica en dos divisiones, el umbral se escribe igual en las dos pantallas).
   ~~ Cierto y lo sufrí al
   agregar fildeo. Mover el layout de métricas y el formato de umbrales a un módulo público.
