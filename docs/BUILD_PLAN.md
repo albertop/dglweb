@@ -229,8 +229,10 @@
 - **4e — Datos de apoyo desde DGL (📋 diseñado, sin construir).** El sitio se alimenta del proxy de
   MLB y así se queda; pero salarios, transacciones y los tipos de batazo en los hits solo existen en
   DGL. Son casi estáticos —una o dos cargas al año— así que van por una vía manual: `static_data/`
-  con un PowerShell por dataset → CSV → página de carga en el Backoffice → import que trunca y
-  reemplaza. Se construye una vez y cada dataset se monta encima.
+  con un PowerShell por dataset → CSV → página de carga en el Backoffice → **pantalla de comparación
+  contra lo que ya está** → import que trunca y reemplaza dentro de una transacción. Se construye una
+  vez y cada dataset se monta encima. La comparación previa es el punto: un truncate a ciegas es
+  irreversible y silencioso, que es justo cómo un CSV corto pasa desapercibido.
   Ver `docs/DATOS_DE_APOYO.md`.
 
 ## Fase 5 — Editorial: Wagtail (artículos + workflow + roles)

@@ -30,8 +30,49 @@ DGL (SQL Server)  ──PowerShell──▶  CSV  ──upload en Backoffice─�
 **2. Backoffice — una página de carga.** Lista las tablas de Postgres que se alimentan por CSV, con
 un botón de upload al lado de cada una. Es la interfaz de la operación semestral.
 
-**3. El import: truncar y reemplazar.** El CSV es la verdad completa del dataset, no un delta. Se
-vacía la tabla y se carga de nuevo. Sin merges, sin upserts, sin estados intermedios que auditar.
+**3. El import: truncar y reemplazar, pero en dos pasos.** El CSV es la verdad completa del dataset,
+no un delta: se vacía la tabla y se carga de nuevo. Sin merges, sin upserts, sin estados intermedios
+que auditar.
+
+Pero **nada se escribe sin que el usuario lo vea primero**. El flujo es:
+
+```
+subir CSV  ──▶  pantalla de comparación  ──▶  [Confirmar] o [Cancelar]
+                (nada escrito todavía)          ↑ recién aquí se toca la tabla
+```
+
+Un truncate ejecutado a ciegas es irreversible y silencioso: si el CSV vino corto, la tabla queda
+corta y nadie se entera hasta que alguien mira una página meses después. **Ese es exactamente el
+fallo que originó este documento** — la fuente de MLB entregó el 1,8% de los hits tipificados de
+2000 y el sitio lo publicó como si nada durante años.
+
+### Qué muestra la pantalla de comparación
+
+No un "¿está seguro?", sino los números lado a lado para que el desbalance salte a la vista:
+
+| | En la tabla | En el CSV | Δ |
+|---|---:|---:|---:|
+| Filas | 12.480 | 12.512 | +32 |
+| Temporadas cubiertas | 1989-2026 | 1989-2026 | — |
+| Jugadores distintos | 941 | 944 | +3 |
+| Suma de cada columna numérica | … | … | **% de cambio** |
+
+Y encima de eso:
+
+- **Temporadas o jugadores que desaparecen.** Estaban en la tabla y no vienen en el CSV. Es la
+  señal de alarma más importante: un export que se cortó a la mitad se ve acá y en ningún otro lado.
+- **La prueba de aceptación del dataset**, corrida sobre el CSV *antes* de escribir. Si
+  `FH+GH+LH+PH ≠ H` para alguna fila, la pantalla lo dice y el botón de confirmar no aparece.
+- **Una muestra de filas** del CSV, para detectar un desfase de columnas o un encoding roto de un
+  vistazo.
+- **Variaciones grandes marcadas.** Un total que cambia más de cierto porcentaje se resalta: puede
+  ser legítimo (se cargó una temporada nueva) o puede ser el desastre.
+
+### Cómo se sostiene técnicamente
+
+El CSV se guarda en una **staging** —tabla temporal o archivo en disco con un token— y la pantalla
+lee de ahí. El truncate y el insert corren juntos **dentro de una transacción** al confirmar, así que
+o queda la tabla nueva completa o queda la vieja intacta; nunca un estado a medias.
 
 ## La tensión que hay que resolver antes de construir
 

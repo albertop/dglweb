@@ -116,8 +116,13 @@ tipos de batazo en los hits. Son datos casi estáticos, de una o dos actualizaci
 no justifican un pipeline en vivo ni atar el proyecto a SQL Server.
 
 El mecanismo: `static_data/` con un PowerShell por dataset (ruta de salida en constante, el SQL a la
-vista, y el porqué documentado) → CSV → página de carga en el Backoffice → import que **trunca y
-reemplaza**, con una prueba de aceptación propia por dataset.
+vista, y el porqué documentado) → CSV → página de carga en el Backoffice → **pantalla de comparación
+contra lo que ya está en la tabla** → recién ahí un import que **trunca y reemplaza**, dentro de una
+transacción y con una prueba de aceptación propia por dataset.
+
+La pantalla de comparación no es ceremonia: un truncate a ciegas es irreversible y silencioso, y un
+CSV que vino corto deja la tabla corta sin que nadie se entere. Es el mismo fallo que originó todo
+esto — la fuente de MLB entregó el 1,8% de los hits de 2000 y se publicó durante años.
 
 Se construye **una vez** y cada dataset se monta encima. El primero es el de tipos de batazo, que
 cierra SAB-03: hay diez temporadas donde a la API de MLB le faltan hits por tipo (2000 y 2001 en
