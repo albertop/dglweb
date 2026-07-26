@@ -55,29 +55,37 @@ services:
     # OJO: el horario NO es la única puerta. Todos estos jobs salvo `prune_ingest_log` consultan
     # `seasons_dates` al despertar y no hacen nada fuera de temporada — ver `stats/season_window.py`.
     # O sea que la ventana de trabajo la manda el DATO y se corrige en el Backoffice (Calendario de
-    # temporadas), sin tocar este archivo ni desplegar. `prune_ingest_log` queda fuera de la puerta a
-    # propósito: podar el log es mantenimiento, no pelota, y tiene que correr los doce meses.
+    # temporadas), sin tocar este archivo ni desplegar. Un salto queda como fila `skipped` en el log
+    # de ingesta, con el motivo; `prune_ingest_log` queda fuera de la puerta a propósito, porque
+    # podar el log es mantenimiento y no pelota, y tiene que correr los doce meses.
+    #
+    # Los horarios siguen encadenando por reloj y no por dependencia: cada job arranca cuando
+    # calcula que el anterior ya terminó. Es lo que dice QA-03 en el TODO y sigue abierto.
+    #
+    # Los tres jobs `*_post` corren toda la temporada aunque la postemporada sea octubre: hoy la
+    # puerta es la ventana COMPLETA, así que de marzo a septiembre salen a buscar y no encuentran
+    # nada. Afinarlo con `post_season_start_date` —que ya está en la misma tabla— está pendiente.
     labels:
       ofelia.enabled: "true"
-      ofelia.job-exec.batting-daily.schedule: "0 0 6 * * *"  # 6am, TZ below
+      ofelia.job-exec.batting-daily.schedule: "0 0 6 * * *"  # 6am, TZ below; solo si hay temporada abierta
       ofelia.job-exec.batting-daily.command: "python manage.py update_batting"
-      ofelia.job-exec.pitching-daily.schedule: "0 15 6 * * *"  # 6:15am, after batting
+      ofelia.job-exec.pitching-daily.schedule: "0 15 6 * * *"  # 6:15am, tras bateo
       ofelia.job-exec.pitching-daily.command: "python manage.py update_pitching"
-      ofelia.job-exec.fielding-daily.schedule: "0 30 6 * * *"  # 6:30am, after pitching
+      ofelia.job-exec.fielding-daily.schedule: "0 30 6 * * *"  # 6:30am, tras pitcheo
       ofelia.job-exec.fielding-daily.command: "python manage.py update_fielding"
-      ofelia.job-exec.batting-post-daily.schedule: "0 45 6 * * *"  # 6:45am; a no-op outside Oct/Nov
+      ofelia.job-exec.batting-post-daily.schedule: "0 45 6 * * *"  # 6:45am; sin datos hasta que empiece octubre
       ofelia.job-exec.batting-post-daily.command: "python manage.py update_batting_post"
-      ofelia.job-exec.pitching-post-daily.schedule: "0 0 7 * * *"  # 7:00am; a no-op outside Oct/Nov
+      ofelia.job-exec.pitching-post-daily.schedule: "0 0 7 * * *"  # 7:00am; ídem
       ofelia.job-exec.pitching-post-daily.command: "python manage.py update_pitching_post"
-      ofelia.job-exec.fielding-post-daily.schedule: "0 15 7 * * *"  # 7:15am; a no-op outside Oct/Nov
+      ofelia.job-exec.fielding-post-daily.schedule: "0 15 7 * * *"  # 7:15am; ídem
       ofelia.job-exec.fielding-post-daily.command: "python manage.py update_fielding_post"
-      ofelia.job-exec.build-career-totals-daily.schedule: "0 20 7 * * *"  # 7:20am; after every stat refresh
+      ofelia.job-exec.build-career-totals-daily.schedule: "0 20 7 * * *"  # 7:20am; tras refrescar todas las stats
       ofelia.job-exec.build-career-totals-daily.command: "python manage.py build_career_totals"
-      ofelia.job-exec.build-leaders-daily.schedule: "0 30 7 * * *"  # 7:30am; after every stat refresh
+      ofelia.job-exec.build-leaders-daily.schedule: "0 30 7 * * *"  # 7:30am; tras los totales de carrera, que lee
       ofelia.job-exec.build-leaders-daily.command: "python manage.py build_leaders"
-      ofelia.job-exec.prune-log-daily.schedule: "0 45 7 * * *"  # 7:45am; trims the ingest log, runs last (sin puerta de temporada)
+      ofelia.job-exec.prune-log-daily.schedule: "0 45 7 * * *"  # 7:45am; poda el log, va último — SIN puerta de temporada
       ofelia.job-exec.prune-log-daily.command: "python manage.py prune_ingest_log"
-      ofelia.job-exec.parity-career-weekly.schedule: "0 0 8 * * 0"  # Sundays 8am; verifies career vs proxy
+      ofelia.job-exec.parity-career-weekly.schedule: "0 0 8 * * 0"  # domingos 8am; verifica carrera contra el proxy
       ofelia.job-exec.parity-career-weekly.command: "python manage.py parity_career"
 
   # Ofelia: a lean, Docker-native cron. It reads the labels above via the Docker socket and

@@ -169,6 +169,14 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   ~~ Real: tabla
   sin loader, clave natural con columnas inexistentes, upsert sin constraint. Validar en `clean()`.
 
+### Afinado del scheduler
+
+- [ ] **Los jobs `*_post` corren toda la temporada, no solo en octubre.** La puerta de temporada
+  (`stats/season_window.py`) usa la ventana COMPLETA, así que de marzo a septiembre los tres jobs de
+  postemporada salen a buscar al proxy y no encuentran nada — unas 550 llamadas inútiles por
+  temporada. El dato para afinarlo ya está en la misma tabla: `post_season_start_date`. Es chico
+  (un parámetro en `evaluate`), pero es un cambio de comportamiento y conviene decidirlo aparte.
+
 ### Esperando dato, no código
 
 - [ ] **Reactivar el tab Salarios del perfil.** Está construido, probado y **apagado a propósito**
