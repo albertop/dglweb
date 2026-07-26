@@ -12,7 +12,7 @@ from django.core.management import call_command
 
 from dglweb.players.models import Player
 from dglweb.stats import mlb_leaders
-from dglweb.stats.models import IngestRun, Metric, MlbLeader, SeasonDates
+from dglweb.stats.models import IngestRun, Leader, Metric, MlbLeader, SeasonDates
 from dglweb.stats.season_window import MLB
 from tests.test_players import _other_player
 
@@ -196,6 +196,22 @@ def test_pruning_drops_the_seasons_that_are_over(temporada: SeasonDates, hr: Met
 
     assert borradas == 1
     assert list(MlbLeader.objects.values_list("season", flat=True)) == [2026]
+
+
+@pytest.mark.django_db
+def test_pruning_never_touches_the_leaders_engine(temporada: SeasonDates, hr: Metric) -> None:
+    """Son dos tablas con nombres parecidos y destinos opuestos.
+
+    `dgl_mlb_leader` es una foto de la temporada en curso que se borra sola. `dgl_leader` es el
+    motor propio: 400.000 filas de liderazgos por temporada y de por vida, que cuesta una hora
+    reconstruir. Un janitor que confundiera las dos sería catastrófico y silencioso.
+    """
+    _jugador(111, "Uno")
+    Leader.objects.create(metric=hr, player_id=111, season=2019, rank=1, value=40, board=Leader.Board.BEST_SEASON)
+
+    mlb_leaders.podar(2026)
+
+    assert Leader.objects.count() == 1
 
 
 @pytest.mark.django_db
