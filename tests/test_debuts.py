@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 from django.core.management import call_command
 
+from dglweb.mlb.client import MlbProxyError
 from dglweb.players import debuts, universe
 from dglweb.players.models import Player
 from dglweb.stats.models import DomPlayer, IngestRun, SeasonDates
@@ -21,16 +22,24 @@ from tests.test_players import _other_player
 class _ProxyFalso:
     """Devuelve estadísticas para `con_stats` y una ficha para cualquier persona que se le pida."""
 
-    def __init__(self, con_stats: set[int], fichas: dict[int, dict[str, Any]] | None = None) -> None:
-        self.con_stats = con_stats
+    def __init__(
+        self,
+        con_stats: set[int],
+        fichas: dict[int, dict[str, Any]] | None = None,
+        grupo: str = "hitting",
+    ) -> None:
+        self.por_grupo = {grupo: con_stats}
         self.fichas = fichas or {}
         self.pedidos: list[str] = []
 
     def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self.pedidos.append(path)
         if path == "/api/v1/stats":
-            splits = [{"player": {"id": pid}} for pid in sorted(self.con_stats)]
-            return {"stats": [{"splits": splits if params and params.get("group") == "hitting" else []}]}
+            grupo = (params or {}).get("group")
+            # Solo el oficio pedido devuelve filas, para que los tests puedan poner a un jugador en
+            # uno y comprobar que igual se lo encuentra.
+            ids = self.por_grupo.get(grupo or "", set())
+            return {"stats": [{"splits": [{"player": {"id": pid}} for pid in sorted(ids)]}]}
         player_id = int(path.rsplit("/", 1)[-1])
         return {"people": [self.fichas.get(player_id, {"fullName": f"Jugador {player_id}"})]}
 
@@ -139,12 +148,16 @@ def test_an_already_loaded_player_with_stats_is_not_reported_again(db: None) -> 
 
 @pytest.mark.django_db
 def test_a_failure_fetching_the_name_still_reports_the_debut(db: None) -> None:
-    """Perder el aviso por un timeout sería mucho peor que darlo sin nombre."""
+    """Perder el aviso por un timeout sería mucho peor que darlo sin nombre.
+
+    El fallo se modela con `MlbProxyError` porque es lo que levanta el cliente de verdad: antes el
+    test usaba un `RuntimeError` pelado y pasaba solo porque se atrapaba cualquier cosa.
+    """
 
     class _ProxyRoto(_ProxyFalso):
         def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
             if path.startswith("/api/v1/people/"):
-                raise RuntimeError("el proxy no responde")
+                raise MlbProxyError("el proxy no responde")
             return super().get(path, params)
 
     _prospecto(2, "Debutante D")
@@ -197,3 +210,40 @@ def test_the_command_is_gated_by_the_season(temporada: SeasonDates, monkeypatch:
     call_command("detect_debuts")
 
     assert IngestRun.objects.get(command="detect_debuts").status == IngestRun.Status.SKIPPED
+
+
+@pytest.mark.django_db
+def test_a_debut_that_only_shows_up_in_fielding_is_still_caught() -> None:
+    """Debutar no siempre deja línea de bateo: se puede entrar como sustituto defensivo.
+
+    Hoy no cambia nada —medido: de 1.323 jugadores con fildeo en 2026, cero carecen de bateo, porque
+    la API emite línea de bateo para cualquiera que aparezca—. Este test protege la red para el día
+    en que esa costumbre de la API deje de cumplirse, que es cuando se perdería un primer día en
+    Grandes Ligas sin que nadie lo note.
+    """
+    _prospecto(2, "Solo Guante")
+    proxy = _ProxyFalso({2}, {2: {"fullName": "Solo Guante"}}, grupo="fielding")
+
+    encontrados = debuts.detect(proxy, 2026)  # type: ignore[arg-type]
+
+    assert [d.player_id for d in encontrados] == [2]
+
+
+@pytest.mark.django_db
+def test_an_unexpected_error_is_not_swallowed_as_a_nameless_debut() -> None:
+    """Los fallos previstos degradan el detalle; un bug de programación tiene que estallar.
+
+    Tragarse cualquier `Exception` convertía un error de código en un debut sin nombre: no falla
+    nada, solo empeora el dato en silencio, que es la peor manera de enterarse.
+    """
+
+    class _ProxyConBug(_ProxyFalso):
+        def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+            if path.startswith("/api/v1/people/"):
+                raise AttributeError("esto sería un bug nuestro, no un fallo de red")
+            return super().get(path, params)
+
+    _prospecto(2, "Debutante D")
+
+    with pytest.raises(AttributeError):
+        debuts.detect(_ProxyConBug({2}), 2026)  # type: ignore[arg-type]

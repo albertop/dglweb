@@ -76,6 +76,65 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   del dueño: dejarlo así por ahora. Su sugerencia extra —advertirlo en la UI, no solo en el backlog—
   sigue disponible y es barata.
 
+## Code review v6 — findings (2026-07-26)
+
+Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación completa. Acá va solo lo
+**aceptado**, con su prioridad. Lo diferido y lo ya conocido se justifica allá y no se duplica acá.
+
+### Corregidos en el momento
+
+- [x] **SAB-02 — la detección de debuts no miraba fildeo.** **Corregido**: `detect_debuts` barre los
+  tres oficios. Era una incoherencia con una decisión ya tomada — el dueño había pedido incluir
+  fildeo en la lista de "vieron acción" del índice por este mismo motivo, y el principio no se había
+  aplicado acá. **Impacto medido hoy: cero** — de los 1.323 jugadores con fildeo en 2026, ninguno
+  carece de bateo o pitcheo, porque la API emite línea de bateo para cualquiera que aparezca. Lo que
+  se compra es no depender de esa costumbre de la API.
+- [x] **DEV-01 — `except Exception` en `debuts._detail()`.** **Corregido**: captura los tipos
+  concretos y loguea con `exc_info`. Violaba `CODING_STANDARDS.md` y convertía un bug de contrato en
+  un debut sin nombre, que es la peor forma de enterarse: no falla nada, solo empeora el dato. De
+  paso destapó un test que pasaba solo porque se atrapaba cualquier cosa.
+
+### P2 — antes de que el sitio dependa de que el pipeline no falle
+
+- [ ] **QA-01 + ARCH-01 — el pipeline diario necesita un orquestador, no diez horarios.** Un solo
+  pendiente porque son el mismo hallazgo desde QA y desde arquitectura, y ya venía del v5 (QA-03).
+  Hoy `build_leaders` corre a las 7:30 aunque `update_fielding_post` haya fallado, y publica
+  liderazgos con mezcla de dato nuevo y viejo sin que `/health` se entere. **Forma**: un comando
+  `refresh_daily` con pasos, estado agregado y una decisión explícita de publicar parcial, en vez de
+  encadenar por reloj.
+  **Por qué P2 y no P1**: el rebuild es completo y no incremental, así que un día malo se cura solo a
+  la mañana siguiente. Es un problema de calidad de dato temporal, no de integridad permanente.
+- [ ] **QA-02 + ARCH-02 — el rebuild de Backoffice puede no dejar rastro.** El hilo daemon fue
+  decisión consciente (ver `rebuilds.py`) y el cron de la mañana es su red de seguridad. Pero hay una
+  ventana real que no estaba cubierta: **si el hilo muere antes de que el comando cree su
+  `IngestRun`, la carga queda aplicada sin ninguna evidencia de su rebuild**. Son milisegundos, pero
+  el resultado es indistinguible de "nunca se lanzó".
+  **Forma mínima aceptada**: crear la fila padre ANTES de lanzar el hilo y mostrar su estado en la
+  pantalla de carga. La cola con retry es rediseño y no entra antes del lanzamiento.
+
+### P3 — cuando haya qué lo justifique
+
+- [ ] **SEC-04 (parcial) — topar el largo de `q` en el buscador.** Una línea, evita que alguien mande
+  una consulta de un megabyte al endpoint público. El rate limiting completo NO se acepta por ahora:
+  el costo por consulta es un `LIKE` sobre 984 filas, así que como vector de abuso rinde muy poco, y
+  el throttle real necesita middleware y almacén compartido.
+- [ ] **FE-02 — tests de teclado del buscador (flechas, Enter, Escape, la fila "ver todos").** El
+  riesgo es real; el costo no son los tests sino **montar el corredor**, que trae Node a un gate que
+  hoy es solo Python. Se verificó a mano en navegador. Vale la pena cuando exista una segunda pieza
+  de JS: con una sola, el corredor cuesta más que lo que protege.
+- [ ] **ARCH-04 — falta un `/ready` que valide DB y migraciones.** `/health` está bien como está: no
+  toca la DB **a propósito**, para que un parpadeo de Postgres no mate un proceso web sano. Lo que
+  falta es el readiness, y hoy **nadie lo consumiría** — no hay orquestador ni pool de instancias.
+  **Va con Fase 8**, junto al compose de producción: un endpoint de readiness que nadie consulta es
+  solo código.
+
+### Diferidos con disparador explícito
+
+- [ ] **DEV-02 + ARCH-03 — upsert fila por fila y metadatos de política en el `Loader`.** El
+  diagnóstico es correcto, pero hoy hay **un** dataset en upsert con **70 filas**. **Disparador: el
+  segundo dataset en upsert, o el primero con miles de filas** — ahí se hace antes de su primera
+  carga, y con dos casos reales que comparar el diseño sale del uso y no de la especulación.
+
 ## Por decidir (traído del CONCEPT)
 
 - [ ] Proveedor de ad server hosted (GAM vs AdButler/Broadstreet/AdSpeed).
@@ -188,6 +247,9 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   historial completo, y el footer de advertencia no deshace esa lectura. **Bloqueado por la vista
   `v_dglweb_salaries`**, que el dueño está mejorando; cuando el dato esté, se descomenta una línea.
   Hay un test que fija el apagado para que volver sea una decisión y no un descuido.
+  **Del review v6 (SAB-03), que confirma la decisión**: al reactivarlo, rotular la tabla como
+  «salarios conocidos en DGL» y no como historial de carrera — y exigir antes una métrica de
+  cobertura por temporada, no solo la impresión de que mejoró.
 
 ### Aceptados, menor prioridad
 

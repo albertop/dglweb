@@ -15,16 +15,24 @@ vuelve a salir todos los días. Deja de salir cuando el dueño lo carga, porque 
 `universe.not_debuted()` ya no lo incluye. Cargarlo ES el acuse de recibo.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
-from dglweb.mlb.client import MlbProxyClient
+from dglweb.mlb.client import MlbProxyClient, MlbProxyError
 from dglweb.players import universe
 
-# Los dos oficios alcanzan: para tener estadísticas hay que batear o lanzar. Un jugador que solo
-# apareciera en fildeo tendría que haber entrado a un juego sin batear ni lanzar, lo que en la
-# práctica no ocurre — y si ocurriera, lo pescaría el barrido del día siguiente.
-_GRUPOS = ("hitting", "pitching")
+logger = logging.getLogger(__name__)
+
+# Los TRES oficios. Fildeo va por lo mismo que en la lista de activos del índice: debutar no siempre
+# deja línea de bateo ni de pitcheo — se puede entrar como sustituto defensivo o corredor emergente,
+# y ese primer día en Grandes Ligas es justamente el que no se puede perder.
+#
+# Medido el 2026-07-26: de los 1.323 jugadores con fildeo en la temporada, CERO carecen de bateo o
+# pitcheo, porque la API emite línea de bateo para cualquiera que aparezca en un juego. O sea que hoy
+# fildeo no suma ni un candidato. Va igual: el costo es una llamada bulk y lo que compra es no
+# depender de que esa costumbre de la API siga siendo cierta.
+_GRUPOS = ("hitting", "pitching", "fielding")
 _LIMITE = 8000  # la liga entera entra de sobra; el mismo tope que usa el descargador de stats
 
 
@@ -43,8 +51,8 @@ class Debut:
 def players_with_stats(client: MlbProxyClient, season: int) -> set[int]:
     """Todos los `player_id` con estadísticas de la temporada, de toda la liga.
 
-    Dos llamadas bulk, una por oficio. Es el mismo tipo de consulta que ya hace el refresco diario
-    —trae la liga y se filtra en memoria— así que el costo no depende de cuántos dominicanos haya.
+    Una llamada bulk por oficio. Es el mismo tipo de consulta que ya hace el refresco diario —trae la
+    liga y se filtra en memoria— así que el costo no depende de cuántos dominicanos haya.
     """
     con_stats: set[int] = set()
     for grupo in _GRUPOS:
@@ -66,10 +74,16 @@ def _detail(client: MlbProxyClient, player_id: int) -> Debut:
     Si la llamada falla, el debut igual se reporta: lo que importa es que el dueño se entere de que
     hay alguien que cargar, y el nombre lo puede buscar. Perder el aviso por un timeout sería mucho
     peor que reportarlo sin adornos.
+
+    Pero se degradan SOLO los fallos previstos —la red y una respuesta con otra forma—. Un `except
+    Exception` a secas también se tragaba los errores de programación y los convertía en un debut sin
+    nombre, que es la peor manera de enterarse de un bug: no falla nada, solo empeora el dato. Ver
+    `docs/CODING_STANDARDS.md`.
     """
     try:
         persona: dict[str, Any] = (client.get(f"/api/v1/people/{player_id}", {}).get("people") or [{}])[0]
-    except Exception:  # cualquier fallo de red degrada el detalle, nunca el aviso
+    except (MlbProxyError, IndexError, KeyError, TypeError, ValueError):
+        logger.warning("no se pudo consultar la ficha del debutante %s", player_id, exc_info=True)
         return Debut(player_id=player_id, full_name="(no se pudo consultar)", debut_date=None)
     return Debut(
         player_id=player_id,
