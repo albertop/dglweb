@@ -31,7 +31,7 @@ def seen_seasons(monkeypatch: pytest.MonkeyPatch) -> list[int]:
 
 @pytest.mark.django_db
 def test_refreshes_the_current_season(player: Player, seen_seasons: list[int]) -> None:
-    call_command("update_batting")
+    call_command("update_batting", "--force")
 
     current_year = timezone.now().year
     assert seen_seasons == [current_year]
@@ -40,7 +40,7 @@ def test_refreshes_the_current_season(player: Player, seen_seasons: list[int]) -
 
 @pytest.mark.django_db
 def test_records_the_run(player: Player, seen_seasons: list[int]) -> None:
-    call_command("update_batting")
+    call_command("update_batting", "--force")
 
     run = IngestRun.objects.get()
     assert run.command == "update_batting"
@@ -54,4 +54,4 @@ def test_refuses_with_an_empty_master_table(seen_seasons: list[int]) -> None:
     from django.core.management.base import CommandError
 
     with pytest.raises(CommandError, match="dgl_master"):
-        call_command("update_batting")
+        call_command("update_batting", "--force")

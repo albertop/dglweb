@@ -51,6 +51,12 @@ services:
     # The scraper schedule lives here as labels; the `scheduler` service reads them and runs the
     # command inside this container (job-exec), so it inherits the DB and proxy env. Only the
     # current season is refreshed daily; the historical backfill stays a manual import_batting.
+    #
+    # OJO: el horario NO es la única puerta. Todos estos jobs salvo `prune_ingest_log` consultan
+    # `seasons_dates` al despertar y no hacen nada fuera de temporada — ver `stats/season_window.py`.
+    # O sea que la ventana de trabajo la manda el DATO y se corrige en el Backoffice (Calendario de
+    # temporadas), sin tocar este archivo ni desplegar. `prune_ingest_log` queda fuera de la puerta a
+    # propósito: podar el log es mantenimiento, no pelota, y tiene que correr los doce meses.
     labels:
       ofelia.enabled: "true"
       ofelia.job-exec.batting-daily.schedule: "0 0 6 * * *"  # 6am, TZ below
@@ -69,7 +75,7 @@ services:
       ofelia.job-exec.build-career-totals-daily.command: "python manage.py build_career_totals"
       ofelia.job-exec.build-leaders-daily.schedule: "0 30 7 * * *"  # 7:30am; after every stat refresh
       ofelia.job-exec.build-leaders-daily.command: "python manage.py build_leaders"
-      ofelia.job-exec.prune-log-daily.schedule: "0 45 7 * * *"  # 7:45am; trims the ingest log, runs last
+      ofelia.job-exec.prune-log-daily.schedule: "0 45 7 * * *"  # 7:45am; trims the ingest log, runs last (sin puerta de temporada)
       ofelia.job-exec.prune-log-daily.command: "python manage.py prune_ingest_log"
       ofelia.job-exec.parity-career-weekly.schedule: "0 0 8 * * 0"  # Sundays 8am; verifies career vs proxy
       ofelia.job-exec.parity-career-weekly.command: "python manage.py parity_career"

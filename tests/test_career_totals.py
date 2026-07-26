@@ -146,7 +146,7 @@ def test_career_total_sums_cumulative_sabermetrics() -> None:
 
 @pytest.mark.django_db
 def test_build_career_totals_command_is_recorded_in_the_ingest_log(batter: Player) -> None:
-    call_command("build_career_totals")
+    call_command("build_career_totals", "--force")
 
     run = IngestRun.objects.get(command="build_career_totals")
     assert run.status == IngestRun.Status.SUCCESS

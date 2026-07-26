@@ -84,7 +84,7 @@ def test_command_turns_the_run_partial_on_a_mismatch(monkeypatch: pytest.MonkeyP
         lambda: FakeClient({"hitting": {"HR": 50}}),
     )
 
-    call_command("parity_career")
+    call_command("parity_career", "--force")
 
     run = IngestRun.objects.get(command="parity_career")
     assert run.status == IngestRun.Status.PARTIAL  # a yellow row: unresolved disparity

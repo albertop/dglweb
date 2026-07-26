@@ -203,6 +203,9 @@ class IngestRun(models.Model):
         SUCCESS = "success", "Éxito"
         PARTIAL = "partial", "Parcial"
         FAILED = "failed", "Falló"
+        # No corrió, y a propósito: fuera de temporada. Es un estado y no una ausencia porque la
+        # ausencia no se puede distinguir de un scheduler caído — ver `stats.season_window`.
+        SKIPPED = "skipped", "Fuera de temporada"
 
     command = models.CharField(max_length=50, verbose_name="Comando")
     scope = models.CharField(max_length=100, blank=True, verbose_name="Alcance")

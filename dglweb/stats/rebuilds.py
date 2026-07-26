@@ -21,16 +21,26 @@ DERIVED = ("build_career_totals", "build_leaders")
 def run(names: Sequence[str]) -> None:
     """Corre los comandos en orden. Cada uno se registra solo en `IngestRun` (vía `record_run`).
 
-    Pensado para correr en un hilo, así que cierra sus conexiones al salir: el hilo abre las suyas y
-    nadie las va a cerrar por él. Sin esto, cada carga o cada baja deja una conexión colgada.
+    Pensado para correr en un hilo, así que cierra sus conexiones al salir — pero solo las suyas: ver
+    el `finally`.
     """
     from django.core.management import call_command
 
     try:
         for nombre in names:
-            call_command(nombre)  # lo que imprima va al log del servidor, que es donde sirve
+            # `force=True` a propósito. Estos comandos tienen puerta de temporada porque como job
+            # DIARIO no tienen nada que hacer en invierno, pero acá no los despierta el reloj: los
+            # dispara una persona que acaba de cargar datos o de dar de baja a un jugador. Y el dato
+            # histórico se carga justamente fuera de temporada, así que sin esto la carga entraría y
+            # los liderazgos seguirían viejos hasta marzo — el bug que ARCH-01 vino a matar.
+            call_command(nombre, force=True)  # lo que imprima va al log del servidor
     finally:
-        connections.close_all()
+        # Solo si corremos en un hilo propio. El hilo abre sus conexiones y nadie las va a cerrar por
+        # él, así que sin esto cada carga deja una colgada en Postgres. Pero en el hilo principal las
+        # conexiones son de OTRO —del request, o del test— y cerrarlas le rompe la transacción a
+        # quien nos llamó: cerrar lo que uno no abrió nunca es correcto.
+        if threading.current_thread() is not threading.main_thread():
+            connections.close_all()
 
 
 def run_in_background(names: Sequence[str]) -> str:

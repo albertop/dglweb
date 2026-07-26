@@ -369,7 +369,7 @@ def test_build_leaders_command_is_recorded_in_the_ingest_log(players: dict[str, 
     Batting.objects.create(player=players["a"], season=2019, stint=1, hr=40)
     _metric(stat_group="batting", column="hr", best_season=True)
 
-    call_command("build_leaders")
+    call_command("build_leaders", "--force")
 
     run = IngestRun.objects.get(command="build_leaders")
     assert run.status == IngestRun.Status.SUCCESS

@@ -97,7 +97,7 @@ def test_update_fielding_refreshes_the_current_season(player: Player, monkeypatc
         lambda client, season, player_ids: [_row(season=season)],
     )
 
-    call_command("update_fielding")
+    call_command("update_fielding", "--force")
 
     assert IngestRun.objects.get().command == "update_fielding"
     assert Fielding.objects.count() == 1

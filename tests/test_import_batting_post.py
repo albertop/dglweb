@@ -97,7 +97,7 @@ def test_update_batting_post_refreshes_the_current_season(player: Player, monkey
         lambda client, season, player_ids: [_row(season=season)],
     )
 
-    call_command("update_batting_post")
+    call_command("update_batting_post", "--force")
 
     assert IngestRun.objects.get().command == "update_batting_post"
     assert BattingPost.objects.count() == 1

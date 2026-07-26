@@ -78,3 +78,22 @@ def record_run(command: str, scope: str) -> Iterator[RunHandle]:
         run.rows_affected = handle.rows
         run.finished_at = timezone.now()
         run.save()
+
+
+def record_skip(command: str, scope: str, reason: str) -> IngestRun:
+    """Deja constancia de un job que decidió no correr. Ver `stats.season_window`.
+
+    Una fila cerrada de entrada: no hubo trabajo, así que no hay nada que esperar. El motivo va en
+    `detail` porque es lo único que hace útil el registro — "no corrió" sin el porqué obliga a entrar
+    al servidor a leer logs de contenedor, que es justamente lo que este log existe para evitar.
+    """
+    ahora = timezone.now()
+    return IngestRun.objects.create(
+        command=command,
+        scope=scope,
+        status=IngestRun.Status.SKIPPED,
+        started_at=ahora,
+        finished_at=ahora,
+        rows_affected=0,
+        detail=reason,
+    )

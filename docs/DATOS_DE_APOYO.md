@@ -310,6 +310,11 @@ el Juego de Estrellas, y una temporada en curso todavía no tiene fecha de poste
 
 **No declara `rebuilds`:** no alimenta ningún cálculo todavía.
 
+**Pero sí gobierna al scheduler.** Desde que existe esta tabla, los jobs diarios no dependen solo del
+reloj: al despertar consultan la temporada marcada como en curso y no hacen nada fuera de ventana
+(`dglweb/stats/season_window.py`). O sea que **corregir una fecha acá cambia cuándo trabaja el
+sitio**, sin tocar el compose ni desplegar.
+
 ### 5. Transacciones — diferido a después del lanzamiento
 
 Existe en DGL y sin diseño todavía. **Decisión del dueño (2026-07-26): no es prioritario para el

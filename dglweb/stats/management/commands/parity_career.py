@@ -6,9 +6,10 @@ PARTIAL (a yellow row in the Backoffice); they clear themselves once a re-backfi
 
 from typing import Any
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 
 from dglweb.mlb.client import build_client
+from dglweb.stats import season_window
 from dglweb.stats.career_parity import check_career_parity
 from dglweb.stats.runlog import record_run
 
@@ -16,7 +17,17 @@ from dglweb.stats.runlog import record_run
 class Command(BaseCommand):
     help = "Verifica los totales de carrera in-house contra el career del proxy (solo marca/loguea)."
 
+    def add_arguments(self, parser: CommandParser) -> None:
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Corre aunque estemos fuera de temporada. Para reprocesar en invierno tras un arreglo.",
+        )
+
     def handle(self, *args: Any, **options: Any) -> None:
+        if season_window.skip("parity_career", note=self.stdout.write, force=options["force"]):
+            return
+
         client = build_client()
         try:
             with record_run("parity_career", "all") as run:

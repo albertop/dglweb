@@ -94,7 +94,7 @@ def test_update_pitching_refreshes_the_current_season(player: Player, monkeypatc
 
     monkeypatch.setattr("dglweb.stats.management.commands.update_pitching.fetch_season", fake_fetch)
 
-    call_command("update_pitching")
+    call_command("update_pitching", "--force")
 
     run = IngestRun.objects.get()
     assert run.command == "update_pitching"
