@@ -43,8 +43,9 @@ from typing import Any
 # fixes it, so the Statcast counts and the coefficients start in 1989 — earlier seasons neither
 # appear on the player page nor feed a leaderboard.
 #
-# Known exception left in place by decision: 2000 and 2001 sit at ~67% (their *_hits are missing).
-# They are after the floor, so their ratios are understated; see docs/MEJORAS_FUTURAS.md.
+# 2000 y 2001 estaban en ~67% porque a la fuente le faltaban los *_hits. Resuelto en la Fase 4e
+# cargando los de Retrosheet: hoy están en 97%. Ver UNDERTYPED_STATCAST_SEASONS más abajo para las
+# siete que siguen incompletas y por qué esas no tienen arreglo.
 FIRST_STATCAST_SEASON = 1989
 
 # Temporadas que PASAN el piso pero llegan incompletas: a la fuente le faltan hits por tipo, aunque
@@ -52,21 +53,21 @@ FIRST_STATCAST_SEASON = 1989
 #
 # La prueba que las detecta es exacta, no un percentil: los cuatro tipos de hit son una partición de
 # H, así que FH+GH+LH+PH tiene que dar H. En 1999 da 4.957 = 4.957 clavado. Medido sobre todo el rango
-# 1989+, diez temporadas quedan por debajo del 99%:
+# 1989+, siete temporadas quedan por debajo del 99%:
 #
-#     2000   1.8%   faltan 4.980      1990  89.9%   faltan 304
-#     2001   2.2%   faltan 5.063      1996  90.6%   faltan 316
-#     2002  86.5%   faltan   762      1997  94.2%   faltan 224
-#     1989  95.2%   faltan   137      1993  96.5%   faltan 100
-#     1994  95.2%   faltan   120      1995  95.1%   faltan 142
+#     1990  89.9%      1996  90.6%      1997  94.3%      1989  94.8%
+#     1995  95.0%      1994  95.2%      1993  96.4%
+#
+# 2000, 2001 y 2002 estaban acá y ya NO: se corrigieron cargando los hits de Retrosheet, que sí los
+# tiene (Fase 4e). Pasaron de 1,8%, 2,2% y 86,5% a 97-98%. Las siete que quedan son las que Retrosheet
+# tampoco cubre mejor — ahí ~90% es el techo real del dato y no hay nada que traer.
 #
 # El efecto se ve en que los cuatro coeficientes dejan de sumar 100%: los de Sammy Sosa suman 99.8%
 # en 1999 y 55.9% en 2000, y LD% —que son casi todos hits— se desploma de .204 a .036.
 #
 # Un piso por año no puede expresar esto: los outs están bien y solo los hits faltan, así que estas
-# temporadas pasan y la UI lo advierte. El arreglo de fondo es traer los hits por tipo de Retrosheet,
-# que SÍ los tiene (97% de cobertura en 2000-2001, medido); ver SAB-03 en docs/TODO.md.
-UNDERTYPED_STATCAST_SEASONS = frozenset({1989, 1990, 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002})
+# temporadas pasan y la UI lo advierte. Ver SAB-03 en docs/TODO.md.
+UNDERTYPED_STATCAST_SEASONS = frozenset({1989, 1990, 1993, 1994, 1995, 1996, 1997})
 
 
 def _sum(*values: int | None) -> int | None:
