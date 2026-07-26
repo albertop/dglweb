@@ -55,7 +55,13 @@
   {% block ticker %}{% endblock %}
 </header>
 
-{% block content %}{% endblock %}
+{% comment %}
+  El envoltorio existe para que el pie se quede abajo: crece hasta llenar la pantalla cuando la
+  página es corta —un perfil con pocas temporadas, por ejemplo— y así el pie no queda flotando a
+  media pantalla con un vacío debajo. Va acá y no sobre `<main>` porque no todas las plantillas
+  usan `<main>`, y esta regla tiene que valer para todas.
+{% endcomment %}
+<div class="dgl-cuerpo">{% block content %}{% endblock %}</div>
 
 <footer class="dgl-footer pt-4 pb-3 mt-5">
   <div class="container">

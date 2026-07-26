@@ -30,6 +30,12 @@
 }
 
 body {
+  /* En columna y de alto de pantalla como mínimo, para que `.dgl-cuerpo` pueda empujar el pie hacia
+     abajo en las páginas cortas. `dvh` y no `vh` por el móvil: `vh` cuenta la barra del navegador
+     como si nunca se recogiera, y deja el pie un poco más abajo del borde real. */
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   background: var(--dgl-bg);
   color: var(--dgl-ink);
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
@@ -42,7 +48,9 @@ a { color: var(--dgl-blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* ---------- Top bar / nav ---------- */
-.dgl-topbar { background: var(--dgl-navy); }
+/* `flex-shrink: 0` porque ahora el cuerpo es un contenedor flex: sin esto, una página muy larga
+   podría comprimir la barra en vez de dejarla a su alto natural. */
+.dgl-topbar { background: var(--dgl-navy); flex-shrink: 0; }
 .dgl-brand { font-weight: 800; letter-spacing: -0.02em; color: #fff; line-height: 1; }
 /* El brand no reacciona al puntero. Dos reglas ajenas lo pintaban: Bootstrap le pone su
    `--bs-navbar-brand-hover-color` —oscuro, porque asume una barra clara— y la regla global de este
@@ -423,7 +431,10 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-seg .dgl-pill.active { background: var(--dgl-red); border-color: var(--dgl-red); }
 
 /* ---------- Footer ---------- */
-.dgl-footer { background: var(--dgl-navy); color: #b9c6db; }
+/* Crece para llenar lo que sobre de pantalla. `0 auto` en la base para que una tabla ancha no
+   encoja el contenido en vez de sacar su propia barra de desplazamiento. */
+.dgl-cuerpo { flex: 1 0 auto; }
+.dgl-footer { background: var(--dgl-navy); color: #b9c6db; flex-shrink: 0; }
 .dgl-footer a { color: #cdd8ea; }
 .dgl-footer h6 { color: #fff; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; }
 
