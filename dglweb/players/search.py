@@ -25,6 +25,11 @@ from dglweb.players.models import Player
 
 # Dos caracteres: con uno solo, «a» devuelve medio maestro y la lista deja de ser una sugerencia.
 MIN_CARACTERES = 2
+# El techo sale del propio modelo y no de un número inventado: `full_name` mide 50, así que una
+# consulta más larga NO PUEDE estar contenida en ningún nombre. Devolverla vacía sin ir a la base no
+# es una heurística de rendimiento — es el resultado correcto, calculado antes de gastar una consulta.
+# De paso cierra SEC-04 en su parte barata: el endpoint es público y así nadie le manda un megabyte.
+MAX_CARACTERES = Player._meta.get_field("full_name").max_length or 50
 # Veinte y no diez. Con diez, buscar «carlos» —que tiene 22 coincidencias— dejaba fuera al segundo
 # Carlos Martínez, que cae en el puesto 16: el usuario concluía que no estaba en la base. La lista
 # tiene scroll, así que veinte no la alargan de más, y lo que de verdad arregla el problema es que
@@ -91,11 +96,12 @@ def buscar(consulta: str, limite: int | None = LIMITE_SUGERENCIAS) -> Resultados
 
     Dentro de cada escalón manda la **fecha de debut**: primero el más veterano.
 
-    Con menos de `MIN_CARACTERES` devuelve vacío en vez de medio maestro. `limite=None` trae todo:
+    Con menos de `MIN_CARACTERES` devuelve vacío en vez de medio maestro, y con más de
+    `MAX_CARACTERES` también: no cabe en ningún nombre. `limite=None` trae todo:
     lo usa la página de resultados, que es donde el desplegable manda a ver lo que no le cupo.
     """
     aguja = normalize(consulta)
-    if len(aguja) < MIN_CARACTERES:
+    if not MIN_CARACTERES <= len(aguja) <= MAX_CARACTERES:
         return Resultados(items=[], total=0)
 
     encontrados = _rankeado(aguja)

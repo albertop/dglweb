@@ -31,10 +31,14 @@ select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "SIM", "RUF"]
 # pytest / pytest-django
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "config.settings.dev"
+DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
 testpaths = ["tests"]
-addopts = "-v --strict-markers --tb=short --cov=dglweb --cov-report=term-missing"
+# `--ds` además del ini: el contenedor exporta DJANGO_SETTINGS_MODULE=config.settings.dev, y la
+# variable de entorno le gana al ini. La línea de comandos le gana a las dos, así que esto es lo que
+# garantiza que la suite corra contra su base descartable y nunca contra la real — ver
+# `config/settings/test.py`.
+addopts = "-v --strict-markers --tb=short --ds=config.settings.test --cov=dglweb --cov-report=term-missing"
 
 # ---------------------------------------------------------------------------
 # mypy — strict, with the Django plugin (see library-guidelines.md).

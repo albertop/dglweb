@@ -50,6 +50,25 @@ a:hover { text-decoration: underline; }
    nombre del sitio casi ilegible justo cuando el usuario lo está apuntando. `:focus` va en el mismo
    saco para que llegar por teclado se vea igual que llegar por ratón. */
 .dgl-brand:hover, .dgl-brand:focus { color: #fff; text-decoration: none; }
+
+/* A 375px el nombre completo mide 325px y, con la hamburguesa al lado, la barra ya no da: Bootstrap
+   la manda a una segunda fila y el header pasa de ~54px a 84px, con el botón colgando debajo del
+   nombre en vez de a su derecha. Se lee como un encabezado roto.
+   Achicar el brand lo evita sin partir el nombre ni abreviarlo — «Dominicanos en Grandes Ligas» es
+   la marca y cortarla sería peor que reducirla. El corte va en 400px porque es donde deja de caber,
+   no en un breakpoint redondo. */
+@media (max-width: 400px) {
+  .dgl-brand { font-size: 1.05rem; }
+}
+/* Y un escalón más para el móvil más chico que sigue en uso (iPhone SE de primera generación, y
+   cualquier Android de 320px). Ahí ni siquiera 1.05rem alcanza: el nombre pide 273px y solo quedan
+   226 libres una vez descontados la hamburguesa y los márgenes. */
+@media (max-width: 340px) {
+  /* El `!important` no es pereza: `me-3` de Bootstrap ya trae uno, y sin él la regla no gana por
+     mucha especificidad que se le ponga. Se recorta el margen en vez de achicar más la letra —
+     medido, faltaban 2px y bajar de 0.85rem hace ilegible el nombre del sitio. */
+  .dgl-brand { font-size: 0.85rem; letter-spacing: 0; margin-right: 0.25rem !important; }
+}
 /* Y de paso la variable en su origen, que es de donde salía el negro. Con esto el brand no depende
    de que nuestra hoja siga cargando después de la de Bootstrap: si algún día cambia el orden, o se
    vendoriza el CSS, el hover sigue sin pintar nada. */

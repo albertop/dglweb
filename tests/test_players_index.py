@@ -328,3 +328,25 @@ def test_the_server_rendered_results_are_wired_to_the_box_that_can_stale_them(pl
 
     assert 'data-resultados="resultados-busqueda"' in cuerpo
     assert 'id="resultados-busqueda"' in cuerpo
+
+
+@pytest.mark.django_db
+def test_a_query_longer_than_any_name_is_answered_without_touching_the_database(
+    plantel: dict[str, Player], django_assert_num_queries: object
+) -> None:
+    """No es una defensa contra abuso: es el resultado correcto, y sale gratis.
+
+    `full_name` mide 50 caracteres, así que una consulta más larga no puede estar contenida en ningún
+    nombre. Contestar vacío sin consultar es exacto, y de paso el endpoint público deja de aceptar un
+    megabyte de texto (SEC-04 del review v6).
+    """
+    largo = "a" * (search.MAX_CARACTERES + 1)
+
+    with django_assert_num_queries(0):  # type: ignore[operator]
+        assert search.buscar(largo).items == []
+
+
+@pytest.mark.django_db
+def test_a_query_exactly_as_long_as_a_name_still_searches(plantel: dict[str, Player]) -> None:
+    """El corte va en el largo del campo, no uno antes: un nombre de 50 tiene que ser buscable."""
+    assert search.buscar("a" * search.MAX_CARACTERES).total == 0  # consulta, y no encuentra nada

@@ -18,7 +18,7 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 ## Diseño / branding
 
 - [x] ~~Definir el subtítulo del brand~~ → **descartado**: se quita, es redundante con el nombre.
-- [ ] Afinar el tamaño del brand en móvil (el nombre completo se recorta un poco a 375px).
+- [x] ~~Afinar el tamaño del brand en móvil~~ **Hecho**, aunque el diagnóstico estaba mal: el nombre NO se recortaba. Lo que pasaba es que a 375px la hamburguesa caía a una segunda fila y el header pasaba de 54px a 84px. Dos escalones (`≤400px` y `≤340px`) lo devuelven a una fila hasta 320px, sin partir ni abreviar el nombre. Verificado a 320, 375 y 1280.
 
 ## Contenido
 
@@ -149,7 +149,8 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
 
 ### P3 — cuando haya qué lo justifique
 
-- [ ] **SEC-04 (parcial) — topar el largo de `q` en el buscador.** Una línea, evita que alguien mande
+- [x] **SEC-04 (parcial) — topar el largo de `q` en el buscador.** **Hecho**, y el tope sale del propio modelo: `full_name` mide 50, así que una consulta más larga no puede estar contenida en ningún nombre. Devolver vacío sin ir a la base es el resultado CORRECTO, no una heurística — la protección viene de regalo. Con test que exige cero consultas.
+  ~~ Una línea, evita que alguien mande
   una consulta de un megabyte al endpoint público. El rate limiting completo NO se acepta por ahora:
   el costo por consulta es un `LIKE` sobre 984 filas, así que como vector de abuso rinde muy poco, y
   el throttle real necesita middleware y almacén compartido.
