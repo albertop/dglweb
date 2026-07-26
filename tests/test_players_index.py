@@ -155,11 +155,10 @@ def test_the_suggest_endpoint_answers_json(plantel: dict[str, Player]) -> None:
 
 @pytest.mark.django_db
 def test_the_nav_link_points_at_the_page(plantel: dict[str, Player]) -> None:
-    """Volvió al menú: estaba escondido desde FE-01 porque no había página a la que llevar."""
+    """El menú y el pie llevan a la página nueva."""
     cuerpo = Client().get("/").content.decode()
 
-    assert f'href="{reverse("players_index")}"' in cuerpo
-    assert 'href="#"' not in cuerpo
+    assert cuerpo.count(f'href="{reverse("players_index")}"') >= 2  # el nav y el pie
 
 
 @pytest.mark.django_db

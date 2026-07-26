@@ -12,55 +12,87 @@
   <div class="row g-4">
 
     <div class="col-lg-8">
-      {% comment %}
-      ══ Por qué esta columna quedó casi vacía ══════════════════════════════════════════════════
-      Lo que había acá no era un enlace roto: era CONTENIDO INVENTADO presentado como real. Cinco
-      titulares de artículos que no existen, con fecha y minutos de lectura; una firma («Por A.
-      Perdomo · 16 jul 2026 · 8 min») de un artículo que nadie escribió; y en la barra lateral, dos
-      cosas peores todavía —líneas de juego atribuidas a peloteros reales en una fecha concreta
-      («Juan Soto 3-4, 2 HR, 4 CI», «Ayer · 15 jul») y una tabla de líderes de jonrones de 2026 con
-      números inventados.
+      <article class="card dgl-hero mb-4 shadow-sm">
+        <div class="dgl-thumb">Gráfico · wOBA por temporada</div>
+        <div class="card-body">
+          <div class="dgl-kicker">Sabermetría</div>
+          <a href="#" class="h3 d-block dgl-article-title mb-2">
+            El salto de Juan Soto: qué dice su wOBA sobre el mejor bateador dominicano de la década
+          </a>
+          <p class="text-secondary mb-2">Un análisis de plate discipline, xwOBA y contacto de calidad
+            que explica por qué Soto está en camino a números históricos entre los dominicanos.</p>
+          <div class="dgl-meta">Por <b>A. Perdomo</b> · 16 jul 2026 · 8 min
+            &nbsp; <span class="dgl-tag">#JuanSoto</span> <span class="dgl-tag">#wOBA</span></div>
+        </div>
+      </article>
 
-      Eso en un sitio de estadísticas no es andamiaje: son cifras falsas sobre personas reales, en la
-      primera página que ve cualquiera. Y es especialmente grave acá, donde tenemos el dato de verdad
-      —`dgl_leader` está poblado— así que el visitante no tiene ninguna razón para dudar de un número
-      que ve en la portada.
+      <h2 class="dgl-section-title">Últimos artículos</h2>
+      <div class="row g-3">
+        <div class="col-md-6"><div class="card h-100 shadow-sm">
+          <div class="dgl-thumb" style="height:120px">Gráfico · K% vs BB%</div>
+          <div class="card-body"><div class="dgl-kicker">Cosas raras</div>
+            <a href="#" class="h6 d-block dgl-article-title">Los 5 dominicanos con el K-BB% más raro de 2026</a>
+            <div class="dgl-meta mt-2">14 jul · 6 min</div></div></div></div>
+        <div class="col-md-6"><div class="card h-100 shadow-sm">
+          <div class="dgl-thumb" style="height:120px">Tabla · Defensa (OAA)</div>
+          <div class="card-body"><div class="dgl-kicker">Defensa</div>
+            <a href="#" class="h6 d-block dgl-article-title">Outs Above Average: los guantes dominicanos que nadie mira</a>
+            <div class="dgl-meta mt-2">12 jul · 7 min</div></div></div></div>
 
-      Por eso no se le quitó el `href` y se dejó el resto: se saca completo. Y NO se reemplazó por
-      titulares o números distintos: inventar otros sería el mismo problema con otra letra. Queda lo
-      único que hoy es cierto y funciona, que es el enlace a Líderes.
+        <div class="col-12"><div class="dgl-ad dgl-ad-leader my-1">Espacio publicitario · in-feed</div></div>
 
-      El maquetado original se conserva en `docs/` a través del historial de git (este archivo, commit
-      anterior a FE-01) para cuando llegue el contenido de Fase 5.
-      ═══════════════════════════════════════════════════════════════════════════════════════════
-      {% endcomment %}
-      <h1 class="dgl-page-title">Dominicanos en Grandes Ligas</h1>
-      <div class="dgl-lede mb-4">
-        <p>
-          Estadísticas y sabermetría de los peloteros dominicanos en Grandes Ligas, desde 1956 hasta
-          hoy. Los rankings se calculan <b>solo entre dominicanos</b>: acá el puesto 1 es el mejor de
-          entre los nuestros, no el de las mayores.
-        </p>
-        <p class="mb-0">
-          Los artículos llegan pronto. Mientras tanto ya está publicado el buscador de jugadores, con
-          el perfil completo de cada uno, y los liderazgos entre dominicanos.
-        </p>
+        <div class="col-md-6"><div class="card h-100 shadow-sm">
+          <div class="dgl-thumb" style="height:120px">Gráfico · Sprint speed</div>
+          <div class="card-body"><div class="dgl-kicker">Statcast</div>
+            <a href="#" class="h6 d-block dgl-article-title">Velocidad en las bases: el top dominicano por sprint speed</a>
+            <div class="dgl-meta mt-2">10 jul · 5 min</div></div></div></div>
+        <div class="col-md-6"><div class="card h-100 shadow-sm">
+          <div class="dgl-thumb" style="height:120px">Gráfico · FIP vs ERA</div>
+          <div class="card-body"><div class="dgl-kicker">Pitcheo</div>
+            <a href="#" class="h6 d-block dgl-article-title">FIP vs ERA: qué lanzadores dominicanos han tenido suerte (o no)</a>
+            <div class="dgl-meta mt-2">8 jul · 9 min</div></div></div></div>
       </div>
-      <div class="mb-4">
-        <a href="{% url 'players_index' %}" class="btn btn-outline-primary btn-sm px-4 me-2">Buscar jugadores →</a>
-        <a href="{% url 'leaders' %}" class="btn btn-outline-primary btn-sm px-4">Ver los líderes →</a>
+
+      <div class="text-center my-4">
+        <a href="#" class="btn btn-outline-primary btn-sm px-4">Ver más artículos</a>
       </div>
     </div>
 
     <aside class="col-lg-4">
-      {% comment %}
-      Acá vivían los «Destacados de la jornada» y el panel de «Líderes dominicanos · 2026», los dos
-      con datos inventados sobre peloteros reales. Ver la nota de la columna principal.
+      <section class="dgl-panel mb-4">
+        <div class="d-flex align-items-center justify-content-between px-3 pt-3">
+          <h2 class="dgl-section-title mb-0" style="font-size:.95rem">Destacados de la jornada</h2>
+          <span class="dgl-final">Ayer · 15 jul</span>
+        </div>
+        <div class="px-3 pb-2 pt-2">
+          <div class="dgl-group-label mb-2">🏏 Bateadores</div>
+          <div class="dgl-standout py-2"><div class="name">Juan Soto <span class="team">NYY</span></div>
+            <div class="line">3-4, 2 HR, 4 CI, 2 CA</div></div>
+          <div class="dgl-standout py-2"><div class="name">José Ramírez <span class="team">CLE</span></div>
+            <div class="line">4-5, 2B, 3 CA, SB</div></div>
+          <div class="dgl-standout py-2"><div class="name">Rafael Devers <span class="team">BOS</span></div>
+            <div class="line">2-4, HR, 3 CI</div></div>
+          <div class="dgl-group-label mb-2 mt-3">⚾ Lanzadores</div>
+          <div class="dgl-standout py-2"><div class="name">Cristopher Sánchez <span class="team">PHI</span></div>
+            <div class="line">7.0 IP, 9 K, 0 CL &nbsp;(G)</div></div>
+          <div class="dgl-standout py-2"><div class="name">Framber Valdez <span class="team">HOU</span></div>
+            <div class="line">6.2 IP, 8 K, 1 CL</div></div>
+        </div>
+        <a href="#" class="d-block text-center small py-2 border-top">Ver resumen completo de la jornada →</a>
+      </section>
 
-      El de líderes es el que conviene rehacer primero cuando toque, porque el dato ya existe: sale de
-      `dgl_leader` igual que la página de Líderes, y no necesita nada nuevo más que la consulta.
-      {% endcomment %}
       <div class="dgl-ad dgl-ad-rect mb-4">Espacio publicitario · 300×250</div>
+
+      <section class="dgl-panel mb-4 p-3">
+        <h2 class="dgl-section-title" style="font-size:.95rem">Líderes dominicanos · 2026</h2>
+        <div class="mb-3">
+          <div class="dgl-meta mb-1 text-uppercase" style="letter-spacing:.1em">Jonrones (HR)</div>
+          <div class="dgl-leader d-flex justify-content-between py-1"><span><span class="rank">1</span>J. Soto</span><span class="val">34</span></div>
+          <div class="dgl-leader d-flex justify-content-between py-1"><span><span class="rank">2</span>V. Guerrero Jr.</span><span class="val">31</span></div>
+          <div class="dgl-leader d-flex justify-content-between py-1"><span><span class="rank">3</span>R. Devers</span><span class="val">29</span></div>
+        </div>
+        <a href="#" class="d-block text-center small pt-2">Ver todos los líderes →</a>
+      </section>
     </aside>
   </div>
 

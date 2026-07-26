@@ -23,33 +23,19 @@
         <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
       </button>
       <div class="collapse navbar-collapse" id="nav">
-        {% comment %}
-        El buscador vuelve en Fase 7, con su backend. Estaba con `onsubmit="return false"`: una caja
-        que invita a escribir y no hace nada es peor que no tenerla — el visitante escribe «Soto»,
-        aprieta Enter, no pasa nada, y concluye que el sitio está roto. Cuando exista el endpoint se
-        descomenta esto (el label y el `role="search"` ya están puestos, ver FE-02).
-
-        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px"
+        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" onsubmit="return false"
               role="search" aria-label="Buscar jugador">
           <label class="visually-hidden" for="buscar">Buscar jugador</label>
           <input class="form-control form-control-sm" id="buscar" type="search"
                  placeholder="🔎 Buscar jugador… (ej. Soto)">
         </form>
-        {% endcomment %}
         <ul class="navbar-nav ms-auto align-items-lg-center">
           <li class="nav-item"><a class="nav-link dgl-navlink {% block nav_home %}{% endblock %}" href="{% url 'home' %}"
             {% block nav_home_current %}{% endblock %}>Inicio</a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'leaders' %}">Líderes</a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'players_index' %}">Jugadores</a></li>
-          {% comment %}
-          Artículos (Fase 5) y Entrar (Fase 7) apuntaban a `#`. Un ítem de menú que no lleva a ninguna
-          parte no es "próximamente": el visitante hace clic, se queda en la misma página y no sabe si
-          falló el sitio o su clic. Se sacan hasta que las páginas existan; volver es descomentar la
-          línea y cambiar el `#` por su `{% templatetag openblock %} url %}`. Jugadores ya volvió.
-
           <li class="nav-item"><a class="nav-link dgl-navlink" href="#">Artículos</a></li>
           <li class="nav-item ms-lg-2"><a class="btn btn-sm btn-outline-light" href="#">Entrar</a></li>
-          {% endcomment %}
         </ul>
       </div>
     </div>
@@ -73,21 +59,13 @@
       </div>
       <div class="col-6 col-md-3"><h6 id="pie-secciones">Secciones</h6>
         <ul class="list-unstyled small" aria-labelledby="pie-secciones">
-          <li><a href="{% url 'leaders' %}">Líderes</a></li></ul>
-          <li><a href="{% url 'players_index' %}">Jugadores</a></li>
-        {% comment %}<li><a href="#">Artículos</a></li>{% endcomment %}
+          <li><a href="#">Artículos</a></li>
+          <li><a href="{% url 'leaders' %}">Líderes</a></li>
+          <li><a href="{% url 'players_index' %}">Jugadores</a></li></ul>
       </div>
-      {% comment %}
-      La columna Legal se va entera, y es la más importante de esta tanda. Los tres documentos no
-      existen todavía (están en TODO.md, sección Contenido), y un enlace a "Política de privacidad"
-      que no lleva a ninguna parte no es un enlace roto: dice que el sitio TIENE una política y no la
-      muestra, que es peor que admitir que falta. Vuelve cuando los textos existan — y tienen que
-      existir antes del lanzamiento.
-
       <div class="col-6 col-md-4"><h6 id="pie-legal">Legal</h6>
         <ul class="list-unstyled small" aria-labelledby="pie-legal"><li><a href="#">Política de privacidad</a></li>
           <li><a href="#">Términos de servicio</a></li><li><a href="#">Cookies</a></li></ul></div>
-      {% endcomment %}
     </div>
     <hr style="border-color:#25406b">
     <div class="small text-center" style="color:#8ea6c8">© 2026 dominicanosengrandesligas.com</div>
