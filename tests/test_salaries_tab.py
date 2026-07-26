@@ -1,8 +1,12 @@
-"""El tab Salarios del perfil.
+"""El tab Salarios del perfil — construido, probado y HOY APAGADO.
 
-Es el primer tab que se alimenta de un dataset de apoyo y no del proxy, así que lo primero que hay
-que fijar es que no aparezca cuando no hay dato: la cobertura de `dom_salaries` es floja —343
-jugadores en 60 temporadas— y un tab vacío en la mayoría de los perfiles sería peor que no tenerlo.
+No está publicado porque la fuente no da la talla: `dom_salaries` trae 1.385 filas para 343
+jugadores en sesenta temporadas, y al dominicano mejor pagado de la historia le falta el registro.
+Con esa cobertura el tab no informa, desinforma. Ver el comentario en `tabs.REGISTRY`.
+
+Por eso estos tests hacen dos cosas a la vez. Fijan que **no aparece** —para que reactivarlo sea una
+decisión y no un descuido— y siguen ejercitando la lógica del tab llamando a la clase directo, para
+que el código no se podra mientras espera que mejore la cobertura del lado de DGL.
 """
 
 from typing import Any
@@ -11,7 +15,7 @@ import pytest
 from django.test import Client
 
 from dglweb.players.models import Player
-from dglweb.profiles.tabs import tabs_for
+from dglweb.profiles.tabs import SalariesTab, tabs_for
 from dglweb.stats.models import DomSalary
 from tests.test_players import _other_player
 
@@ -28,28 +32,49 @@ def _salario(jugador: Player, season: int, team: str, salary: int | None, league
 
 
 def _tab(jugador: Player) -> Any:
-    return next((tab for tab in tabs_for(jugador) if tab.key == "salarios"), None)
+    """La clase, no el registro: hoy el tab está fuera de `REGISTRY` a propósito."""
+    return SalariesTab()
 
 
 @pytest.mark.django_db
-def test_the_tab_is_absent_when_the_player_has_no_salary_on_record(jugador: Player) -> None:
-    """La mayoría de los perfiles no tienen salario: el tab no puede aparecer vacío."""
-    assert _tab(jugador) is None
+def test_the_tab_is_not_published_even_for_a_player_who_has_salaries(jugador: Player) -> None:
+    """El apagado, fijado por un test.
 
-
-@pytest.mark.django_db
-def test_the_tab_appears_once_there_is_something_to_show(jugador: Player) -> None:
+    Es lo que impide que vuelva sin que nadie lo decida: si alguien descomenta la línea de `REGISTRY`
+    sin haber revisado la cobertura, este test se cae y le cuenta por qué estaba apagado.
+    """
     _salario(jugador, 2024, "NYY", 31_000_000)
 
-    assert _tab(jugador) is not None
+    assert [tab.key for tab in tabs_for(jugador) if tab.key == "salarios"] == []
 
 
 @pytest.mark.django_db
-def test_it_comes_after_puestos(jugador: Player) -> None:
-    """El orden que pidió el dueño. `base_order` lo decide, no el orden del registro."""
-    from dglweb.profiles.tabs import PuestosTab, SalariesTab
+def test_the_profile_page_shows_no_salary_tab(jugador: Player) -> None:
+    """Y no se cuela por otro lado: ni la pestaña ni el panel llegan al HTML."""
+    _salario(jugador, 2024, "NYY", 31_000_000)
+
+    cuerpo = Client().get(f"/jugador/{jugador.slug}/").content.decode()
+
+    assert "tab-salarios" not in cuerpo
+    assert "$31,000,000" not in cuerpo
+
+
+@pytest.mark.django_db
+def test_it_would_come_after_puestos_when_it_returns(jugador: Player) -> None:
+    """El orden que pidió el dueño, listo para cuando se reactive."""
+    from dglweb.profiles.tabs import PuestosTab
 
     assert SalariesTab().base_order > PuestosTab().base_order
+
+
+@pytest.mark.django_db
+def test_it_would_only_apply_to_a_player_with_salaries(jugador: Player) -> None:
+    """La regla que gobierna al tab cuando vuelva: sin dato no aparece, aunque esté registrado."""
+    assert SalariesTab().applies_to(jugador) is False
+
+    _salario(jugador, 2024, "NYY", 31_000_000)
+
+    assert SalariesTab().applies_to(jugador) is True
 
 
 @pytest.mark.django_db
@@ -101,14 +126,18 @@ def test_a_row_without_an_amount_shows_a_dash_and_does_not_break_the_total(jugad
 
 
 @pytest.mark.django_db
-def test_the_page_renders_the_tab_with_its_caveat_footer(jugador: Player) -> None:
-    """El footer no es decorativo: la fuente está incompleta y la página tiene que decirlo."""
+def test_the_template_still_renders_with_its_caveat_footer(jugador: Player) -> None:
+    """El template se sigue probando aunque el tab no se publique: si no, se podre esperando.
+
+    Y el footer se prueba porque es condición para reactivarlo — cuando el dato mejore seguirá siendo
+    una recopilación propia, no una cifra oficial.
+    """
+    from django.template.loader import render_to_string
+
     _salario(jugador, 2024, "NYY", 31_000_000)
+    tab = SalariesTab()
 
-    respuesta = Client().get(f"/jugador/{jugador.slug}/")
-    cuerpo = respuesta.content.decode()
+    html = render_to_string(tab.template, {"tab": {"data": tab.context(jugador)}})
 
-    assert respuesta.status_code == 200
-    assert "Salarios" in cuerpo
-    assert "$31,000,000" in cuerpo
-    assert "incompleta" in cuerpo  # la advertencia de precisión
+    assert "$31,000,000" in html
+    assert "incompleta" in html  # la advertencia de precisión

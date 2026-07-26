@@ -1015,7 +1015,27 @@ REGISTRY: list[PlayerTab] = [
     PitchingTab(),
     FieldingTab(),
     PuestosTab(),
-    SalariesTab(),
+    # ─── Salarios: DESHABILITADO A PROPÓSITO ────────────────────────────────────────────────────
+    # SalariesTab(),
+    #
+    # El tab está terminado y probado, pero no se publica porque la fuente todavía no da la talla.
+    # Lo que se midió al cargar `dom_salaries` (1.385 filas, 343 jugadores, 1961-2025):
+    #
+    #   * Al dominicano mejor pagado de la historia le falta el registro. El máximo de SESENTA
+    #     temporadas es Luis Castillo con 24,15 millones en 2024 — y ese mismo año Juan Soto cobró
+    #     alrededor de 31 millones y Manny Machado más de 32.
+    #   * 2025 trae 12 filas y 2024 trae 72, cuando en una temporada normal hay bastante más de cien
+    #     dominicanos en rosters de Grandes Ligas.
+    #
+    # Con esa cobertura, el tab no informa: desinforma. Un perfil que muestra tres temporadas de las
+    # doce que el pelotero cobró se lee como su historial salarial completo, y el footer de
+    # advertencia no alcanza para deshacer esa lectura — el lector ve una tabla y le cree.
+    #
+    # NO se borra el código: el dueño está trabajando en mejorar la cobertura del lado de DGL, y
+    # cuando la vista `v_dglweb_salaries` traiga el dato completo esto se reactiva descomentando esta
+    # línea. Los tests siguen ejercitando la clase, así que no se va a podrir mientras espera; hay uno
+    # que además fija que HOY no aparece, para que reactivarlo sea una decisión y no un descuido.
+    # ────────────────────────────────────────────────────────────────────────────────────────────
 ]  # append new tabs here
 
 
