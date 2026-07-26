@@ -67,7 +67,8 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   las desalineaciones solo se detectaron con un script ad-hoc. **Conviene resolverlo ANTES de Fildeo**,
   que sería la tercera copia del patrón. Propuesta: mover las columnas a una lista declarativa en
   Python `(label, attr, formato, clase)` y renderizar con un partial común.
-- [ ] **SAB-02 — boards descriptivos etiquetados como "mejor/peor".** GB%, FB%, LD% y GB/FB se
+- [x] **SAB-02 — boards descriptivos etiquetados como "mejor/peor".** **Corregido** al construir Líderes: las métricas de `DESCRIPTIVE_COLUMNS` rotulan sus dos tablas «Los más altos» / «Los más bajos» en vez de primeros/últimos, y el tooltip del signo en Puestos dice «ordena de más alto a más bajo (perfil, no mejor/peor)».
+  ~~ GB%, FB%, LD% y GB/FB se
   rankean, pero llamarlos "mejor" implica un valor competitivo que no tienen. La corrección natural
   es de etiquetas ("Más alto / Más bajo") y vive en la UI de líderes, que **todavía no existe**
   (Fase 5). Cuando se construya, usar la misma marca de métrica descriptiva que ya usa SAB-03.
@@ -106,7 +107,8 @@ montado, o sea donde menos conviene una actualización sorpresa (parte de SEC-01
 
 ### Pendiente de este incidente
 
-- [ ] **Recrear el servicio `web` para que tome el `container_name`.** El compose ahora fija
+- [x] **Recrear el servicio `web` para que tome el `container_name`.** **Hecho**: el huérfano era un `cd458e3c94dd_dglweb-web-live` en estado *Created* que nunca arrancó (el `dglweb-web-1` ya se había ido solo). Se borró y se levantó `web` desde compose. Ahora lo gestiona compose, sin etiqueta de Ofelia y con el volumen `dglweb_uploads` montado. **Y destapó otra cosa**: el contenedor viejo apuntaba a la base real por una variable puesta a mano, así que al recrear el sitio se fue a la base local. `DATABASE_URL` ahora sale de `.env`.
+  ~~ El compose ahora fija
   `container_name: dglweb-web-live`, que es el nombre al que apunta el scheduler. Hoy el contenedor
   que sirve YA se llama así, pero quedó además un `dglweb-web-1` **parado desde hace dos días** que
   bloquea la recreación por conflicto de nombre. Hay que borrar ese contenedor muerto y levantar de
@@ -327,7 +329,8 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [ ] **QA-03 — el scheduler encadena por horario, no por workflow.** Ya está en `MEJORAS_FUTURAS.md`
   como "A DISCUTIR". El review coincide.
 - [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** Mismo caso: ya identificado.
-- [ ] **SEC-02 / SEC-03 — CDN sin SRI/CSP; Ofelia con socket e imagen `latest`.** Ya en backlog para
+- [ ] **SEC-02 / SEC-03 — CDN sin SRI/CSP; Ofelia con socket.** **Parcial**: la imagen de Ofelia ya no es `latest`, queda pinneada por digest (2026-07-26). Sigue pendiente el socket de Docker y todo lo del CDN.
+  ~~ original: Ya en backlog para
   Fase 8 (endurecimiento). El review no agrega información nueva pero confirma la prioridad.
 
 ### Sin acción
