@@ -823,6 +823,14 @@ class Metric(models.Model):
         default=0, verbose_name="Orden", help_text="Orden de despliegue en la UI (menor primero)."
     )
     is_active = models.BooleanField(default=False, verbose_name="Activa")
+    # Enciende y apaga la métrica en el widget de la portada sin tocar código ni esperar el refresco:
+    # el trabajo horario guarda TODAS las categorías que MLB publica —pedir veintitrés cuesta lo
+    # mismo que pedir cinco, una llamada por oficio— y este flag decide cuáles se muestran.
+    visible_en_widget_lideres = models.BooleanField(
+        default=False,
+        verbose_name="En el widget de líderes",
+        help_text="Solo surte efecto en las métricas que MLB publica como ranking (ver stats.mlb_leaders).",
+    )
 
     class Meta:
         db_table = "dgl_metric"
@@ -1687,6 +1695,51 @@ class DailyStandout(models.Model):
 
     def __str__(self) -> str:
         return f"{self.fecha} {self.player} ({self.linea})"
+
+
+class MlbLeader(models.Model):
+    """Un dominicano dentro de los diez primeros de las mayores, en una categoría de la temporada.
+
+    NO ES LO MISMO QUE `Leader`
+    ---------------------------
+    `Leader` responde «quién es el mejor de entre los nuestros» y se calcula sobre nuestras propias
+    tablas. Esta responde «cuáles de los nuestros están entre los mejores de las mayores», y sale del
+    ranking que publica MLB. Ninguna de las dos se puede derivar de la otra: el motor propio no sabe
+    contra quién más compiten, y el ranking de MLB solo enseña su top ~100 (ver `stats.mlb_leaders`).
+
+    SOLO LA TEMPORADA EN CURSO
+    --------------------------
+    Es una foto, no un archivo: se borra entera y se reescribe en cada refresco. Quien salió del top
+    diez tiene que desaparecer, y guardar el histórico haría creer que el puesto de una fila vieja
+    sigue siendo cierto. Para lo de por vida está `Leader`.
+
+    LA MÉTRICA NO SE NOMBRA ACÁ
+    ---------------------------
+    `metric` apunta al catálogo, que ya define la sigla y el nombre en español de cada estadística.
+    Guardar acá una etiqueta propia terminaría diciendo «CI» donde el resto del sitio dice «RBI».
+    """
+
+    metric = models.ForeignKey(Metric, on_delete=models.CASCADE, related_name="mlb_leaders", verbose_name="Métrica")
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="mlb_leaderships", verbose_name="Jugador")
+    season = models.PositiveSmallIntegerField(verbose_name="Temporada")
+    rank = models.PositiveSmallIntegerField(verbose_name="Puesto")
+    # Texto y no número: el API manda «.328», «143.2» y «29», y cada estadística se escribe con sus
+    # propios decimales. Pasarlo a float obligaría a reconstruir ese formato al mostrarlo.
+    valor = models.CharField(max_length=12, verbose_name="Valor")
+    team = models.CharField(max_length=4, blank=True, verbose_name="Equipo")
+
+    class Meta:
+        db_table = "dgl_mlb_leader"
+        ordering = ["metric", "rank"]
+        verbose_name = "dominicano en el top de MLB"
+        verbose_name_plural = "dominicanos en el top de MLB"
+        # Un jugador aparece una sola vez por métrica. Empatar en el décimo puesto es normal —dos
+        # filas con `rank` 10— pero son jugadores distintos.
+        constraints = [models.UniqueConstraint(fields=["metric", "player"], name="unique_mlb_leader")]
+        indexes = [models.Index(fields=["metric", "rank"], name="dgl_mlb_leader_widget_idx")]
+
+    def __str__(self) -> str:
+        return f"#{self.rank} {self.player} {self.metric.abbrev} {self.valor}"
 
 
 class GameVideo(models.Model):

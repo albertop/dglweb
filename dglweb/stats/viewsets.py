@@ -79,8 +79,11 @@ class MetricViewSet(SnippetViewSet):  # type: ignore[misc]
     icon = "list-ul"
     menu_label = "Métricas (líderes)"
     menu_name = "metrics"
-    list_display = ("stat_group", "sort_order", "column", "abbrev", "kind", "direction", "is_active")
-    list_filter = ("stat_group", "kind", "direction", "is_active", "postseason")
+    list_display = (
+        "stat_group", "sort_order", "column", "abbrev", "kind", "direction", "is_active",
+        "visible_en_widget_lideres",
+    )
+    list_filter = ("stat_group", "kind", "direction", "is_active", "postseason", "visible_en_widget_lideres")
     search_fields = ("column", "abbrev", "name_es")
     ordering = ("stat_group", "sort_order", "column")
     list_per_page = 50
@@ -92,7 +95,13 @@ class MetricViewSet(SnippetViewSet):  # type: ignore[misc]
             heading="Identidad",
         ),
         MultiFieldPanel(
-            [FieldPanel("abbrev"), FieldPanel("name_es"), FieldPanel("fmt"), FieldPanel("sort_order")],
+            [
+                FieldPanel("abbrev"),
+                FieldPanel("name_es"),
+                FieldPanel("fmt"),
+                FieldPanel("sort_order"),
+                FieldPanel("visible_en_widget_lideres"),
+            ],
             heading="Presentación",
         ),
         MultiFieldPanel(
