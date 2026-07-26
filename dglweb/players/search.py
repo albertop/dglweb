@@ -104,11 +104,14 @@ def _rankeado(aguja: str) -> QuerySet[Player]:
                 output_field=IntegerField(),
             )
         )
-        # Primero qué tan bien encaja, y recién después el apellido. El orden alfabético solo no
-        # serviría: buscando «so», «Alfonso Vargas» —que lo lleva escondido a mitad de palabra—
-        # le ganaría a un Soto de verdad, y la lista de diez dejaría de ser una sugerencia.
-        # Dentro de un mismo nivel manda el apellido, y el debut desempata a los homónimos.
-        .order_by("encaje", "lastname_1", models.F("debut_date").asc(nulls_last=True))
+        # Primero qué tan bien encaja, y dentro de cada nivel por fecha de debut. El encaje no puede
+        # ceder el primer puesto: buscando «so», «Alfonso Vargas» —que lo lleva escondido a mitad de
+        # palabra— le ganaría a un Soto de verdad, y la lista de diez dejaría de ser una sugerencia.
+        #
+        # Dentro del nivel manda el debut y no el apellido, por lo mismo que en la lista de activos:
+        # `lastname_1` es el paterno, y en 44 de los 984 el pelotero se conoce por el materno.
+        # `player_id` cierra el orden para que los que comparten fecha no bailen entre cargas.
+        .order_by("encaje", models.F("debut_date").asc(nulls_last=True), "player_id")
     )
 
 

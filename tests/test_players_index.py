@@ -164,10 +164,7 @@ def test_the_nav_link_points_at_the_page(plantel: dict[str, Player]) -> None:
 
 @pytest.mark.django_db
 def test_the_active_list_is_ordered_by_surname(db: None) -> None:
-    """Por apellido, como se lista a los peloteros — aunque se muestre el nombre completo.
-
-    Ordenar por `full_name` ponía a «Adrián Beltré» entre las aes, que no es donde lo busca el ojo.
-    """
+    """La lista de activos va por apellido; el orden por debut es solo del buscador."""
     from datetime import date
 
     def _activo(pid: int, nombre: str, apellido: str, debut: date | None) -> Player:
@@ -193,21 +190,10 @@ def test_the_active_list_is_ordered_by_surname(db: None) -> None:
     _activo(5, "Wily", "Peña", date(2002, 5, 1))
 
     cuerpo = Client().get(reverse("players_index")).content.decode()
-    orden = [
-        pid
-        for pid, _ in sorted(
-            {
-                1: cuerpo.find("carlos-pena-1"),
-                2: cuerpo.find("carlos-pena-2"),
-                3: cuerpo.find("adrian-beltre-3"),
-                4: cuerpo.find("ana-zapata-4"),
-                5: cuerpo.find("wily-pena-5"),
-            }.items(),
-            key=lambda kv: kv[1],
-        )
-    ]
+    posiciones = {pid: cuerpo.find(f"-{pid}/") for pid in (1, 2, 3, 4, 5)}
 
-    assert orden == [3, 1, 2, 5, 4]  # Beltré, Peña C.(1998), Peña C.(2015), Peña W., Zapata
+    # Beltré, Peña C.(1998), Peña C.(2015), Peña W., Zapata
+    assert sorted(posiciones, key=lambda pid: posiciones[pid]) == [3, 1, 2, 5, 4]
 
 
 @pytest.mark.django_db
@@ -263,28 +249,18 @@ def test_a_player_who_only_took_the_field_is_still_active(db: None) -> None:
 
 
 @pytest.mark.django_db
-def test_within_a_tier_the_results_go_by_surname_then_debut(db: None) -> None:
-    """El alfabético manda dentro de cada nivel de encaje, no por encima de él.
+def test_within_a_tier_the_results_go_by_debut(db: None) -> None:
+    """El encaje manda, y dentro de cada nivel decide el debut — no el apellido, por el mismo motivo.
 
-    Los tres son «apellido que empieza con pe», o sea el mismo nivel: ahí decide el apellido, y entre
-    los dos Peña decide quién llegó antes. El de Perdomo va después aunque su nombre de pila sea «A».
+    Los tres son «apellido que empieza con pe», o sea el mismo nivel: ahí gana el que llegó antes.
     """
     from datetime import date
 
-    def _p(pid: int, nombre: str, apellido: str, debut: date) -> None:
-        Player.objects.create(
-            **_other_player(
-                player_id=pid,
-                dgl_id=f"p{pid}",
-                full_name=f"{nombre} {apellido}",
-                firstname=nombre,
-                lastname_1=apellido,
-                debut_date=debut,
-            )
-        )
+    def _p(pid: int, nombre: str, debut: date) -> None:
+        Player.objects.create(**_other_player(player_id=pid, dgl_id=f"p{pid}", full_name=nombre, debut_date=debut))
 
-    _p(1, "Zoilo", "Peña", date(2010, 4, 1))
-    _p(2, "Bruno", "Peña", date(1995, 6, 2))  # mismo apellido, debutó antes
-    _p(3, "Aaron", "Perdomo", date(1990, 5, 5))
+    _p(1, "Zoilo Peña", date(2010, 4, 1))
+    _p(2, "Aaron Perdomo", date(1990, 5, 5))  # alfabéticamente primero, pero manda su debut
+    _p(3, "Bruno Peña", date(1995, 6, 2))
 
-    assert [s.name for s in search.buscar("pe")] == ["Bruno Peña", "Zoilo Peña", "Aaron Perdomo"]
+    assert [s.name for s in search.buscar("pe")] == ["Aaron Perdomo", "Bruno Peña", "Zoilo Peña"]
