@@ -130,6 +130,72 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   fuente y no del registro histórico. Ver **Fase 4e** y `docs/DATOS_DE_APOYO.md`. Al cargarlo se
   borra `derive.UNDERTYPED_STATCAST_SEASONS` y esto cierra.
 
+## Code review v5 — findings (2026-07-25)
+
+Ver `docs/reviews/code_review_v5.md`. 22 findings en seis personas. Evaluados uno a uno; mi
+acuerdo/decisión. **De acuerdo con casi todo**: el review acertó sobre todo en la Fase 4e, que es
+código de esta misma sesión y donde varios huecos son míos y verificables.
+
+### Aceptados y verificados — arreglar primero
+
+- [ ] **DEV-02 / FE-03 — `leaders_context()` revienta con la base vacía.** **Reproducido**:
+  `IndexError: list index out of range` en `division_labels[0]`. Pasa en staging limpio, base recién
+  migrada, o si alguien desactiva las métricas de un grupo desde el Backoffice. Es el más grave
+  porque tumba una página pública entera, no un caso de borde. Falta un contexto vacío renderizable.
+- [ ] **QA-01 / SAB-04 — las filas con `mlb_id` desconocido se descartan en silencio.** Real, y el
+  reviewer ve algo que a mí se me pasó: las descartadas **tampoco entran en los totales de cobertura**,
+  así que un maestro incompleto hace que el CSV parezca MÁS sano de lo que está. La validación se
+  autoengaña. Hay que separar "sin mlb_id" de "mlb_id que no existe en el maestro" y reportar el
+  segundo con conteo y muestra.
+- [ ] **SAB-01 — la cobertura se valida por temporada, no por (temporada, oficio).** Verificado:
+  `por_temporada.setdefault(row["season"], ...)` mezcla bateo y pitcheo. Si un oficio viene completo
+  y el otro roto, el promedio pasa el 80% y el roto entra igual. Error mío al escribir `checks()`.
+- [ ] **ARCH-01 — cargar datos de apoyo no reconstruye lo que depende de ellos.** Real y ya lo
+  vivimos: tras la carga hubo que correr `build_leaders` a mano, y hasta que se corrió las páginas
+  servían coeficientes viejos. `BattingCareer`/`PitchingCareer` tampoco se rehacen.
+- [ ] **SEC-01 — subida de CSV sin límite de tamaño.** Verificado: no hay `DATA_UPLOAD_MAX_*` en
+  settings, y el CSV entero se guarda en sesión. Aunque exige cuenta admin, un archivo grande tumba
+  el proceso. Límite por dataset + rechazo por extensión + staging con TTL en vez de sesión.
+- [ ] **QA-04 — el nombre de archivo equivocado avisa pero deja confirmar.** De acuerdo, y es
+  incoherente con lo que yo mismo escribí en `DATOS_DE_APOYO.md`: que el chequeo existe para atajar
+  cargar el CSV de salarios sobre la tabla de transacciones. Si solo avisa, no ataja nada.
+- [ ] **DEV-01 — 500 por `pk` inexistente o CSV no UTF-8.** Real: `objects.get()` sin `get_object_or_404`
+  y `decode("utf-8-sig")` sin capturar. Barato de arreglar.
+- [ ] **ARCH-04 — `StaticDataset` admite configuraciones que el motor no puede cumplir.** Real: tabla
+  sin loader, clave natural con columnas inexistentes, upsert sin constraint. Validar en `clean()`.
+
+### Aceptados, menor prioridad
+
+- [ ] **ARCH-02 — el borrador vive en sesión, no en staging auditable.** Buen señalamiento: sin id de
+  revisión ni hash, dos admins pueden confirmar en orden cruzado. Es rediseño, no parche.
+- [ ] **ARCH-03 — `leaderboards.py` importa helpers privados de `tabs.py`.** Cierto y lo sufrí al
+  agregar fildeo. Mover el layout de métricas y el formato de umbrales a un módulo público.
+- [ ] **QA-02 — las vistas de carga casi no tienen tests (31%).** De acuerdo: es la pieza que
+  reemplaza tablas y no está ejercitada end-to-end. Los tests que escribí cubren motor y loader.
+- [ ] **SAB-02 — no se reconcilia lo cargado contra `H`/`BIP` de la fila.** La validación defensiva es
+  correcta. **Matiz**: el modo de fallo que describe (coeficientes sumando >100%) no se materializó —
+  medido tras la carga real, Sosa 2000 suma .973. La guarda de "solo pisar si tipifica más" ya evita
+  el caso obvio. Vale igual como red de seguridad.
+- [ ] **DEV-03 / DEV-04 — `compare()` carga todo en memoria; el upsert hace una query por fila.**
+  Ciertos. Con 1.500 filas no se nota; el propio review dice que es tolerable. Documentar el límite
+  del motor y volver si aparece un dataset grande.
+- [ ] **FE-02 — falta ARIA básico en nav/tabs/pills.** Cierto y barato.
+
+### Aceptados pero ya conocidos (no son de esta sesión)
+
+- [ ] **FE-01 — enlaces públicos que no hacen nada.** Verificado: 7 `href="#"` en `base.html` y 8 en
+  `home.html`, más el buscador con `onsubmit="return false"`. Es el andamiaje de Fase 0 esperando
+  Fase 5 (editorial) y Fase 7 (auth/búsqueda). Vale ocultarlos antes de que alguien externo lo vea.
+- [ ] **QA-03 — el scheduler encadena por horario, no por workflow.** Ya está en `MEJORAS_FUTURAS.md`
+  como "A DISCUTIR". El review coincide.
+- [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** Mismo caso: ya identificado.
+- [ ] **SEC-02 / SEC-03 — CDN sin SRI/CSP; Ofelia con socket e imagen `latest`.** Ya en backlog para
+  Fase 8 (endurecimiento). El review no agrega información nueva pero confirma la prioridad.
+
+### Sin acción
+
+- **SEC-04** — revisión OWASP sin hallazgos. Nada que hacer.
+
 ## Umbral de coeficientes DE POR VIDA (BIP)
 
 - [x] **El qualifier de carrera de los coeficientes usaba `BALLS_IN_PLAY>=400` — arbitrario (era el de
