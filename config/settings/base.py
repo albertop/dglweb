@@ -121,6 +121,11 @@ MLB_PROXY_TIMEOUT = env.float("MLB_PROXY_TIMEOUT", default=20.0)
 # this so the table cannot grow without bound. `prune_ingest_log` runs daily in the scheduler.
 INGEST_LOG_RETENTION_DAYS = env.int("INGEST_LOG_RETENTION_DAYS", default=30)
 
+# Cuánto silencio del refresco diario es «algo anda mal», para `/health/pipeline`.
+# Treinta y no veinticuatro: un refresco que se atrasa unas horas no es una emergencia, y una
+# alerta que salta por eso enseña a ignorarla. Con 30 hay un día entero de margen.
+PIPELINE_STALE_HOURS = env.int("PIPELINE_STALE_HOURS", default=30)
+
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"
 WAGTAILSEARCH_BACKENDS = {

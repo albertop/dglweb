@@ -15,6 +15,24 @@ un TODO que describe trabajo ya hecho es peor que uno incompleto, porque se lee 
 y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé priorizar deuda técnica
 "antes de Fildeo" — que ya había pasado.
 
+## Antes de salir a producción
+
+- [ ] **Recomendar un monitor de uptime y dejarlo apuntando a `/health/pipeline`.** El endpoint ya
+  está; lo que falta es el servicio de afuera que lo consulte, que es la mitad que importa: el
+  scheduler estuvo días caído justamente porque lo único que podía avisar corría en el mismo
+  scheduler. El dueño no usa ninguno todavía, así que hay que recomendarle uno (hay opciones
+  gratuitas que alertan por correo y por Telegram) y configurarlo con la URL pública. **Recordarlo
+  cuando se prepare el despliegue**, no antes — sin dominio público no hay nada que vigilar.
+
+- [ ] **Avisos por Telegram.** Al dueño le sirve más que el correo y no cuesta nada: un bot, un
+  token y un chat id en `.env`, y `httpx` ya está entre las dependencias. Dos usos, y el segundo es
+  el que de verdad quiere:
+  - **El refresco que falla**: qué paso se cayó, no solo que algo se cayó. El monitor externo va a
+    decir «503»; Telegram puede decir «update_fielding falló».
+  - **Los debuts detectados**: hoy `detect_debuts` deja el aviso en el log de ingesta y hay que ir a
+    buscarlo. Un debut es noticia y es raro —un puñado al año— así que es exactamente el tipo de
+    cosa que vale la pena que llegue al bolsillo en vez de esperar a que alguien abra el Backoffice.
+
 ## Diseño / branding
 
 - [x] ~~Definir el subtítulo del brand~~ → **descartado**: se quita, es redundante con el nombre.
@@ -107,7 +125,14 @@ montado, o sea donde menos conviene una actualización sorpresa (parte de SEC-01
   que sirve YA se llama así, pero quedó además un `dglweb-web-1` **parado desde hace dos días** que
   bloquea la recreación por conflicto de nombre. Hay que borrar ese contenedor muerto y levantar de
   nuevo — es cosa de una vez, y sin eso un `docker compose up -d web` futuro fallaría.
-- [ ] **Vigilar que el scheduler se note cuando falla.** Este incidente duró días sin señal. Una
+- [x] **Vigilar que el scheduler se note cuando falla.** **Hecho a medias, y a propósito**: existe
+  `/health/pipeline`, que responde 200 o 503 según el último `refresh_daily`. Cubre los DOS modos de
+  fallo con una sola respuesta — corrió y algo falló (la fila no es `success`), y **no corrió**
+  (no hay fila reciente), que es el que ninguna alerta interna puede detectar porque una ausencia no
+  deja rastro que consultar. Fuera de temporada devuelve 200: un 503 diario durante el invierno
+  enseñaría a ignorar la alerta, y una alerta ignorada es peor que ninguna.
+  Falta la otra mitad, que es quién lo mira — ver abajo.
+  ~~ Este incidente duró días sin señal. Una
   alerta barata: si `IngestRun` no tiene ninguna corrida de `update_batting` en las últimas 48 horas
   dentro de temporada, algo está roto. Encaja natural en el orquestador de QA-01+ARCH-01.
 

@@ -11,11 +11,14 @@ from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
 
-from dglweb.core.views import health, home
+from dglweb.core.views import health, home, pipeline_health
 from dglweb.stats.staticdata import views as staticdata_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("health", health, name="health"),
+    # El semáforo del refresco diario, para un monitor externo. Va público a propósito: quien
+    # tiene que verlo es un servicio de afuera, y lo único que expone es si el pipeline corrió.
+    path("health/pipeline", pipeline_health, name="pipeline_health"),
     path("django-admin/", admin.site.urls),
     # Las pantallas de carga de datos de apoyo cuelgan del Backoffice y van ANTES del include de
     # Wagtail, que se queda con todo lo demás bajo /cms/.
