@@ -363,7 +363,7 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   **Pendiente de Fase 5**: la portada necesita contenido. El panel de líderes es el primero que conviene rehacer, porque el dato ya existe en `dgl_leader` y solo falta la consulta.
   ~~ Verificado: 7 `href="#"` en `base.html` y 8 en
   `home.html`, más el buscador con `onsubmit="return false"`.
-- [ ] **QA-03 — el scheduler encadena por horario, no por workflow.** → **Es el mismo ítem que QA-01 + ARCH-01 del v6**, que es donde se sigue. Anotado tres veces en tres reviews; se cuenta una.
+- [x] **QA-03 — el scheduler encadena por horario, no por workflow.** **Corregido** con `refresh_daily` — es el mismo ítem que QA-01 + ARCH-01 del v6, que es donde se sigue. Anotado tres veces en tres reviews; se cuenta una.
   ~~ Ya está en `MEJORAS_FUTURAS.md`
   como "A DISCUTIR". El review coincide.
 - [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** → **Es el mismo ítem que SAB-01 del v6**, que trae además la fórmula propuesta (`PA >= 3.1 * team_games`).
