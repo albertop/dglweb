@@ -6,6 +6,7 @@ adivinar: qué columna del CSV es qué campo, cómo se resuelve una referencia e
 ESTE dataset esté sano.
 """
 
+from datetime import date
 from typing import Any, ClassVar
 
 from dglweb.players.models import Player
@@ -283,19 +284,44 @@ class DomPlayersLoader(Loader):
             raise ValueError("player_id vacío")
 
         resuelta: dict[str, Any] = {"player_id": int(crudo)}
-        resuelta.update({campo: (row.get(campo) or "").strip() for campo in self._TEXTO})
-        # `height` es texto ("6-4"), no una medida: se recorta como el resto pero no se convierte.
-        resuelta["height"] = (row.get("height") or "").strip()[:8]
+        # Se recorta al largo del campo: un nombre de más no puede tumbar una carga de 9.000 filas.
+        largos = {campo.name: campo.max_length for campo in DomPlayer._meta.fields}
+        resuelta.update({campo: _texto(row.get(campo), largos[campo]) for campo in self._TEXTO})
+        resuelta["height"] = _texto(row.get("height"), largos["height"])
         resuelta["birth_date"] = _fecha(row.get("birth_date"))
         resuelta["weight"] = _entero(row.get("weight"))
         resuelta.update({campo: _booleano(row.get(campo)) for campo in self._BOOLEANOS})
         return resuelta
 
 
-def _fecha(crudo: str | None) -> str | None:
-    """La vista devuelve `datetime`, así que el CSV trae «1994-07-05 00:00:00». Solo interesa el día."""
+def _texto(crudo: str | None, largo: int | None) -> str:
+    return (crudo or "").strip()[:largo]
+
+
+def _fecha(crudo: str | None) -> date | None:
+    """Solo ISO (`1994-07-05`, con o sin hora). Cualquier otro formato es un error, no una conjetura.
+
+    `Export-Csv` de PowerShell escribe las fechas con el formato regional de la máquina, así que un
+    CSV puede llegar con «7/6/1987» — y eso es ambiguo: 7 de junio o 6 de julio según la
+    configuración de quien lo corrió. Adivinar el orden corrompería en silencio la fecha de todo el
+    que nació en día ≤ 12, que es el tipo de daño que no se descubre nunca. Por eso el SQL emite la
+    fecha ya en ISO y esto la exige.
+
+    Devuelve un `date` y no un texto a propósito: si la conversión se dejara para el `INSERT`, un
+    formato raro reventaría al ESCRIBIR, después de que la pantalla de comparación dijo que todo
+    estaba bien. Acá levanta `ValueError` y el motor lo convierte en un problema con su número de
+    línea, que es donde el usuario puede hacer algo al respecto.
+    """
     texto = (crudo or "").strip()
-    return texto.split(" ")[0] if texto else None
+    if not texto:
+        return None
+    try:
+        return date.fromisoformat(texto.split(" ")[0])
+    except ValueError:
+        raise ValueError(
+            f"fecha «{texto}» no está en formato ISO (YYYY-MM-DD). El PowerShell tiene que emitirla "
+            "con CONVERT(varchar(10), fecha, 23); volvé a correr el script."
+        ) from None
 
 
 def _entero(crudo: str | None) -> int | None:

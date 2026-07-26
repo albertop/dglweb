@@ -8,6 +8,7 @@ forma: `bit` de SQL Server llega como `True`/`False` de texto, la fecha llega co
 llegan como cadena vacía y no como NULL.
 """
 
+from datetime import date
 from typing import Any
 
 import pytest
@@ -57,7 +58,7 @@ def test_a_complete_row_crosses_the_border_with_its_types_translated() -> None:
 
     assert problemas == []
     assert filas[0]["player_id"] == 660271
-    assert filas[0]["birth_date"] == "1994-07-05"
+    assert filas[0]["birth_date"] == date(1994, 7, 5)  # un `date`, no el texto crudo
     assert (filas[0]["is_active"], filas[0]["is_verified"]) == (True, False)
     assert filas[0]["weight"] == 210
 
@@ -125,3 +126,40 @@ def test_the_comparison_does_not_add_up_the_weights() -> None:
     comparacion = engine.compare(engine.REGISTRY[TABLA], filas, ["player_id"], [], truncating=True)
 
     assert [columna["name"] for columna in comparacion.columns] == []
+
+
+@pytest.mark.django_db
+def test_a_regional_date_is_refused_instead_of_guessed() -> None:
+    """«7/6/1987» es 7 de junio o 6 de julio según quién corrió el script. No se adivina.
+
+    `Export-Csv` escribe las fechas con el formato regional de la máquina. Elegir un orden
+    corrompería en silencio la fecha de todo el que nació en día ≤ 12 — el tipo de daño que no se
+    descubre nunca. El SQL las emite en ISO y esto lo exige.
+    """
+    _, problemas = _validar(_fila(birth_date="7/6/1987"))
+
+    assert len(problemas) == 1
+    assert "ISO" in problemas[0].rows[0]
+
+
+@pytest.mark.django_db
+def test_a_bad_date_is_caught_when_validating_and_never_at_write_time() -> None:
+    """El bug de verdad: reventaba al CONFIRMAR, después de decir que todo estaba bien.
+
+    La pantalla de comparación existe para que confirmar no pueda explotar. Si la conversión se deja
+    para el `INSERT`, el error sale como 500 en la mitad de una carga de 9.000 filas en vez de como
+    un problema con su número de línea.
+    """
+    filas, problemas = _validar(_fila(), _fila(player_id="700002", birth_date="31/12/1990"))
+
+    assert problemas  # se ataja acá...
+    assert [fila["player_id"] for fila in filas] == [660271]  # ...y la fila mala no llega a escribirse
+
+
+@pytest.mark.django_db
+def test_an_overlong_name_is_trimmed_rather_than_sinking_the_load() -> None:
+    """Un nombre de más no puede tumbar una carga entera: la columna es de display."""
+    filas, problemas = _validar(_fila(full_name="A" * 400))
+
+    assert problemas == []
+    assert len(filas[0]["full_name"]) == 120

@@ -37,6 +37,14 @@
 # Ver docs/DATOS_DE_APOYO.md y docs/MOTOR_DATOS_APOYO.md.
 # =====================================================================================
 
+# --- Nada de formato regional --------------------------------------------------------
+# `Export-Csv` formatea segun la cultura de la maquina: en una es escribe «7/6/1987» y en otra
+# «6/7/1987», y las dos son la misma fecha con distinto significado. Ninguna columna de este export
+# debe depender de donde se corrio el script, asi que:
+#   1. La fecha se convierte a ISO EN SQL (estilo 23), abajo en la consulta. Esa es la defensa real.
+#   2. Y ademas se fija cultura invariante en el hilo, por si manana se suma una columna con formato.
+[System.Threading.Thread]::CurrentThread.CurrentCulture = [System.Globalization.CultureInfo]::InvariantCulture
+
 # --- Configuración -------------------------------------------------------------------
 $SqlServer  = "localhost"          # ⚠️ AJUSTAR: la instancia donde vive DGL
 $Database   = "DGL"
@@ -48,12 +56,17 @@ $OutputPath = "$PSScriptRoot\..\csv\dom_players.csv"   # ⚠️ AJUSTAR si va a 
 #
 # `player_id` es el ID de MLB y es la clave: el import exige que venga y que no se repita. El resto
 # es descriptivo y puede faltar — un prospecto recién cargado casi no tiene datos.
+#
+# ⚠️ La fecha se convierte a ISO EN SQL (estilo 23 = yyyy-mm-dd) y no se deja salir como `datetime`.
+# `Export-Csv` la escribiría con el formato regional de la máquina, y «7/6/1987» es ambiguo: 7 de
+# junio o 6 de julio según quién corrió el script. El import rechaza cualquier cosa que no sea ISO
+# justamente para que esa ambigüedad no entre nunca a la base.
 $Query = @"
 SELECT  [player_id]
        ,[last_name]
        ,[first_name]
        ,[full_name]
-       ,[birth_date]
+       ,CONVERT(varchar(10), [birth_date], 23) AS [birth_date]   -- ISO yyyy-mm-dd, siempre
        ,[birth_place]
        ,[bats]
        ,[throws]
