@@ -59,7 +59,10 @@ a:hover { text-decoration: underline; }
 .dgl-topbar .form-control { background: #0e2646; border-color: #23406e; color: #fff; }
 .dgl-topbar .form-control::placeholder { color: #8ea6c8; }
 .dgl-navlink { color: #cdd8ea !important; font-weight: 600; font-size: .9rem; }
-.dgl-navlink:hover, .dgl-navlink.active { color: #fff !important; }
+/* El nav aclara al pasar el ratón, y nada más. El subrayado se lo mete la regla global `a:hover` de
+   este archivo: sobre una barra de menú lo lee como si cada ítem fuera un enlace suelto de texto,
+   cuando lo que corresponde es que el resalte sea el color. */
+.dgl-navlink:hover, .dgl-navlink:focus, .dgl-navlink.active { color: #fff !important; text-decoration: none; }
 
 /* ---------- Cintillo / live ticker ---------- */
 .dgl-ticker {

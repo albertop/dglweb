@@ -27,11 +27,10 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
     <label class="form-label dgl-control-label" for="q">Buscar jugador</label>
     <div class="position-relative">
       <input class="form-control dgl-control" type="search" id="q" name="q" value="{{ consulta }}"
-             placeholder="Escribe un nombre o apellido…" aria-describedby="q-ayuda"
+             placeholder="Escribe un nombre o apellido…"
              data-buscador="{% url 'players_suggest' %}" data-minimo="{{ min_caracteres }}"
              data-resultados="resultados-busqueda">
     </div>
-    <div class="dgl-meta mt-1" id="q-ayuda">Desde {{ min_caracteres }} letras.</div>
     <noscript><button class="btn btn-sm btn-outline-primary mt-2" type="submit">Buscar</button></noscript>
   </form>
 
