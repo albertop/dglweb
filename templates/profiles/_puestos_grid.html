@@ -5,14 +5,20 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
 <section class="dgl-panel mb-4">
   <div class="table-responsive">
     <table class="table table-sm table-striped mb-0 dgl-stats-table">
-      <thead><tr>
-        <th class="ps-3">Métrica</th>
-        {% for season in grid.seasons %}<th class="dgl-mid">{{ season }}</th>{% endfor %}
-        <th class="dgl-mid pe-3" style="border-left:2px solid var(--dgl-navy)">De por vida</th>
-      </tr></thead>
+      {% comment %}
+      No hay un encabezado único arriba: la rejilla es larga y para cuando llegabas a Coeficientes ya
+      no se veía de qué año era cada columna. En vez de fijarlo, se repite en CADA división — que
+      además es donde el lector ya está mirando, porque la banda de división le acaba de decir dónde
+      está parado.
+      {% endcomment %}
       <tbody>
         {% for section in grid.sections %}
         <tr><td colspan="{{ grid.seasons|length|add:2 }}" class="ps-3 dgl-div-band">{{ section.label }}</td></tr>
+        <tr class="dgl-puestos-head">
+          <th class="ps-3">Métrica</th>
+          {% for season in grid.seasons %}<th class="dgl-mid">{{ season }}</th>{% endfor %}
+          <th class="dgl-mid pe-3" style="border-left:2px solid var(--dgl-navy)">De por vida</th>
+        </tr>
         {% for row in section.rows %}
         <tr>
           <td class="ps-3"><span class="dgl-meta">[{{ row.abbrev }}]</span> {{ row.name }} <span class="dgl-meta" title="{% if row.descriptive %}{% if row.direction == '+' %}ordena de más alto a más bajo (perfil, no mejor/peor){% else %}ordena de más bajo a más alto (perfil, no mejor/peor){% endif %}{% elif row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>

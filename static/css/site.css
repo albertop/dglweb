@@ -194,6 +194,13 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    el rayado las secciones se perdían; una fila completa en navy —el mismo tono del borde de "De por
    vida"— las separa de un vistazo. `box-shadow:none` vence el inset del rayado; `border-right:0` para
    que la banda sea continua y no la corten los separadores de columna. */
+/* El encabezado de Puestos se repite en cada división, así que va dentro del <tbody> y hay que
+   devolverle a mano lo que Bootstrap le da al <thead>: sin fondo propio se lo comía el rayado, y sin
+   el color apagado competía con los datos en vez de rotularlos. */
+.dgl-stats-table tr.dgl-puestos-head > th {
+  background: var(--dgl-card); color: var(--dgl-muted); font-weight: 700; box-shadow: none;
+  border-bottom: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+}
 .dgl-stats-table td.dgl-div-band {
   background: var(--dgl-navy); color: #fff; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; font-size: .74rem; box-shadow: none; border-right: 0; text-align: left;
