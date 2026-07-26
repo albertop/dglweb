@@ -1639,3 +1639,51 @@ def fechas_fuera_de_orden(fechas: dict[str, Any]) -> tuple[str, str] | None:
             return campo, f"{nombre.capitalize()} ({valor}) no puede ser antes que {previo_nombre} ({previo_valor})."
         previo_nombre, previo_valor = nombre, valor
     return None
+
+
+class DailyStandout(models.Model):
+    """La actuación de cada dominicano en una jornada — lo que alimenta el widget de la portada.
+
+    Se guarda en vez de calcularse al mostrar porque el cálculo son dos llamadas al proxy: hacerlas
+    en cada visita ataría la portada a que la API de MLB esté viva y rápida. El refresco de la mañana
+    las hace una vez y acá queda el resultado.
+
+    Se guardan TODOS los que jugaron, no solo los primeros, y **toda la temporada en curso**: unas 45
+    filas por jornada, así que un año entero son ~8.000 — nada. A cambio se puede mostrar más, ordenar
+    de otra forma o mirar una jornada de mayo sin volver a pedirle nada al proxy, que para un día
+    viejo puede ya no devolver lo mismo.
+
+    La poda va por TEMPORADA y no por antigüedad: cuando arranca una nueva, la anterior se borra
+    entera. Eso resuelve solo el receso del Juego de Estrellas —cuatro días sin juegos en los que el
+    widget sigue teniendo de dónde sacar la última jornada— que un tope de «los últimos N días»
+    dejaría en blanco si N fuera corto.
+
+    `valor` es lo que ordena y su escala depende del oficio: en bateo son carreras por pesos lineales
+    (donde 0 es una jornada del montón) y en pitcheo es Game Score, que ronda 40-60. **No se comparan
+    entre sí**, y por eso el widget muestra dos listas y no una. Ver `stats/daily.py`.
+    """
+
+    class Grupo(models.TextChoices):
+        BATEO = "bateo", "Bateo"
+        PITCHEO = "pitcheo", "Pitcheo"
+
+    fecha = models.DateField(db_index=True, verbose_name="Jornada")
+    grupo = models.CharField(max_length=8, choices=Grupo.choices, verbose_name="Oficio")
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="jornadas", verbose_name="Jugador")
+    team = models.CharField(max_length=4, blank=True, verbose_name="Equipo")
+    # La línea ya escrita («3-4, 2B, HR, 4 CI»). Se guarda armada y no en piezas: es texto de lectura,
+    # no un dato del que se vaya a calcular nada, y rearmarla en la plantilla obligaría a llevar allá
+    # las reglas de qué se nombra y qué se calla.
+    linea = models.CharField(max_length=120, verbose_name="Línea")
+    valor = models.FloatField(verbose_name="Valor")
+
+    class Meta:
+        db_table = "dgl_daily_standout"
+        verbose_name = "actuación de la jornada"
+        verbose_name_plural = "actuaciones de la jornada"
+        constraints = [models.UniqueConstraint(fields=["fecha", "grupo", "player"], name="unique_daily_standout")]
+        # El índice que sirve la portada: la jornada, su oficio, y el mejor primero.
+        indexes = [models.Index(fields=["fecha", "grupo", "-valor"], name="dgl_standout_widget_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.fecha} {self.player} ({self.linea})"

@@ -41,6 +41,9 @@ ENTRADAS = ("update_batting", "update_pitching", "update_fielding")
 ENTRADAS_POST = ("update_batting_post", "update_pitching_post", "update_fielding_post")
 # Lo que se CALCULA a partir de lo anterior. En orden: los líderes de por vida leen los totales.
 DERIVADOS = ("build_career_totals", "build_leaders")
+# Lo que alimenta los widgets de la portada. Lee del proxy, no de nuestras tablas, así que tampoco
+# depende de que las entradas hayan salido bien: la jornada de ayer es la jornada de ayer.
+PORTADA = ("build_daily_standouts",)
 # Lee la temporada desde la API, no nuestras tablas, así que no depende de las entradas.
 AVISOS = ("detect_debuts",)
 # Mantenimiento del propio log. Corre siempre, incluso fuera de temporada — ver el comando.
@@ -164,7 +167,7 @@ def run_daily(*, force: bool = False, publicar_parcial: bool = False, note: obje
         for comando in DERIVADOS:
             resultado.pasos.append(_correr(comando, inicio, note))
 
-    for comando in AVISOS:
+    for comando in (*PORTADA, *AVISOS):
         resultado.pasos.append(_correr(comando, inicio, note))
     return resultado
 

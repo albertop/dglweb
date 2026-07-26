@@ -74,7 +74,8 @@ def test_with_every_input_healthy_the_derived_tables_are_rebuilt(
     resultado = pipeline.run_daily()
 
     assert resultado.derivados_publicados is True
-    assert falso_call_command["corridos"][-3:] == [*pipeline.DERIVADOS, *pipeline.AVISOS]
+    cola = [*pipeline.DERIVADOS, *pipeline.PORTADA, *pipeline.AVISOS]
+    assert falso_call_command["corridos"][-len(cola) :] == cola
 
 
 @pytest.mark.django_db
@@ -193,9 +194,8 @@ def test_the_day_gets_one_row_that_says_how_it_went(temporada: SeasonDates, fals
 
     fila = IngestRun.objects.get(command="refresh_daily")
     assert fila.status == IngestRun.Status.SUCCESS
-    assert fila.rows_affected == 10 * (
-        len(pipeline.ENTRADAS) + len(pipeline.ENTRADAS_POST) + len(pipeline.DERIVADOS) + len(pipeline.AVISOS)
-    )
+    etapas = (pipeline.ENTRADAS, pipeline.ENTRADAS_POST, pipeline.DERIVADOS, pipeline.PORTADA, pipeline.AVISOS)
+    assert fila.rows_affected == 10 * sum(len(etapa) for etapa in etapas)
     assert "update_batting" in fila.detail and "build_leaders" in fila.detail
 
 
