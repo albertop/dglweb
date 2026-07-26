@@ -226,6 +226,12 @@
     tienen 22 filas, sin WAR ni wOBA ni conteo de lanzamientos. Lo que MLB les reconoce es una
     astilla de su carrera real → sus páginas necesitan una nota de contexto.
   - **Decisión pendiente del dueño:** el valor del umbral (o hacerlo configurable en backoffice).
+- **4e — Datos de apoyo desde DGL (📋 diseñado, sin construir).** El sitio se alimenta del proxy de
+  MLB y así se queda; pero salarios, transacciones y los tipos de batazo en los hits solo existen en
+  DGL. Son casi estáticos —una o dos cargas al año— así que van por una vía manual: `static_data/`
+  con un PowerShell por dataset → CSV → página de carga en el Backoffice → import que trunca y
+  reemplaza. Se construye una vez y cada dataset se monta encima.
+  Ver `docs/DATOS_DE_APOYO.md`.
 
 ## Fase 5 — Editorial: Wagtail (artículos + workflow + roles)
 

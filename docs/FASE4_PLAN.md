@@ -110,6 +110,21 @@ SEO; desambiguar nombres repetidos. Nota de cobertura para Ligas Negras.
 Selector interactivo (categoría → tipo → métrica) del mock `leaders.html`, sobre las tablas de 4b.
 Muestra el umbral aplicado y la nota "disponible desde YYYY".
 
+### 4e — Datos de apoyo desde DGL (CSV → Postgres) — 📋 DISEÑADO, sin construir
+Vía manual para lo que el proxy de MLB **no** da y sí existe en DGL: salarios, transacciones y los
+tipos de batazo en los hits. Son datos casi estáticos, de una o dos actualizaciones al año, así que
+no justifican un pipeline en vivo ni atar el proyecto a SQL Server.
+
+El mecanismo: `static_data/` con un PowerShell por dataset (ruta de salida en constante, el SQL a la
+vista, y el porqué documentado) → CSV → página de carga en el Backoffice → import que **trunca y
+reemplaza**, con una prueba de aceptación propia por dataset.
+
+Se construye **una vez** y cada dataset se monta encima. El primero es el de tipos de batazo, que
+cierra SAB-03: hay diez temporadas donde a la API de MLB le faltan hits por tipo (2000 y 2001 en
+~2%), y Retrosheet los tiene con 97% de cobertura — el hueco es de nuestra fuente, no del registro.
+
+**Diseño completo, cobertura medida y decisiones abiertas: `docs/DATOS_DE_APOYO.md`.**
+
 ## Pendientes de code review que se cierran aquí
 - **FIX-8** (umbral de apariciones): lo resuelve `dgl_metric` (qualifier configurable + override por
   temporada).
