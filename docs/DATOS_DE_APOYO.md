@@ -246,10 +246,34 @@ tres tipos que cambian de forma al cruzar la frontera: el `bit` de SQL Server ll
 
 **No declara `rebuilds`:** no alimenta ningún cálculo. Cargarla no dispara `build_leaders`.
 
-### 3. Salarios — pendiente de especificar
+### 3. Salarios (`dom_salaries`)
 
-Existe en DGL. Sin diseño todavía: falta definir el grano (¿por jugador-temporada? ¿por contrato?) y
-qué se publica.
+**Qué es.** Lo que cobró cada dominicano, por temporada y equipo. No está en la API de MLB: solo
+existe en DGL.
+
+**De dónde sale.** La vista `v_dglweb_salaries`, vía `export_dom_salaries.ps1` → `dom_salaries.csv`.
+Seis columnas: `player_id`, `season`, `team_id`, `league_id`, `age`, `salary`.
+
+**El grano, que es lo único delicado acá.** La clave es **(jugador, temporada, equipo)** y el equipo
+va incluido a propósito: un pelotero traspasado a mitad de año cobra de dos organizaciones, así que
+su temporada son **dos filas legítimas**. Con la clave sin `team_id`, la validación de duplicados las
+trataría como un error y bloquearía la carga entera — perdiendo la mitad de lo que ese jugador cobró.
+
+**`team_id` y `league_id` son códigos de DGL, no de MLB.** `char(3)` y `char(2)`, y sus valores **no
+se corresponden** con el `team`/`league` de las tablas del proxy (`"NYY"`, `"AL"`). Se guardan tal
+cual; casarlos exigiría un mapeo que hoy no existe.
+
+**Sin FK a `dgl_master`.** Si un salario llega de alguien que todavía no está en el maestro, la fila
+se conserva: bloquear miles de filas por un jugador faltante costaría más de lo que protege.
+
+**Validación.** La clave completa es obligatoria; liga, edad y salario pueden faltar. Y un salario
+negativo bloquea: no es un dato raro, es un error de la vista o del export. Se ataja al validar y no
+al escribir porque la columna es `PositiveBigInteger` — dejarlo pasar sería un 500 a mitad de carga.
+
+**En la comparación se suma el salario y no la edad.** El total de la nómina es la señal que delata
+un export corto; la suma de las edades no significa nada.
+
+**No declara `rebuilds`:** no alimenta ningún cálculo.
 
 ### 4. Transacciones — pendiente de especificar
 

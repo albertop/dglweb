@@ -10,7 +10,7 @@ from datetime import date
 from typing import Any, ClassVar
 
 from dglweb.players.models import Player
-from dglweb.stats.models import BattedBallHits, Batting, DomPlayer, Pitching
+from dglweb.stats.models import BattedBallHits, Batting, DomPlayer, DomSalary, Pitching
 from dglweb.stats.staticdata.engine import Loader, Problem, register
 
 _GROUPS = {"batting", "pitching"}
@@ -337,3 +337,62 @@ def _booleano(crudo: str | None) -> bool | None:
     if texto in ("false", "0"):
         return False
     return None
+
+
+@register
+class DomSalariesLoader(Loader):
+    """Salarios por jugador, temporada y equipo.
+
+    El CSV lo produce `static_data/scripts/export_dom_salaries.ps1` desde la vista
+    `v_dglweb_salaries`. Se reemplaza entera (truncate).
+
+    La clave es (player_id, season, team_id) y las tres son obligatorias: sin el equipo, un traspaso
+    a mitad de temporada colapsaría dos filas legítimas en una y se perdería la mitad del salario.
+
+    No declara `rebuilds`: los salarios no alimentan ningún cálculo del sitio.
+    """
+
+    table = "dom_salaries"
+    model = DomSalary
+    # La edad es numérica pero no es una medida: la suma de las edades de mil peloteros no significa
+    # nada. El salario SÍ se suma — el total es la nómina dominicana del período, y un salto raro ahí
+    # es exactamente lo que la pantalla tiene que delatar.
+    no_sum: ClassVar[tuple[str, ...]] = ("age",)
+    columns: ClassVar[dict[str, str]] = {
+        "player_id": "player_id",
+        "season": "season",
+        "team_id": "team_id",
+        "league_id": "league_id",
+        "age": "age",
+        "salary": "salary",
+    }
+
+    def resolve(self, row: dict[str, str]) -> dict[str, Any]:
+        """Las tres columnas de la clave son obligatorias; las otras tres pueden faltar.
+
+        `team_id` es texto y no un número: es un código de DGL de tres caracteres, sin relación con
+        los ids de MLB. Va en la clave, así que vacío es un error y no un dato ausente.
+        """
+        resuelta: dict[str, Any] = {
+            "player_id": _entero(row.get("player_id")),
+            "season": _entero(row.get("season")),
+            "team_id": _texto(row.get("team_id"), 3),
+            "league_id": _texto(row.get("league_id"), 2),
+            "age": _entero(row.get("age")),
+            "salary": _entero(row.get("salary")),
+        }
+        faltan = [campo for campo in ("player_id", "season", "team_id") if not resuelta[campo]]
+        if faltan:
+            raise ValueError(f"{', '.join(faltan)} vacío — es parte de la clave y no puede faltar")
+        return resuelta
+
+    def checks(self, rows: list[dict[str, Any]]) -> list[Problem]:
+        """Un salario negativo no existe: es un error de la vista o del export, no un dato raro."""
+        negativos = [
+            f"jugador {row['player_id']} {row['season']} (equipo {row['team_id']}): {row['salary']:,}"
+            for row in rows
+            if row["salary"] is not None and row["salary"] < 0
+        ]
+        if not negativos:
+            return []
+        return [Problem(f"{len(negativos)} salario(s) negativo(s).", negativos[:10])]

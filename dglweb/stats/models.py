@@ -1507,3 +1507,45 @@ class DomPlayer(models.Model):
 
     def __str__(self) -> str:
         return f"{self.full_name} ({self.player_id})"
+
+
+class DomSalary(models.Model):
+    """Salarios de dominicanos por temporada y equipo — Fase 4e.
+
+    Sale de la vista `v_dglweb_salaries` de SQL Server; no existe en la API de MLB, que es de donde
+    viene todo lo demás del sitio. Se reemplaza entera por CSV.
+
+    El grano es (jugador, temporada, equipo) y el equipo forma parte de la clave a propósito: un
+    pelotero traspasado a mitad de año cobra de dos organizaciones, así que su temporada son dos
+    filas y no una. Sumarlas es la temporada completa.
+
+    Como `DomPlayer`, se declara como modelo Django para que el motor de carga pueda contar, comparar
+    y escribir — no para tener CRUD. Ver `docs/DATOS_DE_APOYO.md`.
+    """
+
+    # Sin FK a `dgl_master`: la referencia externa se guarda tal cual. Si un salario llega de alguien
+    # que todavía no está en el maestro, la fila se conserva y el dato no se pierde — bloquear una
+    # carga de miles de filas por un jugador faltante costaría más de lo que protege.
+    player_id = models.PositiveIntegerField(db_index=True, verbose_name="MLB ID")
+    season = models.PositiveSmallIntegerField(verbose_name="Temporada")
+    # Códigos de DGL, no de MLB: `char(3)` y `char(2)` cuyos valores no se corresponden con nada de
+    # la API. Se guardan tal cual y no se intentan casar con el `team`/`league` de las tablas del
+    # proxy — son dos universos, y traducirlos exigiría un mapeo que hoy no existe.
+    team_id = models.CharField(max_length=3, verbose_name="Equipo (código DGL)")
+    league_id = models.CharField(max_length=2, blank=True, verbose_name="Liga (código DGL)")
+    age = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Edad")
+    # En dólares y entero: los salarios de MLB se publican en dólares completos. `BigInteger` porque
+    # un contrato anual ya pasa los 40 millones y el techo de `Integer` no da margen para el futuro.
+    salary = models.PositiveBigIntegerField(null=True, blank=True, verbose_name="Salario (USD)")
+
+    class Meta:
+        db_table = "dom_salaries"
+        ordering = ["player_id", "season", "team_id"]
+        verbose_name = "salario"
+        verbose_name_plural = "salarios"
+        # La restricción existe aunque la carga sea por truncate: es la definición del grano, y deja
+        # la tabla lista si algún día conviene pasarla a upsert.
+        constraints = [models.UniqueConstraint(fields=["player_id", "season", "team_id"], name="unique_dom_salary")]
+
+    def __str__(self) -> str:
+        return f"{self.player_id} {self.season} ({self.team_id})"
