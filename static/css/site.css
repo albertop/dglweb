@@ -44,6 +44,16 @@ a:hover { text-decoration: underline; }
 /* ---------- Top bar / nav ---------- */
 .dgl-topbar { background: var(--dgl-navy); }
 .dgl-brand { font-weight: 800; letter-spacing: -0.02em; color: #fff; line-height: 1; }
+/* El brand no reacciona al puntero. Dos reglas ajenas lo pintaban: Bootstrap le pone su
+   `--bs-navbar-brand-hover-color` —oscuro, porque asume una barra clara— y la regla global de este
+   archivo le mete subrayado a todo `a:hover`. En una barra azul marino, ese color oscuro deja el
+   nombre del sitio casi ilegible justo cuando el usuario lo está apuntando. `:focus` va en el mismo
+   saco para que llegar por teclado se vea igual que llegar por ratón. */
+.dgl-brand:hover, .dgl-brand:focus { color: #fff; text-decoration: none; }
+/* Y de paso la variable en su origen, que es de donde salía el negro. Con esto el brand no depende
+   de que nuestra hoja siga cargando después de la de Bootstrap: si algún día cambia el orden, o se
+   vendoriza el CSS, el hover sigue sin pintar nada. */
+.dgl-topbar { --bs-navbar-brand-hover-color: #fff; }
 .dgl-brand small { display: block; font-weight: 500; font-size: .62rem; letter-spacing: .18em;
   text-transform: uppercase; color: #9db4d6; }
 .dgl-topbar .form-control { background: #0e2646; border-color: #23406e; color: #fff; }

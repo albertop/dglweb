@@ -67,27 +67,37 @@ def test_the_search_ignores_the_disabled_player(plantel: dict[str, Player]) -> N
 
 
 @pytest.mark.django_db
-def test_the_three_tiers_of_match_come_out_in_that_order(db: None) -> None:
-    """Buscando «so»: primero el que empieza así, luego el apellido, y al final el que lo esconde.
+def test_starting_the_name_and_starting_a_surname_count_the_same(db: None) -> None:
+    """El caso que lo motivó: buscando «so», Elías Sosa (1972) antes que Sócrates Brito (2015).
 
-    El tercero es el que justifica los tres niveles: «Alfonso» contiene «so» a mitad de palabra, y sin
-    el escalón intermedio le ganaría a un Soto de verdad.
+    Separarlos ponía a Sócrates arriba solo por ser su nombre de pila el que empieza con «so», y para
+    quien busca los dos encajan exactamente igual de bien. En el mismo escalón decide el debut.
     """
-    _jugador(1, "Sócrates Brito")  # el NOMBRE empieza con «so» -> nivel 0
-    _jugador(2, "Juan Soto")  # una palabra empieza con «so»  -> nivel 1
-    _jugador(3, "Alfonso Vargas")  # «alfonSO», en medio      -> nivel 2
+    from datetime import date
 
-    assert [s.name for s in search.buscar("so")] == ["Sócrates Brito", "Juan Soto", "Alfonso Vargas"]
+    _jugador(1, "Sócrates Brito")
+    Player.objects.filter(pk=1).update(debut_date=date(2015, 9, 8))
+    _jugador(2, "Elías Sosa")
+    Player.objects.filter(pk=2).update(debut_date=date(1972, 9, 8))
+
+    assert [s.name for s in search.buscar("so")] == ["Elías Sosa", "Sócrates Brito"]
 
 
 @pytest.mark.django_db
-def test_a_word_starting_with_it_beats_a_match_buried_in_the_middle(db: None) -> None:
-    """Buscando «ram», Ramírez tiene que ganarle a quien lo lleva escondido dentro de otra palabra."""
-    _jugador(1, "Amed Rosario")  # no coincide
-    _jugador(2, "Beltran Ramos")  # apellido: empieza palabra
-    _jugador(3, "Juan Beltram")  # lo contiene al final, sin empezar palabra
+def test_a_match_buried_mid_word_still_goes_last(db: None) -> None:
+    """El escalón que sobrevive, y el único que hacía falta.
 
-    assert [s.name for s in search.buscar("ram")] == ["Beltran Ramos", "Juan Beltram"]
+    «AlfonSO Vargas» coincide con «so» sin que nadie lo estuviera buscando por eso: sin este corte le
+    ganaría a un Soto de verdad con solo haber debutado antes, y acá debutó veinte años antes.
+    """
+    from datetime import date
+
+    _jugador(1, "Alfonso Vargas")
+    Player.objects.filter(pk=1).update(debut_date=date(1980, 4, 1))
+    _jugador(2, "Juan Soto")
+    Player.objects.filter(pk=2).update(debut_date=date(2018, 5, 20))
+
+    assert [s.name for s in search.buscar("so")] == ["Juan Soto", "Alfonso Vargas"]
 
 
 @pytest.mark.django_db
@@ -249,9 +259,9 @@ def test_a_player_who_only_took_the_field_is_still_active(db: None) -> None:
 
 @pytest.mark.django_db
 def test_within_a_tier_the_results_go_by_debut(db: None) -> None:
-    """El encaje manda, y dentro de cada nivel decide el debut — no el apellido, por el mismo motivo.
+    """Dentro del mismo escalón decide el debut, no el apellido.
 
-    Los tres son «apellido que empieza con pe», o sea el mismo nivel: ahí gana el que llegó antes.
+    Los tres son «apellido que empieza con pe», o sea el mismo escalón: ahí gana el que llegó antes.
     """
     from datetime import date
 

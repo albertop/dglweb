@@ -62,11 +62,13 @@ class _Unaccent(Func):
 def buscar(consulta: str, limite: int = LIMITE_SUGERENCIAS) -> list[Sugerencia]:
     """Los jugadores cuyo nombre contiene `consulta`, ordenados por qué tan bien encaja.
 
-    El orden es el que espera quien escribe, y sale de una sola consulta:
+    El orden sale de una sola consulta, y son dos escalones:
 
-    1. El nombre **empieza** con lo escrito — «sot» pone primero a Soto.
-    2. Una **palabra** del nombre empieza con lo escrito — «beltre» encuentra a Adrián Beltré.
-    3. El nombre lo **contiene** en cualquier parte, que es la red de seguridad.
+    1. Una **palabra** del nombre empieza con lo escrito — da igual si es el nombre de pila o el
+       apellido, porque para quien busca las dos cosas encajan igual de bien.
+    2. Lo escrito aparece **a mitad de palabra**, que es la red de seguridad y va al final.
+
+    Dentro de cada escalón manda la **fecha de debut**: primero el más veterano.
 
     Con menos de `MIN_CARACTERES` devuelve vacío en vez de medio maestro.
     """
@@ -96,21 +98,26 @@ def _rankeado(aguja: str) -> QuerySet[Player]:
         .filter(plano__contains=aguja)
         .annotate(
             encaje=Case(
+                # DOS niveles, no tres. Empezar el nombre y empezar un apellido cuentan igual: buscando
+                # «so», separarlos ponía a Sócrates Brito (2015) por delante de Elías Sosa (1972) solo
+                # por ser su nombre de pila, y para quien busca los dos encajan exactamente igual de
+                # bien. Juntos, decide el debut, que es lo que el dueño quiere ver.
                 When(plano__startswith=aguja, then=Value(0)),
-                # El espacio delante es lo que distingue "empieza una palabra" de "está en el medio":
-                # buscando «ram», Amed Rosario no debería ganarle a José Ramírez.
-                When(plano__contains=f" {aguja}", then=Value(1)),
-                default=Value(2),
+                When(plano__contains=f" {aguja}", then=Value(0)),
+                # El segundo nivel es el que sí hay que separar: lo escondido a mitad de palabra.
+                # «AlfonSO Vargas» coincide con «so» sin que nadie lo estuviera buscando por eso, y
+                # sin este escalón le ganaría a un Soto de verdad con solo haber debutado antes.
+                default=Value(1),
                 output_field=IntegerField(),
             )
         )
-        # Primero qué tan bien encaja, y dentro de cada nivel por fecha de debut. El encaje no puede
-        # ceder el primer puesto: buscando «so», «Alfonso Vargas» —que lo lleva escondido a mitad de
-        # palabra— le ganaría a un Soto de verdad, y la lista de diez dejaría de ser una sugerencia.
+        # Primero el encaje, y dentro de cada nivel por fecha de debut, del más veterano al más nuevo.
         #
-        # Dentro del nivel manda el debut y no el apellido, por lo mismo que en la lista de activos:
-        # `lastname_1` es el paterno, y en 44 de los 984 el pelotero se conoce por el materno.
-        # `player_id` cierra el orden para que los que comparten fecha no bailen entre cargas.
+        # El debut y no el apellido, por lo mismo que se descartó en la lista de activos: `lastname_1`
+        # es el paterno, y en 44 de los 984 el pelotero se conoce por el materno — Felipe Alou está
+        # bajo «Rojas» y Sammy Sosa bajo «Peralta».
+        #
+        # `player_id` cierra el orden para que los que comparten fecha no bailen entre búsquedas.
         .order_by("encaje", models.F("debut_date").asc(nulls_last=True), "player_id")
     )
 
