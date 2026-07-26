@@ -10,10 +10,15 @@ aparezca al instante y para que no haya una llamada por cada juego sobre el que 
     {{ juego.detalle }}
     {% comment %}
       La banderita dice de un vistazo en cuáles de los quince juegos hay algo nuestro, sin tener que
-      leer los treinta códigos de equipo. Va con `title` porque un emoji solo no le dice nada a quien
-      navega con lector de pantalla.
+      leer los treinta códigos de equipo.
+
+      Imagen y no el emoji 🇩🇴: Windows no trae los glifos de banderas y lo dibuja como «DO». El `alt`
+      lleva el significado porque la bandera ES el dato, no un adorno.
     {% endcomment %}
-    {% if juego.con_dominicanos %}<span class="dgl-bandera" title="Con dominicanos en acción">🇩🇴</span>{% endif %}
+    {% if juego.con_dominicanos %}
+      <img class="dgl-bandera" src="{% static 'img/bandera-rd.svg' %}" width="17" height="11"
+           alt="Con dominicanos en acción" title="Con dominicanos en acción">
+    {% endif %}
   </div>
   {% include "widgets/_pizarra_lado.html" with lado=juego.visitante %}
   {% include "widgets/_pizarra_lado.html" with lado=juego.local %}

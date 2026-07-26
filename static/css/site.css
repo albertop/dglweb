@@ -168,9 +168,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   color: var(--dgl-muted); font-size: .62rem; font-weight: 700;
   letter-spacing: .08em; text-transform: uppercase; margin-bottom: .2rem;
 }
-/* La bandera va al final de la línea de estado y con su tamaño propio: heredar el .62rem del estado
-   la dejaría en un punto ilegible. */
-.dgl-bandera { margin-left: auto; font-size: .85rem; line-height: 1; }
+/* La bandera va al final de la línea de estado, con un filo tenue para que el blanco de la cruz no
+   se confunda con el fondo de la tarjeta. */
+.dgl-bandera { margin-left: auto; flex: 0 0 auto; border: 1px solid var(--dgl-line); border-radius: 1px; }
 .dgl-lado { display: flex; align-items: center; gap: .35rem; line-height: 1.5; color: var(--dgl-muted); }
 /* El que ganó en tinta plena y el que perdió apagado: es la jerarquía que hace legible una tira de
    quince juegos sin leer los números. */

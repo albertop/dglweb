@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 18" role="img">
+  <!-- La bandera dominicana como imagen y no como emoji: Windows no trae los glifos de banderas, así
+       que 🇩🇴 se dibuja como las letras «DO» en cualquier navegador sobre Windows.
+
+       Va sin el escudo, que es la variante civil de la bandera. A 18 píxeles el escudo sería una
+       mancha ilegible; los cuatro cuadros y la cruz sí se reconocen a ese tamaño. -->
+  <rect width="30" height="18" fill="#ffffff"/>
+  <rect x="0" y="0" width="13.5" height="7.5" fill="#002d62"/>
+  <rect x="16.5" y="0" width="13.5" height="7.5" fill="#ce1126"/>
+  <rect x="0" y="10.5" width="13.5" height="7.5" fill="#ce1126"/>
+  <rect x="16.5" y="10.5" width="13.5" height="7.5" fill="#002d62"/>
+</svg>
