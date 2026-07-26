@@ -103,9 +103,28 @@ def register(loader_cls: type[Loader]) -> type[Loader]:
     return loader_cls
 
 
+# Tope de subida. El CSV real de batazos pesa ~250 KB, así que 20 MB deja muchísimo margen y a la vez
+# impide que un archivo enorme —o binario— se decodifique entero en memoria y se guarde en la sesión.
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+
+
+class UnreadableCSVError(ValueError):
+    """El archivo no se puede leer siquiera. Se convierte en `Problem`, nunca en un 500."""
+
+
 def read(raw: bytes) -> list[dict[str, str]]:
-    """El CSV crudo a filas. UTF-8 con BOM porque es lo que escribe PowerShell por defecto."""
-    text = raw.decode("utf-8-sig")
+    """El CSV crudo a filas. UTF-8 con BOM porque es lo que escribe PowerShell por defecto.
+
+    Un archivo que no sea texto UTF-8 levanta `UnreadableCSVError` en vez de reventar: subir el binario
+    equivocado es un error de dedo, y merece un mensaje, no una pantalla de error.
+    """
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        raise UnreadableCSVError(
+            "El archivo no es texto UTF-8 — puede ser un binario, un Excel sin exportar, "
+            f"o venir con otra codificación ({error.reason})."
+        ) from error
     return list(csv.DictReader(io.StringIO(text)))
 
 

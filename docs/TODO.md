@@ -150,13 +150,16 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [ ] **ARCH-01 — cargar datos de apoyo no reconstruye lo que depende de ellos.** Real y ya lo
   vivimos: tras la carga hubo que correr `build_leaders` a mano, y hasta que se corrió las páginas
   servían coeficientes viejos. `BattingCareer`/`PitchingCareer` tampoco se rehacen.
-- [ ] **SEC-01 — subida de CSV sin límite de tamaño.** Verificado: no hay `DATA_UPLOAD_MAX_*` en
+- [x] **SEC-01 — subida de CSV sin límite de tamaño.** **Corregido**: tope de 20 MB (el CSV real pesa ~250 KB) y rechazo por extensión, verificados ANTES de leer — no se decodifica en memoria algo que no se va a aplicar. El staging fuera de sesión sigue pendiente en ARCH-02.
+  ~~ Verificado: no hay `DATA_UPLOAD_MAX_*` en
   settings, y el CSV entero se guarda en sesión. Aunque exige cuenta admin, un archivo grande tumba
   el proceso. Límite por dataset + rechazo por extensión + staging con TTL en vez de sesión.
-- [ ] **QA-04 — el nombre de archivo equivocado avisa pero deja confirmar.** De acuerdo, y es
+- [x] **QA-04 — el nombre de archivo equivocado avisa pero deja confirmar.** **Corregido**: ahora es un `Problem` bloqueante. Un archivo bien nombrado es trivial de conseguir; una tabla reemplazada con el dataset equivocado, no.
+  ~~ De acuerdo, y es
   incoherente con lo que yo mismo escribí en `DATOS_DE_APOYO.md`: que el chequeo existe para atajar
   cargar el CSV de salarios sobre la tabla de transacciones. Si solo avisa, no ataja nada.
-- [ ] **DEV-01 — 500 por `pk` inexistente o CSV no UTF-8.** Real: `objects.get()` sin `get_object_or_404`
+- [x] **DEV-01 — 500 por `pk` inexistente o CSV no UTF-8.** **Corregido**: `get_object_or_404` y `UnreadableCSVError` que se convierte en `Problem`. Con tests de vista (7), que además cierran buena parte de QA-02.
+  ~~ Real: `objects.get()` sin `get_object_or_404`
   y `decode("utf-8-sig")` sin capturar. Barato de arreglar.
 - [ ] **ARCH-04 — `StaticDataset` admite configuraciones que el motor no puede cumplir.** Real: tabla
   sin loader, clave natural con columnas inexistentes, upsert sin constraint. Validar en `clean()`.
