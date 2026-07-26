@@ -131,7 +131,10 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
 
 ### P2 — antes de que el sitio dependa de que el pipeline no falle
 
-- [ ] **QA-01 + ARCH-01 — el pipeline diario necesita un orquestador, no diez horarios.** Un solo
+- [x] **QA-01 + ARCH-01 — el pipeline diario necesita un orquestador, no diez horarios.** **Corregido**: nace `refresh_daily` (`stats/pipeline.py`). Corre los pasos en orden, lee el `IngestRun` de cada uno —no si lanzó excepción, porque un comando puede terminar limpio y haber quedado en PARTIAL— y **no reconstruye los derivados si alguna entrada falló o quedó parcial**. Publicar igual existe pero hay que pedirlo: `--publicar-parcial`.
+  Deja UNA fila `refresh_daily` con el estado del día, abierta ANTES de trabajar para que un refresco colgado se vea. Un paso que no deja fila cuenta como fallo — es exactamente lo que pasó con Ofelia, donde el log limpio se leía como «todo en orden».
+  El calendario pasó de once jobs a dos. Medido contra la base real: 6/6 pasos, 417.470 filas, 80s.
+  ~~ Un solo
   pendiente porque son el mismo hallazgo desde QA y desde arquitectura, y ya venía del v5 (QA-03).
   Hoy `build_leaders` corre a las 7:30 aunque `update_fielding_post` haya fallado, y publica
   liderazgos con mezcla de dato nuevo y viejo sin que `/health` se entere. **Forma**: un comando
