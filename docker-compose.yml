@@ -28,7 +28,11 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.dev
-      DATABASE_URL: postgres://dglweb:dglweb@db:5432/dglweb
+      # Sobreescribible desde `.env`, igual que el proxy. El contenedor que servía en esta máquina
+      # apuntaba a la base real por una variable puesta a mano al arrancarlo, y compose no lo sabía:
+      # al recrear el servicio se fue a la base local y el sitio pasó a mostrar 2.880 liderazgos en
+      # vez de 407.000. Con el valor en `.env` la decisión sobrevive a cualquier recreación.
+      DATABASE_URL: ${DATABASE_URL:-postgres://dglweb:dglweb@db:5432/dglweb}
       # The proxy runs on the dev server. The key is a secret: it comes from .env (gitignored),
       # never from this file.
       MLB_PROXY_URL: ${MLB_PROXY_URL:-http://10.0.0.39:3002}
