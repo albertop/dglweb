@@ -3,24 +3,17 @@
 Lista de pendientes que van surgiendo sobre la marcha. (Ítems de decisión / afinado, no el
 roadmap de fases — eso está en `BUILD_PLAN.md`.)
 
-## Próximo: tab de Fildeo
+## Hecho: tab de Fildeo
 
-Bateo y Pitcheo están completos (seis pills cada uno: Estándar, Avanzado, Statcast, Coeficientes,
-Postemporada, Totales). **Falta Fildeo**, y arranca en buenas condiciones tras el refactor de
-columnas declarativas:
+**Construido y en producción.** `FieldingTab` está en el registro con su `_fielding_context` propio
+—que fue lo único que necesitó código nuevo, porque `_group_context` no le servía: las líneas de
+fildeo son por POSICIÓN y no por stint—, cinco pills (Estándar, Avanzado, Receptor, Postemporada,
+Totales) y cuatro archivos de test.
 
-- Sus columnas son una lista más en `dglweb/profiles/columns.py`, y reusa tal cual las seis
-  partials (`templates/profiles/_season_*.html`, `_label_*.html`, `_post_*.html`), la leyenda,
-  `_personal_bests`, los filtros de formato y todo el sistema de resaltado.
-- **Lo único que necesita código propio es el ensamblado del contexto**: `_group_context` NO le
-  sirve. Las líneas de fildeo son **por posición**, no por stint (un jugador tiene una fila por
-  cada posición que jugó cada temporada), así que la lógica de "temporada dividida / combinada XXX"
-  no aplica igual. `FieldingCareer` ya usa `level=pos` en vez de team/league, y `career_totals` ya
-  agrega fildeo por posición. Hay que escribir un `_fielding_context` que arme filas por posición.
-- El motor de líderes ya rankea fildeo **por posición** (`fielding_pos` en `dgl_leader`), así que
-  los liderazgos por posición ya existen en la base — solo falta consumirlos en la página.
-- `_leaderships` hoy es agnóstico de posición (bateo/pitcheo llevan `fielding_pos=NULL`); para
-  fildeo habrá que filtrar por la posición de cada fila.
+Esta sección decía "Próximo" mucho después de que el tab existiera. Vale la pena anotar por qué:
+un TODO que describe trabajo ya hecho es peor que uno incompleto, porque se lee como si fuera cierto
+y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé priorizar deuda técnica
+"antes de Fildeo" — que ya había pasado.
 
 ## Diseño / branding
 
@@ -62,7 +55,8 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   son latencia de red contra 10.0.0.39. No es urgente, pero cada tab nuevo cobra impuesto: con Fildeo
   real y luego Splits/Game Logs sí se nota. Agregado un test de presupuesto de queries para que no
   crezca en silencio; la carga diferida (HTMX o endpoints por tab) queda pendiente.
-- [ ] **DEV-03 — las tablas repiten listas de columnas a mano.** Real y ya lo sufrimos: cada columna
+- [x] **DEV-03 — las tablas repiten listas de columnas a mano.** **Corregido** con el refactor declarativo que el propio finding proponía: `profiles/columns.py` define `Column(label, attr, fmt)` y las listas por división, y las plantillas rinden con partials comunes (`{% include "profiles/_season_head.html" with cols=… %}`). Hoy quedan CERO `<th>` escritos a mano en las tablas de bateo, pitcheo, fildeo y puestos. Fildeo se construyó ya sobre esto, que era justamente el plazo que el finding se ponía.
+  ~~ Real y ya lo sufrimos: cada columna
   agregada (LOB, TotAvg, BsR, G, AB) obligó a editar encabezado + fila + total en varios bloques, y
   las desalineaciones solo se detectaron con un script ad-hoc. **Conviene resolverlo ANTES de Fildeo**,
   que sería la tercera copia del patrón. Propuesta: mover las columnas a una lista declarativa en
