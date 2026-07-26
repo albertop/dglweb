@@ -9,7 +9,7 @@ ESTE dataset esté sano.
 from typing import Any, ClassVar
 
 from dglweb.players.models import Player
-from dglweb.stats.models import BattedBallHits, Batting, Pitching
+from dglweb.stats.models import BattedBallHits, Batting, DomPlayer, Pitching
 from dglweb.stats.staticdata.engine import Loader, Problem, register
 
 _GROUPS = {"batting", "pitching"}
@@ -228,3 +228,82 @@ def _as_dict(linea: Batting | Pitching) -> dict[str, Any]:
         "swing_and_misses",
     )
     return {campo: getattr(linea, campo, None) for campo in campos}
+
+
+@register
+class DomPlayersLoader(Loader):
+    """Dominicanos en el sistema profesional, con y sin debut en Grandes Ligas.
+
+    El CSV lo produce `static_data/scripts/export_dom_players.ps1` desde la vista
+    `v_dglweb_master_no_debuts` de SQL Server. Se reemplaza entera (truncate): el dato viejo de esta
+    tabla no se conserva ni se reconcilia.
+
+    La validación es a propósito flaca. La única columna que importa es `player_id` —tiene que venir
+    y ser única, y de eso se encarga el motor— porque el resto es descriptivo: un prospecto recién
+    cargado puede no tener ni fecha de nacimiento, y así y todo hay que poder listarlo.
+
+    No declara `rebuilds`: no alimenta ningún cálculo. Los liderazgos salen de `dgl_master`, que es
+    otra tabla y otra autoridad.
+    """
+
+    table = "dom_players"
+    model = DomPlayer
+    columns: ClassVar[dict[str, str]] = {
+        "player_id": "player_id",
+        "last_name": "last_name",
+        "first_name": "first_name",
+        "full_name": "full_name",
+        "birth_date": "birth_date",
+        "birth_place": "birth_place",
+        "bats": "bats",
+        "throws": "throws",
+        "height": "height",
+        "weight": "weight",
+        "is_active": "is_active",
+        "is_player": "is_player",
+        "is_verified": "is_verified",
+    }
+
+    _TEXTO: ClassVar[tuple[str, ...]] = ("last_name", "first_name", "full_name", "birth_place", "bats", "throws")
+    _BOOLEANOS: ClassVar[tuple[str, ...]] = ("is_active", "is_player", "is_verified")
+
+    def resolve(self, row: dict[str, str]) -> dict[str, Any]:
+        """Traduce los tres tipos que cambian de forma al cruzar la frontera.
+
+        `player_id` sin valor levanta `ValueError`, que el motor convierte en un problema con el
+        número de línea. NO se descarta en silencio: una fila sin identificador es un CSV mal armado,
+        y tragársela dejaría un archivo que parece más sano de lo que está.
+        """
+        crudo = (row.get("player_id") or "").strip()
+        if not crudo:
+            raise ValueError("player_id vacío")
+
+        resuelta: dict[str, Any] = {"player_id": int(crudo)}
+        resuelta.update({campo: (row.get(campo) or "").strip() for campo in self._TEXTO})
+        # `height` es texto ("6-4"), no una medida: se recorta como el resto pero no se convierte.
+        resuelta["height"] = (row.get("height") or "").strip()[:8]
+        resuelta["birth_date"] = _fecha(row.get("birth_date"))
+        resuelta["weight"] = _entero(row.get("weight"))
+        resuelta.update({campo: _booleano(row.get(campo)) for campo in self._BOOLEANOS})
+        return resuelta
+
+
+def _fecha(crudo: str | None) -> str | None:
+    """La vista devuelve `datetime`, así que el CSV trae «1994-07-05 00:00:00». Solo interesa el día."""
+    texto = (crudo or "").strip()
+    return texto.split(" ")[0] if texto else None
+
+
+def _entero(crudo: str | None) -> int | None:
+    texto = (crudo or "").strip()
+    return int(float(texto)) if texto else None  # `float` primero: el CSV puede traer «210.0»
+
+
+def _booleano(crudo: str | None) -> bool | None:
+    """El `bit` de SQL Server sale de PowerShell como True/False, pero el 1/0 también es legítimo."""
+    texto = (crudo or "").strip().lower()
+    if texto in ("true", "1"):
+        return True
+    if texto in ("false", "0"):
+        return False
+    return None

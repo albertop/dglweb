@@ -218,12 +218,40 @@ forma sistemática en nuestra fuente y no solo en los años rotos.
 **Al cargarlo:** desaparece la advertencia de la UI y se puede borrar
 `derive.UNDERTYPED_STATCAST_SEASONS`. Cierra SAB-03.
 
-### 2. Salarios — pendiente de especificar
+### 2. Dominicanos en el sistema (`dom_players`)
+
+**Qué es.** Los dominicanos del sistema profesional, **con y sin debut** en Grandes Ligas. No
+confundir con `dgl_master`: ese es el maestro de los que sí llegaron y es la autoridad del sitio.
+Esta es más ancha —incluye menores— y sirve para ver quién viene subiendo: detectar debuts y
+movimientos de roster.
+
+**De dónde sale.** La vista `v_dglweb_master_no_debuts` de SQL Server, vía
+`export_dom_players.ps1` → `dom_players.csv`. Trece columnas; la vista trae más, pero cargar lo que
+no se usa solo agrega columnas que hay que mantener sincronizadas en tres lugares.
+
+**El filtro.** Solo los nacidos en los últimos 40 años: un dominicano de más de 40 que todavía no
+debutó ya no va a debutar. Los que **no tienen fecha de nacimiento se incluyen a propósito** — sin
+esa cláusula el `YEAR(NULL)` los dejaba fuera en silencio, y si a un prospecto le falta la fecha el
+problema es la fecha, no el prospecto.
+
+**Modo: truncate.** Se reemplaza entera y no se reconcilia con lo que había. La tabla existía desde
+antes con 27 columnas cargadas por fuera de Django; la migración `0016` la dropea y la recrea con
+las trece que se usan, porque el contenido viejo no servía.
+
+**Validación.** Deliberadamente flaca: la única columna que importa es `player_id`, que tiene que
+venir y ser única —de la unicidad se encarga el motor, que la exige siempre—. El resto es
+descriptivo y puede faltar sin que la fila deje de servir. Lo que sí hace el loader es traducir los
+tres tipos que cambian de forma al cruzar la frontera: el `bit` de SQL Server llega como
+`True`/`False`, la fecha llega con hora, y los vacíos llegan como cadena vacía y no como NULL.
+
+**No declara `rebuilds`:** no alimenta ningún cálculo. Cargarla no dispara `build_leaders`.
+
+### 3. Salarios — pendiente de especificar
 
 Existe en DGL. Sin diseño todavía: falta definir el grano (¿por jugador-temporada? ¿por contrato?) y
 qué se publica.
 
-### 3. Transacciones — pendiente de especificar
+### 4. Transacciones — pendiente de especificar
 
 Existe en DGL. Sin diseño todavía.
 

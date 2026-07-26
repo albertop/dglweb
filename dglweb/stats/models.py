@@ -1458,3 +1458,52 @@ class BattedBallHits(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} {self.season} ({self.stat_group})"
+
+
+class DomPlayer(models.Model):
+    """Dominicanos en el sistema profesional, con y sin debut en Grandes Ligas — Fase 4e.
+
+    No confundir con `dgl_master`: ese es el maestro de los que SÍ llegaron a las mayores, y es la
+    autoridad del sitio. Esta es más ancha —incluye ligas menores— y sirve para ver quién viene
+    subiendo: detectar debuts y movimientos de roster.
+
+    La tabla existía en Postgres desde antes, cargada por fuera de Django y con 27 columnas. Se
+    rehízo con las trece que se usan, porque el dato viejo no servía: se reemplaza entero desde la
+    vista `v_dglweb_master_no_debuts` de SQL Server, filtrada a los nacidos en los últimos 40 años
+    (más los que no tienen fecha de nacimiento, que se conservan a propósito para no perderlos en
+    silencio).
+
+    Se declara como modelo Django para que el motor de carga pueda trabajar: `Loader` necesita
+    `model` para contar filas, sumar columnas en la pantalla de comparación y escribir. **No tiene
+    CRUD en el Backoffice** —igual que `BattedBallHits`— porque no se edita a mano: se reemplaza por
+    CSV. Ver `docs/DATOS_DE_APOYO.md`.
+    """
+
+    # Sin `player` FK a `dgl_master`: la mayoría de estos jugadores nunca debutó, así que no está
+    # en el maestro. El `player_id` es el de MLB y se usa tal cual como clave.
+    player_id = models.PositiveIntegerField(primary_key=True, verbose_name="MLB ID")
+    last_name = models.CharField(max_length=60, blank=True, verbose_name="Apellido")
+    first_name = models.CharField(max_length=60, blank=True, verbose_name="Nombre")
+    full_name = models.CharField(max_length=120, blank=True, verbose_name="Nombre completo")
+    # `date` y no `datetime`: la tabla vieja guardaba timestamp y todas las filas traían las 19:00,
+    # basura de zona horaria de la migración original.
+    birth_date = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
+    birth_place = models.CharField(max_length=120, blank=True, verbose_name="Lugar de nacimiento")
+    bats = models.CharField(max_length=1, blank=True, verbose_name="Batea")
+    throws = models.CharField(max_length=1, blank=True, verbose_name="Lanza")
+    height = models.CharField(max_length=8, blank=True, verbose_name="Estatura")
+    weight = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Peso (lb)")
+    # Booleanos y no el smallint 0/1 de la tabla vieja: en el origen son `bit`, y PowerShell los
+    # exporta como True/False. Guardarlos como enteros obligaba a traducir en los dos extremos.
+    is_active = models.BooleanField(null=True, verbose_name="Activo")
+    is_player = models.BooleanField(null=True, verbose_name="Es jugador")
+    is_verified = models.BooleanField(null=True, verbose_name="Verificado")
+
+    class Meta:
+        db_table = "dom_players"
+        ordering = ["player_id"]
+        verbose_name = "dominicano en el sistema"
+        verbose_name_plural = "dominicanos en el sistema"
+
+    def __str__(self) -> str:
+        return f"{self.full_name} ({self.player_id})"

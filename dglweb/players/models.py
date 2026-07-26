@@ -135,7 +135,7 @@ class Player(models.Model):
                 {"disabled_reason": "Al deshabilitar un jugador hay que explicar por qué se da de baja."}
             )
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
+    def save(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401 — la firma es la de Django
         """Si cambió la visibilidad, rehace lo derivado — sin que nadie tenga que acordarse.
 
         Los liderazgos están materializados con el puesto ya escrito, así que ocultar a alguien no es

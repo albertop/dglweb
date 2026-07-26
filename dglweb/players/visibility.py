@@ -12,13 +12,9 @@ Regla para lo que venga: **si una consulta parte de `Player`, el manager ya te c
 tabla de stats, tenés que pasarla por acá.**
 """
 
-from typing import TypeVar
-
 from django.db.models import QuerySet
 
-_QS = TypeVar("_QS", bound=QuerySet)  # type: ignore[type-arg]
 
-
-def only_visible(queryset: _QS) -> _QS:
+def only_visible[QS: QuerySet](queryset: QS) -> QS:  # type: ignore[type-arg]
     """Quita las filas de jugadores ocultos. Para querysets que tengan FK `player`."""
     return queryset.exclude(player__hidden=True)
