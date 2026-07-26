@@ -84,6 +84,10 @@ services:
       ofelia.job-exec.build-career-totals-daily.command: "python manage.py build_career_totals"
       ofelia.job-exec.build-leaders-daily.schedule: "0 30 7 * * *"  # 7:30am; tras los totales de carrera, que lee
       ofelia.job-exec.build-leaders-daily.command: "python manage.py build_leaders"
+      # Después de refrescar las stats, porque lee justamente lo que acaban de traer: quién de
+      # `dom_players` ya tiene números. No escribe nada — avisa, y el dueño carga al jugador.
+      ofelia.job-exec.detect-debuts-daily.schedule: "0 35 7 * * *"  # 7:35am; tras los liderazgos
+      ofelia.job-exec.detect-debuts-daily.command: "python manage.py detect_debuts"
       ofelia.job-exec.prune-log-daily.schedule: "0 45 7 * * *"  # 7:45am; poda el log, va último — SIN puerta de temporada
       ofelia.job-exec.prune-log-daily.command: "python manage.py prune_ingest_log"
       ofelia.job-exec.parity-career-weekly.schedule: "0 0 8 * * 0"  # domingos 8am; verifica carrera contra el proxy
