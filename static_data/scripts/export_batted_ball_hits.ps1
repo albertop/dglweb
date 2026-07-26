@@ -41,9 +41,16 @@ $OutputPath = "$PSScriptRoot\..\csv\batted_ball_hits.csv"   # ⚠️ AJUSTAR si 
 # llega listo para casar con `dgl_master` sin pasar por el retroID. El join contra retroEventsReg sí
 # usa retroID, que es la llave de Retrosheet.
 #
-# Desde 1989 y no antes: la clasificación de batazos de Retrosheet no está completa hasta el 88, y
-# 1989 es además el piso que ya usa el motor de líderes (`derive.FIRST_STATCAST_SEASON`), así que los
-# dos cortes coinciden y no hay que explicar dos fechas distintas.
+# SOLO 1989-2002, que es donde nuestra fuente tiene el hueco:
+#   * Antes del 89 la clasificación de Retrosheet tampoco está completa, y 1989 es además el piso que
+#     ya usa el motor de líderes (`derive.FIRST_STATCAST_SEASON`).
+#   * Después de 2002 la API de MLB tipifica el 100% y Retrosheet ~97,5%, así que traerlo sería
+#     cambiar dato bueno por dato peor. Pasó en la primera carga real, cuando el script exportaba
+#     todo el rango: las temporadas 2004-2019 bajaron de 99-100% a ~97%.
+#
+# El loader tiene además una guarda que solo pisa al proxy cuando el entrante tipifica más, así que
+# aunque este rango se amplíe por error no se degrada nada. Son dos defensas para el mismo fallo,
+# a propósito: el rango evita traer lo que no hace falta, la guarda evita el daño si igual llega.
 #
 # `h_typed` es el total de hits CON trayectoria y `h_all` el total de hits del jugador. No son
 # iguales: a Retrosheet le falta la trayectoria en ~2,5% de los hits (126 filas en 2000, 115 en
@@ -58,7 +65,7 @@ WITH eventos AS (
     FROM    dbo.retroEventsReg e
             INNER JOIN dbo.dglMaster m ON e.BAT_ID = m.retroID
     WHERE   e.EVENT_CD IN (20, 21, 22, 23)
-      AND   e.SEASON >= 1989
+      AND   e.SEASON BETWEEN 1989 AND 2002
 
     UNION ALL
 
@@ -69,7 +76,7 @@ WITH eventos AS (
     FROM    dbo.retroEventsReg e
             INNER JOIN dbo.dglMaster m ON e.PIT_ID = m.retroID
     WHERE   e.EVENT_CD IN (20, 21, 22, 23)
-      AND   e.SEASON >= 1989
+      AND   e.SEASON BETWEEN 1989 AND 2002
 )
 SELECT  mlb_id,
         season,
