@@ -43,6 +43,18 @@
     var enVuelo = null; // la última petición, para descartar respuestas que llegan tarde
     var activo = -1;
 
+    // Los resultados que pintó el SERVIDOR al cargar la página, si esta caja los declara. Dejan de
+    // ser ciertos en cuanto se toca el texto, y un encabezado «Resultados para car» encima de una
+    // caja donde ya dice «carlos m» es peor que no mostrar nada.
+    var seccion = caja.dataset.resultados ? document.getElementById(caja.dataset.resultados) : null;
+    var consultaInicial = caja.value.trim();
+
+    function sincronizarSeccion() {
+      // Comparar contra el texto original y no "ocultar para siempre": si el usuario borra lo que
+      // escribió de más y vuelve a la consulta con la que llegó, la sección es válida otra vez.
+      if (seccion) seccion.classList.toggle("d-none", caja.value.trim() !== consultaInicial);
+    }
+
     function cerrar() {
       lista.classList.add("d-none");
       lista.innerHTML = "";
@@ -133,6 +145,7 @@
 
     caja.addEventListener("input", function () {
       var texto = caja.value.trim();
+      sincronizarSeccion(); // antes del corte por longitud: vaciar la caja también la esconde
       clearTimeout(espera);
       if (texto.length < minimo) {
         cerrar();

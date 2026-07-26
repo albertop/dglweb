@@ -314,3 +314,17 @@ def test_the_endpoint_reports_the_hidden_count(db: None) -> None:
 
     assert datos["total"] == 25
     assert datos["hidden"] == 25 - search.LIMITE_SUGERENCIAS
+
+
+@pytest.mark.django_db
+def test_the_server_rendered_results_are_wired_to_the_box_that_can_stale_them(plantel: dict[str, Player]) -> None:
+    """La sección la pintó el servidor para UNA consulta; al tocar la caja deja de ser cierta.
+
+    Esconderla es cosa del JS, pero el cableado que se lo permite sí se puede fijar acá: sin el
+    `data-resultados` apuntando a la sección, el script no tiene a qué agarrarse y el encabezado se
+    queda mintiendo mientras el usuario escribe otra cosa.
+    """
+    cuerpo = Client().get(reverse("players_index"), {"q": "beltre"}).content.decode()
+
+    assert 'data-resultados="resultados-busqueda"' in cuerpo
+    assert 'id="resultados-busqueda"' in cuerpo

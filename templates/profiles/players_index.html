@@ -28,14 +28,21 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
     <div class="position-relative">
       <input class="form-control dgl-control" type="search" id="q" name="q" value="{{ consulta }}"
              placeholder="Escribe un nombre o apellido…" aria-describedby="q-ayuda"
-             data-buscador="{% url 'players_suggest' %}" data-minimo="{{ min_caracteres }}">
+             data-buscador="{% url 'players_suggest' %}" data-minimo="{{ min_caracteres }}"
+             data-resultados="resultados-busqueda">
     </div>
     <div class="dgl-meta mt-1" id="q-ayuda">Desde {{ min_caracteres }} letras.</div>
     <noscript><button class="btn btn-sm btn-outline-primary mt-2" type="submit">Buscar</button></noscript>
   </form>
 
   {% if consulta %}
-  <section class="mb-5">
+  {% comment %}
+  Esta sección la pintó el servidor para la consulta con la que se cargó la página. En cuanto el
+  usuario toca la caja deja de corresponderse con lo que está escrito, así que `buscador.js` la
+  esconde — un encabezado que dice «Resultados para car» mientras se escribe «carlos m» es peor que
+  no mostrar nada. Vuelve sola si se reescribe la consulta original.
+  {% endcomment %}
+  <section class="mb-5" id="resultados-busqueda">
     <h2 class="dgl-section-title">Resultados para «{{ consulta }}»</h2>
     {% if resultados %}
     <p class="dgl-meta mb-2">{{ resultados|length }} jugador{{ resultados|length|pluralize:"es" }}.</p>
