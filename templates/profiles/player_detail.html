@@ -79,3 +79,14 @@
 
 </main>
 {% endblock %}
+
+{% block anuncio_pie %}
+  {% comment %}
+    Va pegado al pie y no debajo de la tabla porque el largo del perfil es impredecible: un jugador
+    de una temporada deja media pantalla vacía —Tony Blanco es el caso— y uno de veinte no deja nada.
+    Anclado abajo, el anuncio cae siempre en el mismo sitio.
+  {% endcomment %}
+  <div class="container dgl-ad-pie">
+    <div class="dgl-ad dgl-ad-leader">Espacio publicitario · 728×90</div>
+  </div>
+{% endblock %}

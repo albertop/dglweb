@@ -61,7 +61,11 @@
   media pantalla con un vacío debajo. Va acá y no sobre `<main>` porque no todas las plantillas
   usan `<main>`, y esta regla tiene que valer para todas.
 {% endcomment %}
-<div class="dgl-cuerpo">{% block content %}{% endblock %}</div>
+<div class="dgl-cuerpo">
+  {% block content %}{% endblock %}
+  {# Lo que se ponga acá queda pegado al pie, al fondo del espacio que sobre. #}
+  {% block anuncio_pie %}{% endblock %}
+</div>
 
 <footer class="dgl-footer pt-4 pb-3 mt-5">
   <div class="container">

@@ -286,6 +286,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    quedarse en 250px y dejar un hueco al lado del artículo. El mínimo es el 300×250 de siempre, que
    es lo que ocupa cuando la columna se apila en móvil y ya no tiene fila que igualar. */
 .dgl-ad-alto { min-height: 250px; }
+/* El que cierra la página: `margin-top: auto` se come el espacio que sobre y lo deja pegado al pie,
+   en vez de dejarlo colgando debajo de una tabla corta con un vacío por delante. */
+.dgl-ad-pie { margin-top: auto; }
 
 /* ---------- Article prose (readable serif body) ---------- */
 .dgl-prose {
@@ -432,8 +435,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 
 /* ---------- Footer ---------- */
 /* Crece para llenar lo que sobre de pantalla. `0 auto` en la base para que una tabla ancha no
-   encoja el contenido en vez de sacar su propia barra de desplazamiento. */
-.dgl-cuerpo { flex: 1 0 auto; }
+   encoja el contenido en vez de sacar su propia barra de desplazamiento. Y en columna, para que
+   `.dgl-ad-pie` pueda irse al fondo de ese espacio sobrante. */
+.dgl-cuerpo { flex: 1 0 auto; display: flex; flex-direction: column; }
 .dgl-footer { background: var(--dgl-navy); color: #b9c6db; flex-shrink: 0; }
 .dgl-footer a { color: #cdd8ea; }
 .dgl-footer h6 { color: #fff; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; }
