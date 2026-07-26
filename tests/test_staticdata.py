@@ -109,8 +109,8 @@ def test_a_missing_column_stops_everything_before_reading_rows() -> None:
 
 
 @pytest.mark.django_db
-def test_the_real_loader_checks_the_four_types_against_the_typed_total() -> None:
-    """Dos niveles: contra los tipificados es exacta; contra el total se tolera lo que falta."""
+def test_the_real_loader_checks_the_four_types_and_the_season_coverage() -> None:
+    """Exacta por fila; la cobertura, por TEMPORADA — medirla por fila confundía muestras chicas."""
     from dglweb.stats.staticdata.loaders import BattedBallHitsLoader
 
     def fila(**extra: int) -> dict[str, Any]:
@@ -127,19 +127,26 @@ def test_the_real_loader_checks_the_four_types_against_the_typed_total() -> None
         }
         return {**base, **extra}
 
-    # Suma exacta contra los tipificados y cobertura completa: sin problemas.
     assert BattedBallHitsLoader().checks([fila()]) == []
 
-    # Los cuatro no suman los tipificados: error de armado del CSV, no del dato.
+    # Los cuatro no suman los tipificados: error de armado del CSV.
     rotas = BattedBallHitsLoader().checks([fila(__h_typed=99)])
     assert len(rotas) == 1 and "no suman los hits tipificados" in rotas[0].message
 
-    # Suman bien, pero solo 11 de 100 hits traen trayectoria: eso es un export incompleto.
-    flojas = BattedBallHitsLoader().checks([fila(__h_all=100)])
-    assert len(flojas) == 1 and "con trayectoria" in flojas[0].rows[0]
+    # Una fila chica muy por debajo NO bloquea si la temporada está sana: es ruido de muestra, no un
+    # export malo. Antes, midiendo por fila, esto reventaba con 203 filas legítimas.
+    sana = [
+        fila(player_id=1, __h_all=20),
+        fila(player_id=2, __h_typed=1000, __h_all=1000, ground_hits=1000, fly_hits=0, line_hits=0, pop_hits=0),
+    ]
+    assert BattedBallHitsLoader().checks(sana) == []
 
-    # El ~2,5% que Retrosheet no tipifica es esperado y NO debe bloquear.
-    assert BattedBallHitsLoader().checks([fila(__h_all=12)]) == []
+    # Pero la temporada entera caída sí: aquí el agregado es 11 de 200.
+    caida = [fila(player_id=n, __h_all=20) for n in range(10)]
+    problems = BattedBallHitsLoader().checks(caida)
+    assert len(problems) == 1
+    assert "temporada(s) por debajo" in problems[0].message
+    assert problems[0].rows[0].startswith("2000:")
 
 
 @pytest.mark.django_db

@@ -13,7 +13,8 @@ from dglweb.stats.models import BattedBallHits, Batting, Pitching
 from dglweb.stats.staticdata.engine import Loader, Problem, register
 
 _GROUPS = {"batting", "pitching"}
-# Retrosheet tipifica ~97,5% de los hits. Por debajo de esto la fila no es ruido, es un export malo.
+# Retrosheet tipifica 97-100% de los hits POR TEMPORADA. Una temporada por debajo de esto no es
+# ruido: es un export incompleto. Se mide por temporada y no por fila — ver `checks`.
 _COBERTURA_MINIMA = 0.90
 
 
@@ -78,35 +79,44 @@ class BattedBallHitsLoader(Loader):
         }
 
     def checks(self, rows: list[dict[str, Any]]) -> list[Problem]:
-        """Los cuatro tipos son una partición de los hits, así que tienen que sumar el total.
+        """Dos pruebas, cada una en su grano.
 
-        Contra `h_typed` la prueba es EXACTA: son los mismos hits que se repartieron en los cuatro
-        conteos, así que cualquier diferencia es un error de armado del CSV y no del dato.
+        1) Por fila, EXACTA: los cuatro tipos tienen que sumar `h_typed`, que son justamente los
+           hits que se repartieron entre ellos. Cualquier diferencia es un error de armado del CSV.
 
-        Contra `h_all` no puede serlo: a Retrosheet le falta la trayectoria en ~2,5% de los hits
-        (126 filas en 2000, 115 en 2001, 0 en 1999). Esa diferencia es esperada, así que se tolera
-        hasta un 10% por fila — suficiente para no castigar el ruido normal y para seguir atajando
-        lo que esta prueba existe para cazar: un export que vino cortado.
+        2) Por TEMPORADA, no por fila: qué fracción de los hits trae trayectoria. Medirlo por fila
+           era un error — con 7 hits, uno solo sin tipificar da 57% y eso es ruido de muestra chica,
+           no un export malo. Un export incompleto se manifiesta como una temporada entera caída,
+           que es lo que esta prueba tiene que cazar. Referencia medida: 1999 al 100%, 2000-2002
+           entre 97 y 98%.
         """
-        rotas, flojas = [], []
+        rotas = []
+        por_temporada: dict[int, list[int]] = {}
         for row in rows:
             tipos = row["ground_hits"] + row["fly_hits"] + row["line_hits"] + row["pop_hits"]
-            quien = f"jugador {row['player_id']} {row['season']} ({row['stat_group']})"
             if tipos != row["__h_typed"]:
+                quien = f"jugador {row['player_id']} {row['season']} ({row['stat_group']})"
                 rotas.append(f"{quien}: {tipos} ≠ {row['__h_typed']} tipificados")
-            elif row["__h_all"] and tipos / row["__h_all"] < _COBERTURA_MINIMA:
-                flojas.append(f"{quien}: {tipos} de {row['__h_all']} hits con trayectoria")
+            acumulado = por_temporada.setdefault(row["season"], [0, 0])
+            acumulado[0] += row["__h_typed"]
+            acumulado[1] += row["__h_all"]
+
         problems = []
         if rotas:
             problems.append(
                 Problem(f"Los cuatro tipos no suman los hits tipificados en {len(rotas)} fila(s).", rotas[:10])
             )
+        flojas = [
+            f"{season}: {tip:,} de {todos:,} hits con trayectoria ({100 * tip / todos:.1f}%)"
+            for season, (tip, todos) in sorted(por_temporada.items())
+            if todos and tip / todos < _COBERTURA_MINIMA
+        ]
         if flojas:
             problems.append(
                 Problem(
-                    f"{len(flojas)} fila(s) con menos del {_COBERTURA_MINIMA:.0%} de los hits tipificados. "
-                    "Esperable es ~97,5%; muy por debajo suele ser un export incompleto.",
-                    flojas[:10],
+                    f"{len(flojas)} temporada(s) por debajo del {_COBERTURA_MINIMA:.0%} de hits tipificados. "
+                    "Lo normal es 97-100%; una temporada muy por debajo suele ser un export incompleto.",
+                    flojas,
                 )
             )
         return problems
