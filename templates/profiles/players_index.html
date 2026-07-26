@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% comment %}
+Índice de peloteros: buscador + la plantilla dominicana de la última temporada.
+
+El buscador funciona SIN JavaScript — el formulario hace un GET normal y la vista devuelve los
+resultados renderizados. El script de abajo solo adelanta ese mismo trabajo mientras se escribe. Si
+el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
+{% endcomment %}
+{% block title %}Jugadores · Dominicanos en Grandes Ligas{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h1 class="dgl-page-title">Jugadores</h1>
+  <div class="dgl-lede mb-4">
+    <p>
+      Todos los dominicanos que han llegado a Grandes Ligas, desde 1956. Escribe un nombre en el
+      buscador y elige de la lista para abrir su perfil, con sus números por temporada y de por vida.
+    </p>
+    <p class="mb-0">
+      No hace falta poner tildes ni eñes: <b>«nunez» encuentra a Núñez</b> y «pena» encuentra a Peña.
+      También sirve buscar por el apellido solo.
+    </p>
+  </div>
+
+  {% comment %}
+  `autocomplete="off"` porque el desplegable del navegador tapa el nuestro. El form conserva su
+  action y su método: es el camino sin JavaScript.
+  {% endcomment %}
+  <form method="get" action="{% url 'players_index' %}" class="dgl-buscador mb-4" role="search"
+        aria-label="Buscar jugador" autocomplete="off">
+    <label class="form-label dgl-control-label" for="q">Buscar jugador</label>
+    <div class="position-relative">
+      <input class="form-control dgl-control" type="search" id="q" name="q" value="{{ consulta }}"
+             placeholder="Escribe un nombre o apellido…" aria-describedby="q-ayuda"
+             role="combobox" aria-expanded="false" aria-controls="q-sugerencias" aria-autocomplete="list">
+      <ul class="dgl-sugerencias d-none" id="q-sugerencias" role="listbox" aria-label="Sugerencias"></ul>
+    </div>
+    <div class="dgl-meta mt-1" id="q-ayuda">Desde {{ min_caracteres }} letras.</div>
+    <noscript><button class="btn btn-sm btn-outline-primary mt-2" type="submit">Buscar</button></noscript>
+  </form>
+
+  {% if consulta %}
+  <section class="mb-5">
+    <h2 class="dgl-section-title">Resultados para «{{ consulta }}»</h2>
+    {% if resultados %}
+    <ul class="list-unstyled dgl-resultados">
+      {% for r in resultados %}
+      <li><a href="{% url 'player_detail' r.slug %}">{{ r.name }}</a>
+        <span class="dgl-meta">{% if r.pos %}{{ r.pos }} · {% endif %}{{ r.span }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="dgl-meta">Ningún jugador coincide con «{{ consulta }}».</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if activos %}
+  <section>
+    <h2 class="dgl-section-title">Activos en {{ temporada }}</h2>
+    <p class="dgl-meta mb-3">
+      Los {{ activos|length }} dominicanos con estadísticas registradas en la temporada {{ temporada }}.
+    </p>
+    <ul class="list-unstyled dgl-activos">
+      {% for jugador in activos %}
+      <li><a href="{% url 'player_detail' jugador.slug %}">{{ jugador.full_name }}</a>{% if jugador.pos %}
+        <span class="dgl-meta">{{ jugador.pos }}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Sugerencias mientras se escribe. Es una MEJORA sobre el formulario, no un reemplazo: si algo de
+  // esto falla, el submit normal sigue llevando a la misma página con los mismos resultados.
+  (function () {
+    var caja = document.getElementById("q");
+    var lista = document.getElementById("q-sugerencias");
+    if (!caja || !lista) return;
+
+    var minimo = {{ min_caracteres }};
+    var espera = null;      // el debounce: no una petición por tecla
+    var enVuelo = null;     // la última petición, para descartar respuestas que llegan tarde
+    var activo = -1;        // el índice resaltado con las flechas
+
+    function cerrar() {
+      lista.classList.add("d-none");
+      lista.innerHTML = "";
+      caja.setAttribute("aria-expanded", "false");
+      activo = -1;
+    }
+
+    function pintar(resultados) {
+      if (!resultados.length) { cerrar(); return; }
+      lista.innerHTML = "";
+      resultados.forEach(function (r, i) {
+        // Todo por nodo y nada por interpolación de HTML: un nombre nunca se inyecta como marcado.
+        var li = document.createElement("li");
+        li.id = "q-op-" + i;
+        li.setAttribute("role", "option");
+        li.setAttribute("aria-selected", "false");
+        li.dataset.slug = r.slug;
+        var nombre = document.createElement("span");
+        nombre.className = "nombre";
+        nombre.textContent = r.name;
+        var meta = document.createElement("span");
+        meta.className = "dgl-meta";
+        meta.textContent = (r.pos ? r.pos + " · " : "") + (r.span || "");
+        li.appendChild(nombre);
+        li.appendChild(meta);
+        // `mousedown` y no `click`: el blur del input cerraría la lista antes de que llegue el click.
+        li.addEventListener("mousedown", function (e) { e.preventDefault(); ir(i); });
+        lista.appendChild(li);
+      });
+      lista.classList.remove("d-none");
+      caja.setAttribute("aria-expanded", "true");
+      activo = -1;
+    }
+
+    function ir(i) {
+      var li = lista.children[i];
+      if (li) window.location.href = "/jugador/" + li.dataset.slug + "/";
+    }
+
+    function resaltar(delta) {
+      var n = lista.children.length;
+      if (!n) return;
+      if (activo >= 0) {
+        lista.children[activo].classList.remove("activo");
+        lista.children[activo].setAttribute("aria-selected", "false");
+      }
+      activo += delta;
+      if (activo < 0) activo = n - 1;
+      if (activo >= n) activo = 0;
+      var li = lista.children[activo];
+      li.classList.add("activo");
+      li.setAttribute("aria-selected", "true");
+      caja.setAttribute("aria-activedescendant", li.id);
+    }
+
+    caja.addEventListener("input", function () {
+      var texto = caja.value.trim();
+      clearTimeout(espera);
+      if (texto.length < minimo) { cerrar(); return; }
+      espera = setTimeout(function () {
+        var mio = {};
+        enVuelo = mio;
+        fetch("{% url 'players_suggest' %}?q=" + encodeURIComponent(texto))
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (enVuelo === mio) pintar(d.results || []); })
+          .catch(cerrar);   // sin sugerencias; el formulario sigue funcionando
+      }, 150);
+    });
+
+    caja.addEventListener("keydown", function (e) {
+      if (lista.classList.contains("d-none")) return;
+      if (e.key === "ArrowDown") { e.preventDefault(); resaltar(1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); resaltar(-1); }
+      else if (e.key === "Enter" && activo >= 0) { e.preventDefault(); ir(activo); }
+      else if (e.key === "Escape") { cerrar(); }
+    });
+
+    document.addEventListener("click", function (e) { if (!lista.contains(e.target) && e.target !== caja) cerrar(); });
+  })();
+</script>
+{% endblock %}

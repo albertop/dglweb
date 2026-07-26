@@ -346,3 +346,28 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   color: var(--dgl-blue); text-decoration: none; cursor: pointer;
 }
 .dgl-linkbtn:hover { text-decoration: underline; }
+
+/* --- Índice de jugadores: buscador con sugerencias ------------------------------------------ */
+/* El desplegable se dibuja sobre el contenido y no lo empuja: si la página saltara al aparecer la
+   lista, el usuario perdería de vista lo que estaba mirando cada vez que escribe una letra. */
+.dgl-buscador { max-width: 34rem; }
+.dgl-sugerencias {
+  position: absolute; z-index: 20; left: 0; right: 0; margin: .15rem 0 0; padding: 0;
+  list-style: none; background: #fff; border: 1px solid #c9d2dd; border-radius: .375rem;
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12); max-height: 20rem; overflow-y: auto;
+}
+.dgl-sugerencias li {
+  display: flex; justify-content: space-between; gap: 1rem; align-items: baseline;
+  padding: .4rem .7rem; cursor: pointer;
+}
+.dgl-sugerencias li + li { border-top: 1px solid #eef1f5; }
+/* Un solo estilo para el ratón y para las flechas: el teclado no puede ser ciudadano de segunda. */
+.dgl-sugerencias li:hover, .dgl-sugerencias li.activo { background: #eef3fa; }
+.dgl-sugerencias .nombre { font-weight: 600; }
+
+/* Las dos listas largas van en columnas: 132 nombres en una sola columna obligan a un scroll que no
+   aporta nada, y el ojo los recorre mejor en bloques. */
+.dgl-resultados, .dgl-activos { columns: 3; column-gap: 1.5rem; }
+.dgl-resultados li, .dgl-activos li { break-inside: avoid; padding: .12rem 0; }
+.dgl-resultados .dgl-meta, .dgl-activos .dgl-meta { margin-left: .4rem; }
+@media (max-width: 767px) { .dgl-resultados, .dgl-activos { columns: 1; } }

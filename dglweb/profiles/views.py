@@ -1,11 +1,13 @@
-"""Public player pages: `/jugador/<slug>/`, data-driven from our tables via the tab registry."""
+"""Páginas públicas de peloteros: el índice `/jugadores/` y el perfil `/jugador/<slug>/`."""
 
 from typing import Any
 
-from django.http import Http404, HttpRequest, HttpResponse
+from django.db import models
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.defaultfilters import date as format_date
 
+from dglweb.players import search
 from dglweb.players.models import Player
 from dglweb.profiles.tabs import tabs_for
 from dglweb.stats.models import BattingCareer, CareerLevel, PitchingCareer
@@ -98,3 +100,54 @@ def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "pit_total": PitchingCareer.objects.filter(player=player, level=CareerLevel.TOTAL).first(),
     }
     return render(request, "profiles/player_detail.html", context)
+
+
+def _latest_full_season() -> int | None:
+    """La última temporada que tiene bateo Y pitcheo cargados.
+
+    Se toma el mínimo de los dos máximos a propósito: si un oficio ya se refrescó hoy y el otro no,
+    la última temporada "completa" es la del que va atrás. Mostrar la del que va adelante daría una
+    lista a medias que parecería la plantilla entera.
+    """
+    from dglweb.stats.models import Batting, Pitching
+
+    ultimas = [modelo.objects.aggregate(m=models.Max("season"))["m"] for modelo in (Batting, Pitching)]
+    return min(ultimas) if all(u is not None for u in ultimas) else None
+
+
+def players_index(request: HttpRequest) -> HttpResponse:
+    """El índice de jugadores: buscador y la plantilla dominicana de la última temporada.
+
+    El buscador funciona SIN JavaScript: el formulario hace un GET normal y esta vista devuelve los
+    resultados ya renderizados. El JS de la plantilla solo adelanta ese mismo trabajo mientras se
+    escribe. Si falla el script, o alguien llega con él desactivado, la página sigue sirviendo.
+    """
+    consulta = (request.GET.get("q") or "").strip()
+    temporada = _latest_full_season()
+    activos: list[Player] = []
+    if temporada is not None:
+        activos = list(
+            Player.objects.filter(
+                models.Q(batting_seasons__season=temporada) | models.Q(pitching_seasons__season=temporada)
+            )
+            .distinct()
+            .order_by("full_name")
+        )
+
+    return render(
+        request,
+        "profiles/players_index.html",
+        {
+            "consulta": consulta,
+            "resultados": search.buscar(consulta, limite=50) if consulta else [],
+            "min_caracteres": search.MIN_CARACTERES,
+            "temporada": temporada,
+            "activos": activos,
+        },
+    )
+
+
+def players_suggest(request: HttpRequest) -> JsonResponse:
+    """El endpoint que consume el buscador mientras se escribe. JSON, sin plantilla."""
+    sugerencias = search.buscar(request.GET.get("q") or "")
+    return JsonResponse({"results": [s.to_dict() for s in sugerencias]})
