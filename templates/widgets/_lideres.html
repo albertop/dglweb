@@ -24,8 +24,10 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
   </div>
 
   <div class="dgl-lideres" data-visibles="{{ lideres.visibles }}">
-    {# `role="tablist"` y las flechas del teclado los pone lideres.js: sin JS quedan dos botones que
-       no hacen nada, así que la marcación accesible la agrega quien sí puede cumplirla. #}
+    {% comment %}
+      `role="tablist"` y las flechas del teclado los pone lideres.js: sin JS quedan dos botones que
+      no hacen nada, así que la marcación accesible la agrega quien sí puede cumplirla.
+    {% endcomment %}
     <div class="dgl-lideres-tabs mb-2">
       {% for oficio, etiqueta, grupos in lideres.oficios %}
         <button type="button" class="dgl-lideres-tab{% if forloop.first %} is-on{% endif %}"
@@ -40,12 +42,15 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
             <div class="dgl-lider-abbr" title="{{ grupo.metrica.name_es }}">{{ grupo.metrica.abbrev }}</div>
             <div class="dgl-lider-gente">
               {% for puesto in grupo.puestos %}
-                {# Del segundo en adelante solo aparecen desplegado: el widget cerrado enseña al mejor
-                   de cada métrica, que es lo que cabe. #}
+                {% comment %}
+                  Del segundo en adelante solo aparecen desplegado: el widget cerrado enseña al mejor
+                  de cada métrica, que es lo que cabe.
+
+                  `alt` vacío y no el nombre: el nombre ya está al lado, y repetirlo hace que un
+                  lector de pantalla lo diga dos veces. `onerror` quita la foto que falte —un
+                  debutante que MLB todavía no retrató— en vez de dejar el icono de imagen rota.
+                {% endcomment %}
                 <div class="dgl-lider{% if not forloop.first %} dgl-de-mas d-none{% endif %}">
-                  {# `alt` vacío y no el nombre: el nombre ya está al lado, y repetirlo hace que un
-                     lector de pantalla lo diga dos veces. `onerror` quita la foto que falte —un
-                     debutante que MLB todavía no retrató— en vez de dejar el icono de imagen rota. #}
                   <img class="dgl-lider-foto" src="{{ puesto.foto }}" width="28" height="28"
                        alt="" loading="lazy" onerror="this.remove()">
                   <a class="nombre" href="{% url 'player_detail' puesto.player.slug %}">{{ puesto.player.full_name }}</a>
