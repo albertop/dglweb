@@ -189,16 +189,28 @@ def _calendario(client: MlbProxyClient, desde: date, hasta: date) -> dict[date, 
 
 @dataclass(frozen=True)
 class _Accion:
-    """Lo que pasó ese día: quién jugó por cada equipo, y qué hizo cada uno."""
+    """Quién jugó y qué hizo, en dos niveles de precisión.
+
+    `por_equipo` y `lineas` son del DÍA: una sola consulta para toda la liga, y alcanzan mientras un
+    jugador juegue una sola vez ese día, que es lo normal.
+
+    `por_lado` es por JUEGO —`(gamePk, equipo)`— y solo existe para los juegos donde el día no basta:
+    los que están en curso y los de doble cartelera. Cuando hay entrada acá, manda esta, porque el
+    total del día mezclaría los dos juegos en uno.
+    """
 
     por_equipo: dict[int, set[int]]
     lineas: dict[int, str]
+    por_lado: dict[tuple[int, int], dict[int, str]]
 
-    def absorber(self, otra: "_Accion") -> None:
-        """Mete lo de `otra` encima de lo propio. Sus líneas mandan."""
-        for equipo, jugadores in otra.por_equipo.items():
-            self.por_equipo.setdefault(equipo, set()).update(jugadores)
-        self.lineas.update(otra.lineas)
+    def jugadores_de(self, pk: Any, equipo_id: Any) -> set[int] | None:  # noqa: ANN401 — vienen del feed
+        """Los de ese lado en ESE juego, o `None` si para este juego alcanza el total del día."""
+        detalle = self.por_lado.get((pk, equipo_id))
+        return set(detalle) if detalle is not None else None
+
+    def linea_de(self, pk: Any, equipo_id: Any, jugador_id: int) -> str:  # noqa: ANN401 — vienen del feed
+        detalle = self.por_lado.get((pk, equipo_id))
+        return detalle.get(jugador_id, "") if detalle is not None else self.lineas.get(jugador_id, "")
 
 
 def _linea_de(stats: dict[str, Any]) -> str:
@@ -237,48 +249,68 @@ def _accion_del_dia(client: MlbProxyClient, dia: date, universo: set[int]) -> _A
             por_equipo.setdefault(equipo_id, set()).add(jugador_id)
             lineas.setdefault(jugador_id, []).append(describir(split.get("stat") or {}))
 
-    return _Accion(por_equipo=por_equipo, lineas={pid: " · ".join(partes) for pid, partes in lineas.items()})
+    return _Accion(
+        por_equipo=por_equipo,
+        lineas={pid: " · ".join(partes) for pid, partes in lineas.items()},
+        por_lado={},
+    )
 
 
-def _accion_en_vivo(client: MlbProxyClient, crudos: list[dict[str, Any]], universo: set[int]) -> _Accion:
-    """Lo que va haciendo cada quien en los juegos que están EN CURSO.
+def _pide_boxscore(juego: dict[str, Any]) -> bool:
+    """Si a este juego no le alcanza el total del día y hay que preguntarle a él directamente.
 
-    Hace falta porque `byDateRange` no publica nada de un juego hasta que termina — está medido: con
-    un juego vivo, los dos equipos de ese juego son los únicos de los treinta que no aparecen en la
-    consulta del día. Sin esto, un juego en curso muestra los nombres y ninguna línea.
+    Dos casos, y solo dos, porque cada uno cuesta una llamada:
 
-    Cuesta una llamada por juego vivo, y solo por juego vivo: los terminados siguen saliendo de la
-    consulta del día, que es una sola para toda la liga. En horario pico son diez o quince llamadas
-    por minuto para todo el sitio, y de madrugada ninguna.
+    * **En curso.** `byDateRange` no publica nada de un juego hasta que termina — está medido: con un
+      juego vivo, sus dos equipos son los únicos de los treinta que no aparecen en la consulta del
+      día. Sin esto, un juego en curso muestra los nombres y ninguna línea.
+    * **Doble cartelera.** Los dos juegos son del mismo día y de los mismos dos equipos, así que el
+      total del día son los dos sumados. Sin esto, quien jugó los dos aparece con las mismas cifras
+      en ambos, y quien jugó solo el segundo aparece también en el primero.
+
+    Un juego que no ha empezado no entra: su boxscore está vacío y sería una llamada regalada.
     """
-    accion = _Accion(por_equipo={}, lineas={})
+    estado = _ESTADOS.get(str((juego.get("status") or {}).get("abstractGameState")), PROGRAMADO)
+    if estado == VIVO:
+        return True
+    return estado == FINAL and str(juego.get("doubleHeader") or "N") != "N"
+
+
+def _accion_por_juego(client: MlbProxyClient, crudos: list[dict[str, Any]], universo: set[int]) -> _Accion:
+    """El detalle de los juegos que lo necesitan, uno por uno. Ver `_pide_boxscore` para cuáles.
+
+    Se guarda por `(juego, equipo)` y no por jugador: en una doble cartelera el mismo jugador tiene
+    dos líneas distintas el mismo día, y un diccionario por jugador solo podría quedarse con una.
+    """
+    por_lado: dict[tuple[int, int], dict[int, str]] = {}
     for juego in crudos:
-        if _ESTADOS.get(str((juego.get("status") or {}).get("abstractGameState"))) != VIVO:
-            continue
-        if (pk := juego.get("gamePk")) is None:
+        if not _pide_boxscore(juego) or (pk := juego.get("gamePk")) is None:
             continue
         try:
             payload = client.get(f"/api/v1/game/{pk}/boxscore")
         except MlbProxyError:
-            # Un juego que no contesta no puede tumbar la tira entera: ese se queda sin líneas y los
-            # otros catorce salen igual.
+            # Un juego que no contesta no puede tumbar la tira entera: ese se queda con el total del
+            # día y los otros catorce salen igual.
             logger.warning("No se pudo leer el boxscore del juego %s.", pk, exc_info=True)
             continue
 
         for lado in ("away", "home"):
             datos = (payload.get("teams") or {}).get(lado) or {}
             equipo_id = (datos.get("team") or {}).get("id")
+            if equipo_id is None:
+                continue
+            # Se crea aunque quede vacío: la entrada es la que dice «para este juego mando yo», y sin
+            # ella el lado volvería al total del día, que es justo lo que se quiere evitar.
+            nuestros = por_lado.setdefault((pk, equipo_id), {})
             for jugador in (datos.get("players") or {}).values():
                 jugador_id = (jugador.get("person") or {}).get("id")
                 # El boxscore trae la novena entera, banca incluida. Los bloques de estadísticas del
                 # que no ha entrado vienen vacíos, y esa es la señal de quién realmente jugó.
                 linea = _linea_de(jugador.get("stats") or {})
-                if jugador_id not in universo or not linea:
-                    continue
-                if equipo_id is not None:
-                    accion.por_equipo.setdefault(equipo_id, set()).add(jugador_id)
-                accion.lineas[jugador_id] = linea
-    return accion
+                if jugador_id in universo and linea:
+                    nuestros[jugador_id] = linea
+
+    return _Accion(por_equipo={}, lineas={}, por_lado=por_lado)
 
 
 def _anunciados(juego: dict[str, Any], visitante: bool) -> set[int]:
@@ -324,16 +356,28 @@ def _lado(
     juego: dict[str, Any],
     visitante: bool,
     estado: str,
-    por_equipo: dict[int, set[int]],
+    accion: _Accion,
     universo: set[int],
-    nombres: dict[int, Nuestro],
+    nombres: dict[int, tuple[str, str]],
 ) -> Lado:
     datos = (juego.get("teams") or {}).get("away" if visitante else "home") or {}
     equipo = datos.get("team") or {}
-    ids = (_anunciados(juego, visitante) & universo) | por_equipo.get(equipo.get("id") or 0, set())
+    pk, equipo_id = juego.get("gamePk"), equipo.get("id")
+
+    del_juego = accion.jugadores_de(pk, equipo_id)
+    ids = _anunciados(juego, visitante) & universo
+    ids |= del_juego if del_juego is not None else accion.por_equipo.get(equipo_id or 0, set())
+
     # Por nombre y no por id: el orden de un conjunto cambia entre corridas, y una lista que se
     # reordena sola cada minuto en la pantalla se lee como un error.
-    nuestros = sorted((nombres[pid] for pid in ids if pid in nombres), key=lambda n: n.nombre)
+    nuestros = sorted(
+        (
+            Nuestro(nombre=nombres[pid][0], slug=nombres[pid][1], linea=accion.linea_de(pk, equipo_id, pid))
+            for pid in ids
+            if pid in nombres
+        ),
+        key=lambda n: n.nombre,
+    )
     marca = datos.get("leagueRecord") or {}
 
     return Lado(
@@ -351,18 +395,19 @@ def _lado(
     )
 
 
-def _nombres(ids: set[int], lineas: dict[int, str]) -> dict[int, Nuestro]:
-    """Los nombres salen de nuestro maestro, no del feed: es el que el sitio usa en todas partes."""
+def _nombres(ids: set[int]) -> dict[int, tuple[str, str]]:
+    """`player_id -> (nombre corto, slug)`, de nuestro maestro y no del feed.
+
+    Sin la línea a propósito: en una doble cartelera el mismo jugador tiene dos líneas distintas el
+    mismo día, así que la línea no puede vivir en un diccionario por jugador. La pone `_lado`, que sí
+    sabe de qué juego está hablando.
+    """
     from dglweb.players.models import Player
 
     nombres = {}
     for jugador in Player.objects.filter(player_id__in=ids):
         inicial = f"{jugador.firstname[:1]}. " if jugador.firstname else ""
-        nombres[jugador.player_id] = Nuestro(
-            nombre=f"{inicial}{jugador.lastname_1}",
-            slug=jugador.slug,
-            linea=lineas.get(jugador.player_id, ""),
-        )
+        nombres[jugador.player_id] = (f"{inicial}{jugador.lastname_1}", jugador.slug)
     return nombres
 
 
@@ -372,18 +417,21 @@ def jornada(client: MlbProxyClient, dia: date, crudos: list[dict[str, Any]], uni
         return ()
 
     accion = _accion_del_dia(client, dia, universo)
-    accion.absorber(_accion_en_vivo(client, crudos, universo))
+    detalle = _accion_por_juego(client, crudos, universo)
+    accion.por_lado.update(detalle.por_lado)
+
     candidatos = {pid for equipo in accion.por_equipo.values() for pid in equipo}
+    candidatos |= {pid for lado in accion.por_lado.values() for pid in lado}
     for juego in crudos:
         candidatos |= (_anunciados(juego, visitante=True) | _anunciados(juego, visitante=False)) & universo
-    nombres = _nombres(candidatos, accion.lineas)
+    nombres = _nombres(candidatos)
 
     return tuple(
         Juego(
             estado=(estado := _ESTADOS.get(str((juego.get("status") or {}).get("abstractGameState")), PROGRAMADO)),
             detalle=_detalle(juego, estado),
-            visitante=_lado(juego, True, estado, accion.por_equipo, universo, nombres),
-            local=_lado(juego, False, estado, accion.por_equipo, universo, nombres),
+            visitante=_lado(juego, True, estado, accion, universo, nombres),
+            local=_lado(juego, False, estado, accion, universo, nombres),
         )
         for juego in crudos
     )
