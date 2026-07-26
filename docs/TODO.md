@@ -135,16 +135,19 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   (AO/GO/FO/PO/LO) están completos en esos años, y hoy se advierte sobre el panel Statcast entero
   como si estuvieran todos afectados. Un piso por (métrica, temporada) lo diría con exactitud.
   **Prioridad baja**: la advertencia sobra en cinco columnas de doce, pero no miente.
-- [ ] **DEV-02 / FE-03 — `leaders_context()` revienta con la base vacía.** **Reproducido**:
+- [x] **DEV-02 / FE-03 — `leaders_context()` revienta con la base vacía.** **Corregido**: `_empty_context()` devuelve un contexto renderizable y la plantilla tiene su rama para base vacía. Con test.
+  ~~ **Reproducido**:
   `IndexError: list index out of range` en `division_labels[0]`. Pasa en staging limpio, base recién
   migrada, o si alguien desactiva las métricas de un grupo desde el Backoffice. Es el más grave
   porque tumba una página pública entera, no un caso de borde. Falta un contexto vacío renderizable.
-- [ ] **QA-01 / SAB-04 — las filas con `mlb_id` desconocido se descartan en silencio.** Real, y el
+- [x] **QA-01 / SAB-04 — las filas con `mlb_id` desconocido se descartan en silencio.** **Corregido**: se separa «sin mlb_id» (se descarta) de «mlb_id que no está en el maestro» (se acumula en `_huerfanas` y se reporta con conteo, hits perdidos y muestra de ids).
+  ~~ Real, y el
   reviewer ve algo que a mí se me pasó: las descartadas **tampoco entran en los totales de cobertura**,
   así que un maestro incompleto hace que el CSV parezca MÁS sano de lo que está. La validación se
   autoengaña. Hay que separar "sin mlb_id" de "mlb_id que no existe en el maestro" y reportar el
   segundo con conteo y muestra.
-- [ ] **SAB-01 — la cobertura se valida por temporada, no por (temporada, oficio).** Verificado:
+- [x] **SAB-01 — la cobertura se valida por temporada, no por (temporada, oficio).** **Corregido**: la clave del acumulador es `(season, stat_group)`, así que un oficio roto ya no se esconde tras el otro completo.
+  ~~ Verificado:
   `por_temporada.setdefault(row["season"], ...)` mezcla bateo y pitcheo. Si un oficio viene completo
   y el otro roto, el promedio pasa el 80% y el roto entra igual. Error mío al escribir `checks()`.
 - [x] **ARCH-01 — cargar datos de apoyo no reconstruye lo que depende de ellos.** **Corregido**: el `Loader` declara `rebuilds = ("build_career_totals", "build_leaders")` y la vista los dispara sola al confirmar. Corren fuera de la transacción (son reintentables, y no hay por qué bloquear la tabla de origen un minuto) y en un hilo (si no, la respuesta HTTP espera el minuto que tarda `build_leaders`, que es justo lo que un proxy corta a los 30s). Quedan en `IngestRun` como cualquier corrida del scheduler. Documentado en `MOTOR_DATOS_APOYO.md`.
