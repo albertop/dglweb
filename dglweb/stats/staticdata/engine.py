@@ -16,12 +16,13 @@ que hay que escribir para sumar una tabla nueva. Ver `docs/DATOS_DE_APOYO.md`.
 
 import csv
 import io
-import threading
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from django.db import connections, models, transaction
+from django.db import models, transaction
+
+from dglweb.stats import rebuilds
 
 
 @dataclass
@@ -274,34 +275,10 @@ def rebuild(loader: Loader) -> None:
     necesidad. Dos: son cosas distintas. Si la reconstrucción falla, el dato de apoyo igual quedó
     bien cargado y lo único pendiente es volver a derivar, que es reintentable y además lo hace el
     cron todas las mañanas.
-
-    Cada comando ya se registra solo en `IngestRun` (via `record_run`), así que una corrida disparada
-    desde el Backoffice se ve en el log igual que la del scheduler.
     """
-    from django.core.management import call_command
-
-    try:
-        for nombre in loader.rebuilds:
-            call_command(nombre)  # lo que imprima va al log del servidor, que es donde sirve
-    finally:
-        # El hilo abre su propia conexión y nadie la va a cerrar por él: sin esto, cada carga deja
-        # una conexión colgada en Postgres.
-        connections.close_all()
+    rebuilds.run(loader.rebuilds)
 
 
 def rebuild_in_background(loader: Loader) -> str:
-    """Lanza `rebuild` en un hilo y devuelve enseguida. El texto es lo que se le muestra al usuario.
-
-    Sin hilo la respuesta HTTP quedaría esperando el minuto y pico que tarda `build_leaders`, que es
-    justo el tipo de request que un proxy corta a los 30 segundos — y cortarla no detiene el trabajo,
-    solo deja al usuario sin saber cómo terminó.
-
-    Es un hilo suelto, no una cola: este proyecto no tiene worker, la carga la dispara una persona
-    que está mirando, y si el proceso se reinicia a mitad la red de seguridad ya existe (el cron
-    reconstruye a las 7:30). Lo que no puede pasar —y era lo que pasaba— es que no se reconstruya
-    nunca porque nadie se acordó.
-    """
-    if not loader.rebuilds:
-        return ""
-    threading.Thread(target=rebuild, args=(loader,), name=f"rebuild:{loader.table}", daemon=True).start()
-    return ", ".join(loader.rebuilds)
+    """Lanza `rebuild` en un hilo y devuelve enseguida. El texto es lo que se le muestra al usuario."""
+    return rebuilds.run_in_background(loader.rebuilds)

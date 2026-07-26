@@ -89,7 +89,7 @@ class Command(BaseCommand):
         records = self._load(Path(options["file"]))
         self._validate(records)
 
-        existing = Player.objects.count()
+        existing = Player.todos.count()
         if existing and not (options["upsert"] or options["delete_missing"]):
             raise CommandError(
                 f"dgl_master already has {existing} rows; pass --upsert to insert/update (nothing is deleted)."
@@ -99,7 +99,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             if options["delete_missing"]:
                 self._delete_missing(extract_ids, force=options["force"])
-            Player.objects.bulk_create(
+            Player.todos.bulk_create(
                 [Player(**record) for record in records],
                 update_conflicts=True,
                 unique_fields=["player_id"],
@@ -107,9 +107,7 @@ class Command(BaseCommand):
                 batch_size=500,
             )
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Loaded/updated {len(records)} players ({Player.objects.count()} total).")
-        )
+        self.stdout.write(self.style.SUCCESS(f"Loaded/updated {len(records)} players ({Player.todos.count()} total)."))
 
     def _load(self, path: Path) -> list[dict[str, Any]]:
         if not path.exists():
@@ -148,7 +146,7 @@ class Command(BaseCommand):
             raise CommandError(f"Duplicate {field} in extract: {sorted(dupes)}.")
 
     def _delete_missing(self, extract_ids: set[int], *, force: bool) -> None:
-        missing = Player.objects.exclude(player_id__in=extract_ids)
+        missing = Player.todos.exclude(player_id__in=extract_ids)
         with_stats = missing.filter(
             Q(batting_seasons__isnull=False) | Q(pitching_seasons__isnull=False) | Q(fielding_seasons__isnull=False)
         ).distinct()

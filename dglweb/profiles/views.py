@@ -73,7 +73,9 @@ def _player_id_from_slug(slug: str) -> int:
 
 
 def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
-    player = get_object_or_404(Player, pk=_player_id_from_slug(slug))
+    # `Player.objects` y no `Player`: un jugador dado de baja tiene que dar 404, no página.
+    # Sacarlo de las listas no alcanza — el enlace directo sobrevive en Google y en cualquier chat.
+    player = get_object_or_404(Player.objects, pk=_player_id_from_slug(slug))
     if slug != player.slug:
         return redirect("player_detail", slug=player.slug, permanent=True)  # canonical (SEO)
 

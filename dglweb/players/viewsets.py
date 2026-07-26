@@ -16,12 +16,15 @@ class PlayerViewSet(SnippetViewSet):  # type: ignore[misc]
     icon = "user"
     menu_label = "Jugadores (DGL master)"
     menu_name = "players"
-    list_display = ("full_name", "pos", "bats", "throws", "debut_date", "player_id")
-    list_filter = ("pos", "bats", "throws")
+    list_display = ("full_name", "pos", "bats", "throws", "debut_date", "player_id", "hidden")
+    list_filter = ("pos", "bats", "throws", "hidden")
     search_fields = ("full_name", "lastname_1", "lastname_2", "firstname", "nickname", "dgl_id")
     list_per_page = 50
     ordering = ("full_name",)
     add_to_admin_menu = False  # it lives under the Backoffice group
+
+    # El Backoffice ve a TODOS, incluidos los dados de baja: es el único lugar donde hay que verlos,
+    # porque es desde donde se reactivan. Sale del `default_manager_name = "todos"` del modelo.
 
     panels = (
         MultiFieldPanel(
@@ -79,5 +82,9 @@ class PlayerViewSet(SnippetViewSet):  # type: ignore[misc]
                 FieldPanel("register_id"),
             ],
             heading="IDs externos",
+        ),
+        MultiFieldPanel(
+            [FieldPanel("hidden"), FieldPanel("disabled_reason")],
+            heading="Baja",
         ),
     )

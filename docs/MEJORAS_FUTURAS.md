@@ -87,3 +87,15 @@ Es una conversación de diseño, no un ticket. Retomar antes de dar por cerrado 
 ## Scheduler
 
 - **Wire `parity_career` al scheduler** (semanal) una vez construido, junto a `build_leaders`.
+
+## Jugadores deshabilitados
+
+Ver `docs/JUGADORES_DESHABILITADOS.md` para el diseño completo. Lo que quedó pendiente:
+
+- **Blindar el import del maestro contra revivir una baja.** Hoy `import_dgl_master` solo actualiza
+  las columnas del extract de SQL Server, y `hidden` no está entre ellas, así que un re-import no la
+  pisa. Pero eso es un accidente feliz e invisible: si alguien suma la columna al extract, la baja se
+  revierte sola y en silencio. Merece un test que lo fije. **Prioridad baja** — el maestro
+  prácticamente no se vuelve a importar.
+- **La búsqueda todavía no existe** (el input del header es un placeholder). Cuando se construya,
+  tiene que partir de `Player.objects`, que ya filtra.

@@ -21,7 +21,7 @@ Write = Callable[[str], Any]
 
 
 def _player_ids() -> set[int]:
-    ids = set(Player.objects.values_list("player_id", flat=True))
+    ids = set(Player.todos.values_list("player_id", flat=True))
     if not ids:
         raise CommandError("dgl_master está vacía: carga la tabla maestra primero.")
     return ids

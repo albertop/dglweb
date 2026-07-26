@@ -29,7 +29,7 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         expected = self._load_expected(Path(options["expected"]))
         seasons = sorted({row["season"] for row in expected})
-        player_ids = set(Player.objects.values_list("player_id", flat=True))
+        player_ids = set(Player.todos.values_list("player_id", flat=True))
         if not player_ids:
             raise CommandError("dgl_master está vacía: carga la tabla maestra primero.")
 

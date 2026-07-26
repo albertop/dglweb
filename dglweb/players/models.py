@@ -15,12 +15,27 @@ Not to be confused with `dom_players` (a separate, broader table of Dominicans i
 the minors, refreshed once or twice per season, used to detect debuts and roster moves).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import models
 
 if TYPE_CHECKING:
     from dglweb.stats.models import Batting
+
+
+class VisiblePlayerManager(models.Manager["Player"]):
+    """El manager por defecto: solo los jugadores visibles.
+
+    Que el DEFAULT sea el seguro es la decisión de fondo. Un flag que hay que acordarse de filtrar en
+    cada consulta nueva se va a olvidar, y el requisito es que un jugador dado de baja sea «como si
+    no existiese» — eso solo se cumple si ver a los ocultos hay que PEDIRLO (`Player.todos`).
+
+    Ojo: no alcanza para la data derivada. `build_leaders` y `build_career_totals` no pasan por acá:
+    leen las tablas de stats y agrupan por `player_id`. Ver `dglweb.players.visibility`.
+    """
+
+    def get_queryset(self) -> models.QuerySet["Player"]:
+        return super().get_queryset().filter(hidden=False)
 
 
 class Player(models.Model):
@@ -75,14 +90,75 @@ class Player(models.Model):
     # fills it by hand in the backoffice, so it is not part of `import_dgl_master`'s columns.
     hof_year = models.PositiveIntegerField(null=True, blank=True, verbose_name="Año Salón de la Fama (Cooperstown)")
 
+    # La baja de un inscrito. No se borra la fila —el borrado es irreversible y se lleva por CASCADE
+    # todas sus estadísticas— sino que se oculta: para el sitio deja de existir, para la tubería
+    # sigue existiendo y se le sigue actualizando el dato, así que reactivarlo es instantáneo y no
+    # exige un backfill. Tampoco es del extract de SQL Server: se prende y se apaga en el Backoffice.
+    hidden = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Deshabilitado",
+        help_text="El jugador desaparece del sitio: perfil, búsqueda y liderazgos. Es reversible.",
+    )
+    disabled_reason = models.TextField(
+        blank=True,
+        verbose_name="Motivo de la baja",
+        help_text="Obligatorio al deshabilitar. Dentro de un año es lo único que va a explicar por "
+        "qué falta este jugador, y si puede volver.",
+    )
+
+    # `objects` —el que se usa sin pensar en el código de la aplicación— es el filtrado. `todos` es
+    # el que hay que pedir a propósito, y además es el `_default_manager` de Django, que NO es lo
+    # mismo: esa es la plomería interna que usan el Backoffice y la validación de unicidad de los
+    # formularios, y las dos tienen que ver a todo el mundo. Con el filtrado ahí, la pantalla de
+    # edición daba 404 sobre un jugador oculto —o sea, no había forma de reactivarlo— y un `dgl_id`
+    # ocupado por un oculto pasaba desapercibido al dar de alta a otro.
+    todos = models.Manager["Player"]()
+    objects = VisiblePlayerManager()
+
     class Meta:
         db_table = "dgl_master"
         ordering = ["full_name"]
         verbose_name = "jugador"
         verbose_name_plural = "jugadores"
+        default_manager_name = "todos"  # ver el comentario de los managers: es la plomería del admin
 
     def __str__(self) -> str:
         return self.full_name
+
+    def clean(self) -> None:
+        """Deshabilitar exige decir por qué. Un booleano solo dice «está apagado»."""
+        from django.core.exceptions import ValidationError
+
+        if self.hidden and not self.disabled_reason.strip():
+            raise ValidationError(
+                {"disabled_reason": "Al deshabilitar un jugador hay que explicar por qué se da de baja."}
+            )
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Si cambió la visibilidad, rehace lo derivado — sin que nadie tenga que acordarse.
+
+        Los liderazgos están materializados con el puesto ya escrito, así que ocultar a alguien no es
+        solo sacarlo: los rangos de los que venían detrás tienen que cerrarse. Filtrarlo al leer
+        dejaría la lista numerada 1, 2, 4.
+
+        La lectura previa cuesta una consulta por `save()`, y no se paga donde importaría: el import
+        del maestro escribe con `bulk_create`, que no pasa por acá.
+        """
+        previo = None
+        if not self._state.adding:
+            previo = Player.todos.filter(pk=self.pk).values_list("hidden", flat=True).first()
+        super().save(*args, **kwargs)
+        if previo is None or previo == self.hidden:
+            return
+
+        from django.db import transaction
+
+        from dglweb.stats import rebuilds
+
+        # Al COMMIT, no acá: si el guardado se revierte no hay nada que reconstruir, y arrancar un
+        # hilo que lee la base desde adentro de la transacción lo dejaría viendo el estado viejo.
+        transaction.on_commit(lambda: rebuilds.run_in_background(rebuilds.DERIVED))
 
     @property
     def slug(self) -> str:

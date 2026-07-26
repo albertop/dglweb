@@ -67,7 +67,7 @@ class BattedBallHitsLoader(Loader):
 
     def prepare(self) -> None:
         # Una sola consulta para todo el CSV. Sin esto, `resolve` haría una por línea.
-        self._by_mlb = dict(Player.objects.values_list("player_id", "pk"))
+        self._by_mlb = dict(Player.todos.values_list("player_id", "pk"))
         self._huerfanas = []  # filas cuyo mlb_id no está en el maestro; se reportan en `checks`
 
     def resolve(self, row: dict[str, str]) -> dict[str, Any] | None:

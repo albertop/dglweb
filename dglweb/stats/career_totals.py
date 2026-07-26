@@ -21,6 +21,7 @@ from typing import Any
 
 from django.db import models, transaction
 
+from dglweb.players.visibility import only_visible
 from dglweb.stats import career_rate
 from dglweb.stats.models import (
     Batting,
@@ -123,7 +124,7 @@ def _build_batting_pitching(group: str, career_model: type[models.Model], season
     order_col = "pa" if group == "batting" else "bf"  # the pitcher's PA is bf
     columns = list(dict.fromkeys(["player_id", "team", "league", *counting, *rates]))
 
-    manager = season_model._default_manager
+    manager = only_visible(season_model._default_manager.all())
     season_rows = list(manager.season_totals().values(*columns))  # type: ignore[attr-defined]
     grand = _accumulate(season_rows, counting, rates, weight_col, lambda r: r["player_id"])
     per_team_rows = list(manager.exclude(team="XXX").values(*columns))
@@ -186,7 +187,9 @@ def _build_fielding() -> int:
     weight_col = career_rate.WEIGHT[group]
     columns = list(dict.fromkeys(["player_id", "pos", *counting, *rates]))
 
-    rows = list(Fielding.objects.position_totals().exclude(pos="DH").values(*columns))  # DH is not a position
+    rows = list(
+        only_visible(Fielding.objects.position_totals()).exclude(pos="DH").values(*columns)
+    )  # DH is not a position
     positions = _accumulate(rows, counting, rates, weight_col, lambda r: (r["player_id"], r["pos"]))
     grand = _accumulate(rows, counting, rates, weight_col, lambda r: r["player_id"])
 

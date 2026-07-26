@@ -17,6 +17,7 @@ from typing import Any
 
 from django.db import connection, models, transaction
 
+from dglweb.players.visibility import only_visible
 from dglweb.stats import career_rate, qualifier
 from dglweb.stats.models import (
     Batting,
@@ -97,7 +98,7 @@ def _first_season(metric: Metric) -> int:
 def _totals(metric: Metric, pos: str | None) -> list[dict[str, Any]]:
     """Season-total rows for the metric (Dominican tables, 1956+), with the value and qualifier cols."""
     model = _MODEL[metric.stat_group]
-    base = model._default_manager.filter(season__gte=_first_season(metric))
+    base = only_visible(model._default_manager.filter(season__gte=_first_season(metric)))
     if metric.stat_group == "fielding":
         rows = base.position_totals().filter(pos=pos)  # type: ignore[attr-defined]
         qualifier_col = "gp"
@@ -216,7 +217,7 @@ def _career_sums(group: str, pos: str | None, first_season: int = FIRST_SEASON) 
     exists, or a player spanning 1985-1995 would average a decade that was never classified.
     """
     components = career_rate.COMPONENTS[group]
-    base = _MODEL[group]._default_manager.filter(season__gte=first_season)
+    base = only_visible(_MODEL[group]._default_manager.filter(season__gte=first_season))
     rows = base.position_totals().filter(pos=pos) if group == "fielding" else base.season_totals()  # type: ignore[attr-defined]
     sums: dict[int, dict[str, Any]] = {}
     for row in rows.values("player_id", *components):
@@ -355,7 +356,7 @@ def _postseason_leaders(metric: Metric) -> list[Leader]:
     by_career: dict[int, float] = defaultdict(float)
     floor_season: dict[int, dict[int, float]] = defaultdict(lambda: defaultdict(float))
     floor_career: dict[int, float] = defaultdict(float)
-    for row in model._default_manager.filter(season__gte=FIRST_SEASON).values(*columns_):
+    for row in only_visible(model._default_manager.filter(season__gte=FIRST_SEASON)).values(*columns_):
         value = row[metric.column]
         if value is None:
             continue
@@ -406,7 +407,8 @@ def _postseason_rate_leaders(metric: Metric) -> list[Leader]:
 
     by_season: dict[int, dict[int, dict[str, float]]] = defaultdict(dict)
     by_career: dict[int, dict[str, float]] = {}
-    for row in model._default_manager.filter(season__gte=FIRST_SEASON).values("player_id", "season", *components):
+    rows_ = only_visible(model._default_manager.filter(season__gte=FIRST_SEASON))
+    for row in rows_.values("player_id", "season", *components):
         season_bucket = by_season[row["season"]].setdefault(row["player_id"], dict.fromkeys(components, 0.0))
         career_bucket = by_career.setdefault(row["player_id"], dict.fromkeys(components, 0.0))
         for component in components:
