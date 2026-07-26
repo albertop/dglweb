@@ -27,10 +27,13 @@ que un CSV corto salte a la vista ANTES de que reemplace la tabla.
     <thead><tr><th></th><th>En la tabla</th><th>En el CSV</th><th>Δ</th></tr></thead>
     <tbody>
       <tr><td><b>Filas</b></td><td>{{ c.rows_before }}</td><td>{{ c.rows_after }}</td>
-          <td>{{ c.rows_after|add:c.rows_before|add:"0" }}</td></tr>
+          <td>{{ c.rows_delta }}</td></tr>
+      {% if c.seasons_after %}
+      <tr><td><b>Temporadas</b></td><td>{{ c.seasons_before|default:"—" }}</td><td>{{ c.seasons_after }}</td><td></td></tr>
+      {% endif %}
       {% for col in c.columns %}
       <tr><td>{{ col.name }}</td><td>{{ col.before|floatformat:0 }}</td><td>{{ col.after|floatformat:0 }}</td>
-          <td>{% if col.change != None %}{{ col.change|floatformat:1 }}%{% else %}—{% endif %}</td></tr>
+          <td>{{ col.delta|floatformat:0 }}{% if col.change != None %} ({{ col.change|floatformat:1 }}%){% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>

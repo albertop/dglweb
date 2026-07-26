@@ -40,10 +40,16 @@ class Comparison:
     vanishing: list[str]  # claves que están en la tabla y NO en el CSV
     sample: list[dict[str, str]]
     truncating: bool
+    seasons_before: str = ""  # el rango cubierto, cuando el dataset tiene columna `season`
+    seasons_after: str = ""
 
     @property
     def can_apply(self) -> bool:
         return not self.problems
+
+    @property
+    def rows_delta(self) -> int:
+        return self.rows_after - self.rows_before
 
 
 class Loader:
@@ -169,10 +175,13 @@ def compare(
     # Con upsert la tabla crece solo por las claves que no estaban; las repetidas actualizan en sitio.
     despues = len(rows) if truncating else antes + len(claves_entrantes - claves_actuales)
 
+    # Las columnas de la clave natural quedan fuera: son identificadores, no medidas. Sumar `season`
+    # daba 9.644.972 —la suma de todos los años— que no significa nada y ensuciaba la tabla.
+    fuera = {"id", *key_columns}
     numericas = [
         f.name
         for f in loader.model._meta.fields
-        if isinstance(f, models.IntegerField | models.FloatField) and f.name != "id"
+        if isinstance(f, models.IntegerField | models.FloatField) and f.name not in fuera
     ]
     columnas = []
     for nombre in numericas:
@@ -183,9 +192,20 @@ def compare(
                 "name": nombre,
                 "before": suma_antes,
                 "after": suma_despues,
+                # La diferencia absoluta va siempre; el porcentaje solo cuando hay contra qué
+                # compararlo. Con la tabla vacía el % es división por cero, y mostrar "—" a secas
+                # dejaba la fila sin decir nada.
+                "delta": suma_despues - suma_antes,
                 "change": (suma_despues - suma_antes) / suma_antes * 100 if suma_antes else None,
             }
         )
+
+    def rango(filas: list[dict[str, Any]]) -> str:
+        """Las temporadas cubiertas, de un vistazo: que falte un año entero se ve acá."""
+        años = sorted({r["season"] for r in filas if r.get("season") is not None})
+        if not años:
+            return ""
+        return f"{años[0]}-{años[-1]} ({len(años)})" if len(años) > 1 else str(años[0])
 
     return Comparison(
         problems=problems,
@@ -195,6 +215,8 @@ def compare(
         vanishing=vanishing,
         sample=[{k: str(v) for k, v in r.items()} for r in rows[:5]],
         truncating=truncating,
+        seasons_before=rango(existing),
+        seasons_after=rango(rows),
     )
 
 

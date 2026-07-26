@@ -13,9 +13,17 @@ from dglweb.stats.models import BattedBallHits, Batting, Pitching
 from dglweb.stats.staticdata.engine import Loader, Problem, register
 
 _GROUPS = {"batting", "pitching"}
-# Retrosheet tipifica 97-100% de los hits POR TEMPORADA. Una temporada por debajo de esto no es
-# ruido: es un export incompleto. Se mide por temporada y no por fila — ver `checks`.
-_COBERTURA_MINIMA = 0.90
+# Piso de cobertura POR TEMPORADA (no por fila — ver `checks`).
+#
+# Medido: los años 2000 en adelante van de 97 a 100%, pero los primeros bajan porque la fuente
+# clasificaba menos — 1990 da 89,6%, y `derive.FIRST_STATCAST_SEASON` documenta que la cobertura de
+# NUESTRA fuente en ese mismo año ronda el 90%. O sea que ~90% es el suelo histórico legítimo, no un
+# síntoma.
+#
+# Por eso el piso va en 80%: deja pasar la realidad de los primeros años y sigue atajando lo que esta
+# prueba busca, que no es una temporada floja sino una vacía. Para calibrar: cuando la API de MLB
+# entregó 2000 incompleto, dio 1,8%.
+_COBERTURA_MINIMA = 0.80
 
 
 @register
