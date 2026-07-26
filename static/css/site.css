@@ -8,10 +8,10 @@
   --dgl-navy: #0b1f3a;      /* top bar / footer */
   --dgl-navy-2: #12294b;
   --dgl-red: #ce1126;       /* RD flag red — LIVE / hot only */
-  /* El espejo del navy: mismo tono de la bandera (H 353) pero con la luminosidad (13.5%) y la
-     saturación (68%) EXACTAS de --dgl-navy. Así el tab activo pesa igual que el header y el footer
-     sin competir con ellos; el rojo de bandera a secas es mucho más claro (L 44%) y grita. */
-  --dgl-red-deep: #3a0b10;
+  /* El rojo de la bandera oscurecido (L 44% -> 35%), para el tab activo. NO se iguala la luminosidad
+     del navy: el azul sobrevive la oscuridad y el rojo no — a L 13,5% se vuelve marrón y pierde la
+     identidad. Acá sigue leyéndose rojo, pesa menos que la bandera pura y da 7,8:1 con blanco. */
+  --dgl-red-deep: #a50e1e;
   --dgl-blue: #1f4e9b;      /* accent / links */
   --dgl-ink: #1a1d21;       /* body text */
   --dgl-muted: #6b7280;
@@ -235,6 +235,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   border-color: var(--dgl-red-deep) var(--dgl-red-deep) transparent;
 }
 .nav-tabs .nav-link.active:hover { color: #fff; }
+/* La línea de la barra: el gris de Bootstrap es tan claro que los tabs flotaban sueltos en vez de
+   apoyarse sobre algo. Más oscura, la fila entera se lee como una barra de pestañas. */
+.nav-tabs { border-bottom-color: #9aa3ae; }
 /* Los controles de Líderes son <a> (navegan por GET), no <button> como en el perfil, así que el
    `a:hover { text-decoration: underline }` global les pintaba un subrayado de link que en el perfil
    no aparece. Se quita para que tabs y pills se vean idénticos en ambas páginas. */
