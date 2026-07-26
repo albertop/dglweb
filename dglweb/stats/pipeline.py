@@ -30,6 +30,7 @@ from datetime import datetime
 from django.core.management import call_command
 from django.utils import timezone
 
+from dglweb.core import notify
 from dglweb.stats import season_window
 from dglweb.stats.models import IngestRun
 from dglweb.stats.runlog import record_run, record_skip
@@ -197,4 +198,21 @@ def run_and_record(*, force: bool = False, publicar_parcial: bool = False, note:
 
     for comando in MANTENIMIENTO:
         call_command(comando)
+
+    _avisar_si_falló(resultado, hoy)
     return resultado
+
+
+def _avisar_si_falló(resultado: Resultado, hoy: object) -> None:
+    """Telegram solo cuando hay algo roto. Un aviso diario de «todo bien» se vuelve ruido en una semana.
+
+    El monitor externo que vigila `/health/pipeline` va a decir «503»; esto dice CUÁL paso, que es la
+    diferencia entre enterarse y poder actuar sin abrir la computadora.
+    """
+    if not resultado.fallidos:
+        return
+    lineas = [f"⚠️ Refresco diario con fallos — {hoy}", ""]
+    lineas += [f"• {paso}" for paso in resultado.fallidos]
+    if not resultado.derivados_publicados:
+        lineas += ["", "Los liderazgos NO se reconstruyeron: el sitio sigue mostrando los de ayer."]
+    notify.enviar("\n".join(lineas))

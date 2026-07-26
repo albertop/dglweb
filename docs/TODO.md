@@ -24,7 +24,15 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
   gratuitas que alertan por correo y por Telegram) y configurarlo con la URL pública. **Recordarlo
   cuando se prepare el despliegue**, no antes — sin dominio público no hay nada que vigilar.
 
-- [ ] **Avisos por Telegram.** Al dueño le sirve más que el correo y no cuesta nada: un bot, un
+- [x] **Avisos por Telegram.** **Construido** (`dglweb/core/notify.py`), esperando las dos credenciales. Avisa cuando **un paso del refresco falla** —diciendo cuál, que es lo que el «503» del monitor externo no puede decir— y cuando **aparece un debut nuevo**.
+  Los debuts se avisan **una sola vez**, no cada día: el worklist del log insiste a propósito hasta que cargues al jugador, pero el mismo mensaje cada mañana durante dos semanas enseñaría a silenciar el canal, y entonces el debut siguiente pasaría desapercibido.
+  Un refresco limpio NO avisa: un «todo bien» diario se vuelve ruido en una semana.
+  **Para encenderlo** hacen falta dos valores en `.env` — hablar con @BotFather para el token y sacar el chat id; sin ellos no se manda nada y no se protesta, que es lo correcto en desarrollo:
+  ```
+  TELEGRAM_BOT_TOKEN=...
+  TELEGRAM_CHAT_ID=...
+  ```
+  ~~ Al dueño le sirve más que el correo y no cuesta nada: un bot, un
   token y un chat id en `.env`, y `httpx` ya está entre las dependencias. Dos usos, y el segundo es
   el que de verdad quiere:
   - **El refresco que falla**: qué paso se cayó, no solo que algo se cayó. El monitor externo va a

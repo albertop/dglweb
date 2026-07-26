@@ -17,6 +17,7 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 
+from dglweb.core import notify
 from dglweb.mlb.client import build_client
 from dglweb.players import debuts
 from dglweb.stats import season_window
@@ -39,11 +40,16 @@ class Command(BaseCommand):
             return
 
         season = options["season"] or timezone.now().year
+        # ANTES de abrir la corrida: en cuanto `record_run` crea su fila, la «última» pasa a ser esta.
+        previos = debuts.ya_avisados()
+
         with record_run("detect_debuts", str(season)) as run:
             encontrados = debuts.detect(build_client(), season)
             run.add_rows(len(encontrados))
             for debut in encontrados:
                 run.note(str(debut))
+
+        self._avisar(season, [d for d in encontrados if d.player_id not in previos])
 
         if not encontrados:
             self.stdout.write(f"{season}: sin debuts pendientes de cargar.")
@@ -54,3 +60,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f"{season}: {len(encontrados)} debut(s) por cargar en dgl_master:"))
         for debut in encontrados:
             self.stdout.write(f"  {debut}")
+
+    def _avisar(self, season: int, nuevos: list[debuts.Debut]) -> None:
+        """Telegram solo para los que no salieron ayer. Ver `debuts.ya_avisados`."""
+        if not nuevos:
+            return
+        lineas = [f"⚾ Debut dominicano en Grandes Ligas ({season})", ""]
+        lineas += [f"• {debut}" for debut in nuevos]
+        lineas += ["", "Cargalo en el Backoffice para que aparezca en el sitio."]
+        notify.enviar("\n".join(lineas))

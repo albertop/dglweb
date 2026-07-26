@@ -96,3 +96,29 @@ def detect(client: MlbProxyClient, season: int) -> list[Debut]:
     """Los dominicanos sin debut que ya tienen estadísticas de `season`, ordenados por nombre."""
     candidatos = universe.not_debuted() & players_with_stats(client, season)
     return sorted((_detail(client, player_id) for player_id in candidatos), key=lambda d: d.full_name)
+
+
+def ya_avisados() -> set[int]:
+    """Los debutantes que la corrida anterior ya reportó.
+
+    Existe por Telegram, no por el log. El worklist insiste todos los días a propósito —mientras el
+    pelotero no esté en `dgl_master` sigue pendiente— y esa insistencia está bien en una pantalla que
+    uno abre cuando quiere. En el bolsillo es otra cosa: el mismo aviso cada mañana durante dos
+    semanas enseña a silenciar el canal.
+
+    Se lee del detalle de la última corrida en vez de guardar estado propio. Acopla este parseo al
+    formato de `Debut.__str__`, que empieza por el id — a cambio, no hay tabla nueva que mantener ni
+    que limpiar. Si el log se podó (30 días), un debut aún pendiente se vuelve a avisar: es un
+    recordatorio, no un fallo.
+    """
+    from dglweb.stats.models import IngestRun
+
+    previa = IngestRun.objects.filter(command="detect_debuts").order_by("-started_at").first()
+    if previa is None or not previa.detail:
+        return set()
+    ids: set[int] = set()
+    for linea in previa.detail.splitlines():
+        cabeza = linea.strip().split(" ", 1)[0]
+        if cabeza.isdigit():
+            ids.add(int(cabeza))
+    return ids

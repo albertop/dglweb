@@ -126,6 +126,11 @@ INGEST_LOG_RETENTION_DAYS = env.int("INGEST_LOG_RETENTION_DAYS", default=30)
 # alerta que salta por eso enseña a ignorarla. Con 30 hay un día entero de margen.
 PIPELINE_STALE_HOURS = env.int("PIPELINE_STALE_HOURS", default=30)
 
+# Avisos por Telegram. Vacíos por defecto: sin token no se manda nada y no se protesta, que es
+# lo que corresponde en desarrollo. El token es un secreto y sale de `.env`, nunca de acá.
+TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
+TELEGRAM_CHAT_ID = env.str("TELEGRAM_CHAT_ID", default="")
+
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"
 WAGTAILSEARCH_BACKENDS = {
