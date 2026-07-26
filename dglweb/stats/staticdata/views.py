@@ -29,7 +29,7 @@ def _is_admin(user: AbstractBaseUser | AnonymousUser) -> bool:
     return bool(getattr(user, "is_superuser", False) or es_grupo)
 
 
-@user_passes_test(_is_admin)
+@user_passes_test(_is_admin, login_url="wagtailadmin_login")
 @require_http_methods(["GET", "POST"])
 def upload(request: HttpRequest, pk: int) -> HttpResponse:
     """Recibe el CSV y muestra la comparación. No escribe nada."""
@@ -69,7 +69,7 @@ def upload(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
-@user_passes_test(_is_admin)
+@user_passes_test(_is_admin, login_url="wagtailadmin_login")
 @require_http_methods(["POST"])
 def confirm(request: HttpRequest, pk: int) -> HttpResponse:
     """Escribe. Revalida antes: la sesión pudo quedar vieja y nadie escribe sobre un `can_apply` viejo."""
