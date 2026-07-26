@@ -34,6 +34,8 @@ services:
       MLB_PROXY_URL: ${MLB_PROXY_URL:-http://10.0.0.39:3002}
       MLB_PROXY_API_KEY: ${MLB_PROXY_API_KEY:-}
     volumes:
+      # Los CSV de datos de apoyo: en el VPS se dejan acá y se suben desde el Backoffice.
+      - dglweb_uploads:/app/uploads
       - .:/app
     ports:
       - "8000:8000"
@@ -88,4 +90,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  dglweb_uploads:
   dglweb_pgdata:

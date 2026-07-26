@@ -16,6 +16,13 @@ WORKDIR /app
 COPY requirements.txt requirements-dev.txt ./
 RUN pip install --upgrade pip && pip install -r requirements-dev.txt
 
+# Punto de entrega de los CSV de datos de apoyo (Fase 4e). Existe en la imagen para que en el VPS
+# haya una ruta conocida donde dejar el archivo: `docker cp` o `scp` al volumen montado acá, y desde
+# el Backoffice se sube. Sin esto, en el servidor no hay dónde poner el CSV.
+# Va fuera de /app/static_data (que está en .dockerignore, y es de los PowerShell) a propósito: eso
+# es código y esto es dato de operación.
+RUN mkdir -p /app/uploads
+
 # App code
 COPY . .
 

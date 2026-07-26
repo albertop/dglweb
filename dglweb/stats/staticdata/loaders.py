@@ -59,10 +59,12 @@ class BattedBallHitsLoader(Loader):
 
     def __init__(self) -> None:
         self._by_mlb: dict[int, int] = {}  # lo llena `prepare`
+        self._huerfanas: list[dict[str, Any]] = []  # ídem
 
     def prepare(self) -> None:
         # Una sola consulta para todo el CSV. Sin esto, `resolve` haría una por línea.
         self._by_mlb = dict(Player.objects.values_list("player_id", "pk"))
+        self._huerfanas = []  # filas cuyo mlb_id no está en el maestro; se reportan en `checks`
 
     def resolve(self, row: dict[str, str]) -> dict[str, Any] | None:
         crudo = (row.get("mlb_id") or "").strip()
@@ -70,7 +72,19 @@ class BattedBallHitsLoader(Loader):
             return None  # una fila de dglMaster sin mlbID: no la podemos casar
         player_id = self._by_mlb.get(int(crudo))
         if player_id is None:
-            return None  # no está en nuestro maestro: es un alta que falta
+            # NO se descarta en silencio. El maestro es la autoridad del subconjunto dominicano, así
+            # que un mlb_id que no está ahí significa que falta cargar un jugador — y si se ignora,
+            # sus hits desaparecen del dataset Y del cálculo de cobertura, con lo cual el CSV parece
+            # MÁS sano de lo que está. La validación se autoengañaba.
+            self._huerfanas.append(
+                {
+                    "mlb_id": crudo,
+                    "season": int(row["season"]),
+                    "h_typed": int(row["h_typed"] or 0),
+                    "h_all": int(row["h_all"] or 0),
+                }
+            )
+            return None
         group = (row.get("stat_group") or "").strip()
         if group not in _GROUPS:
             raise ValueError(f"stat_group inválido: {group!r}")
@@ -99,13 +113,15 @@ class BattedBallHitsLoader(Loader):
            entre 97 y 98%.
         """
         rotas = []
-        por_temporada: dict[int, list[int]] = {}
+        # Por (temporada, OFICIO), no solo por temporada: bateo y pitcheo son universos distintos, y
+        # promediarlos deja pasar un oficio roto escondido tras el otro completo.
+        cobertura: dict[tuple[int, str], list[int]] = {}
         for row in rows:
             tipos = row["ground_hits"] + row["fly_hits"] + row["line_hits"] + row["pop_hits"]
             if tipos != row["__h_typed"]:
                 quien = f"jugador {row['player_id']} {row['season']} ({row['stat_group']})"
                 rotas.append(f"{quien}: {tipos} ≠ {row['__h_typed']} tipificados")
-            acumulado = por_temporada.setdefault(row["season"], [0, 0])
+            acumulado = cobertura.setdefault((row["season"], row["stat_group"]), [0, 0])
             acumulado[0] += row["__h_typed"]
             acumulado[1] += row["__h_all"]
 
@@ -114,16 +130,27 @@ class BattedBallHitsLoader(Loader):
             problems.append(
                 Problem(f"Los cuatro tipos no suman los hits tipificados en {len(rotas)} fila(s).", rotas[:10])
             )
+        if self._huerfanas:
+            perdidos = sum(h["h_all"] for h in self._huerfanas)
+            ids = sorted({h["mlb_id"] for h in self._huerfanas})
+            problems.append(
+                Problem(
+                    f"{len(ids)} jugador(es) del CSV no están en el maestro, y se perderían "
+                    f"{perdidos:,} hits. Cargá el maestro antes que el dato de apoyo: si no, esos "
+                    "jugadores quedan fuera de los rankings sin que nada lo diga.",
+                    [f"mlb_id {i}" for i in ids[:10]],
+                )
+            )
         flojas = [
-            f"{season}: {tip:,} de {todos:,} hits con trayectoria ({100 * tip / todos:.1f}%)"
-            for season, (tip, todos) in sorted(por_temporada.items())
+            f"{season} ({group}): {tip:,} de {todos:,} hits con trayectoria ({100 * tip / todos:.1f}%)"
+            for (season, group), (tip, todos) in sorted(cobertura.items())
             if todos and tip / todos < _COBERTURA_MINIMA
         ]
         if flojas:
             problems.append(
                 Problem(
-                    f"{len(flojas)} temporada(s) por debajo del {_COBERTURA_MINIMA:.0%} de hits tipificados. "
-                    "Lo normal es 97-100%; una temporada muy por debajo suele ser un export incompleto.",
+                    f"{len(flojas)} temporada(s)/oficio por debajo del {_COBERTURA_MINIMA:.0%} de hits "
+                    "tipificados. Lo normal es 97-100%; muy por debajo suele ser un export incompleto.",
                     flojas,
                 )
             )

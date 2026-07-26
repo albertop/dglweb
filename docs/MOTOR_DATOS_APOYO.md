@@ -148,3 +148,26 @@ los porcentajes viejos.
 ```
 
 La mayoría de los datasets no lo necesitan. Un salario no alimenta ningún cálculo derivado.
+
+## Dónde dejar el CSV en el VPS
+
+En desarrollo el CSV sale del PowerShell a `static_data/csv/` y se sube desde el navegador de la
+misma máquina. **En el servidor no hay navegador ni SQL Server**, así que hace falta una ruta
+conocida donde dejar el archivo:
+
+```
+/app/uploads          (volumen dglweb_uploads, creado en el Dockerfile)
+```
+
+Va **fuera** de `/app/static_data` a propósito: esa carpeta es de los PowerShell —código, versionado,
+y excluida de la imagen— y esta es dato de operación.
+
+El flujo en el VPS:
+
+```bash
+scp batted_ball_hits.csv usuario@vps:/tmp/
+docker cp /tmp/batted_ball_hits.csv <contenedor-web>:/app/uploads/
+```
+
+y desde ahí se sube por el Backoffice como siempre. El volumen es nombrado, así que el archivo
+sobrevive a un redeploy — útil si hay que repetir una carga.

@@ -359,6 +359,44 @@ def _best_and_worst(
     return columns
 
 
+def _empty_context(group: str, scope: str, pos: str | None) -> dict[str, Any]:
+    """El mismo contrato que `leaders_context`, con todo vacío: la página se dibuja y explica.
+
+    Las claves están TODAS aunque no haya datos. Un contexto al que le faltan llaves no falla acá
+    sino en el template, que es más lejos del problema y más difícil de leer.
+    """
+    state = {"g": group, "scope": scope, "pos": pos or ""}
+    return {
+        "groups": [
+            {"label": label, "active": key == group, "url": _link(state, g=key, d=None, m=None, season=None)}
+            for key, label in _GROUPS
+        ],
+        "divisions": [],
+        "scopes": [{"label": label, "active": key == scope, "url": _link(state, scope=key)} for key, label in _SCOPES],
+        "positions": [
+            {"label": p, "active": p == pos, "url": _link(state, pos=p, d=None, m=None)}
+            for p in (_POSITIONS if group == "fielding" else [])
+        ],
+        "metrics": [],
+        "seasons": [],
+        "board": {
+            "name": "",
+            "abbr": "",
+            "direction": "",
+            "qualifier": "",
+            "available_from": None,
+            "scope_label": "",
+            "columns": [],
+            "shows_active": False,
+            "shows_partial": False,
+            "shows_seasons": False,
+        },
+        "group_label": dict(_GROUPS)[group],
+        "scope_key": scope,
+        "empty": True,
+    }
+
+
 def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season: str, pos: str = "") -> dict[str, Any]:
     """Everything the leaders page needs, with every selection validated and a sensible fallback."""
     if group not in dict(_GROUPS):
@@ -373,6 +411,11 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
         chosen_pos = pos if pos in _POSITIONS else _POSITIONS[0]
 
     divisions = _division_metrics(group, scope, chosen_pos)
+    if not divisions:
+        # Sin métricas activas no hay nada que rankear, y antes esto reventaba con IndexError —
+        # una página pública caída, no un caso de borde: pasa en una base recién migrada, en staging
+        # limpio, o si alguien desactiva las métricas de un grupo desde el Backoffice.
+        return _empty_context(group, scope, chosen_pos)
     division_labels = [label for label, _ in divisions]
     if tab not in division_labels:
         tab = division_labels[0]

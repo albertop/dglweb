@@ -145,8 +145,8 @@ def test_the_real_loader_checks_the_four_types_and_the_season_coverage() -> None
     caida = [fila(player_id=n, __h_all=20) for n in range(10)]
     problems = BattedBallHitsLoader().checks(caida)
     assert len(problems) == 1
-    assert "temporada(s) por debajo" in problems[0].message
-    assert problems[0].rows[0].startswith("2000:")
+    assert "por debajo" in problems[0].message
+    assert problems[0].rows[0].startswith("2000 (batting):")
 
 
 @pytest.mark.django_db
@@ -248,3 +248,54 @@ def test_the_override_never_replaces_better_data_with_worse() -> None:
 
     linea = Batting.objects.get(player=p, season=2010)
     assert linea.line_hits == 7  # se queda el del proxy, que es mejor
+
+
+@pytest.mark.django_db
+def test_an_unknown_mlb_id_is_reported_not_swallowed() -> None:
+    """El maestro es la autoridad: un jugador que no está ahí no puede desaparecer en silencio.
+
+    Peor que perderse: sus hits tampoco entraban en el cálculo de cobertura, así que un maestro
+    incompleto hacía que el CSV pareciera MÁS sano de lo que está (v5 QA-01 / SAB-04).
+    """
+    from dglweb.stats.staticdata.loaders import BattedBallHitsLoader
+
+    conocido = _player(1)
+    loader = BattedBallHitsLoader()
+    csv = (
+        "mlb_id,season,stat_group,ground_hits,fly_hits,line_hits,pop_hits,h_typed,h_all\n"
+        f"{conocido.player_id},2000,batting,5,3,2,1,11,11\n"
+        "9999999,2000,batting,4,3,2,1,10,10\n"  # este no existe en el maestro
+    )
+    filas = engine.read(csv.encode("utf-8"))
+    rows, problems = engine.validate(loader, filas, ["player_id", "season", "stat_group"])
+
+    assert len(rows) == 1  # el desconocido no entra a la tabla…
+    assert any("no están en el maestro" in p.message for p in problems)  # …pero se reporta
+    assert any("9999999" in r for p in problems for r in p.rows)
+
+
+@pytest.mark.django_db
+def test_coverage_is_measured_per_trade_not_just_per_season() -> None:
+    """Bateo y pitcheo son universos distintos: promediarlos escondía un oficio roto (v5 SAB-01)."""
+    from dglweb.stats.staticdata.loaders import BattedBallHitsLoader
+
+    def fila(group: str, typed: int, todos: int) -> dict[str, Any]:
+        return {
+            "player_id": 1,
+            "season": 2000,
+            "stat_group": group,
+            "ground_hits": typed,
+            "fly_hits": 0,
+            "line_hits": 0,
+            "pop_hits": 0,
+            "__h_typed": typed,
+            "__h_all": todos,
+        }
+
+    # Bateo sano (1000/1000) y pitcheo roto (10/1000). Juntos dan 50%, pero por separado el roto
+    # se ve solo. Antes, el promedio de los dos podía tapar al malo.
+    problems = BattedBallHitsLoader().checks([fila("batting", 1000, 1000), fila("pitching", 10, 1000)])
+
+    flojas = [p for p in problems if "por debajo" in p.message]
+    assert len(flojas) == 1
+    assert flojas[0].rows == ["2000 (pitching): 10 de 1,000 hits con trayectoria (1.0%)"]

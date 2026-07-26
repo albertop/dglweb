@@ -33,6 +33,23 @@ muda y el usuario vuelve a hacer clic.
     </p>
   </div>
 
+  {% if empty %}
+  {% comment %}
+  Sin métricas activas no hay tablero. Se dibujan igual las pestañas de oficio, que es lo único
+  navegable: con una base a medio migrar, Bateo puede estar vacío y Pitcheo no.
+  {% endcomment %}
+  <ul class="nav nav-tabs mb-3">
+    {% for g in groups %}
+    <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}">{{ g.label }}</a></li>
+    {% endfor %}
+  </ul>
+  <section class="dgl-panel p-4">
+    <p class="mb-0">Todavía no hay líderes publicados para <b>{{ group_label }}</b>.</p>
+    <p class="dgl-meta mb-0 mt-2">Ocurre mientras se carga el histórico, o si las métricas de este
+    renglón están desactivadas en el Backoffice.</p>
+  </section>
+  {% else %}
+
   {# Grupo — como los tabs del perfil #}
   <ul class="nav nav-tabs mb-3">
     {% for g in groups %}
@@ -128,6 +145,7 @@ muda y el usuario vuelve a hacer clic.
     </p>
   </div>
   {% endwith %}
+  {% endif %}
 </div>
 
 <script>
