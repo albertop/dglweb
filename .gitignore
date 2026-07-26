@@ -29,6 +29,6 @@ static_data/csv/
 
 # Las fotos de los peloteros. La CARPETA se versiona (con sus .gitkeep) para que la ruta exista y el
 # volumen tenga dónde montarse; las imágenes NO: son de MLB, pesan, y se bajan con
-# static_data/scripts/download_mugshots.ps1. En el VPS viven en el volumen `dglweb_mugshots`.
+# static_data/scripts/download_mugshots.ps1. La carpeta se monta en el contenedor tal cual.
 static/img/mugshots/**/*.png
 static/img/mugshots/**/*.jpg

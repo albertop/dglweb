@@ -18,5 +18,5 @@ static_data/
 
 # Las fotos de los peloteros no se queman en la imagen: son cientos de archivos que cambian cuando
 # cambia el roster, y hornearlas obligaría a reconstruir la imagen por cada foto nueva. En el VPS
-# entran por el volumen `dglweb_mugshots`, montado sobre esta misma ruta.
+# se montan desde la carpeta local del proyecto (ver docker-compose.yml).
 static/img/mugshots/

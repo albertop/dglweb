@@ -29,13 +29,8 @@
 # una carpeta y no renombrar nada.
 #
 # Las imágenes NO se versionan ni se hornean en la imagen de Docker (ver .gitignore y .dockerignore).
-# En el VPS viven en el volumen `dglweb_mugshots`, montado sobre esa misma ruta.
-#
-# CÓMO SE USA
-# -----------
-#   1. Correr este script (necesita acceso a DGL en SQL Server y salida a internet).
-#   2. Copiar la carpeta al servidor:
-#        docker cp static/img/mugshots/. dglweb-web-live:/app/static/img/mugshots/
+# La carpeta local se monta dentro del contenedor tal cual, así que dejarlas acá basta para que el
+# sitio las sirva — ver `docker-compose.yml`.
 #
 # Se puede correr cuantas veces haga falta: lo que ya está no se vuelve a bajar, salvo con -Forzar.
 # =====================================================================================
@@ -70,6 +65,8 @@ $Tamanos = @(120, 360)
 # Solo los que vieron acción en las últimas dos temporadas. Bajar los 1.000 y pico del maestro
 # histórico sería descargar cientos de retratos de gente que el sitio no va a mostrar en un widget de
 # la temporada en curso — y de muchos de ellos MLB ni tiene foto.
+#
+# Solo el id: la vista trae más columnas, pero acá lo único que se necesita es con qué armar la URL.
 $Query = @"
 SELECT DISTINCT [player_id]
 FROM   [dbo].[v_dglweb_players_played_last_2_years]
@@ -153,9 +150,3 @@ if ($fallidas.Count -gt 0) {
     # recientes. Se listan para que el dueño decida si vale la pena buscarlas a mano.
     Write-Warning "Sin foto en el CDN de MLB: $($fallidas.Keys -join ', ')"
 }
-
-$peso = (Get-ChildItem -Path $Destino -Recurse -Filter *.png | Measure-Object -Property Length -Sum).Sum
-"Total en disco: {0:N1} MB en {1}" -f ($peso / 1MB), $Destino
-Write-Host ""
-Write-Host "Para subirlas al VPS:"
-Write-Host "  docker cp static/img/mugshots/. dglweb-web-live:/app/static/img/mugshots/"

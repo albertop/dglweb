@@ -41,18 +41,15 @@ services:
       # Los CSV de datos de apoyo: en el VPS se dejan acá y se suben desde el Backoffice.
       - dglweb_uploads:/app/uploads
       - .:/app
-      # Las fotos de los peloteros. Van en un volumen y NO en la imagen: son cientos de archivos que
-      # cambian cuando cambia el roster, y hornearlas obligaría a reconstruir la imagen por cada foto
-      # nueva. Se montan sobre la ruta donde Django las busca, así que `{% static %}` las encuentra
-      # sin tratarlas distinto del resto.
+      # Las fotos de los peloteros: la carpeta local del proyecto, montada donde Django las busca.
       #
-      # En el VPS: `docker cp static/img/mugshots/. dglweb-web-live:/app/static/img/mugshots/`
-      # (o `scp` al punto de montaje del volumen). Las baja
-      # `static_data/scripts/download_mugshots.ps1`.
+      # NO se hornean en la imagen (ver .dockerignore): son cientos de archivos que cambian con el
+      # roster, y meterlas dentro obligaría a reconstruir la imagen por cada foto nueva. Puestas acá,
+      # basta con dejarlas en la carpeta y ya se sirven.
       #
-      # Este mount va DESPUÉS de `.:/app` a propósito: el orden importa, y así el volumen gana sobre
-      # lo que traiga el árbol de código en esa subcarpeta.
-      - dglweb_mugshots:/app/static/img/mugshots
+      # Explícito aunque `.:/app` ya las traiga: así la ruta sigue montada si mañana el compose de
+      # producción no monta el árbol de código entero.
+      - ./static/img/mugshots:/app/static/img/mugshots
     ports:
       - "8000:8000"
     depends_on:
@@ -95,4 +92,3 @@ services:
 volumes:
   dglweb_uploads:
   dglweb_pgdata:
-  dglweb_mugshots:
