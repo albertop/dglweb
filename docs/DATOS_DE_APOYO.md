@@ -19,7 +19,7 @@ manual, explícita y trazable.
 DGL (SQL Server)  ──PowerShell──▶  CSV  ──upload en Backoffice──▶  Postgres
 ```
 
-**1. `static_data/` — los PowerShell.** Un script por dataset. Cada uno lleva:
+**1. `static_data/scripts/` — los PowerShell.** Un script por dataset. Cada uno lleva:
 
 - Una **constante con la ruta de salida** del CSV. ⚠️ *Pendiente: el dueño la define.*
 - El **SQL a la vista**, formateado y legible — no una cadena armada a pedazos. Quien lo abra dentro
@@ -239,3 +239,27 @@ Existe en DGL. Sin diseño todavía.
 
 El motor es genérico y no se toca: agregar un dataset es escribir un `Loader` con tres atributos y,
 si hace falta, dos hooks. El manual de operación está en **`docs/MOTOR_DATOS_APOYO.md`**.
+
+## ⚠️ La prueba de aceptación de batazos necesita una decisión
+
+`FH+GH+LH+PH = H` es exacta contra **nuestros** datos sanos (1999 da 4.957 = 4.957). Pero contra el
+CSV de Retrosheet **no va a dar exacto**, por dos razones que no son errores:
+
+1. A Retrosheet le falta la trayectoria en **~2,5%** de los hits (126 filas en 2000, 115 en 2001,
+   0 en 1999). Quedan fuera de los cuatro conteos.
+2. Nuestro maestro de dominicanos es **~10% más amplio** que el join con `dglMaster`, medido en 1999
+   sobre las cuatro categorías y también sobre HR (569 contra 515). Es diferencia de población.
+
+Por eso el PowerShell exporta **dos** totales, `h_typed` (hits con trayectoria) y `h_all` (todos).
+Falta decidir:
+
+- [ ] ¿Contra cuál compara el loader? `h_typed` hace la prueba exacta pero solo verifica coherencia
+      interna del CSV. `h_all` compara contra la realidad pero nunca dará cero.
+- [ ] Si es `h_all`, ¿con qué tolerancia? Un 3% dejaría pasar el ruido normal y seguiría atajando un
+      export cortado a la mitad, que es lo que la prueba tiene que cazar.
+- [ ] Qué se hace con el ~2,5% sin trayectoria: se ignora (los coeficientes quedan levemente
+      subestimados, mucho menos que hoy) o se reparte proporcionalmente.
+
+Hasta que se decida, `BattedBallHitsLoader.checks()` compara contra el `__h` que le llegue — hoy
+mapeado a la columna `h`, que este CSV ya no trae con ese nombre. **Hay que ajustarlo antes de la
+primera carga real.**

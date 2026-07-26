@@ -30,7 +30,7 @@ tabla y el paso que lo consume decide cuál prefiere.
 
 ### 2. El PowerShell
 
-En `static_data/`, uno por dataset. Lleva la ruta de salida en una constante, el SQL a la vista, y un
+En `static_data/scripts/`, uno por dataset. Lleva la ruta de salida en una constante, el SQL a la vista, y un
 encabezado que explique por qué existe. Escribe el CSV en `static_data/csv/`, que está en
 `.gitignore`: los scripts se versionan —son código y explican de dónde sale cada dato— pero los
 volcados no.
