@@ -371,3 +371,8 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-resultados li, .dgl-activos li { break-inside: avoid; padding: .12rem 0; }
 .dgl-resultados .dgl-meta, .dgl-activos .dgl-meta { margin-left: .4rem; }
 @media (max-width: 767px) { .dgl-resultados, .dgl-activos { columns: 1; } }
+
+/* El asterisco del debutante. Mismo tratamiento visual que `.dgl-partial` pero con nombre propio:
+   allá marca un dato incompleto y acá una noticia, y mezclar los dos significados en una sola clase
+   haría que cambiar uno moviera el otro sin querer. */
+.dgl-debut { color: var(--dgl-red); font-weight: 800; }

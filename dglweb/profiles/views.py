@@ -131,7 +131,18 @@ def players_index(request: HttpRequest) -> HttpResponse:
                 models.Q(batting_seasons__season=temporada) | models.Q(pitching_seasons__season=temporada)
             )
             .distinct()
-            .order_by("full_name")
+            # Quién llegó este año. Se marca con asterisco: en una lista de 132 nombres, el que acaba
+            # de debutar es la única noticia, y sin señal se pierde entre los veteranos.
+            .annotate(
+                debutante=models.ExpressionWrapper(
+                    models.Q(debut_date__year=temporada), output_field=models.BooleanField()
+                )
+            )
+            # Por apellido, como se lista a los peloteros en cualquier registro de béisbol — aunque lo
+            # que se muestre sea el nombre completo. La fecha de debut desempata a los homónimos, que
+            # acá son un caso real: pone primero al que llegó antes. Los que no la tienen van al final
+            # en vez de al principio, que es lo que haría Postgres con los NULL en orden ascendente.
+            .order_by("lastname_1", "firstname", models.F("debut_date").asc(nulls_last=True))
         )
 
     return render(

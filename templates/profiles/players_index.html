@@ -14,7 +14,7 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
   <div class="dgl-lede mb-4">
     <p>
       Todos los dominicanos que han llegado a Grandes Ligas, desde 1956. Escribe un nombre en el
-      buscador y elige de la lista para abrir su perfil, con sus números por temporada y de por vida.
+      buscador y elige de la lista para abrir su perfil.
     </p>
   </div>
 
@@ -59,10 +59,14 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
     </p>
     <ul class="list-unstyled dgl-activos">
       {% for jugador in activos %}
-      <li><a href="{% url 'player_detail' jugador.slug %}">{{ jugador.full_name }}</a>{% if jugador.pos %}
+      <li><a href="{% url 'player_detail' jugador.slug %}">{{ jugador.full_name }}</a>{% if jugador.debutante %}<span
+        class="dgl-debut" title="Debutó en Grandes Ligas esta temporada">*</span>{% endif %}{% if jugador.pos %}
         <span class="dgl-meta">{{ jugador.pos }}</span>{% endif %}</li>
       {% endfor %}
     </ul>
+    <p class="dgl-meta mt-3">
+      <span class="dgl-debut">*</span> Debutó en Grandes Ligas en {{ temporada }}.
+    </p>
   </section>
   {% endif %}
 </div>

@@ -160,3 +160,79 @@ def test_the_nav_link_points_at_the_page(plantel: dict[str, Player]) -> None:
 
     assert f'href="{reverse("players_index")}"' in cuerpo
     assert 'href="#"' not in cuerpo
+
+
+@pytest.mark.django_db
+def test_the_active_list_is_ordered_by_surname(db: None) -> None:
+    """Por apellido, como se lista a los peloteros — aunque se muestre el nombre completo.
+
+    Ordenar por `full_name` ponía a «Adrián Beltré» entre las aes, que no es donde lo busca el ojo.
+    """
+    from datetime import date
+
+    def _activo(pid: int, nombre: str, apellido: str, debut: date | None) -> Player:
+        jugador = Player.objects.create(
+            **_other_player(
+                player_id=pid,
+                dgl_id=f"a{pid}",
+                full_name=f"{nombre} {apellido}",
+                firstname=nombre,
+                lastname_1=apellido,
+                debut_date=debut,
+            )
+        )
+        Batting.objects.create(player=jugador, season=2026, stint=1)
+        Pitching.objects.create(player=jugador, season=2026, stint=1)
+        return jugador
+
+    # Dos Peña con el mismo nombre de pila: los desempata el debut, primero el que llegó antes.
+    _activo(1, "Carlos", "Peña", date(2001, 9, 5))
+    _activo(2, "Carlos", "Peña", date(2015, 4, 7))
+    _activo(3, "Adrián", "Beltré", date(1998, 6, 24))
+    _activo(4, "Ana", "Zapata", None)  # sin debut: al final de los suyos, no al principio
+    _activo(5, "Wily", "Peña", date(2002, 5, 1))
+
+    cuerpo = Client().get(reverse("players_index")).content.decode()
+    orden = [
+        pid
+        for pid, _ in sorted(
+            {
+                1: cuerpo.find("carlos-pena-1"),
+                2: cuerpo.find("carlos-pena-2"),
+                3: cuerpo.find("adrian-beltre-3"),
+                4: cuerpo.find("ana-zapata-4"),
+                5: cuerpo.find("wily-pena-5"),
+            }.items(),
+            key=lambda kv: kv[1],
+        )
+    ]
+
+    assert orden == [3, 1, 2, 5, 4]  # Beltré, Peña C.(1998), Peña C.(2015), Peña W., Zapata
+
+
+@pytest.mark.django_db
+def test_this_season_debutants_are_flagged_and_the_footnote_explains_it(db: None) -> None:
+    """En una lista de 132 nombres, el que acaba de llegar es la única noticia.
+
+    «Debutante» es haber debutado en la temporada que se está mostrando, no ser nuevo en la lista: un
+    veterano que volvió de una lesión también aparece por primera vez en el año y no es lo mismo.
+    """
+    from datetime import date
+
+    novato = Player.objects.create(
+        **_other_player(player_id=1, dgl_id="n1", full_name="Novato N", lastname_1="N", debut_date=date(2026, 5, 25))
+    )
+    veterano = Player.objects.create(
+        **_other_player(player_id=2, dgl_id="v2", full_name="Veterano V", lastname_1="V", debut_date=date(2018, 4, 1))
+    )
+    for jugador in (novato, veterano):
+        Batting.objects.create(player=jugador, season=2026, stint=1)
+        Pitching.objects.create(player=jugador, season=2026, stint=1)
+
+    cuerpo = Client().get(reverse("players_index")).content.decode()
+
+    assert 'Novato N</a><span\n        class="dgl-debut"' in cuerpo or "dgl-debut" in cuerpo
+    assert cuerpo.count('class="dgl-debut"') == 2  # el asterisco del novato + el de la nota al pie
+    assert "Debutó en Grandes Ligas en 2026" in cuerpo
+    # El veterano no lo lleva: su nombre no va seguido del asterisco.
+    assert "Veterano V</a>" in cuerpo and 'Veterano V</a><span\n        class="dgl-debut"' not in cuerpo
