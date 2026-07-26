@@ -1,0 +1,21 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}Cargar {{ dataset.table }}{% endblock %}
+{% block content %}
+<header class="w-header"><div class="row"><div class="left"><h1 class="w-header__title">Cargar {{ dataset.table }}</h1></div></div></header>
+<div class="nice-padding">
+  {% if sin_loader %}
+    <p><b>Este dataset no tiene loader.</b> Hay una fila en el registro para <code>{{ dataset.table }}</code>,
+    pero ningún <code>Loader</code> la reclama. Ver <code>docs/MOTOR_DATOS_APOYO.md</code>.</p>
+  {% else %}
+    <p>El CSV lo genera <code>static_data/scripts/{{ dataset.powershell }}</code> y debe llamarse
+    <code>{{ dataset.csv }}</code>.</p>
+    <p><b>Modo:</b> {{ dataset.get_mode_display }} · <b>Clave natural:</b> <code>{{ dataset.natural_key }}</code></p>
+    {% if dataset.last_update %}<p>Última carga: {{ dataset.last_update }} — {{ dataset.last_rows }} filas, por {{ dataset.last_user }}.</p>{% endif %}
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}
+      <input type="file" name="archivo" accept=".csv" required>
+      <button type="submit" class="button">Comparar</button>
+    </form>
+    <p class="help-block"><b>Nada se escribe todavía.</b> El siguiente paso muestra qué cambiaría.</p>
+  {% endif %}
+</div>
+{% endblock %}

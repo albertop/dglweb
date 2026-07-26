@@ -1,0 +1,68 @@
+{% extends "wagtailadmin/base.html" %}
+{% comment %}
+La pantalla que justifica todo el diseño. No es un "¿está seguro?": son los números lado a lado para
+que un CSV corto salte a la vista ANTES de que reemplace la tabla.
+{% endcomment %}
+{% block titletag %}Comparar {{ dataset.table }}{% endblock %}
+{% block content %}
+<header class="w-header"><div class="row"><div class="left">
+  <h1 class="w-header__title">{{ dataset.table }} — qué cambiaría</h1>
+</div></div></header>
+<div class="nice-padding">
+
+  {% if aviso_nombre %}<p class="messages"><span class="warning">⚠️ {{ aviso_nombre }}</span></p>{% endif %}
+
+  {% if c.problems %}
+  <div class="messages"><ul>
+    {% for p in c.problems %}
+    <li class="error"><b>{{ p.message }}</b>
+      {% if p.rows %}<ul>{% for r in p.rows %}<li><code>{{ r }}</code></li>{% endfor %}</ul>{% endif %}
+    </li>
+    {% endfor %}
+  </ul></div>
+  <p><b>No se puede cargar este CSV.</b> Corrígelo y vuelve a subirlo.</p>
+  {% endif %}
+
+  <table class="listing">
+    <thead><tr><th></th><th>En la tabla</th><th>En el CSV</th><th>Δ</th></tr></thead>
+    <tbody>
+      <tr><td><b>Filas</b></td><td>{{ c.rows_before }}</td><td>{{ c.rows_after }}</td>
+          <td>{{ c.rows_after|add:c.rows_before|add:"0" }}</td></tr>
+      {% for col in c.columns %}
+      <tr><td>{{ col.name }}</td><td>{{ col.before|floatformat:0 }}</td><td>{{ col.after|floatformat:0 }}</td>
+          <td>{% if col.change != None %}{{ col.change|floatformat:1 }}%{% else %}—{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if c.truncating %}
+    {% if c.vanishing %}
+      <h2>Desaparecen {{ c.vanishing|length }} fila(s)</h2>
+      <p>Están en la tabla y no vienen en el CSV. Con este modo se pierden.
+         <b>Es la señal más importante de esta pantalla:</b> un export cortado a la mitad solo se ve acá.</p>
+      <ul>{% for k in c.vanishing|slice:":20" %}<li><code>{{ k }}</code></li>{% endfor %}</ul>
+      {% if c.vanishing|length > 20 %}<p>…y {{ c.vanishing|length|add:"-20" }} más.</p>{% endif %}
+    {% else %}
+      <p>No desaparece ninguna fila.</p>
+    {% endif %}
+  {% else %}
+    <p><b>Modo upsert:</b> las filas que no vengan en el CSV <b>sobreviven</b>. Acá no desaparece nada
+       por diseño, así que la ausencia de bajas no dice nada sobre si el CSV está completo.</p>
+  {% endif %}
+
+  {% if c.sample %}
+  <h2>Muestra del CSV</h2>
+  <table class="listing">
+    <thead><tr>{% for k in c.sample.0.keys %}<th>{{ k }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in c.sample %}<tr>{% for v in row.values %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+
+  <form method="post" action="{% url 'staticdata_confirm' dataset.pk %}" style="margin-top:1.5rem">{% csrf_token %}
+    {% if c.can_apply %}
+      <button type="submit" class="button">Confirmar y reemplazar</button>
+    {% endif %}
+    <a href="{% url 'staticdata_upload' dataset.pk %}" class="button button-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

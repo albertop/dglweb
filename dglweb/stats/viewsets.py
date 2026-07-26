@@ -13,7 +13,14 @@ from wagtail.admin.ui.tables import Column
 from wagtail.permissions import ModelPermissionPolicy
 from wagtail.snippets.views.snippets import SnippetViewSet
 
-from dglweb.stats.models import CareerParityIssue, IngestRun, Metric, QualifierDefault, QualifierSeasonOverride
+from dglweb.stats.models import (
+    CareerParityIssue,
+    IngestRun,
+    Metric,
+    QualifierDefault,
+    QualifierSeasonOverride,
+    StaticDataset,
+)
 
 _User = AbstractBaseUser | AnonymousUser
 
@@ -157,3 +164,33 @@ class CareerParityIssueViewSet(SnippetViewSet):  # type: ignore[misc]
     list_per_page = 50
     add_to_admin_menu = False  # it lives under the Backoffice group
     inspect_view_enabled = True
+
+
+class StaticDatasetViewSet(SnippetViewSet):  # type: ignore[misc]
+    """CRUD del registro de datos de apoyo (Fase 4e).
+
+    Cada fila describe un dataset que se carga a mano por CSV: qué tabla llena, qué PowerShell lo
+    exporta, cómo se carga y cuál es su clave natural. La columna "Cargar" lleva a la pantalla de
+    subida, que compara contra lo que ya está antes de escribir nada.
+    Ver `docs/DATOS_DE_APOYO.md` y `docs/MOTOR_DATOS_APOYO.md`.
+    """
+
+    model = StaticDataset
+    icon = "download"
+    menu_label = "Datos de apoyo"
+    menu_name = "static_datasets"
+    list_display = ("table", "powershell", "csv", "mode", "natural_key", "last_update", "last_rows")
+    list_filter = ("mode",)
+    ordering = ("table",)
+    add_to_admin_menu = False
+    panels = [  # noqa: RUF012 — Wagtail espera una lista mutable acá
+        MultiFieldPanel(
+            [FieldPanel("table"), FieldPanel("natural_key"), FieldPanel("mode")],
+            heading="Destino y modo de carga",
+        ),
+        MultiFieldPanel(
+            [FieldPanel("powershell"), FieldPanel("csv")],
+            heading="De dónde sale el CSV",
+        ),
+        FieldPanel("comment"),
+    ]

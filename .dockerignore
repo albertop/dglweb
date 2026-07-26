@@ -12,3 +12,6 @@ staticfiles/
 media/
 mockup/
 docs/
+# Datos de apoyo (Fase 4e): los PowerShell corren en la máquina del dueño contra SQL Server, y los
+# CSV son un volcado que se sube por el Backoffice. Nada de esto hace falta dentro de la imagen.
+static_data/

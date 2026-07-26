@@ -12,10 +12,15 @@ from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
 
 from dglweb.core.views import health, home
+from dglweb.stats.staticdata import views as staticdata_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("health", health, name="health"),
     path("django-admin/", admin.site.urls),
+    # Las pantallas de carga de datos de apoyo cuelgan del Backoffice y van ANTES del include de
+    # Wagtail, que se queda con todo lo demás bajo /cms/.
+    path("cms/datos-apoyo/<int:pk>/", staticdata_views.upload, name="staticdata_upload"),
+    path("cms/datos-apoyo/<int:pk>/confirmar/", staticdata_views.confirm, name="staticdata_confirm"),
     path("cms/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     path("", home, name="home"),
