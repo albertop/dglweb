@@ -43,6 +43,10 @@ class BattedBallHitsLoader(Loader):
 
     table = "dgl_batted_ball_hits"
     model = BattedBallHits
+    # `post_apply` deja los coeficientes de la fila de temporada al día, pero de ahí para arriba todo
+    # sigue viejo: los totales de carrera los suman y los liderazgos los rankean. Van en este orden
+    # porque los líderes de por vida leen los totales de carrera.
+    rebuilds: ClassVar[tuple[str, ...]] = ("build_career_totals", "build_leaders")
     columns: ClassVar[dict[str, str]] = {
         "mlb_id": "player",
         "season": "season",

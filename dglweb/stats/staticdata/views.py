@@ -123,4 +123,13 @@ def confirm(request: HttpRequest, pk: int) -> HttpResponse:
         last_update=timezone.now(), last_rows=escritas, last_user=request.user.get_username()
     )
     request.session.pop(_SESSION, None)
-    return render(request, "staticdata/done.html", {"dataset": dataset, "rows": escritas})
+
+    # Y recién ahora, con la carga ya comprometida, se rehace lo que se calcula a partir de ella.
+    # Antes esto era un paso manual y por lo tanto un paso olvidable: el dato entraba y el sitio
+    # seguía sirviendo liderazgos viejos hasta que alguien corría `build_leaders` a mano.
+    reconstruyendo = engine.rebuild_in_background(loader)
+    return render(
+        request,
+        "staticdata/done.html",
+        {"dataset": dataset, "rows": escritas, "rebuilds": reconstruyendo},
+    )

@@ -111,3 +111,58 @@ def test_confirming_without_a_pending_upload_goes_back_instead_of_writing(datase
 
     assert response.status_code == 302
     assert str(dataset.pk) in response["Location"]
+
+
+@pytest.mark.django_db
+def test_a_load_rebuilds_what_is_derived_from_it_without_being_asked(
+    dataset: StaticDataset, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """El paso que antes era manual y por eso se olvidaba.
+
+    Cargados los hits, los coeficientes de temporada quedan al día (`post_apply`) pero los totales de
+    carrera y los liderazgos siguen siendo los viejos: el sitio servía números vencidos hasta que
+    alguien corría `build_leaders` a mano. Se verifica el ORDEN, además, porque los líderes de por
+    vida leen los totales de carrera.
+    """
+    from dglweb.stats.staticdata import engine
+
+    corridos: list[str] = []
+    monkeypatch.setattr("django.core.management.call_command", lambda nombre, **_: corridos.append(nombre))
+
+    engine.rebuild(engine.REGISTRY[dataset.table])
+
+    assert corridos == ["build_career_totals", "build_leaders"]
+
+
+@pytest.mark.django_db
+def test_a_dataset_that_derives_nothing_starts_no_rebuild(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No todo dataset alimenta un cálculo: los salarios no mueven ningún ranking."""
+    from dglweb.stats.staticdata import engine
+
+    monkeypatch.setattr("threading.Thread", lambda **_: pytest.fail("no debería lanzarse un hilo sin nada que rehacer"))
+
+    assert engine.rebuild_in_background(engine.Loader()) == ""
+
+
+@pytest.mark.django_db
+def test_confirming_launches_the_rebuild_and_says_so(dataset: StaticDataset, monkeypatch: pytest.MonkeyPatch) -> None:
+    """El cableado: que la vista lo dispare sola. El olvido estaba acá, no en el motor."""
+    from dglweb.players.models import Player
+    from dglweb.stats.staticdata import engine
+    from tests.test_players import _other_player
+
+    Player.objects.create(**_other_player(player_id=1, dgl_id="x01", full_name="Uno U", pos="1B"))
+    lanzados: list[str] = []
+
+    def espiar(loader: engine.Loader) -> str:
+        lanzados.append(loader.table)
+        return ""
+
+    monkeypatch.setattr(engine, "rebuild_in_background", espiar)
+
+    client = _admin_client()
+    _subir(client, dataset, CSV_BUENO)  # deja el CSV validado en sesión
+    response = client.post(reverse("staticdata_confirm", args=[dataset.pk]))
+
+    assert response.status_code == 200
+    assert lanzados == ["dgl_batted_ball_hits"]

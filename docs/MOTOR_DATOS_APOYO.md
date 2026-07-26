@@ -149,6 +149,37 @@ los porcentajes viejos.
 
 La mayoría de los datasets no lo necesitan. Un salario no alimenta ningún cálculo derivado.
 
+## `rebuilds` — lo que hay que rehacer después
+
+`post_apply()` deja consistente lo que se puede arreglar en el momento; `rebuilds` declara lo que
+hay que **volver a derivar entero**. Es una tupla de comandos, en orden de dependencia:
+
+```python
+    rebuilds = ("build_career_totals", "build_leaders")
+```
+
+Por qué existe: sin esto, la carga quedaba a medias sin decirlo. Los hits nuevos entraban y los
+coeficientes de temporada quedaban al día, pero los totales de carrera los seguían sumando viejos y
+los liderazgos los seguían rankeando viejos. El sitio servía números vencidos hasta que alguien se
+acordaba de correr `build_leaders` a mano — y "acordarse" no es un mecanismo.
+
+Tres decisiones que conviene entender antes de tocarlo:
+
+- **Fuera de la transacción.** `build_leaders` tarda cerca de un minuto y reescribe 400.000 filas;
+  sostener la transacción de la carga todo ese rato bloquearía la tabla de origen sin necesidad.
+  Además son cosas distintas: si la reconstrucción falla, el dato igual quedó bien cargado y lo
+  único pendiente es volver a derivar, que es reintentable.
+- **En un hilo.** Si no, la respuesta HTTP espera ese minuto largo, que es justo el tipo de request
+  que un proxy corta a los 30 segundos — y cortarla no detiene el trabajo, solo deja al usuario sin
+  saber cómo terminó. Es un hilo suelto y no una cola porque este proyecto no tiene worker, la carga
+  la dispara una persona que está mirando, y el cron de las 7:30 ya es la red de seguridad si el
+  proceso se reinicia a mitad.
+- **Queda en el log.** Cada comando se registra solo en `IngestRun` (vía `record_run`), así que una
+  reconstrucción disparada desde el Backoffice se ve igual que la del scheduler.
+
+Un dataset que no alimenta ningún cálculo —salarios, otra vez— no declara nada y no lanza ningún
+hilo.
+
 ## Dónde dejar el CSV en el VPS
 
 En desarrollo el CSV sale del PowerShell a `static_data/csv/` y se sube desde el navegador de la

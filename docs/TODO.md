@@ -147,7 +147,8 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [ ] **SAB-01 — la cobertura se valida por temporada, no por (temporada, oficio).** Verificado:
   `por_temporada.setdefault(row["season"], ...)` mezcla bateo y pitcheo. Si un oficio viene completo
   y el otro roto, el promedio pasa el 80% y el roto entra igual. Error mío al escribir `checks()`.
-- [ ] **ARCH-01 — cargar datos de apoyo no reconstruye lo que depende de ellos.** Real y ya lo
+- [x] **ARCH-01 — cargar datos de apoyo no reconstruye lo que depende de ellos.** **Corregido**: el `Loader` declara `rebuilds = ("build_career_totals", "build_leaders")` y la vista los dispara sola al confirmar. Corren fuera de la transacción (son reintentables, y no hay por qué bloquear la tabla de origen un minuto) y en un hilo (si no, la respuesta HTTP espera el minuto que tarda `build_leaders`, que es justo lo que un proxy corta a los 30s). Quedan en `IngestRun` como cualquier corrida del scheduler. Documentado en `MOTOR_DATOS_APOYO.md`.
+  ~~ Real y ya lo
   vivimos: tras la carga hubo que correr `build_leaders` a mano, y hasta que se corrió las páginas
   servían coeficientes viejos. `BattingCareer`/`PitchingCareer` tampoco se rehacen.
 - [x] **SEC-01 — subida de CSV sin límite de tamaño.** **Corregido**: tope de 20 MB (el CSV real pesa ~250 KB) y rechazo por extensión, verificados ANTES de leer — no se decodifica en memoria algo que no se va a aplicar. El staging fuera de sesión sigue pendiente en ARCH-02.

@@ -2,5 +2,14 @@
 {% block titletag %}Cargado{% endblock %}
 {% block content %}
 <header class="w-header"><div class="row"><div class="left"><h1 class="w-header__title">{{ dataset.table }} — cargado</h1></div></div></header>
-<div class="nice-padding"><p>Se escribieron <b>{{ rows }}</b> filas.</p></div>
+<div class="nice-padding">
+  <p>Se escribieron <b>{{ rows }}</b> filas.</p>
+  {% if rebuilds %}
+  <p>
+    Ya arrancó en segundo plano la reconstrucción de lo que se calcula a partir de estos datos:
+    <b>{{ rebuilds }}</b>. Tarda alrededor de un minuto y no hace falta esperar en esta pantalla —
+    cuando termine queda registrada en el log de ingesta.
+  </p>
+  {% endif %}
+</div>
 {% endblock %}
