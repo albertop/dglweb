@@ -17,6 +17,8 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 
 ## Antes de salir a producción
 
+- [ ] **Rotar el token del bot de Telegram.** Quedó expuesto durante la configuración, así que conviene renovarlo antes de producción: @BotFather → `/mybots` → el bot → *API Token* → *Revoke current token*, y reemplazar `TELEGRAM_BOT_TOKEN` en `.env`. El bot y el grupo siguen siendo los mismos; solo cambia la llave.
+
 - [ ] **Recomendar un monitor de uptime y dejarlo apuntando a `/health/pipeline`.** El endpoint ya
   está; lo que falta es el servicio de afuera que lo consulte, que es la mitad que importa: el
   scheduler estuvo días caído justamente porque lo único que podía avisar corría en el mismo
@@ -24,7 +26,7 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
   gratuitas que alertan por correo y por Telegram) y configurarlo con la URL pública. **Recordarlo
   cuando se prepare el despliegue**, no antes — sin dominio público no hay nada que vigilar.
 
-- [x] **Avisos por Telegram.** **Construido** (`dglweb/core/notify.py`), esperando las dos credenciales. Avisa cuando **un paso del refresco falla** —diciendo cuál, que es lo que el «503» del monitor externo no puede decir— y cuando **aparece un debut nuevo**.
+- [x] **Avisos por Telegram.** **Funcionando** (`dglweb/core/notify.py`), verificado con un mensaje real el 2026-07-26. El bot es `@dglweb_avisos_bot` y escribe a un **grupo**, no a un chat privado: el id es negativo y eso tiene una ventaja — sumar a otra persona a los avisos es agregarla al grupo, sin tocar configuración. Avisa cuando **un paso del refresco falla** —diciendo cuál, que es lo que el «503» del monitor externo no puede decir— y cuando **aparece un debut nuevo**.
   Los debuts se avisan **una sola vez**, no cada día: el worklist del log insiste a propósito hasta que cargues al jugador, pero el mismo mensaje cada mañana durante dos semanas enseñaría a silenciar el canal, y entonces el debut siguiente pasaría desapercibido.
   Un refresco limpio NO avisa: un «todo bien» diario se vuelve ruido en una semana.
   **Para encenderlo** hacen falta dos valores en `.env` — hablar con @BotFather para el token y sacar el chat id; sin ellos no se manda nada y no se protesta, que es lo correcto en desarrollo:
