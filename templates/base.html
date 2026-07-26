@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/site.css' %}?v=40" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=42" rel="stylesheet">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -23,11 +23,19 @@
         <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
       </button>
       <div class="collapse navbar-collapse" id="nav">
-        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" onsubmit="return false"
-              role="search" aria-label="Buscar jugador">
+        {% comment %}
+        La misma caja que la de /jugadores/: el JS se monta solo por `data-buscador`. Y como es un
+        formulario de verdad con su `action`, pulsar Enter sin elegir sugerencia lleva a la página de
+        resultados — que es también lo que pasa si el script no carga.
+        {% endcomment %}
+        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" method="get"
+              action="{% url 'players_index' %}" role="search" aria-label="Buscar jugador">
           <label class="visually-hidden" for="buscar">Buscar jugador</label>
-          <input class="form-control form-control-sm" id="buscar" type="search"
-                 placeholder="🔎 Buscar jugador… (ej. Soto)">
+          <div class="position-relative flex-grow-1">
+            <input class="form-control form-control-sm dgl-buscador-header" id="buscar" name="q" type="search"
+                   placeholder="🔎 Buscar jugador… (ej. Soto)"
+                   data-buscador="{% url 'players_suggest' %}" data-minimo="2">
+          </div>
         </form>
         <ul class="navbar-nav ms-auto align-items-lg-center">
           <li class="nav-item"><a class="nav-link dgl-navlink {% block nav_home %}{% endblock %}" href="{% url 'home' %}"
@@ -73,6 +81,7 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/buscador.js' %}?v=1" defer></script>
 <script>
   // El enlace "desglose" de una fila de totales salta al pill Totales: clicquea su botón de nav,
   // así Bootstrap hace todo (activa la pestaña y su panel) y no queda un estado a medias.

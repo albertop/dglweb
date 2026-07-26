@@ -386,3 +386,23 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    allá marca un dato incompleto y acá una noticia, y mezclar los dos significados en una sola clase
    haría que cambiar uno moviera el otro sin querer. */
 .dgl-debut { color: var(--dgl-red); font-weight: 800; }
+
+/* --- El buscador del header ------------------------------------------------------------------ */
+/* Fondo gris para que se despegue del azul marino de la barra. Un input blanco desaparecía contra
+   los bloques claros de la página al hacer scroll, y uno transparente ni se veía como campo. */
+.dgl-topbar .dgl-buscador-header {
+  background: #e6eaf0;
+  border-color: #b8c2cf;
+  color: var(--dgl-ink);
+}
+.dgl-topbar .dgl-buscador-header::placeholder { color: #6b7684; opacity: 1; }
+/* Al enfocar se aclara en vez de cambiar de color: el foco tiene que notarse sin que el campo
+   parezca otro. El halo es el azul del sitio, no el celeste por defecto de Bootstrap. */
+.dgl-topbar .dgl-buscador-header:focus {
+  background: #fff;
+  border-color: var(--dgl-blue);
+  box-shadow: 0 0 0 .2rem rgba(31, 78, 155, .25);
+}
+/* El desplegable del header cuelga de la barra, así que va por encima de todo lo demás. `z-index`
+   más alto que el del índice porque acá compite con el propio navbar. */
+.dgl-topbar .dgl-sugerencias { z-index: 1030; min-width: 20rem; }
