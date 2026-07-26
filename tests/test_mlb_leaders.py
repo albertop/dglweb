@@ -254,6 +254,67 @@ def test_turning_a_metric_off_does_not_require_refetching(temporada: SeasonDates
     assert not MlbLeader.objects.filter(metric__visible_en_widget_lideres=True).exists()
 
 
+# ── Lo que ve el widget ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def sb(db: None) -> Metric:
+    return Metric.objects.create(
+        stat_group="batting", column="sb", abbrev="SB", name_es="Bases robadas", kind="ACU",
+        sort_order=2, visible_en_widget_lideres=True,
+    )
+
+
+@pytest.mark.django_db
+def test_the_widget_groups_by_metric_with_the_best_first(temporada: SeasonDates, hr: Metric) -> None:
+    """Cerrado, el widget enseña un dominicano por métrica: el mejor rankeado."""
+    _jugador(111, "Segundo")
+    _jugador(222, "Primero")
+    mlb_leaders.guardar(2026, _traer(_Proxy(("homeRuns", [(8, 111, "25"), (2, 222, "31")])), {111, 222}), {})
+
+    datos = mlb_leaders.portada()
+
+    assert datos is not None
+    (_, _, bateo), _ = datos["oficios"]
+    assert len(bateo) == 1
+    assert [p.player_id for p in bateo[0]["puestos"]] == [222, 111]
+
+
+@pytest.mark.django_db
+def test_a_metric_turned_off_disappears_from_the_widget(temporada: SeasonDates, hr: Metric, sb: Metric) -> None:
+    """El interruptor del Backoffice manda sobre lo que se muestra, sin volver a consultar a MLB."""
+    _jugador(111, "Uno")
+    proxy = _Proxy(("homeRuns", [(1, 111, "40")]), ("stolenBases", [(1, 111, "37")]))
+    mlb_leaders.guardar(2026, _traer(proxy, {111}), {})
+    Metric.objects.filter(column="sb").update(visible_en_widget_lideres=False)
+
+    datos = mlb_leaders.portada()
+
+    assert datos is not None
+    (_, _, bateo), _ = datos["oficios"]
+    assert [g["metrica"].abbrev for g in bateo] == ["HR"]
+
+
+@pytest.mark.django_db
+def test_an_empty_table_draws_no_panel(temporada: SeasonDates, hr: Metric) -> None:
+    """Un widget hueco se lee como un sitio roto; mejor que no esté."""
+    assert mlb_leaders.portada() is None
+
+
+@pytest.mark.django_db
+def test_the_photo_path_is_literal_and_not_hashed(temporada: SeasonDates, hr: Metric) -> None:
+    """Los retratos no entran a la imagen ni los recoge `collectstatic`, así que nunca están en el
+    manifiesto y `{% static %}` fallaría al buscarlos. Se sirven por su ruta literal."""
+    _jugador(111, "Uno")
+    mlb_leaders.guardar(2026, _traer(_Proxy(("homeRuns", [(1, 111, "40")])), {111}), {})
+
+    datos = mlb_leaders.portada()
+
+    assert datos is not None
+    (_, _, bateo), _ = datos["oficios"]
+    assert bateo[0]["puestos"][0].foto.endswith("/img/mugshots/120/111.png")
+
+
 # ── El comando ──────────────────────────────────────────────────────────────────────────────────
 
 

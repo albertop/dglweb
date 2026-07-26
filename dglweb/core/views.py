@@ -6,10 +6,18 @@ from django.utils import timezone
 
 
 def home(request: HttpRequest) -> HttpResponse:
-    """La portada. La franja de arriba son widgets: los destacados de la jornada y la pizarra."""
-    from dglweb.stats import daily, scoreboard
+    """La portada. La franja de arriba son widgets: la pizarra, los destacados y los líderes."""
+    from dglweb.stats import daily, mlb_leaders, scoreboard
 
-    return render(request, "home.html", {"destacados": daily.portada(), "pizarra": scoreboard.del_dia()})
+    return render(
+        request,
+        "home.html",
+        {
+            "destacados": daily.portada(),
+            "pizarra": scoreboard.del_dia(),
+            "lideres": mlb_leaders.portada(),
+        },
+    )
 
 
 def pizarra(request: HttpRequest) -> HttpResponse:

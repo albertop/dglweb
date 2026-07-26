@@ -16,7 +16,16 @@
     dejaría tres juegos a la vista y las flechas haciendo todo el trabajo.
   {% endcomment %}
   <div class="mb-4">{% include "widgets/_pizarra.html" %}</div>
-  <div class="mb-4">{% include "widgets/_destacados.html" %}</div>
+
+  {% comment %}
+    La franja de widgets, partida en dos mitades: la jornada de ayer a la izquierda y la carrera de
+    la temporada a la derecha. Son dos horizontes distintos —un día contra cinco meses— y ponerlos
+    lado a lado los deja comparables sin mezclarlos.
+  {% endcomment %}
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">{% include "widgets/_destacados.html" %}</div>
+    <div class="col-lg-6">{% include "widgets/_lideres.html" %}</div>
+  </div>
 
   {% comment %}
     El destacado y su anuncio van en su propia fila para que el anuncio pueda alcanzar la altura del
@@ -77,4 +86,5 @@
 {% block extra_js %}
 <script src="{% static 'js/pizarra.js' %}?v=1" defer></script>
 <script src="{% static 'js/video.js' %}?v=1" defer></script>
+<script src="{% static 'js/lideres.js' %}?v=1" defer></script>
 {% endblock %}

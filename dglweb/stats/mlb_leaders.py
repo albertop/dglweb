@@ -28,6 +28,8 @@ cada visita.
 from dataclasses import dataclass
 from typing import Any
 
+from django.conf import settings
+
 from dglweb.mlb.client import MlbProxyClient
 
 # Cuántos puestos del ranking de las mayores interesan. Diez porque es lo que el dueño pidió: estar
@@ -171,6 +173,51 @@ def guardar(temporada: int, puestos: list[Puesto], codigos: dict[int, str]) -> i
         MlbLeader.objects.filter(season=temporada).delete()
         MlbLeader.objects.bulk_create(filas)
     return len(filas)
+
+
+def portada(metricas: int = 5) -> dict[str, Any] | None:
+    """Lo que muestra el widget: por oficio, una entrada por métrica con los nuestros que están ahí.
+
+    `metricas` es cuántas se ven sin desplegar; el resto llega con «ver más». No se recorta en la
+    consulta porque son treinta filas en total: traerlas todas y esconder unas cuantas con CSS cuesta
+    menos que ir al servidor otra vez cuando el lector abre el panel.
+
+    Devuelve `None` con la tabla vacía —temporada sin empezar, o el refresco horario nunca corrió—
+    para que la plantilla no dibuje un panel hueco.
+    """
+    from dglweb.stats.models import MlbLeader
+
+    filas = (
+        MlbLeader.objects.filter(metric__visible_en_widget_lideres=True)
+        .select_related("metric", "player")
+        .order_by("metric__stat_group", "metric__sort_order", "rank", "player__lastname_1")
+    )
+
+    oficios: dict[str, list[dict[str, Any]]] = {"batting": [], "pitching": []}
+    temporada = None
+    for fila in filas:
+        grupo = oficios.get(fila.metric.stat_group)
+        if grupo is None:
+            continue
+        temporada = fila.season
+        # La ruta de la foto se arma acá y no con `{% static %}` en la plantilla: los retratos NO
+        # entran a la imagen de Docker ni los recoge `collectstatic`, así que nunca están en el
+        # manifiesto y esa etiqueta fallaría al buscarlos. Se sirven por su ruta literal.
+        fila.foto = f"{settings.STATIC_URL}img/mugshots/120/{fila.player_id}.png"  # type: ignore[attr-defined]
+        # Una entrada por métrica, con todos los nuestros que caen ahí. El primero de la lista es el
+        # mejor rankeado, porque así vienen ordenadas.
+        if grupo and grupo[-1]["metrica"] == fila.metric:
+            grupo[-1]["puestos"].append(fila)
+        else:
+            grupo.append({"metrica": fila.metric, "puestos": [fila]})
+
+    if temporada is None:
+        return None
+    return {
+        "oficios": (("bateo", "Bateo", oficios["batting"]), ("pitcheo", "Pitcheo", oficios["pitching"])),
+        "visibles": metricas,
+        "temporada": temporada,
+    }
 
 
 def podar(temporada_activa: int | None) -> int:

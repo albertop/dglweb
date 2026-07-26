@@ -567,3 +567,44 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   justify-content: center; font-style: italic; color: var(--dgl-blue);
   border-top: 2px solid #dfe5ed; background: #f7f9fc;
 }
+
+/* ---------- Widget: dominicanos en el top de las mayores ---------- */
+/* Pestañas planas y no las de Bootstrap: el widget vive en media columna y el marco de `nav-tabs`
+   se come un alto que acá hace falta para las filas. */
+.dgl-lideres-tabs { display: flex; gap: .4rem; border-bottom: 1px solid var(--dgl-line); }
+.dgl-lideres-tab {
+  background: none; border: 0; border-bottom: 2px solid transparent; padding: .2rem .5rem .35rem;
+  font: inherit; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--dgl-muted); cursor: pointer;
+}
+.dgl-lideres-tab:hover { color: var(--dgl-ink); }
+.dgl-lideres-tab.is-on { color: var(--dgl-ink); border-bottom-color: var(--dgl-red); font-weight: 700; }
+.dgl-lideres-tab:focus-visible { outline: 2px solid var(--dgl-red); outline-offset: 2px; }
+
+/* La sigla a la izquierda, en columna fija, para que los nombres arranquen todos en la misma vertical
+   sin importar si la métrica es «H» o «WHIP». */
+.dgl-lider-metrica { display: flex; gap: .5rem; align-items: baseline; padding: .3rem 0; }
+.dgl-lider-metrica + .dgl-lider-metrica { border-top: 1px solid var(--dgl-line); }
+.dgl-lider-abbr {
+  flex: 0 0 2.6rem; font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+  color: var(--dgl-muted); text-transform: uppercase; cursor: help;
+}
+.dgl-lider-gente { flex: 1 1 auto; min-width: 0; }
+
+.dgl-lider { display: flex; align-items: center; gap: .4rem; font-size: .8rem; padding: .1rem 0; }
+/* Fondo tenue bajo el recorte transparente: sin él, un retrato de pelo oscuro se pierde contra el
+   blanco de la tarjeta. */
+.dgl-lider-foto { flex: 0 0 auto; border-radius: 50%; background: var(--dgl-bg); }
+.dgl-lider .nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dgl-lider .team { font-size: .62rem; letter-spacing: .06em; color: var(--dgl-muted); }
+/* El puesto empujado a la derecha junto al valor: son las dos cifras que se comparan de un vistazo
+   bajando la vista por la lista. */
+.dgl-lider .puesto { margin-left: auto; font-size: .72rem; color: var(--dgl-muted); }
+.dgl-lider .valor { flex: 0 0 3.2rem; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.dgl-lideres-mas {
+  display: block; width: 100%; margin-top: .5rem; padding: .3rem; background: none;
+  border: 0; border-top: 1px solid var(--dgl-line); font: inherit; font-size: .72rem;
+  color: var(--dgl-link); cursor: pointer;
+}
+.dgl-lideres-mas:hover { text-decoration: underline; }
