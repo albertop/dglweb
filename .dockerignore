@@ -15,3 +15,8 @@ docs/
 # Datos de apoyo (Fase 4e): los PowerShell corren en la máquina del dueño contra SQL Server, y los
 # CSV son un volcado que se sube por el Backoffice. Nada de esto hace falta dentro de la imagen.
 static_data/
+
+# Las fotos de los peloteros no se queman en la imagen: son cientos de archivos que cambian cuando
+# cambia el roster, y hornearlas obligaría a reconstruir la imagen por cada foto nueva. En el VPS
+# entran por el volumen `dglweb_mugshots`, montado sobre esta misma ruta.
+static/img/mugshots/
