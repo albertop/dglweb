@@ -38,16 +38,23 @@ dataset nuevo es crear una fila, no tocar código.
 | `powershell` | El nombre del script en `static_data/` que genera el CSV |
 | `csv` | El nombre del archivo que ese script produce |
 | `truncate` | Marcado: se vacía la tabla y se carga de nuevo. Sin marcar: upsert idempotente |
-| `clave_natural` | Las columnas que identifican una fila, separadas por coma. **Casi siempre compuesta** |
+| `clave_natural` | **Obligatoria.** Las columnas que identifican una fila, separadas por coma. Casi siempre compuesta |
 | `comentario` | Texto libre: por qué existe este dataset, qué ojo hay que tenerle |
 | `last_update` | Cuándo se subió por última vez |
 | `last_filas` | Cuántas filas escribió esa última carga |
 | `last_user` | Quién la subió |
 
-**`clave_natural` no es opcional cuando `truncate` está apagado.** Un upsert necesita saber qué
-identifica una fila para decidir entre actualizar e insertar; sin eso el modo idempotente no puede
-existir. El formulario debe exigirla en ese caso y validar que esas columnas existan en la tabla
-destino — descubrirlo a mitad del import es tarde.
+**`clave_natural` es obligatoria siempre, marque o no `truncate`.** El upsert la necesita para decidir
+entre actualizar e insertar, sí — pero no es el único que la usa:
+
+- La **pantalla de comparación** la necesita en los dos modos. Sin clave no se puede decir qué
+  desapareció, que es lo más importante que muestra.
+- La **validación de unicidad** aplica en los dos modos. Un duplicado no es menos grave con truncate:
+  ahí no se pisa una fila con otra, se insertan las dos, y la tabla queda con un registro fantasma
+  que nadie pidió. En cualquiera de los dos casos es un export mal hecho.
+
+El formulario la exige y valida que esas columnas existan en la tabla destino — descubrirlo a mitad
+del import es tarde.
 
 **Y la clave es compuesta casi siempre**, no por excepción: en este dominio ninguna tabla de stats se
 identifica con una sola columna. `mlb_batting` va por *(jugador, temporada, stint)* y `mlb_fielding`
@@ -57,8 +64,8 @@ las tres piezas por igual:
 - El **upsert** empareja por todas las columnas de la clave, no por la primera.
 - La **comparación** agrupa por la clave completa para decir qué desaparece: contar jugadores
   distintos no sirve si lo que se perdió fue una posición de un jugador que sigue estando.
-- La **validación** verifica que la combinación no se repita dentro del CSV. Un duplicado en la clave
-  es un export mal hecho, y en modo upsert se traga silenciosamente el segundo sobre el primero.
+- La **validación de unicidad** evalúa la combinación entera. Que `player_id` se repita es normal y
+  esperado; lo que no puede repetirse es *(jugador, temporada, stint)* completo.
 
 Las tres columnas `last_*` no son adorno: le dan a la pantalla de comparación una **línea base
 histórica**. Sin ellas se puede ver que un CSV trae menos filas que la tabla actual, pero no que el
@@ -106,6 +113,9 @@ Y encima de eso:
   señal de alarma más importante: un export que se cortó a la mitad se ve acá y en ningún otro lado.
   Solo aplica en modo truncate — con upsert las filas ausentes sobreviven, y la pantalla debe decirlo
   en vez de callarlo, porque "no desaparece nada" significa cosas distintas en cada modo.
+- **Clave natural única.** Se corre siempre, en los dos modos: si la combinación de `clave_natural`
+  se repite en el CSV, la pantalla lista las filas culpables y **no deja confirmar**. No es un aviso
+  — es un export mal hecho, y dejarlo pasar corrompe la tabla en cualquiera de los dos modos.
 - **La prueba de aceptación del dataset**, corrida sobre el CSV *antes* de escribir. Si
   `FH+GH+LH+PH ≠ H` para alguna fila, la pantalla lo dice y el botón de confirmar no aparece.
 - **Una muestra de filas** del CSV, para detectar un desfase de columnas o un encoding roto de un
