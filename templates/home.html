@@ -18,10 +18,13 @@
   <div class="mb-4">{% include "widgets/_pizarra.html" %}</div>
   <div class="mb-4">{% include "widgets/_destacados.html" %}</div>
 
-  <div class="row g-4">
-
+  {% comment %}
+    El destacado y su anuncio van en su propia fila para que el anuncio pueda alcanzar la altura del
+    artículo: dentro de la columna larga crecería solo hasta su alto fijo y dejaría un hueco al lado.
+  {% endcomment %}
+  <div class="row g-4 mb-4">
     <div class="col-lg-8">
-      <article class="card dgl-hero mb-4 shadow-sm">
+      <article class="card dgl-hero h-100 shadow-sm">
         <div class="dgl-thumb">Gráfico · wOBA por temporada</div>
         <div class="card-body">
           <div class="dgl-kicker">Sabermetría</div>
@@ -34,8 +37,15 @@
             &nbsp; <span class="dgl-tag">#JuanSoto</span> <span class="dgl-tag">#wOBA</span></div>
         </div>
       </article>
+    </div>
+    <div class="col-lg-4">
+      <div class="dgl-ad dgl-ad-alto h-100">Espacio publicitario · 300×250</div>
+    </div>
+  </div>
 
-      <h2 class="dgl-section-title">Últimos artículos</h2>
+  <h2 class="dgl-section-title">Últimos artículos</h2>
+  <div class="row g-4">
+    <div class="col-lg-8">
       <div class="row g-3">
         <div class="col-md-6"><div class="card h-100 shadow-sm">
           <div class="dgl-thumb" style="height:120px">Gráfico · K% vs BB%</div>
@@ -47,40 +57,38 @@
           <div class="card-body"><div class="dgl-kicker">Defensa</div>
             <a href="#" class="h6 d-block dgl-article-title">Outs Above Average: los guantes dominicanos que nadie mira</a>
             <div class="dgl-meta mt-2">12 jul · 7 min</div></div></div></div>
-
-        <div class="col-12"><div class="dgl-ad dgl-ad-leader my-1">Espacio publicitario · in-feed</div></div>
-
-        <div class="col-md-6"><div class="card h-100 shadow-sm">
-          <div class="dgl-thumb" style="height:120px">Gráfico · Sprint speed</div>
-          <div class="card-body"><div class="dgl-kicker">Statcast</div>
-            <a href="#" class="h6 d-block dgl-article-title">Velocidad en las bases: el top dominicano por sprint speed</a>
-            <div class="dgl-meta mt-2">10 jul · 5 min</div></div></div></div>
-        <div class="col-md-6"><div class="card h-100 shadow-sm">
-          <div class="dgl-thumb" style="height:120px">Gráfico · FIP vs ERA</div>
-          <div class="card-body"><div class="dgl-kicker">Pitcheo</div>
-            <a href="#" class="h6 d-block dgl-article-title">FIP vs ERA: qué lanzadores dominicanos han tenido suerte (o no)</a>
-            <div class="dgl-meta mt-2">8 jul · 9 min</div></div></div></div>
-      </div>
-
-      <div class="text-center my-4">
-        <a href="#" class="btn btn-outline-primary btn-sm px-4">Ver más artículos</a>
       </div>
     </div>
+    <div class="col-lg-4"><div class="card h-100 shadow-sm">
+      <div class="dgl-thumb" style="height:120px">Gráfico · Edad vs OPS</div>
+      <div class="card-body"><div class="dgl-kicker">Sabermetría</div>
+        <a href="#" class="h6 d-block dgl-article-title">La curva de envejecimiento de los bateadores dominicanos</a>
+        <div class="dgl-meta mt-2">11 jul · 8 min</div></div></div></div>
+  </div>
 
-    <aside class="col-lg-4">
-      <div class="dgl-ad dgl-ad-rect mb-4">Espacio publicitario · 300×250</div>
+  {# A todo lo ancho: separa los dos bloques de artículos en vez de partir una columna por dentro. #}
+  <div class="dgl-ad dgl-ad-leader my-4">Espacio publicitario · in-feed</div>
 
-      <section class="dgl-panel mb-4 p-3">
-        <h2 class="dgl-section-title" style="font-size:.95rem">Líderes dominicanos · 2026</h2>
-        <div class="mb-3">
-          <div class="dgl-meta mb-1 text-uppercase" style="letter-spacing:.1em">Jonrones (HR)</div>
-          <div class="dgl-leader d-flex justify-content-between py-1"><span><span class="rank">1</span>J. Soto</span><span class="val">34</span></div>
-          <div class="dgl-leader d-flex justify-content-between py-1"><span><span class="rank">2</span>V. Guerrero Jr.</span><span class="val">31</span></div>
-          <div class="dgl-leader d-flex justify-content-between py-1"><span><span class="rank">3</span>R. Devers</span><span class="val">29</span></div>
-        </div>
-        <a href="#" class="d-block text-center small pt-2">Ver todos los líderes →</a>
-      </section>
-    </aside>
+  <div class="row g-3">
+    <div class="col-md-6 col-lg-4"><div class="card h-100 shadow-sm">
+      <div class="dgl-thumb" style="height:120px">Gráfico · Sprint speed</div>
+      <div class="card-body"><div class="dgl-kicker">Statcast</div>
+        <a href="#" class="h6 d-block dgl-article-title">Velocidad en las bases: el top dominicano por sprint speed</a>
+        <div class="dgl-meta mt-2">10 jul · 5 min</div></div></div></div>
+    <div class="col-md-6 col-lg-4"><div class="card h-100 shadow-sm">
+      <div class="dgl-thumb" style="height:120px">Gráfico · FIP vs ERA</div>
+      <div class="card-body"><div class="dgl-kicker">Pitcheo</div>
+        <a href="#" class="h6 d-block dgl-article-title">FIP vs ERA: qué lanzadores dominicanos han tenido suerte (o no)</a>
+        <div class="dgl-meta mt-2">8 jul · 9 min</div></div></div></div>
+    <div class="col-md-6 col-lg-4"><div class="card h-100 shadow-sm">
+      <div class="dgl-thumb" style="height:120px">Tabla · Novatos</div>
+      <div class="card-body"><div class="dgl-kicker">Debutantes</div>
+        <a href="#" class="h6 d-block dgl-article-title">Los dominicanos que debutaron en 2026, uno por uno</a>
+        <div class="dgl-meta mt-2">6 jul · 4 min</div></div></div></div>
+  </div>
+
+  <div class="text-center my-4">
+    <a href="#" class="btn btn-outline-primary btn-sm px-4">Ver más artículos</a>
   </div>
 
   <div class="dgl-ad dgl-ad-leader mt-2">Espacio publicitario · 728×90</div>

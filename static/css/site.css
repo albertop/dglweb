@@ -274,6 +274,10 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 .dgl-ad-leader { height: 90px; }
 .dgl-ad-rect { height: 250px; }
+/* El que acompaña al artículo destacado: se estira a lo que mida su fila —con `h-100`— en vez de
+   quedarse en 250px y dejar un hueco al lado del artículo. El mínimo es el 300×250 de siempre, que
+   es lo que ocupa cuando la columna se apila en móvil y ya no tiene fila que igualar. */
+.dgl-ad-alto { min-height: 250px; }
 
 /* ---------- Article prose (readable serif body) ---------- */
 .dgl-prose {

@@ -45,7 +45,7 @@ def test_home_renders_landing_modules_when_requested():
 
     response = client.get("/")
 
-    assert "Líderes dominicanos".encode() in response.content
+    assert "Últimos artículos".encode() in response.content
 
 
 @pytest.mark.django_db
