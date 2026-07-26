@@ -47,6 +47,17 @@ from typing import Any
 # They are after the floor, so their ratios are understated; see docs/MEJORAS_FUTURAS.md.
 FIRST_STATCAST_SEASON = 1989
 
+# Temporadas que PASAN el piso pero llegan incompletas: la fuente entregó los outs por tipo y casi
+# ningún hit por tipo (91 hits tipificados en 2000 y 113 en 2001, contra ~5.000 en los años vecinos).
+# El efecto se ve en que los cuatro coeficientes dejan de sumar 100%: los de Sammy Sosa suman 99.8% en
+# 1999 y 55.9% en 2000, y LD% —que son casi todos hits— se desploma de .204 a .036.
+#
+# Los CONTEOS de outs (AO/GO/FO/PO/LO) sí están completos en esos años; lo que falta son los de hits
+# (FH/PH/LH/GH) y, por arrastre, los coeficientes. Un piso por año no puede expresar esa diferencia —
+# o deja pasar todo o bloquea todo— así que por ahora pasan y la UI lo advierte. El arreglo de fondo
+# es cobertura por (métrica, temporada); ver SAB-03 en docs/TODO.md.
+UNDERTYPED_STATCAST_SEASONS = frozenset({2000, 2001})
+
 
 def _sum(*values: int | None) -> int | None:
     known = [v for v in values if v is not None]

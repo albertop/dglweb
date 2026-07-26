@@ -17,7 +17,7 @@ from django.db import models
 from dglweb.players.models import Player
 from dglweb.profiles import columns
 from dglweb.stats import career_totals, leaders, qualifier
-from dglweb.stats.derive import FIRST_STATCAST_SEASON, batted_ball_coefficients
+from dglweb.stats.derive import FIRST_STATCAST_SEASON, UNDERTYPED_STATCAST_SEASONS, batted_ball_coefficients
 from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
 from dglweb.stats.models import (
     Batting,
@@ -482,6 +482,10 @@ def _group_context(
         # El desglose por equipo/liga sigue escondido cuando la cobertura es parcial: un equipo donde
         # solo jugó antes de 1989 daría una fila entera de rayas.
         "statcast_full": bool(statcast_seasons) and len(statcast_seasons) == len(seasons),
+        # Las temporadas de este jugador que pasan el piso pero llegan sin los hits tipificados. Se
+        # nombran una por una en el pie: decir "la cobertura varía" no le sirve a nadie para saber
+        # cuáles de SUS filas mirar con reservas.
+        "undertyped": [row.season for row in statcast_seasons if row.season in UNDERTYPED_STATCAST_SEASONS],
     }
 
 

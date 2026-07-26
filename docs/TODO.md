@@ -119,8 +119,14 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   Caption aclara que CS% normaliza el volumen crudo y que cERA es contexto (depende del staff), no una
   evaluación defensiva fuerte. Validado: Tony Peña carrera 34.9 %.
 - [ ] **SAB-03 — cobertura Statcast es piso por año, no por métrica (hueco 2000-2001).** Ya conocido
-  (v3 SAB-01, `MEJORAS_FUTURAS.md`). Barato mientras tanto: mencionar los años parciales en la nota
-  de la UI si el jugador tiene filas 2000-2001 en esos panes.
+  (v3 SAB-01, `MEJORAS_FUTURAS.md`). **Mitigado en la UI**: los paneles Statcast y Coeficientes
+  nombran las temporadas afectadas del propio jugador (`derive.UNDERTYPED_STATCAST_SEASONS`) y
+  explican qué columnas mirar con reservas — Sosa marca 2000 y 2001, Pujols solo 2001, y quien no
+  jugó esos años no ve nada. Medido: los cuatro coeficientes de Sosa suman 99.8% en 1999 y 55.9% en
+  2000, con LD% cayendo de .204 a .036. **Falta el arreglo de fondo**: mover la cobertura de una
+  constante por año a una tabla por (métrica, temporada). Los conteos de outs (AO/GO/FO/PO/LO) están
+  completos en 2000-2001 y hoy se advierten de más; los de hits y los coeficientes son los rotos. Eso
+  también resolvería el borde de 2002, que se queda en ~87%.
 
 ## Umbral de coeficientes DE POR VIDA (BIP)
 
