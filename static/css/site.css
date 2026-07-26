@@ -226,7 +226,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-leaders-table .dgl-rank-col { width: 3rem; }
 .dgl-lead-name { font-weight: 700; }
 .dgl-lead-val { font-weight: 800; font-variant-numeric: tabular-nums; }
-.nav-tabs .nav-link { font-weight: 700; color: var(--dgl-muted); font-size: .9rem; }
+/* El inactivo va en la tinta del sitio, igual que los pills: en gris se leía como deshabilitado
+   cuando en realidad es a donde hay que hacer clic. */
+.nav-tabs .nav-link { font-weight: 700; color: var(--dgl-ink); font-size: .9rem; }
 /* El tab activo va en bloque, no en subrayado: con seis pestañas el borde inferior costaba de
    ubicar. Se usa el rojo profundo para que el elemento seleccionado tenga el mismo peso visual que
    la barra superior, que es lo que ancla la identidad de la página. */

@@ -4,14 +4,18 @@ Es la pieza que reemplaza tablas enteras, así que lo que se prueba acá no es q
 feliz sino que los caminos infelices NO terminen en 500 ni en una carga aplicada por error.
 """
 
+from typing import TYPE_CHECKING
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test.client import _MonkeyPatchedWSGIResponse
 from django.test import Client
 from django.urls import reverse
 
 from dglweb.stats.models import StaticDataset
+
+if TYPE_CHECKING:  # solo existe en los stubs de django-stubs, no en runtime
+    from django.test.client import _MonkeyPatchedWSGIResponse
 
 CSV_BUENO = (
     b"mlb_id,season,stat_group,ground_hits,fly_hits,line_hits,pop_hits,h_typed,h_all\n1,2000,batting,5,3,2,1,11,11\n"
