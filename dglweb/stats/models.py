@@ -1337,6 +1337,21 @@ class StaticDataset(models.Model):
     def __str__(self) -> str:
         return self.table
 
+    def cargar(self) -> str:
+        """El enlace a la pantalla de carga, para que el listado del Backoffice lo ofrezca.
+
+        Vive acá y no en el viewset porque Wagtail arma las columnas del listado leyendo atributos
+        del modelo; una columna que solo existiera en el viewset no tendría de dónde salir.
+        """
+        from django.urls import reverse
+        from django.utils.html import format_html
+
+        return format_html(
+            '<a href="{}" class="button button-small">Cargar CSV</a>', reverse("staticdata_upload", args=[self.pk])
+        )
+
+    cargar.short_description = "Carga"  # type: ignore[attr-defined]
+
     @property
     def key_columns(self) -> list[str]:
         """La clave natural como lista — el import y la comparación agrupan por TODAS estas columnas."""

@@ -179,7 +179,7 @@ class StaticDatasetViewSet(SnippetViewSet):  # type: ignore[misc]
     icon = "download"
     menu_label = "Datos de apoyo"
     menu_name = "static_datasets"
-    list_display = ("table", "powershell", "csv", "mode", "natural_key", "last_update", "last_rows")
+    list_display = ("table", "mode", "natural_key", "csv", "last_update", "last_rows", "cargar")
     list_filter = ("mode",)
     ordering = ("table",)
     add_to_admin_menu = False
