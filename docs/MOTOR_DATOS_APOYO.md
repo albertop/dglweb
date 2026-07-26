@@ -129,3 +129,22 @@ punto del motor es que no sabe nada de ningún dataset; un test atado al dataset
 
 Al agregar un loader, lo que hay que testear es **su** `checks()` — la regla de negocio. El resto ya
 está cubierto.
+
+## `post_apply()` — cuando cargar el dato no alcanza
+
+El tercer hook, y el menos obvio. Corre **después de escribir y dentro de la misma transacción**, y
+es para los datasets que corrigen un dato del que otros dependen.
+
+El caso que lo motivó: cargar los hits por tipo no sirve de nada si `GB%`, `FB%`, `LD%` y `PU%`
+—que salen de ellos— siguen calculados con los viejos. El loader de batazos lo usa para reescribir
+los cuatro conteos en la fila de temporada y recalcular sus coeficientes de una vez.
+
+Al ir dentro de la transacción, o queda todo consistente o no queda nada: nunca los hits nuevos con
+los porcentajes viejos.
+
+```python
+    def post_apply(self, rows):
+        # recalcular lo que dependa de este dato
+```
+
+La mayoría de los datasets no lo necesitan. Un salario no alimenta ningún cálculo derivado.

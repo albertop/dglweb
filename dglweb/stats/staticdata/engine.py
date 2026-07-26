@@ -71,6 +71,14 @@ class Loader:
         """
         return {campo: row[col] for col, campo in self.columns.items()}
 
+    def post_apply(self, rows: list[dict[str, Any]]) -> None:
+        """Corre DESPUÉS de escribir y DENTRO de la misma transacción. Vacío = no hace falta.
+
+        Para los datasets que corrigen un dato del que otros dependen: cargar los hits por tipo no
+        sirve de nada si los coeficientes que salen de ellos siguen calculados con los viejos. Al ir
+        dentro de la transacción, o queda todo consistente o no queda nada.
+        """
+
     def checks(self, rows: list[dict[str, Any]]) -> list[Problem]:
         """La prueba de aceptación propia del dataset. Vacío = no tiene ninguna.
 
@@ -200,8 +208,9 @@ def apply(loader: Loader, rows: list[dict[str, Any]], key_columns: list[str], *,
     if truncating:
         manager.all().delete()
         manager.bulk_create([loader.model(**row) for row in limpias])
-        return len(limpias)
-    for row in limpias:
-        clave = {column: row[column] for column in key_columns}
-        manager.update_or_create(**clave, defaults={k: v for k, v in row.items() if k not in clave})
+    else:
+        for row in limpias:
+            clave = {column: row[column] for column in key_columns}
+            manager.update_or_create(**clave, defaults={k: v for k, v in row.items() if k not in clave})
+    loader.post_apply(rows)
     return len(limpias)

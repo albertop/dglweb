@@ -9,7 +9,7 @@ ESTE dataset esté sano.
 from typing import Any, ClassVar
 
 from dglweb.players.models import Player
-from dglweb.stats.models import BattedBallHits
+from dglweb.stats.models import BattedBallHits, Batting, Pitching
 from dglweb.stats.staticdata.engine import Loader, Problem, register
 
 _GROUPS = {"batting", "pitching"}
@@ -87,3 +87,61 @@ class BattedBallHitsLoader(Loader):
         return [
             Problem(f"Los cuatro tipos no suman H en {len(malas)} fila(s).", malas[:10]),
         ]
+
+    def post_apply(self, rows: list[dict[str, Any]]) -> None:
+        """Reescribe los hits por tipo en la fila de temporada y recalcula sus coeficientes.
+
+        Cargar los hits no sirve de nada si GB%/FB%/LD%/PU% —que salen de ellos— siguen calculados
+        con los viejos. Corre dentro de la transacción del import: o queda todo consistente o nada.
+
+        Se toca SOLO la fila de temporada (`season_totals`: la combinada `XXX`, o la única si no hubo
+        cambio de equipo), porque el dato de Retrosheet viene por (jugador, temporada) y repartirlo
+        entre los stints exigiría casar sus códigos de equipo con los nuestros. Las líneas por equipo
+        de una temporada con traspaso conservan lo que dio el proxy; los líderes y los coeficientes
+        del perfil leen el total, que es el que queda corregido.
+        """
+        from dglweb.stats.derive import batted_ball_coefficients
+
+        por_oficio: dict[str, dict[tuple[int, int], dict[str, int]]] = {"batting": {}, "pitching": {}}
+        for row in rows:
+            por_oficio[row["stat_group"]][row["player_id"], row["season"]] = row
+
+        for group, model in (("batting", Batting), ("pitching", Pitching)):
+            objetivo = por_oficio[group]
+            if not objetivo:
+                continue
+            temporadas = {season for _, season in objetivo}
+            actualizadas: list[Any] = []
+            for linea in model.objects.filter(season__in=temporadas).season_totals():
+                nuevo = objetivo.get((linea.player_id, linea.season))
+                if nuevo is None:
+                    continue
+                for campo in ("ground_hits", "fly_hits", "line_hits", "pop_hits"):
+                    setattr(linea, campo, nuevo[campo])
+                for campo, valor in batted_ball_coefficients(_as_dict(linea)).items():
+                    setattr(linea, campo, valor)
+                actualizadas.append(linea)
+            if actualizadas:
+                campos = ["ground_hits", "fly_hits", "line_hits", "pop_hits", *_COEFFICIENT_FIELDS]
+                model._default_manager.bulk_update(actualizadas, campos)
+
+
+_COEFFICIENT_FIELDS = ("gb_pct", "fb_pct", "ld_pct", "pu_pct", "gb_fb", "contact_pct", "whiff_pct")
+
+
+def _as_dict(linea: Batting | Pitching) -> dict[str, Any]:
+    """Los campos que `batted_ball_coefficients` lee, tomados de la fila ya modificada."""
+    campos = (
+        "ground_outs",
+        "fly_outs",
+        "pop_outs",
+        "line_outs",
+        "ground_hits",
+        "fly_hits",
+        "pop_hits",
+        "line_hits",
+        "balls_in_play",
+        "total_swings",
+        "swing_and_misses",
+    )
+    return {campo: getattr(linea, campo, None) for campo in campos}

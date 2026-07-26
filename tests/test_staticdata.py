@@ -139,3 +139,55 @@ def test_the_real_loader_checks_that_the_four_types_add_up_to_h() -> None:
 
     assert len(problems) == 1
     assert "no suman H en 1" in problems[0].message
+
+
+@pytest.mark.django_db
+def test_loading_the_hits_also_fixes_the_coefficients_they_feed() -> None:
+    """Cargar los hits no sirve si GB%/FB%/LD%/PU% siguen calculados con los viejos.
+
+    Reproduce el caso real: la fuente entregó los outs completos y casi ningún hit, así que los
+    cuatro coeficientes no llegaban a sumar 100%. Tras la carga tienen que sumar 1.0.
+    """
+    from dglweb.stats.models import Batting
+    from dglweb.stats.staticdata.loaders import BattedBallHitsLoader
+
+    p = _player(1)
+    # Como venía del proxy: 60 outs tipificados, 0 hits, 100 bolas en juego -> los coeficientes suman .60
+    Batting.objects.create(
+        player=p,
+        season=2000,
+        stint=1,
+        team="XXX",
+        h=40,
+        balls_in_play=100,
+        ground_outs=30,
+        fly_outs=20,
+        line_outs=8,
+        pop_outs=2,
+        ground_hits=0,
+        fly_hits=0,
+        line_hits=0,
+        pop_hits=0,
+    )
+    filas = [
+        {
+            "player_id": p.pk,
+            "season": 2000,
+            "stat_group": "batting",
+            "ground_hits": 20,
+            "fly_hits": 12,
+            "line_hits": 7,
+            "pop_hits": 1,
+            "__h": 40,
+        }
+    ]
+
+    BattedBallHitsLoader().post_apply(filas)
+
+    linea = Batting.objects.get(player=p, season=2000)
+    assert (linea.ground_hits, linea.fly_hits, linea.line_hits, linea.pop_hits) == (20, 12, 7, 1)
+    # (30+20) + (20+12) + (8+7) + (2+1) = 100 sobre 100 bolas en juego
+    reparto = [linea.gb_pct, linea.fb_pct, linea.ld_pct, linea.pu_pct]
+    assert None not in reparto
+    assert round(sum(v for v in reparto if v is not None), 6) == 1.0
+    assert linea.gb_pct == 0.5  # 50 roletazos de 100
