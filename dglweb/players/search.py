@@ -25,7 +25,11 @@ from dglweb.players.models import Player
 
 # Dos caracteres: con uno solo, «a» devuelve medio maestro y la lista deja de ser una sugerencia.
 MIN_CARACTERES = 2
-LIMITE_SUGERENCIAS = 10
+# Veinte y no diez. Con diez, buscar «carlos» —que tiene 22 coincidencias— dejaba fuera al segundo
+# Carlos Martínez, que cae en el puesto 16: el usuario concluía que no estaba en la base. La lista
+# tiene scroll, así que veinte no la alargan de más, y lo que de verdad arregla el problema es que
+# `Resultados` diga cuántos quedaron fuera.
+LIMITE_SUGERENCIAS = 20
 
 
 @dataclass(frozen=True)
@@ -59,7 +63,24 @@ class _Unaccent(Func):
     function = "unaccent"
 
 
-def buscar(consulta: str, limite: int = LIMITE_SUGERENCIAS) -> list[Sugerencia]:
+@dataclass(frozen=True)
+class Resultados:
+    """Lo que encaja y CUÁNTOS encajan, que no es lo mismo.
+
+    El total va aparte porque recortar en silencio es el peor fallo posible de un buscador: quien
+    busca «jose» ve diez nombres de sesenta y ocho y concluye que los otros no existen. Con el total,
+    la interfaz puede decir «y 58 más» y ofrecer la lista entera.
+    """
+
+    items: list[Sugerencia]
+    total: int
+
+    @property
+    def ocultos(self) -> int:
+        return max(0, self.total - len(self.items))
+
+
+def buscar(consulta: str, limite: int | None = LIMITE_SUGERENCIAS) -> Resultados:
     """Los jugadores cuyo nombre contiene `consulta`, ordenados por qué tan bien encaja.
 
     El orden sale de una sola consulta, y son dos escalones:
@@ -70,25 +91,32 @@ def buscar(consulta: str, limite: int = LIMITE_SUGERENCIAS) -> list[Sugerencia]:
 
     Dentro de cada escalón manda la **fecha de debut**: primero el más veterano.
 
-    Con menos de `MIN_CARACTERES` devuelve vacío en vez de medio maestro.
+    Con menos de `MIN_CARACTERES` devuelve vacío en vez de medio maestro. `limite=None` trae todo:
+    lo usa la página de resultados, que es donde el desplegable manda a ver lo que no le cupo.
     """
     aguja = normalize(consulta)
     if len(aguja) < MIN_CARACTERES:
-        return []
+        return Resultados(items=[], total=0)
 
-    filas = _rankeado(aguja)[:limite]
-    ids = [fila.player_id for fila in filas]
-    tramos = _span(ids)
-    return [
-        Sugerencia(
-            player_id=fila.player_id,
-            name=fila.full_name,
-            slug=fila.slug,
-            pos=fila.pos or "",
-            span=tramos.get(fila.player_id, ""),
-        )
-        for fila in filas
-    ]
+    encontrados = _rankeado(aguja)
+    # `count()` sobre el queryset ya filtrado: una consulta más, sin traer las filas. Es lo que
+    # permite decir cuántos quedaron fuera en vez de recortar y callar.
+    total = encontrados.count()
+    filas = list(encontrados if limite is None else encontrados[:limite])
+    tramos = _span([fila.player_id for fila in filas])
+    return Resultados(
+        items=[
+            Sugerencia(
+                player_id=fila.player_id,
+                name=fila.full_name,
+                slug=fila.slug,
+                pos=fila.pos or "",
+                span=tramos.get(fila.player_id, ""),
+            )
+            for fila in filas
+        ],
+        total=total,
+    )
 
 
 def _rankeado(aguja: str) -> QuerySet[Player]:

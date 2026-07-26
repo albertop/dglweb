@@ -56,7 +56,8 @@
       if (li) window.location.href = li.dataset.url;
     }
 
-    function pintar(resultados) {
+    function pintar(datos) {
+      var resultados = datos.results || [];
       if (!resultados.length) {
         cerrar();
         return;
@@ -87,13 +88,34 @@
         });
         lista.appendChild(li);
       });
+
+      // La fila que evita el peor fallo de un buscador: recortar sin decirlo. Con 68 «jose» en la
+      // base, ver diez y ningún aviso lleva a concluir que los otros no existen. No es una opción
+      // navegable con las flechas —no es un jugador— sino la puerta a la lista entera.
+      if (datos.hidden > 0) {
+        var mas = document.createElement("li");
+        mas.className = "dgl-sugerencias-mas";
+        mas.dataset.url = paginaDeResultados(caja.value.trim());
+        mas.textContent = "y " + datos.hidden + " más — ver todos";
+        mas.addEventListener("mousedown", function (e) {
+          e.preventDefault();
+          window.location.href = mas.dataset.url;
+        });
+        lista.appendChild(mas);
+      }
+
       lista.classList.remove("d-none");
       caja.setAttribute("aria-expanded", "true");
       activo = -1;
     }
 
+    function paginaDeResultados(texto) {
+      return (caja.form ? caja.form.getAttribute("action") : "/jugadores/") + "?q=" + encodeURIComponent(texto);
+    }
+
     function resaltar(delta) {
-      var n = lista.children.length;
+      // Solo las opciones: la fila de «y N más» no es un jugador y no debe recibir el foco.
+      var n = lista.querySelectorAll('[role="option"]').length;
       if (!n) return;
       if (activo >= 0) {
         lista.children[activo].classList.remove("activo");
@@ -124,7 +146,7 @@
             return r.json();
           })
           .then(function (d) {
-            if (enVuelo === mio) pintar(d.results || []);
+            if (enVuelo === mio) pintar(d);
           })
           .catch(cerrar); // sin sugerencias; el formulario sigue funcionando
       }, ESPERA_MS);

@@ -129,6 +129,9 @@ def players_index(request: HttpRequest) -> HttpResponse:
     escribe. Si falla el script, o alguien llega con él desactivado, la página sigue sirviendo.
     """
     consulta = (request.GET.get("q") or "").strip()
+    # Sin límite: esta ES la lista completa, la que promete el «ver todos» del desplegable. Recortar
+    # acá también dejaría al usuario sin ningún lugar donde ver el resto.
+    hallazgo = search.buscar(consulta, limite=None) if consulta else None
     temporada = _latest_full_season()
     activos: list[Player] = []
     if temporada is not None:
@@ -161,7 +164,7 @@ def players_index(request: HttpRequest) -> HttpResponse:
         "profiles/players_index.html",
         {
             "consulta": consulta,
-            "resultados": search.buscar(consulta, limite=50) if consulta else [],
+            "resultados": hallazgo.items if hallazgo else [],
             "min_caracteres": search.MIN_CARACTERES,
             "temporada": temporada,
             "activos": activos,
@@ -170,6 +173,17 @@ def players_index(request: HttpRequest) -> HttpResponse:
 
 
 def players_suggest(request: HttpRequest) -> JsonResponse:
-    """El endpoint que consume el buscador mientras se escribe. JSON, sin plantilla."""
-    sugerencias = search.buscar(request.GET.get("q") or "")
-    return JsonResponse({"results": [s.to_dict() for s in sugerencias]})
+    """El endpoint que consume el buscador mientras se escribe. JSON, sin plantilla.
+
+    Devuelve también `hidden`: cuántos encajaron y no caben en la lista. Sin ese número el
+    desplegable recorta en silencio y quien busca «jose» —sesenta y ocho coincidencias— concluye que
+    los otros cincuenta y ocho no están en la base.
+    """
+    hallazgo = search.buscar(request.GET.get("q") or "")
+    return JsonResponse(
+        {
+            "results": [s.to_dict() for s in hallazgo.items],
+            "total": hallazgo.total,
+            "hidden": hallazgo.ocultos,
+        }
+    )

@@ -50,7 +50,7 @@ def plantel(db: None) -> dict[str, Player]:
     ],
 )
 def test_a_name_is_found_however_it_is_typed(plantel: dict[str, Player], escrito: str, esperado: str) -> None:
-    assert esperado in [s.name for s in search.buscar(escrito)]
+    assert esperado in [s.name for s in search.buscar(escrito).items]
 
 
 @pytest.mark.django_db
@@ -60,7 +60,7 @@ def test_the_search_ignores_the_disabled_player(plantel: dict[str, Player]) -> N
     plantel["soto"].disabled_reason = "Inscrito por error."
     plantel["soto"].save()
 
-    assert search.buscar("soto") == []
+    assert search.buscar("soto").items == []
 
 
 # ── El orden, que es lo que hace útil una lista de diez ─────────────────────────────────────────
@@ -80,7 +80,7 @@ def test_starting_the_name_and_starting_a_surname_count_the_same(db: None) -> No
     _jugador(2, "Elías Sosa")
     Player.objects.filter(pk=2).update(debut_date=date(1972, 9, 8))
 
-    assert [s.name for s in search.buscar("so")] == ["Elías Sosa", "Sócrates Brito"]
+    assert [s.name for s in search.buscar("so").items] == ["Elías Sosa", "Sócrates Brito"]
 
 
 @pytest.mark.django_db
@@ -97,14 +97,14 @@ def test_a_match_buried_mid_word_still_goes_last(db: None) -> None:
     _jugador(2, "Juan Soto")
     Player.objects.filter(pk=2).update(debut_date=date(2018, 5, 20))
 
-    assert [s.name for s in search.buscar("so")] == ["Juan Soto", "Alfonso Vargas"]
+    assert [s.name for s in search.buscar("so").items] == ["Juan Soto", "Alfonso Vargas"]
 
 
 @pytest.mark.django_db
 def test_one_letter_returns_nothing_instead_of_half_the_master(plantel: dict[str, Player]) -> None:
     """Con una sola letra la lista deja de ser una sugerencia y pasa a ser un volcado."""
-    assert search.buscar("a") == []
-    assert search.buscar("") == []
+    assert search.buscar("a").items == []
+    assert search.buscar("").items == []
 
 
 @pytest.mark.django_db
@@ -114,7 +114,7 @@ def test_the_span_is_what_tells_two_namesakes_apart(plantel: dict[str, Player]) 
     Batting.objects.create(player=plantel["nunez"], season=2008, stint=1)
     Pitching.objects.create(player=plantel["nunez_o"], season=2002, stint=1)
 
-    tramos = {s.name: s.span for s in search.buscar("nunez")}
+    tramos = {s.name: s.span for s in search.buscar("nunez").items}
 
     assert tramos["Abraham Núñez"] == "1997-2008"
     assert tramos["Abraham O. Núñez"] == "2002"  # una sola temporada no se escribe como rango
@@ -272,4 +272,45 @@ def test_within_a_tier_the_results_go_by_debut(db: None) -> None:
     _p(2, "Aaron Perdomo", date(1990, 5, 5))  # alfabéticamente primero, pero manda su debut
     _p(3, "Bruno Peña", date(1995, 6, 2))
 
-    assert [s.name for s in search.buscar("pe")] == ["Aaron Perdomo", "Bruno Peña", "Zoilo Peña"]
+    assert [s.name for s in search.buscar("pe").items] == ["Aaron Perdomo", "Bruno Peña", "Zoilo Peña"]
+
+
+@pytest.mark.django_db
+def test_the_search_says_how_many_it_left_out(db: None) -> None:
+    """El fallo que reportó el dueño: buscar «carlos» y no ver al segundo Carlos Martínez.
+
+    Con 22 coincidencias y un desplegable de 20, el que cae en el puesto 22 no aparece — y sin un
+    aviso, quien busca concluye que no está en la base. Recortar en silencio es el peor fallo posible
+    de un buscador, porque se confunde con «no existe».
+    """
+    for pid in range(1, 26):
+        Player.objects.create(**_other_player(player_id=pid, dgl_id=f"c{pid}", full_name=f"Carlos Apellido{pid:02d}"))
+
+    hallazgo = search.buscar("carlos")
+
+    assert len(hallazgo.items) == search.LIMITE_SUGERENCIAS
+    assert hallazgo.total == 25
+    assert hallazgo.ocultos == 25 - search.LIMITE_SUGERENCIAS
+
+
+@pytest.mark.django_db
+def test_the_results_page_holds_everything_the_dropdown_could_not(db: None) -> None:
+    """El desplegable manda acá con su «ver todos», así que acá no puede faltar nadie."""
+    for pid in range(1, 26):
+        Player.objects.create(**_other_player(player_id=pid, dgl_id=f"c{pid}", full_name=f"Carlos Apellido{pid:02d}"))
+
+    cuerpo = Client().get(reverse("players_index"), {"q": "carlos"}).content.decode()
+
+    assert "25 jugadores" in cuerpo
+    assert "Carlos Apellido25" in cuerpo  # el que el desplegable dejaba fuera
+
+
+@pytest.mark.django_db
+def test_the_endpoint_reports_the_hidden_count(db: None) -> None:
+    for pid in range(1, 26):
+        Player.objects.create(**_other_player(player_id=pid, dgl_id=f"c{pid}", full_name=f"Carlos Apellido{pid:02d}"))
+
+    datos = Client().get(reverse("players_suggest"), {"q": "carlos"}).json()
+
+    assert datos["total"] == 25
+    assert datos["hidden"] == 25 - search.LIMITE_SUGERENCIAS

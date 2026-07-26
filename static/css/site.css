@@ -406,3 +406,10 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* El desplegable del header cuelga de la barra, así que va por encima de todo lo demás. `z-index`
    más alto que el del índice porque acá compite con el propio navbar. */
 .dgl-topbar .dgl-sugerencias { z-index: 1030; min-width: 20rem; }
+
+/* La fila de «y N más» del desplegable. Se distingue de un jugador —cursiva y separada por una línea
+   más marcada— porque no es una opción de la lista sino la salida hacia la lista completa. */
+.dgl-sugerencias .dgl-sugerencias-mas {
+  justify-content: center; font-style: italic; color: var(--dgl-blue);
+  border-top: 2px solid #dfe5ed; background: #f7f9fc;
+}

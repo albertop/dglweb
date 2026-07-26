@@ -38,6 +38,7 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
   <section class="mb-5">
     <h2 class="dgl-section-title">Resultados para «{{ consulta }}»</h2>
     {% if resultados %}
+    <p class="dgl-meta mb-2">{{ resultados|length }} jugador{{ resultados|length|pluralize:"es" }}.</p>
     <ul class="list-unstyled dgl-resultados">
       {% for r in resultados %}
       <li><a href="{% url 'player_detail' r.slug %}">{{ r.name }}</a>
