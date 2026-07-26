@@ -90,6 +90,19 @@ modo (truncate o upsert), y la **clave natural**.
 La clave es obligatoria en los dos modos, y casi siempre compuesta: acá ninguna tabla de stats se
 identifica con una sola columna.
 
+El formulario valida la fila al guardarla (`StaticDataset.clean()`), y rechaza las tres
+configuraciones que el motor no puede cumplir:
+
+| Se escribe | Por qué no sirve |
+|---|---|
+| Una tabla sin loader | El motor no sabría leer su CSV. El mensaje lista las tablas que sí tienen |
+| Una clave con columnas que el modelo no tiene | El chequeo de duplicados y "qué desaparece" agrupan por ella. La FK vale de las dos formas: `player` y `player_id` |
+| Upsert sin restricción de unicidad detrás de la clave | `update_or_create` dejaría convivir dos filas iguales y a la carga siguiente reventaría al encontrar las dos: el modo se llama idempotente y no lo sería |
+
+Se valida acá y no en la carga porque agregar un dataset es crear una fila y no tocar código — la
+contracara es que se puede escribir una configuración imposible, y sin esto nada se quejaba hasta el
+día de la carga, que es el peor momento para enterarse: el CSV ya está hecho y hay alguien esperando.
+
 ## Lo que el motor hace solo
 
 No hay que escribirlo en cada loader:

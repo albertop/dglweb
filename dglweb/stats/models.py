@@ -1357,6 +1357,68 @@ class StaticDataset(models.Model):
         """La clave natural como lista — el import y la comparación agrupan por TODAS estas columnas."""
         return [part.strip() for part in self.natural_key.split(",") if part.strip()]
 
+    def clean(self) -> None:
+        """Que la fila describa algo que el motor pueda cumplir de verdad.
+
+        Agregar un dataset es crear una fila, no tocar código — pero eso significa que se puede
+        escribir una configuración imposible sin que nada se queje hasta el día de la carga, que es
+        el peor momento para enterarse: el CSV ya está hecho y hay alguien esperando. Los tres modos
+        de fallo, todos silenciosos hasta acá: una tabla sin loader, una clave natural con columnas
+        que no existen en el modelo, y un upsert sobre una tabla sin la restricción de unicidad que
+        lo vuelve idempotente.
+        """
+        from django.core.exceptions import ValidationError
+
+        from dglweb.stats.staticdata import REGISTRY
+
+        loader = REGISTRY.get(self.table)
+        if loader is None:
+            conocidas = ", ".join(sorted(REGISTRY)) or "ninguna todavía"
+            raise ValidationError(
+                {
+                    "table": f"No hay ningún loader registrado para «{self.table}». El motor no sabría "
+                    f"cómo leer su CSV. Tablas con loader: {conocidas}."
+                }
+            )
+
+        # Un alias por cada forma válida de nombrar una columna: la FK se declara `player` en el
+        # modelo pero la columna es `player_id`, y en el CSV se escribe de las dos maneras.
+        alias = {}
+        for campo in loader.model._meta.concrete_fields:
+            alias[campo.name] = campo.attname
+            alias[campo.attname] = campo.attname
+
+        errores: dict[str, str] = {}
+        columnas = self.key_columns
+        if not columnas:
+            errores["natural_key"] = (
+                "La clave natural no puede quedar vacía: la comparación y el chequeo de duplicados agrupan por ella."
+            )
+        elif desconocidas := [c for c in columnas if c not in alias]:
+            errores["natural_key"] = (
+                f"{loader.model.__name__} no tiene la(s) columna(s) {', '.join(desconocidas)}. "
+                f"Columnas disponibles: {', '.join(sorted({c.attname for c in loader.model._meta.concrete_fields}))}."
+            )
+
+        # El upsert hace `update_or_create` por la clave natural. Sin una restricción de unicidad que
+        # la respalde, dos filas iguales pueden convivir en la tabla y a la siguiente carga el
+        # `update_or_create` revienta al encontrar dos: el modo se llama idempotente pero no lo es.
+        if self.mode == self.Mode.UPSERT and "natural_key" not in errores:
+            pedidas = {alias[c] for c in columnas}
+            respaldada = any(
+                {alias.get(f, f) for f in getattr(restriccion, "fields", ())} == pedidas
+                for restriccion in loader.model._meta.constraints
+            ) or any({alias.get(f, f) for f in juntas} == pedidas for juntas in loader.model._meta.unique_together)
+            if not respaldada:
+                errores["mode"] = (
+                    f"El modo upsert necesita que {loader.model.__name__} tenga una restricción de "
+                    f"unicidad sobre ({', '.join(columnas)}), y no la tiene. Agregala en el modelo "
+                    "con su migración, o cargá esta tabla por truncate."
+                )
+
+        if errores:
+            raise ValidationError(errores)
+
 
 class BattedBallHits(models.Model):
     """Hits por tipo de batazo, traídos de Retrosheet — el primer dataset de la Fase 4e.

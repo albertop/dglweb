@@ -162,7 +162,8 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [x] **DEV-01 — 500 por `pk` inexistente o CSV no UTF-8.** **Corregido**: `get_object_or_404` y `UnreadableCSVError` que se convierte en `Problem`. Con tests de vista (7), que además cierran buena parte de QA-02.
   ~~ Real: `objects.get()` sin `get_object_or_404`
   y `decode("utf-8-sig")` sin capturar. Barato de arreglar.
-- [ ] **ARCH-04 — `StaticDataset` admite configuraciones que el motor no puede cumplir.** Real: tabla
+- [x] **ARCH-04 — `StaticDataset` admite configuraciones que el motor no puede cumplir.** **Corregido**: `clean()` rechaza los tres casos y el formulario del Backoffice muestra el mensaje (verificado contra la vista real, no solo `full_clean()`). La FK se acepta escrita de las dos formas (`player` y `player_id`), que es el error de dedo más probable. 7 tests.
+  ~~ Real: tabla
   sin loader, clave natural con columnas inexistentes, upsert sin constraint. Validar en `clean()`.
 
 ### Aceptados, menor prioridad
