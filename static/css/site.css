@@ -8,6 +8,10 @@
   --dgl-navy: #0b1f3a;      /* top bar / footer */
   --dgl-navy-2: #12294b;
   --dgl-red: #ce1126;       /* RD flag red — LIVE / hot only */
+  /* El espejo del navy: mismo tono de la bandera (H 353) pero con la luminosidad (13.5%) y la
+     saturación (68%) EXACTAS de --dgl-navy. Así el tab activo pesa igual que el header y el footer
+     sin competir con ellos; el rojo de bandera a secas es mucho más claro (L 44%) y grita. */
+  --dgl-red-deep: #3a0b10;
   --dgl-blue: #1f4e9b;      /* accent / links */
   --dgl-ink: #1a1d21;       /* body text */
   --dgl-muted: #6b7280;
@@ -223,7 +227,14 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-lead-name { font-weight: 700; }
 .dgl-lead-val { font-weight: 800; font-variant-numeric: tabular-nums; }
 .nav-tabs .nav-link { font-weight: 700; color: var(--dgl-muted); font-size: .9rem; }
-.nav-tabs .nav-link.active { color: var(--dgl-navy); border-bottom-color: var(--dgl-red); }
+/* El tab activo va en bloque, no en subrayado: con seis pestañas el borde inferior costaba de
+   ubicar. Se usa el rojo profundo para que el elemento seleccionado tenga el mismo peso visual que
+   la barra superior, que es lo que ancla la identidad de la página. */
+.nav-tabs .nav-link.active {
+  background-color: var(--dgl-red-deep); color: #fff;
+  border-color: var(--dgl-red-deep) var(--dgl-red-deep) transparent;
+}
+.nav-tabs .nav-link.active:hover { color: #fff; }
 /* Los controles de Líderes son <a> (navegan por GET), no <button> como en el perfil, así que el
    `a:hover { text-decoration: underline }` global les pintaba un subrayado de link que en el perfil
    no aparece. Se quita para que tabs y pills se vean idénticos en ambas páginas. */
