@@ -141,9 +141,12 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    recortado, ya que un contenedor con scroll horizontal no deja asomar nada por debajo. */
 .dgl-banner { position: relative; background: var(--dgl-card); border-bottom: 1px solid var(--dgl-line); }
 .dgl-tira {
-  display: flex; align-items: stretch; overflow-x: auto; scroll-behavior: smooth;
+  display: flex; align-items: stretch; overflow-x: auto;
   scrollbar-width: none;  /* la barra sobra: para eso están las flechas */
 }
+/* Sin `scroll-behavior: smooth` acá a propósito: en CSS aplica a TODO desplazamiento programático,
+   así que la tira se veía irse sola hacia la derecha al cargar y después de cada refresco. Las
+   flechas piden la animación una por una, que es donde sí se quiere. */
 .dgl-tira::-webkit-scrollbar { display: none; }
 
 /* La fecha que separa un día del otro. Se queda pegada al borde al desplazar, para que nunca se

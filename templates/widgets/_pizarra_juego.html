@@ -5,7 +5,7 @@ El detalle de los dominicanos va escondido dentro de la propia tarjeta y el JS l
 abajo cuando se le pasa el mouse por encima. Se genera en el servidor y no se pide aparte para que
 aparezca al instante y para que no haya una llamada por cada juego sobre el que uno pasa.
 {% endcomment %}
-<div class="dgl-juego{% if juego.estado == 'final' %} dgl-con-detalle{% endif %}">
+<div class="dgl-juego{% if juego.detallable %} dgl-con-detalle{% endif %}">
   <div class="dgl-juego-estado{% if juego.estado == 'vivo' %} dgl-vivo{% endif %}">
     {{ juego.detalle }}
     {% comment %}
@@ -23,7 +23,7 @@ aparezca al instante y para que no haya una llamada por cada juego sobre el que 
   {% include "widgets/_pizarra_lado.html" with lado=juego.visitante %}
   {% include "widgets/_pizarra_lado.html" with lado=juego.local %}
 
-  {% if juego.estado == 'final' and juego.con_dominicanos %}
+  {% if juego.detallable %}
     <template class="dgl-juego-detalle">
       <div class="dgl-detalle-caja">
         {% for lado in juego.lados %}

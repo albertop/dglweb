@@ -119,6 +119,18 @@ class Juego:
     def con_dominicanos(self) -> bool:
         return bool(self.visitante.nuestros or self.local.nuestros)
 
+    @property
+    def detallable(self) -> bool:
+        """Si vale la pena abrir el panel al pasar el mouse.
+
+        Terminado o en curso, y con alguien nuestro que haya hecho algo. Un juego que no ha empezado
+        queda fuera: se sabe quién está anunciado, pero abrir un panel con cinco nombres y ninguna
+        línea al lado es prometer un dato que todavía no existe.
+        """
+        return self.estado in (FINAL, VIVO) and any(
+            nuestro.linea for lado in self.lados for nuestro in lado.nuestros
+        )
+
 
 @dataclass(frozen=True)
 class Jornada:
@@ -182,6 +194,28 @@ class _Accion:
     por_equipo: dict[int, set[int]]
     lineas: dict[int, str]
 
+    def absorber(self, otra: "_Accion") -> None:
+        """Mete lo de `otra` encima de lo propio. Sus líneas mandan."""
+        for equipo, jugadores in otra.por_equipo.items():
+            self.por_equipo.setdefault(equipo, set()).update(jugadores)
+        self.lineas.update(otra.lineas)
+
+
+def _linea_de(stats: dict[str, Any]) -> str:
+    """La línea de un jugador a partir de sus dos bloques de estadísticas.
+
+    Un lanzador que además bateó lleva las dos, separadas: son dos oficios y una sola línea que las
+    mezclara no se podría leer. El bloque vacío —el del que no hizo ese oficio— no aporta nada.
+    """
+    from dglweb.stats import daily
+
+    partes = []
+    if bateo := stats.get("batting"):
+        partes.append(daily.linea_de_bateo(bateo))
+    if pitcheo := stats.get("pitching"):
+        partes.append(daily.linea_de_pitcheo(pitcheo))
+    return " · ".join(partes)
+
 
 def _accion_del_dia(client: MlbProxyClient, dia: date, universo: set[int]) -> _Accion:
     """Los dominicanos que vieron acción, con su línea. Incluye al relevista y al emergente.
@@ -203,9 +237,48 @@ def _accion_del_dia(client: MlbProxyClient, dia: date, universo: set[int]) -> _A
             por_equipo.setdefault(equipo_id, set()).add(jugador_id)
             lineas.setdefault(jugador_id, []).append(describir(split.get("stat") or {}))
 
-    # Un lanzador que además bateó lleva las dos, separadas: son dos oficios y una sola línea que las
-    # mezclara no se podría leer.
     return _Accion(por_equipo=por_equipo, lineas={pid: " · ".join(partes) for pid, partes in lineas.items()})
+
+
+def _accion_en_vivo(client: MlbProxyClient, crudos: list[dict[str, Any]], universo: set[int]) -> _Accion:
+    """Lo que va haciendo cada quien en los juegos que están EN CURSO.
+
+    Hace falta porque `byDateRange` no publica nada de un juego hasta que termina — está medido: con
+    un juego vivo, los dos equipos de ese juego son los únicos de los treinta que no aparecen en la
+    consulta del día. Sin esto, un juego en curso muestra los nombres y ninguna línea.
+
+    Cuesta una llamada por juego vivo, y solo por juego vivo: los terminados siguen saliendo de la
+    consulta del día, que es una sola para toda la liga. En horario pico son diez o quince llamadas
+    por minuto para todo el sitio, y de madrugada ninguna.
+    """
+    accion = _Accion(por_equipo={}, lineas={})
+    for juego in crudos:
+        if _ESTADOS.get(str((juego.get("status") or {}).get("abstractGameState"))) != VIVO:
+            continue
+        if (pk := juego.get("gamePk")) is None:
+            continue
+        try:
+            payload = client.get(f"/api/v1/game/{pk}/boxscore")
+        except MlbProxyError:
+            # Un juego que no contesta no puede tumbar la tira entera: ese se queda sin líneas y los
+            # otros catorce salen igual.
+            logger.warning("No se pudo leer el boxscore del juego %s.", pk, exc_info=True)
+            continue
+
+        for lado in ("away", "home"):
+            datos = (payload.get("teams") or {}).get(lado) or {}
+            equipo_id = (datos.get("team") or {}).get("id")
+            for jugador in (datos.get("players") or {}).values():
+                jugador_id = (jugador.get("person") or {}).get("id")
+                # El boxscore trae la novena entera, banca incluida. Los bloques de estadísticas del
+                # que no ha entrado vienen vacíos, y esa es la señal de quién realmente jugó.
+                linea = _linea_de(jugador.get("stats") or {})
+                if jugador_id not in universo or not linea:
+                    continue
+                if equipo_id is not None:
+                    accion.por_equipo.setdefault(equipo_id, set()).add(jugador_id)
+                accion.lineas[jugador_id] = linea
+    return accion
 
 
 def _anunciados(juego: dict[str, Any], visitante: bool) -> set[int]:
@@ -299,6 +372,7 @@ def jornada(client: MlbProxyClient, dia: date, crudos: list[dict[str, Any]], uni
         return ()
 
     accion = _accion_del_dia(client, dia, universo)
+    accion.absorber(_accion_en_vivo(client, crudos, universo))
     candidatos = {pid for equipo in accion.por_equipo.values() for pid in equipo}
     for juego in crudos:
         candidatos |= (_anunciados(juego, visitante=True) | _anunciados(juego, visitante=False)) & universo

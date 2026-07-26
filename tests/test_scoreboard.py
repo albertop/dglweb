@@ -38,12 +38,14 @@ def _juego(
     mitad: str = "Bottom",
     alineacion: dict[str, list[int]] | None = None,
     hora: str = "2026-07-26T23:10:00Z",
+    pk: int = 800001,
 ) -> dict[str, Any]:
     def lado(datos: tuple[int, str, int | None]) -> dict[str, Any]:
         equipo_id, codigo, carreras = datos
         return {"team": {"id": equipo_id, "teamCode": codigo, "teamName": codigo.upper()}, "score": carreras}
 
     return {
+        "gamePk": pk,
         "gameDate": hora,
         "status": {"abstractGameState": estado, "detailedState": detallado},
         "linescore": {"currentInning": inning, "inningState": mitad},
@@ -66,13 +68,19 @@ class _Proxy:
         self,
         juegos: dict[date, list[dict[str, Any]]] | list[dict[str, Any]],
         accion: list[tuple[int, int, str, dict[str, Any]]] | None = None,
+        boxscore: dict[str, Any] | None = None,
     ) -> None:
         self.juegos = juegos if isinstance(juegos, dict) else {HOY: juegos}
         self.accion = accion or []  # (player_id, team_id, grupo, stat)
+        self.boxscore = boxscore
         self.llamadas: list[str] = []
 
     def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self.llamadas.append(path)
+        if path.endswith("/boxscore"):
+            if self.boxscore is None:
+                raise MlbProxyError("no hay boxscore para este juego")
+            return self.boxscore
         if path == "/api/v1/schedule":
             desde, hasta = (params or {}).get("startDate"), (params or {}).get("endDate")
             return {
@@ -246,6 +254,90 @@ def test_games_come_in_start_time_order(monkeypatch: pytest.MonkeyPatch) -> None
     _instalar(monkeypatch, proxy)
 
     assert [j.visitante.codigo for j in _hoy(_armada()).juegos] == ["SDN", "NYA"]
+
+
+# ── El juego en curso ───────────────────────────────────────────────────────────────────────────
+
+
+def _boxscore(*jugadores: tuple[int, dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "teams": {
+            "away": {
+                "team": {"id": 135},
+                "players": {f"ID{pid}": {"person": {"id": pid}, "stats": stats} for pid, stats in jugadores},
+            },
+            "home": {"team": {"id": 146}, "players": {}},
+        }
+    }
+
+
+
+@pytest.mark.django_db
+def test_a_game_in_progress_gets_its_lines_from_the_boxscore(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`byDateRange` no publica nada de un juego hasta que termina — está medido contra el proxy.
+
+    Sin el boxscore, un juego en curso muestra los nombres y ninguna línea al lado.
+    """
+    _jugador(1, "Wilmer", "Adames")
+    proxy = _Proxy(
+        [_juego(estado="Live", detallado="In Progress")],
+        accion=[],  # la consulta del día no trae a nadie de este juego, como en la realidad
+        boxscore=_boxscore((1, {"batting": {"AB": 2, "H": 1, "X2B": 1, "R": 1}})),
+    )
+    _instalar(monkeypatch, proxy)
+
+    juego = _hoy(_armada()).juegos[0]
+
+    assert [(n.nombre, n.linea) for n in juego.visitante.nuestros] == [("W. Adames", "1-2, 2B, 1 R")]
+
+
+@pytest.mark.django_db
+def test_a_player_on_the_bench_is_not_listed_as_having_played(monkeypatch: pytest.MonkeyPatch) -> None:
+    """El boxscore trae la novena entera. Los bloques vacíos son la señal de quién no ha entrado."""
+    _jugador(1, "Rafael", "Devers")
+    vacio = _boxscore((1, {"batting": {}, "pitching": {}}))
+    proxy = _Proxy([_juego(estado="Live", detallado="In Progress")], boxscore=vacio)
+    _instalar(monkeypatch, proxy)
+
+    assert _hoy(_armada()).juegos[0].visitante.nuestros == ()
+
+
+@pytest.mark.django_db
+def test_a_boxscore_that_fails_does_not_take_down_the_rest_of_the_strip(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Catorce juegos no pueden perderse porque uno no contestó."""
+    # Con `boxscore=None` el proxy falso revienta al pedirlo, como uno real que no contesta.
+    proxy = _Proxy([_juego(estado="Live", detallado="In Progress", pk=1), _juego(pk=2)], boxscore=None)
+    _instalar(monkeypatch, proxy)
+
+    assert len(_hoy(_armada()).juegos) == 2
+
+
+@pytest.mark.django_db
+def test_a_finished_game_costs_no_extra_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    """El precio del detalle en vivo es una llamada POR JUEGO VIVO, y solo por juego vivo.
+
+    Los terminados salen de la consulta del día, que es una sola para toda la liga. Si esto se
+    rompiera, una jornada completa costaría quince llamadas por minuto en vez de tres.
+    """
+    proxy = _Proxy([_juego(), _juego(pk=2), _juego(pk=3)])
+    _instalar(monkeypatch, proxy)
+
+    _armada()
+
+    assert not [ruta for ruta in proxy.llamadas if ruta.endswith("/boxscore")]
+
+
+@pytest.mark.django_db
+def test_a_game_that_has_not_started_does_not_open_a_panel(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Se sabe quién está anunciado, pero un panel de nombres sin líneas promete un dato que no hay."""
+    _jugador(1, "Juan", "Soto")
+    proxy = _Proxy([_juego(estado="Preview", detallado="Scheduled", alineacion={"away": [1]})])
+    _instalar(monkeypatch, proxy)
+
+    juego = _hoy(_armada()).juegos[0]
+
+    assert juego.con_dominicanos is True
+    assert juego.detallable is False
 
 
 # ── Los dos días de la tira ─────────────────────────────────────────────────────────────────────
