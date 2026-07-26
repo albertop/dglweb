@@ -174,3 +174,13 @@ muda y el usuario vuelve a hacer clic.
 })();
 </script>
 {% endblock %}
+
+{% block anuncio_pie %}
+  {% comment %}
+    Anclado al pie como en el perfil: el tablero mide distinto según la métrica —una lista de quince
+    y otra de tres— y así el anuncio no se mueve de sitio al cambiar de selección.
+  {% endcomment %}
+  <div class="container dgl-ad-pie">
+    <div class="dgl-ad dgl-ad-leader">Espacio publicitario · 728×90</div>
+  </div>
+{% endblock %}
