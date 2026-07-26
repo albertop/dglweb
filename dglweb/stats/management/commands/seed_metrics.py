@@ -41,7 +41,8 @@ _LEADERBOARD: dict[tuple[str, str], tuple[int, ...]] = {
     ("batting", "EBP"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("batting", "G"): (0, 1, 1, 1, 1, 0, 1, 1),
     # GIDP is a "bad" stat but it is ranked like HR (owner decision): the leader is whoever has the
-    # MOST, so direction is `+` and it feeds the best boards. Contrast with SO/CS, kept at `-`.
+    # MOST, so direction is `+` and it feeds the best boards. CS sigue el mismo criterio (ver arriba);
+    # SO se queda en `-`, que es el único de los tres donde "menos" sí distingue.
     ("batting", "GIDP"): (0, 1, 1, 1, 1, 0, 0, 1),
     ("batting", "H"): (0, 1, 1, 1, 1, 0, 1, 1),
     ("batting", "HBP"): (0, 1, 1, 1, 1, 0, 0, 1),
@@ -467,6 +468,7 @@ _NAME_ES: dict[tuple[str, str], str] = {
     ("batting", "BB"): "Bases por bolas",
     ("batting", "SF"): "Elevados de sacrificio",
     ("batting", "SB"): "Bases robadas",
+    ("batting", "CS"): "Atrapados robando",
     ("batting", "SO"): "Ponches",
     ("batting", "TB"): "Bases totales",
     ("batting", "AVG"): "Promedio de bateo",
