@@ -48,6 +48,13 @@ class Command(BaseCommand):
             run.add_rows(guardadas)
             run.note(f"{guardadas} puestos en {len({p.categoria for p in puestos})} categorías.")
 
+            # La poda va acá y no en un job aparte: quien escribe la tabla es quien mejor sabe qué
+            # sobra en ella, y un janitor separado es una pieza más que puede dejar de correr sin
+            # que nadie note que dejó de correr. Mismo criterio que en `build_daily_standouts`.
+            podadas = mlb_leaders.podar(_temporada_activa())
+            if podadas:
+                run.note(f"Podadas {podadas} filas de temporadas anteriores.")
+
         self.stdout.write(self.style.SUCCESS(f"{temporada}: {guardadas} dominicanos en el top {mlb_leaders.PUESTOS}."))
 
 

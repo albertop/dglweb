@@ -182,6 +182,43 @@ def test_fielding_and_catching_never_enter(temporada: SeasonDates) -> None:
     assert "catching" not in mlb_leaders._OFICIOS.values()
 
 
+# ── El janitor ──────────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_pruning_drops_the_seasons_that_are_over(temporada: SeasonDates, hr: Metric) -> None:
+    """«#6 en jonrones» de una temporada cerrada no es una foto vieja: es una frase falsa."""
+    _jugador(111, "Uno")
+    mlb_leaders.guardar(2025, _traer(_Proxy(("homeRuns", [(1, 111, "40")])), {111}), {})
+    mlb_leaders.guardar(2026, _traer(_Proxy(("homeRuns", [(3, 111, "29")])), {111}), {})
+
+    borradas = mlb_leaders.podar(2026)
+
+    assert borradas == 1
+    assert list(MlbLeader.objects.values_list("season", flat=True)) == [2026]
+
+
+@pytest.mark.django_db
+def test_without_an_active_season_nothing_is_pruned(temporada: SeasonDates, hr: Metric) -> None:
+    """Una tabla con datos viejos es un problema menor que una vacía por un despiste de configuración."""
+    _jugador(111, "Uno")
+    mlb_leaders.guardar(2025, _traer(_Proxy(("homeRuns", [(1, 111, "40")])), {111}), {})
+
+    assert mlb_leaders.podar(None) == 0
+    assert MlbLeader.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_reprocessing_an_old_season_does_not_wipe_the_current_one(temporada: SeasonDates, hr: Metric) -> None:
+    """El borrado va acotado a la temporada que se escribe, no a la tabla entera."""
+    _jugador(111, "Uno")
+    mlb_leaders.guardar(2026, _traer(_Proxy(("homeRuns", [(3, 111, "29")])), {111}), {})
+
+    mlb_leaders.guardar(2025, _traer(_Proxy(("homeRuns", [(1, 111, "40")])), {111}), {})
+
+    assert set(MlbLeader.objects.values_list("season", flat=True)) == {2025, 2026}
+
+
 # ── El interruptor del Backoffice ───────────────────────────────────────────────────────────────
 
 

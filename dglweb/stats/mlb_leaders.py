@@ -134,10 +134,14 @@ def traer(client: MlbProxyClient, temporada: int, universo: set[int]) -> list[Pu
 
 
 def guardar(temporada: int, puestos: list[Puesto], codigos: dict[int, str]) -> int:
-    """Reemplaza la foto entera. Devuelve cuántas filas quedaron.
+    """Reemplaza la foto de ESA temporada. Devuelve cuántas filas quedaron.
 
-    Se borra todo y se reescribe, no se hace upsert: quien salió del top 10 desde el refresco
-    anterior tiene que desaparecer, y un upsert lo dejaría ahí para siempre con su último puesto.
+    Se borra y se reescribe, no se hace upsert: quien salió del top 10 desde el refresco anterior
+    tiene que desaparecer, y un upsert lo dejaría ahí para siempre con su último puesto.
+
+    El borrado va acotado a la temporada que se está escribiendo y no a la tabla entera, para que
+    reprocesar una vieja con `--temporada` no tumbe la foto de la que está en curso. De las que
+    sobren se encarga `podar`.
     """
     from django.db import transaction
 
@@ -164,6 +168,24 @@ def guardar(temporada: int, puestos: list[Puesto], codigos: dict[int, str]) -> i
         )
 
     with transaction.atomic():
-        MlbLeader.objects.all().delete()
+        MlbLeader.objects.filter(season=temporada).delete()
         MlbLeader.objects.bulk_create(filas)
     return len(filas)
+
+
+def podar(temporada_activa: int | None) -> int:
+    """Borra las temporadas que ya no están en curso. Devuelve cuántas filas se fueron.
+
+    El puesto en el ranking solo significa algo mientras la temporada corre: «#6 en jonrones» de una
+    temporada cerrada no es una foto vieja, es una frase falsa —el ranking final quedó en otro sitio
+    y esta tabla nunca guardó el cierre. Lo de por vida y lo histórico vive en `Leader`.
+
+    Sin temporada activa NO se borra nada, igual que en `stats.daily`: es el caso de que nadie marcó
+    la nueva en el Backoffice, y ahí una tabla con datos viejos es un problema menor que una vacía.
+    """
+    from dglweb.stats.models import MlbLeader
+
+    if temporada_activa is None:
+        return 0
+    borradas, _ = MlbLeader.objects.exclude(season=temporada_activa).delete()
+    return int(borradas)

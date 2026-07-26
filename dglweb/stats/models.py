@@ -1733,10 +1733,13 @@ class MlbLeader(models.Model):
         ordering = ["metric", "rank"]
         verbose_name = "dominicano en el top de MLB"
         verbose_name_plural = "dominicanos en el top de MLB"
-        # Un jugador aparece una sola vez por métrica. Empatar en el décimo puesto es normal —dos
-        # filas con `rank` 10— pero son jugadores distintos.
-        constraints = [models.UniqueConstraint(fields=["metric", "player"], name="unique_mlb_leader")]
-        indexes = [models.Index(fields=["metric", "rank"], name="dgl_mlb_leader_widget_idx")]
+        # Un jugador aparece una sola vez por métrica y temporada. Empatar en el décimo puesto es
+        # normal —dos filas con `rank` 10— pero son jugadores distintos.
+        #
+        # La temporada entra en la clave aunque el janitor deje una sola: mientras se reprocesa una
+        # vieja con `--temporada`, conviven dos, y sin ella la escritura reventaría.
+        constraints = [models.UniqueConstraint(fields=["metric", "player", "season"], name="unique_mlb_leader")]
+        indexes = [models.Index(fields=["season", "metric", "rank"], name="dgl_mlb_leader_widget_idx")]
 
     def __str__(self) -> str:
         return f"#{self.rank} {self.player} {self.metric.abbrev} {self.valor}"
