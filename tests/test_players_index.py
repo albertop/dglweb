@@ -260,3 +260,31 @@ def test_a_player_who_only_took_the_field_is_still_active(db: None) -> None:
     cuerpo = Client().get(reverse("players_index")).content.decode()
 
     assert "Solo Guante" in cuerpo
+
+
+@pytest.mark.django_db
+def test_within_a_tier_the_results_go_by_surname_then_debut(db: None) -> None:
+    """El alfabético manda dentro de cada nivel de encaje, no por encima de él.
+
+    Los tres son «apellido que empieza con pe», o sea el mismo nivel: ahí decide el apellido, y entre
+    los dos Peña decide quién llegó antes. El de Perdomo va después aunque su nombre de pila sea «A».
+    """
+    from datetime import date
+
+    def _p(pid: int, nombre: str, apellido: str, debut: date) -> None:
+        Player.objects.create(
+            **_other_player(
+                player_id=pid,
+                dgl_id=f"p{pid}",
+                full_name=f"{nombre} {apellido}",
+                firstname=nombre,
+                lastname_1=apellido,
+                debut_date=debut,
+            )
+        )
+
+    _p(1, "Zoilo", "Peña", date(2010, 4, 1))
+    _p(2, "Bruno", "Peña", date(1995, 6, 2))  # mismo apellido, debutó antes
+    _p(3, "Aaron", "Perdomo", date(1990, 5, 5))
+
+    assert [s.name for s in search.buscar("pe")] == ["Bruno Peña", "Zoilo Peña", "Aaron Perdomo"]

@@ -17,6 +17,7 @@ Del lado de Python tampoco hace falta módulo alguno: `unaccent` de Postgres nor
 import unicodedata
 from dataclasses import dataclass
 
+from django.db import models
 from django.db.models import Case, Func, IntegerField, QuerySet, Value, When
 from django.db.models.functions import Lower
 
@@ -103,7 +104,11 @@ def _rankeado(aguja: str) -> QuerySet[Player]:
                 output_field=IntegerField(),
             )
         )
-        .order_by("encaje", "full_name")
+        # Primero qué tan bien encaja, y recién después el apellido. El orden alfabético solo no
+        # serviría: buscando «so», «Alfonso Vargas» —que lo lleva escondido a mitad de palabra—
+        # le ganaría a un Soto de verdad, y la lista de diez dejaría de ser una sugerencia.
+        # Dentro de un mismo nivel manda el apellido, y el debut desempata a los homónimos.
+        .order_by("encaje", "lastname_1", models.F("debut_date").asc(nulls_last=True))
     )
 
 
