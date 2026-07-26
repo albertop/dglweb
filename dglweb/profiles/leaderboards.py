@@ -174,7 +174,7 @@ def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool, october: boo
     pretty = _pretty_qualifier(formula)
     if is_rate:
         return f"Mínimo para calificar: {pretty}."
-    return f"Mínimo para entrar en Últimos {_top_rank(scope, october)}: {pretty}."
+    return f"Mínimo para entrar en Últimos: {pretty}."
 
 
 def _link(state: dict[str, str], **changes: str | None) -> str:
@@ -314,7 +314,11 @@ def _board_rows(
 
 
 def _column_labels(metric: Metric, scope: str, october: bool) -> tuple[str, str]:
-    """Cómo se llaman las dos tablas. El número son PUESTOS, no filas: con empates entran más.
+    """Cómo se llaman las dos tablas.
+
+    Sin el número: cuántos entran depende del alcance (15 de por vida, 10 por temporada) y del
+    empate del último puesto, así que un "Primeros 15" sobre una tabla de 17 filas se contradecía
+    solo. El número sigue en `_TOP_RANK`, que es donde importa.
 
     En una métrica normal son los primeros y los últimos. En una descriptiva no: ahí la segunda tabla
     no es la de los peores sino la del extremo OPUESTO del mismo perfil — un GB% bajo no es un mal
@@ -322,10 +326,9 @@ def _column_labels(metric: Metric, scope: str, october: bool) -> tuple[str, str]
     El orden sale de la dirección, no se asume, para que el rótulo siga al tablero si alguien la
     cambia en el Backoffice.
     """
-    top = _top_rank(scope, october)
     if metric.column not in _DESCRIPTIVE_COLUMNS:
-        return f"Primeros {top}", f"Últimos {top}"
-    alto, bajo = f"Los {top} más altos", f"Los {top} más bajos"
+        return "Primeros", "Últimos"
+    alto, bajo = "Los más altos", "Los más bajos"
     return (alto, bajo) if metric.direction == Metric.Direction.HIGHER else (bajo, alto)
 
 

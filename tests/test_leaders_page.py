@@ -229,7 +229,7 @@ def test_the_tail_is_numbered_by_its_place_in_the_main_ranking() -> None:
     board = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
     top = _TOP_RANK["carrera"]
 
-    assert [column["label"] for column in board["columns"]] == [f"Primeros {top}", f"Últimos {top}"]
+    assert [column["label"] for column in board["columns"]] == ["Primeros", "Últimos"]
     assert [r["rank"] for r in board["columns"][0]["rows"]] == list(range(1, top + 1))
     assert [(r["rank"], r["name"]) for r in board["columns"][1]["rows"]] == [
         (18, "Jugador 18"),
@@ -272,10 +272,7 @@ def test_a_descriptive_metric_labels_its_two_ends_by_height_not_by_merit() -> No
         "board"
     ]
 
-    assert [column["label"] for column in board["columns"]] == [
-        f"Los {_TOP_RANK['carrera']} más altos",
-        f"Los {_TOP_RANK['carrera']} más bajos",
-    ]
+    assert [column["label"] for column in board["columns"]] == ["Los más altos", "Los más bajos"]
 
 
 @pytest.mark.django_db
