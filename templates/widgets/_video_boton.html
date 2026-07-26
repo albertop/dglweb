@@ -1,0 +1,27 @@
+{% comment %}
+El botón que abre un video en la ventana emergente. Se usa en los destacados y en la pizarra, así que
+vive una sola vez.
+
+Es un `<button>` y no un `<a>` porque no lleva a ninguna parte: abre algo aquí mismo. Un enlace haría
+que el teclado y los lectores de pantalla anuncien una navegación que no ocurre, y que el clic con la
+rueda abriera un mp4 pelado en otra pestaña.
+
+`clips` viene ordenado con el mejor primero; el título de cada uno va en el `title` y en el
+`aria-label` porque el triangulito solo no dice de qué jugada es.
+{% endcomment %}
+{% for clip in clips %}
+  <button type="button" class="dgl-video" data-video="{{ clip.url }}" data-titulo="{{ clip.titulo }}"
+          {% if clip.portada %}data-portada="{{ clip.portada }}"{% endif %}
+          title="{{ clip.titulo }}" aria-label="Ver video: {{ clip.titulo }}">
+    {% comment %}
+      El televisorcito va como SVG y no como emoji 📺: se dibuja igual en todos los sistemas —el emoji
+      cambia de estilo entre Windows, Mac y Android— y hereda el color del sitio con `currentColor`.
+      `aria-hidden` porque el texto para lectores de pantalla ya está en el `aria-label` del botón.
+    {% endcomment %}
+    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+         stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5 1.5 8 5l3-3.5"/>
+      <rect x="1.4" y="5" width="13.2" height="9.5" rx="1.6"/>
+    </svg>
+  </button>
+{% endfor %}

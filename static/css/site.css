@@ -217,6 +217,35 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    sitio y acá dice «esto está pasando ahora». */
 .dgl-vivo { color: var(--dgl-red); font-weight: 700; }
 
+/* ---------- Videos de jugadas ---------- */
+/* El televisorcito que abre el video. Discreto hasta que se le pasa por encima: acompaña a la línea
+   de estadísticas, no compite con ella. */
+.dgl-video {
+  display: inline-flex; align-items: center; vertical-align: -.2em;
+  border: 0; background: none; padding: 0; margin-left: .35rem; cursor: pointer;
+  color: var(--dgl-red); line-height: 0; opacity: .7;
+}
+.dgl-video:hover, .dgl-video:focus-visible { opacity: 1; }
+
+.dgl-modal {
+  position: fixed; inset: 0; z-index: 1080; display: flex; align-items: center; justify-content: center;
+  background: rgb(0 0 0 / .75); padding: 1rem;
+}
+.dgl-modal[hidden] { display: none; }  /* `hidden` solo no gana contra `display: flex` */
+.dgl-modal-caja { width: min(56rem, 100%); background: #000; border-radius: .5rem; overflow: hidden; }
+.dgl-modal-barra {
+  display: flex; align-items: center; gap: .75rem; padding: .5rem .75rem;
+  background: var(--dgl-navy); color: #fff;
+}
+.dgl-modal-titulo { font-size: .85rem; font-weight: 600; flex: 1 1 auto; }
+.dgl-modal-cerrar {
+  border: 0; background: none; color: #fff; font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 0 .25rem;
+}
+.dgl-modal-video { display: block; width: 100%; max-height: 78vh; background: #000; }
+/* Con la ventana abierta la página de atrás no se mueve: si no, la rueda del mouse hace scroll del
+   sitio mientras uno cree estar mirando el video. */
+.dgl-sin-scroll { overflow: hidden; }
+
 /* ---------- Destacados de la jornada ---------- */
 .dgl-standout { border-bottom: 1px solid var(--dgl-line); }
 .dgl-standout:last-child { border-bottom: 0; }

@@ -35,7 +35,7 @@ aparezca al instante y para que no haya una llamada por cada juego sobre el que 
             {% for nuestro in lado.nuestros %}
               <div class="dgl-detalle-jugador">
                 <a href="{% url 'player_detail' nuestro.slug %}">{{ nuestro.nombre }}</a>
-                <span class="line">{{ nuestro.linea }}</span>
+                <span class="line">{{ nuestro.linea }}{% include "widgets/_video_boton.html" with clips=nuestro.clips %}</span>
               </div>
             {% endfor %}
           {% endif %}

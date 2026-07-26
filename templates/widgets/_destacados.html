@@ -22,7 +22,7 @@ mejor que no esté a que esté hueco.
             <a href="{% url 'player_detail' actuacion.player.slug %}">{{ actuacion.player.full_name }}</a>
             <span class="team">{{ actuacion.team }}</span>
           </div>
-          <div class="line">{{ actuacion.linea }}</div>
+          <div class="line">{{ actuacion.linea }}{% include "widgets/_video_boton.html" with clips=actuacion.clips %}</div>
         </div>
       {% endfor %}
     </div>
@@ -34,7 +34,7 @@ mejor que no esté a que esté hueco.
             <a href="{% url 'player_detail' actuacion.player.slug %}">{{ actuacion.player.full_name }}</a>
             <span class="team">{{ actuacion.team }}</span>
           </div>
-          <div class="line">{{ actuacion.linea }}</div>
+          <div class="line">{{ actuacion.linea }}{% include "widgets/_video_boton.html" with clips=actuacion.clips %}</div>
         </div>
       {% endfor %}
     </div>

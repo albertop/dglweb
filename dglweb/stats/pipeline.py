@@ -43,7 +43,7 @@ ENTRADAS_POST = ("update_batting_post", "update_pitching_post", "update_fielding
 DERIVADOS = ("build_career_totals", "build_leaders")
 # Lo que alimenta los widgets de la portada. Lee del proxy, no de nuestras tablas, así que tampoco
 # depende de que las entradas hayan salido bien: la jornada de ayer es la jornada de ayer.
-PORTADA = ("build_daily_standouts",)
+PORTADA = ("build_daily_standouts", "build_game_videos")
 # Lee la temporada desde la API, no nuestras tablas, así que no depende de las entradas.
 AVISOS = ("detect_debuts",)
 # Mantenimiento del propio log. Corre siempre, incluso fuera de temporada — ver el comando.

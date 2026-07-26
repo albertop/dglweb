@@ -241,6 +241,20 @@ def guardar(dia: date, listas: dict[str, list[Actuacion]]) -> int:
     return len(filas)
 
 
+@dataclass(frozen=True)
+class Destacado:
+    """Una fila del widget, ya con su video al lado.
+
+    Envuelve a la fila de la tabla en vez de colgarle atributos encima: `clips` no es una columna y
+    fingir que lo es deja al modelo mintiendo sobre lo que guarda. La plantilla lee lo mismo.
+    """
+
+    player: Any  # `players.models.Player`
+    team: str
+    linea: str
+    clips: tuple[Any, ...]  # `videos.Clip`
+
+
 def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
     """Los destacados que muestra la portada, de la jornada más reciente que haya guardada.
 
@@ -257,11 +271,31 @@ def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
     if ultima is None:
         return None
 
+    from dglweb.stats import videos
+
     del_dia = DailyStandout.objects.filter(fecha=ultima).select_related("player").order_by("-valor")
-    return {
-        "dia": ultima,
+    filas = {
         "bateo": list(del_dia.filter(grupo=DailyStandout.Grupo.BATEO)[:bateadores]),
         "pitcheo": list(del_dia.filter(grupo=DailyStandout.Grupo.PITCHEO)[:lanzadores]),
+    }
+
+    # El video se resuelve acá y no en la plantilla: una sola consulta para los cinco, y así la
+    # plantilla no tiene que saber que existe una tabla de videos.
+    clips = videos.por_jugador(ultima, {fila.player_id for lista in filas.values() for fila in lista})
+    return {
+        "dia": ultima,
+        **{
+            oficio: [
+                Destacado(
+                    player=fila.player,
+                    team=fila.team,
+                    linea=fila.linea,
+                    clips=clips.get(fila.player_id, ()),
+                )
+                for fila in lista
+            ]
+            for oficio, lista in filas.items()
+        },
     }
 
 

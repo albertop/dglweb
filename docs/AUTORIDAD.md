@@ -17,6 +17,12 @@ Ningún campo de país decide, ni el nuestro ni el de la fuente. La unión de es
 universo dominicano y punto. Está implementado en `dglweb/players/universe.py`, y cualquier consulta
 que necesite el universo debe pasar por ahí en vez de filtrar por país.
 
+**Y no se audita quién está en la tabla.** Si un nombre parece no encajar, no encaja con lo que uno
+cree saber, que no es la autoridad. Un jugador puede ser dominicano por madre o padre y haber jugado
+con la selección sin que su lugar de nacimiento lo diga — le pasa a Austin Wells, que jugó el Clásico
+Mundial con República Dominicana. Quién entra y quién sale de esas tablas lo decide el dueño; no hay
+nada que revisar ni que reportar.
+
 ## 2. Siglas de estadísticas: en inglés, nunca en español
 
 **No se usan abreviaturas en español en ninguna parte del sitio.** Ni en la portada, ni en los

@@ -1671,7 +1671,7 @@ class DailyStandout(models.Model):
     grupo = models.CharField(max_length=8, choices=Grupo.choices, verbose_name="Oficio")
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="jornadas", verbose_name="Jugador")
     team = models.CharField(max_length=4, blank=True, verbose_name="Equipo")
-    # La línea ya escrita («3-4, 2B, HR, 4 CI»). Se guarda armada y no en piezas: es texto de lectura,
+    # La línea ya escrita («3-4, 2B, HR, 4 RBI»). Se guarda armada y no en piezas: es texto de lectura,
     # no un dato del que se vaya a calcular nada, y rearmarla en la plantilla obligaría a llevar allá
     # las reglas de qué se nombra y qué se calla.
     linea = models.CharField(max_length=120, verbose_name="Línea")
@@ -1687,3 +1687,60 @@ class DailyStandout(models.Model):
 
     def __str__(self) -> str:
         return f"{self.fecha} {self.player} ({self.linea})"
+
+
+class GameVideo(models.Model):
+    """Un video de MLB donde un dominicano es el protagonista de la jugada.
+
+    QUIÉN SALE EN EL VIDEO NO SE ADIVINA
+    ------------------------------------
+    `/api/v1/game/{pk}/content` etiqueta cada highlight con el `player_id` de quien protagoniza la
+    jugada. Cruzado contra `dgl_master`, la atribución es exacta y no hay que leer títulos para
+    saber de quién es — ver la regla de autoridad en `docs/AUTORIDAD.md`.
+
+    NO HAY FORMA DE ATARLO A UN TURNO AL BATE
+    -----------------------------------------
+    El item no trae `playId` ni referencia a la jugada dentro del juego. Por eso el grano de esta
+    tabla es **(jugador, fecha)** y no (jugador, turno): se puede decir «estos son los videos de
+    Devers del 25 de julio», nunca «este video es de ese doble».
+
+    POR QUÉ NO SE PODA
+    ------------------
+    A diferencia de `DailyStandout`, acá no hay janitor. Son unas 16 filas por día —menos de 3.000
+    en una temporada— y borrarlas cerraría la puerta a un archivo por jugador, que es justo lo que
+    esta tabla hace posible. Si algún día estorba, el criterio lo pone el dueño.
+    """
+
+    class Tipo(models.TextChoices):
+        JONRON = "hr", "Jonrón"
+        BATEO = "bateo", "Bateo"
+        PITCHEO = "pitcheo", "Pitcheo"
+        DEFENSA = "defensa", "Defensa"
+        OTRO = "otro", "Otro"
+
+    # El identificador estable del item en MLB. Es lo que hace que reprocesar un día no duplique.
+    guid = models.CharField(max_length=40, verbose_name="GUID")
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="videos", verbose_name="Jugador")
+    fecha = models.DateField(db_index=True, verbose_name="Jornada")
+    game_pk = models.PositiveIntegerField(verbose_name="Juego")
+    titulo = models.CharField(max_length=200, verbose_name="Título")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción")
+    segundos = models.PositiveSmallIntegerField(default=0, verbose_name="Duración (s)")
+    # `tipo` sale de la taxonomía que trae el propio item, no de leer el título: sirve para elegir
+    # cuál mostrar cuando un jugador tiene varios el mismo día — el jonrón antes que el sencillo.
+    tipo = models.CharField(max_length=8, choices=Tipo.choices, default=Tipo.OTRO, verbose_name="Tipo")
+    video_url = models.URLField(max_length=400, verbose_name="Video (mp4)")
+    imagen_url = models.URLField(max_length=400, blank=True, verbose_name="Portada")
+
+    class Meta:
+        db_table = "dgl_game_video"
+        ordering = ["-fecha", "player"]
+        verbose_name = "video de jugada"
+        verbose_name_plural = "videos de jugadas"
+        # Por (video, jugador) y no por video: una misma jugada puede etiquetar a dos dominicanos
+        # —el que lanzó y el que bateó— y a los dos les toca.
+        constraints = [models.UniqueConstraint(fields=["guid", "player"], name="unique_game_video")]
+        indexes = [models.Index(fields=["fecha", "player"], name="dgl_video_jornada_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.fecha} {self.player}: {self.titulo}"

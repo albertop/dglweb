@@ -34,7 +34,21 @@
 
   /* ---------- El detalle del hover ---------- */
 
+  // El panel se cierra con un respiro y no en el acto: está debajo de la tarjeta, así que para
+  // llegar a él —a los botones de video, por ejemplo— hay que salirse de la tarjeta primero. Sin
+  // esta pausa se cerraría justo en el camino y no habría forma de hacerle clic a nada.
+  var cierre = null;
+
+  function programarCierre(raiz) {
+    cierre = setTimeout(function () { ocultarDetalle(raiz); }, 200);
+  }
+
+  function cancelarCierre() {
+    if (cierre) { clearTimeout(cierre); cierre = null; }
+  }
+
   function mostrarDetalle(raiz, tarjeta) {
+    cancelarCierre();
     var panel = raiz.querySelector(".dgl-detalle");
     var plantilla = tarjeta.querySelector(".dgl-juego-detalle");
     if (!panel || !plantilla) return;
@@ -103,8 +117,14 @@
 
     raiz.querySelectorAll(".dgl-con-detalle").forEach(function (tarjeta) {
       tarjeta.addEventListener("mouseenter", function () { mostrarDetalle(raiz, tarjeta); });
-      tarjeta.addEventListener("mouseleave", function () { ocultarDetalle(raiz); });
+      tarjeta.addEventListener("mouseleave", function () { programarCierre(raiz); });
     });
+
+    var panel = raiz.querySelector(".dgl-detalle");
+    if (panel) {
+      panel.addEventListener("mouseenter", cancelarCierre);
+      panel.addEventListener("mouseleave", function () { programarCierre(raiz); });
+    }
 
     if (inicial) {
       // Se abre en los juegos de hoy: lo de ayer queda a la izquierda para quien lo busque.

@@ -90,6 +90,7 @@ class Nuestro:
     nombre: str
     slug: str
     linea: str
+    clips: tuple[Any, ...] = ()  # `videos.Clip`, sin importarlo para no atar los dos módulos
 
 
 @dataclass(frozen=True)
@@ -359,6 +360,7 @@ def _lado(
     accion: _Accion,
     universo: set[int],
     nombres: dict[int, tuple[str, str]],
+    clips: dict[int, tuple[Any, ...]],
 ) -> Lado:
     datos = (juego.get("teams") or {}).get("away" if visitante else "home") or {}
     equipo = datos.get("team") or {}
@@ -372,7 +374,12 @@ def _lado(
     # reordena sola cada minuto en la pantalla se lee como un error.
     nuestros = sorted(
         (
-            Nuestro(nombre=nombres[pid][0], slug=nombres[pid][1], linea=accion.linea_de(pk, equipo_id, pid))
+            Nuestro(
+                nombre=nombres[pid][0],
+                slug=nombres[pid][1],
+                linea=accion.linea_de(pk, equipo_id, pid),
+                clips=clips.get(pid, ()),
+            )
             for pid in ids
             if pid in nombres
         ),
@@ -426,12 +433,16 @@ def jornada(client: MlbProxyClient, dia: date, crudos: list[dict[str, Any]], uni
         candidatos |= (_anunciados(juego, visitante=True) | _anunciados(juego, visitante=False)) & universo
     nombres = _nombres(candidatos)
 
+    from dglweb.stats import videos
+
+    clips = videos.por_jugador(dia, candidatos)
+
     return tuple(
         Juego(
             estado=(estado := _ESTADOS.get(str((juego.get("status") or {}).get("abstractGameState")), PROGRAMADO)),
             detalle=_detalle(juego, estado),
-            visitante=_lado(juego, True, estado, accion, universo, nombres),
-            local=_lado(juego, False, estado, accion, universo, nombres),
+            visitante=_lado(juego, True, estado, accion, universo, nombres, clips),
+            local=_lado(juego, False, estado, accion, universo, nombres, clips),
         )
         for juego in crudos
     )
