@@ -126,12 +126,15 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   98,2%. Sammy Sosa 2000 pasó de que sus coeficientes sumaran 55,9% a sumar 97,3%, y su LD% de .036
   a .218. La advertencia de la UI bajó de diez temporadas a siete.
   **Residuo, separado abajo**: la advertencia sigue siendo por año.
-- [ ] **SAB-03b — la advertencia marca el panel entero cuando solo faltan los hits.** En las siete
-  temporadas que quedan (1989-90, 1993-97) los OUTS por tipo están completos: solo faltan los hits,
-  y por arrastre los coeficientes. Hoy se advierte sobre todo el panel Statcast, incluidas las cinco
-  columnas de outs que están sanas. Un piso por (métrica, temporada) lo diría con precisión.
-  **Prioridad baja**: son siete temporadas viejas donde ~90% es el techo real del dato y no hay
-  fuente que lo mejore, así que la advertencia sobra pero no miente.
+- [ ] **SAB-03b — la advertencia marca el panel entero cuando solo los hits están incompletos.**
+  Ojo con la redacción: en las siete temporadas que quedan (1989-90, 1993-97) **el dato ya se trajo**
+  — la carga de Retrosheet cubrió las diez, no solo 2000-2002. Lo que pasa es que ahí Retrosheet
+  tampoco clasificó todo: en 1990 registra los 2.575 hits pero solo le puso trayectoria a 2.314. Ese
+  10% no lo anotó nadie en 1990; es el techo del registro histórico, no algo por hacer.
+  Lo que sí queda pendiente es de precisión en la UI: los cinco conteos de OUTS por tipo
+  (AO/GO/FO/PO/LO) están completos en esos años, y hoy se advierte sobre el panel Statcast entero
+  como si estuvieran todos afectados. Un piso por (métrica, temporada) lo diría con exactitud.
+  **Prioridad baja**: la advertencia sobra en cinco columnas de doce, pero no miente.
 - [ ] **DEV-02 / FE-03 — `leaders_context()` revienta con la base vacía.** **Reproducido**:
   `IndexError: list index out of range` en `division_labels[0]`. Pasa en staging limpio, base recién
   migrada, o si alguien desactiva las métricas de un grupo desde el Backoffice. Es el más grave
