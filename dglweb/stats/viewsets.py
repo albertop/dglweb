@@ -19,6 +19,7 @@ from dglweb.stats.models import (
     Metric,
     QualifierDefault,
     QualifierSeasonOverride,
+    SeasonDates,
     StaticDataset,
 )
 
@@ -193,4 +194,50 @@ class StaticDatasetViewSet(SnippetViewSet):  # type: ignore[misc]
             heading="De dónde sale el CSV",
         ),
         FieldPanel("comment"),
+    ]
+
+
+class SeasonDatesViewSet(SnippetViewSet):  # type: ignore[misc]
+    """CRUD del calendario de temporadas — el primer dataset de apoyo que SÍ se edita a mano.
+
+    Los demás se reemplazan por CSV y no tienen pantalla de edición: `dom_players` son 9.000 filas y
+    editarlas a mano no tiene sentido. Este es al revés — una fila por año, y cuando MLB mueve una
+    fecha conviene corregirla sin esperar a que alguien corra un export.
+
+    Por eso la carga es upsert y no truncate: truncar borraría justamente lo que se corrige acá.
+    El formulario valida el orden de las fechas igual que el import (`SeasonDates.clean()`).
+    """
+
+    model = SeasonDates
+    icon = "date"
+    menu_label = "Calendario de temporadas"
+    menu_name = "season_dates"
+    list_display = (
+        "season",
+        "season_start_date",
+        "reg_season_end_date",
+        "all_star_game_date",
+        "post_season_start_date",
+        "season_end_date",
+        "is_active",
+    )
+    list_filter = ("is_active",)
+    search_fields = ("season",)
+    ordering = ("-season",)
+    add_to_admin_menu = False  # vive bajo el grupo Backoffice
+    panels = [  # noqa: RUF012 — Wagtail espera una lista mutable acá
+        MultiFieldPanel([FieldPanel("season"), FieldPanel("sports_id")], heading="Clave"),
+        MultiFieldPanel(
+            [
+                FieldPanel("season_start_date"),
+                FieldPanel("all_star_game_date"),
+                FieldPanel("reg_season_end_date"),
+                FieldPanel("post_season_start_date"),
+                FieldPanel("season_end_date"),
+            ],
+            # En el orden en que ocurren, no en el de la tabla: así una fecha traspuesta se ve de
+            # arriba abajo antes de guardar, que es justo lo que `clean()` va a rechazar.
+            heading="Fechas, en orden cronológico",
+        ),
+        FieldPanel("is_active"),
     ]

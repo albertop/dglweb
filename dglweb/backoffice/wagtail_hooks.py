@@ -17,6 +17,7 @@ from dglweb.stats.viewsets import (
     MetricViewSet,
     QualifierDefaultViewSet,
     QualifierSeasonOverrideViewSet,
+    SeasonDatesViewSet,
     StaticDatasetViewSet,
 )
 
@@ -34,6 +35,7 @@ class BackofficeViewSetGroup(SnippetViewSetGroup):  # type: ignore[misc]
         CareerParityIssueViewSet,
         IngestRunViewSet,
         StaticDatasetViewSet,
+        SeasonDatesViewSet,
     )
 
 

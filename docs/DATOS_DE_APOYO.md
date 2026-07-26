@@ -275,7 +275,42 @@ un export corto; la suma de las edades no significa nada.
 
 **No declara `rebuilds`:** no alimenta ningún cálculo.
 
-### 4. Transacciones — diferido a después del lanzamiento
+### 4. Calendario de temporadas (`seasons_dates`)
+
+**Qué es.** Una fila por temporada con sus fechas: apertura, fin de serie regular, Juego de
+Estrellas, inicio de postemporada y cierre. Es lo que permite responder "¿este juego fue de serie
+regular o de postemporada?" sin adivinar por el mes.
+
+**De dónde sale.** La vista `v_dglweb_season_dates`, vía `export_seasons_dates.ps1` →
+`seasons_dates.csv`. La clave es `(season, sports_id)`; `sports_id` es tinyint y **1 es MLB** — hoy
+la única liga que el sitio usa, pero va en la clave para no tener que migrarla si mañana entra otra.
+
+**Es el primero por UPSERT, y el primero con CRUD. Las dos cosas son la misma decisión.** Esta tabla
+también se edita a mano en el Backoffice (*Calendario de temporadas*): son pocas filas, y cuando MLB
+mueve una fecha conviene corregirla sin esperar a que alguien corra un export. Truncar en cada carga
+borraría justamente esas correcciones, así que el modo tiene que respetar lo que ya está.
+
+**La contracara del upsert, que cambia qué hay que validar.** Con truncate una fila mala desaparece
+en la carga siguiente; con upsert **se queda para siempre**, porque nada la borra. Por eso la
+validación es más estricta acá:
+
+| Se rechaza | Por qué |
+|---|---|
+| Fechas fuera de orden | Una traspuesta no se ve mirando la fila —todas son plausibles por separado— pero rompe en silencio a quien después pregunte si una fecha cae en regular o en postemporada |
+| Más de una temporada `is_active` | Con upsert la vieja no se apaga sola: si entran dos encendidas, quedan dos encendidas |
+| `season_start_date` o `season_end_date` vacías | Una temporada es justamente el intervalo entre esas dos |
+
+La regla de orden vive en `SeasonDates.clean()`, así que vale para **las dos puertas**: el CSV y el
+formulario del Backoffice. Las otras tres fechas pueden faltar — no todos los años tienen registrado
+el Juego de Estrellas, y una temporada en curso todavía no tiene fecha de postemporada.
+
+> `reg_season_end_date` quedó **nullable**: la fuente no dijo si puede venir vacía, y ser permisivo
+> donde no hay dato es lo seguro — exigirla y que llegue nula bloquearía la carga entera. Si resulta
+> que nunca falta, conviene apretarlo.
+
+**No declara `rebuilds`:** no alimenta ningún cálculo todavía.
+
+### 5. Transacciones — diferido a después del lanzamiento
 
 Existe en DGL y sin diseño todavía. **Decisión del dueño (2026-07-26): no es prioritario para el
 lanzamiento**, así que no se especifica ni se construye por ahora. El motor ya soporta agregarlo

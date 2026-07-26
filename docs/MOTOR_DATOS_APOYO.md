@@ -126,6 +126,26 @@ espera.
 En los dos casos el origen es el mismo —un export mal hecho— así que el motor no lo trata como aviso:
 lista las filas culpables y no deja confirmar.
 
+## Truncate o upsert — y qué cambia en la validación
+
+No es solo cómo se escribe: cambia qué errores son recuperables.
+
+**Truncate** es para las tablas que el CSV manda enteras (`dom_players`, `dom_salaries`). Una fila
+mala dura una carga: la siguiente la barre. Y como reemplaza todo, la señal importante de la pantalla
+es *qué desaparece*.
+
+**Upsert** es para las tablas que además se editan a mano (`seasons_dates`, que tiene CRUD en el
+Backoffice). Truncar borraría esas correcciones, así que la carga pisa lo que el CSV trae y deja en
+paz lo demás. La contracara: **una fila mala se queda para siempre**, porque nada la borra.
+
+De ahí la regla práctica: *si el dataset es upsert, su `checks()` tiene que ser más estricto*. Lo que
+en truncate es un fastidio pasajero, en upsert es permanente. El calendario de temporadas lo ilustra
+— rechaza fechas fuera de orden y más de una temporada marcada como en curso, porque con upsert la
+vieja no se apaga sola.
+
+Y el upsert exige una **restricción de unicidad** sobre la clave natural; `StaticDataset.clean()` no
+deja guardar la configuración sin ella (ver arriba).
+
 ## Por qué "qué desaparece" solo aplica con truncate
 
 Con upsert las filas que no vienen en el CSV sobreviven. Decir "no se pierde nada" en ese modo sería

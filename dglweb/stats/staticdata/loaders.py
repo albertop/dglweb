@@ -10,7 +10,15 @@ from datetime import date
 from typing import Any, ClassVar
 
 from dglweb.players.models import Player
-from dglweb.stats.models import BattedBallHits, Batting, DomPlayer, DomSalary, Pitching
+from dglweb.stats.models import (
+    BattedBallHits,
+    Batting,
+    DomPlayer,
+    DomSalary,
+    Pitching,
+    SeasonDates,
+    fechas_fuera_de_orden,
+)
 from dglweb.stats.staticdata.engine import Loader, Problem, register
 
 _GROUPS = {"batting", "pitching"}
@@ -396,3 +404,91 @@ class DomSalariesLoader(Loader):
         if not negativos:
             return []
         return [Problem(f"{len(negativos)} salario(s) negativo(s).", negativos[:10])]
+
+
+@register
+class SeasonDatesLoader(Loader):
+    """Calendario de cada temporada. El primero que se carga por UPSERT y no por truncate.
+
+    El motivo del modo: esta tabla también se edita a mano en el Backoffice —son pocas filas y cuando
+    MLB mueve una fecha conviene corregirla sin esperar un export—. Truncar en cada carga borraría
+    esas correcciones; el upsert pisa lo que el CSV trae y deja en paz lo demás.
+
+    Eso cambia lo que hay que cuidar. Con truncate, una fila mala desaparece en la carga siguiente;
+    con upsert **se queda para siempre**, porque nada la borra. Por eso `checks()` es más estricto acá
+    que en los otros datasets: una temporada absurda o unas fechas traspuestas quedarían atornilladas.
+    """
+
+    table = "seasons_dates"
+    model = SeasonDates
+    columns: ClassVar[dict[str, str]] = {
+        "season": "season",
+        "sports_id": "sports_id",
+        "season_start_date": "season_start_date",
+        "reg_season_end_date": "reg_season_end_date",
+        "all_star_game_date": "all_star_game_date",
+        "post_season_start_date": "post_season_start_date",
+        "season_end_date": "season_end_date",
+        "is_active": "is_active",
+    }
+
+    _FECHAS: ClassVar[tuple[str, ...]] = (
+        "season_start_date",
+        "reg_season_end_date",
+        "all_star_game_date",
+        "post_season_start_date",
+        "season_end_date",
+    )
+    # Las dos que la fuente declara obligatorias. Sin ellas la fila no dice nada útil: una temporada
+    # es justamente el intervalo entre esas dos fechas.
+    _FECHAS_OBLIGATORIAS: ClassVar[tuple[str, ...]] = ("season_start_date", "season_end_date")
+
+    def resolve(self, row: dict[str, str]) -> dict[str, Any]:
+        season = _entero(row.get("season"))
+        if season is None:
+            raise ValueError("season vacío — es parte de la clave y no puede faltar")
+
+        resuelta: dict[str, Any] = {
+            "season": season,
+            # Por defecto MLB: la fuente distingue ligas pero hoy solo se carga esa, y una columna
+            # vacía significa «la de siempre», no «ninguna».
+            "sports_id": _entero(row.get("sports_id")) or SeasonDates.MLB,
+            "is_active": _booleano(row.get("is_active")) or False,
+        }
+        resuelta.update({campo: _fecha(row.get(campo)) for campo in self._FECHAS})
+
+        faltan = [campo for campo in self._FECHAS_OBLIGATORIAS if resuelta[campo] is None]
+        if faltan:
+            raise ValueError(f"{', '.join(faltan)} vacío — la fuente lo declara obligatorio")
+        return resuelta
+
+    def checks(self, rows: list[dict[str, Any]]) -> list[Problem]:
+        """Dos pruebas, las dos pensadas para un modo que no borra nada.
+
+        1) Las fechas en orden. Una traspuesta no se ve mirando la fila —todas son plausibles— pero
+           rompe en silencio a cualquiera que después pregunte si una fecha cae en serie regular o en
+           postemporada.
+
+        2) Una sola temporada en curso. `is_active` marca la vigente; dos encendidas es un export a
+           medias, y con upsert la vieja se quedaría encendida para siempre porque nada la apaga.
+        """
+        problems = []
+
+        desordenadas = [
+            f"{row['season']}: {problema[1]}" for row in rows if (problema := fechas_fuera_de_orden(row)) is not None
+        ]
+        if desordenadas:
+            problems.append(
+                Problem(f"{len(desordenadas)} temporada(s) con las fechas fuera de orden.", desordenadas[:10])
+            )
+
+        activas = sorted(str(row["season"]) for row in rows if row["is_active"])
+        if len(activas) > 1:
+            problems.append(
+                Problem(
+                    f"{len(activas)} temporadas marcadas como en curso, y solo puede haber una. "
+                    "Con upsert la vieja no se apaga sola: hay que arreglarlo en la vista.",
+                    activas,
+                )
+            )
+        return problems

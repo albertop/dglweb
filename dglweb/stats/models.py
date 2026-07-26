@@ -21,7 +21,7 @@ zeros stay zero. Same lesson as the `0 -> NULL` sentinels in `dgl_master`.
 """
 
 from datetime import timedelta
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from django.db import models
 from django.db.models import Exists, OuterRef, Q
@@ -1549,3 +1549,86 @@ class DomSalary(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player_id} {self.season} ({self.team_id})"
+
+
+class SeasonDates(models.Model):
+    """El calendario de cada temporada: cuándo empieza, cuándo termina la regular y cuándo octubre.
+
+    Sale de la vista `v_dglweb_season_dates` de SQL Server. A diferencia de los otros datasets de
+    apoyo, este SÍ se edita a mano en el Backoffice: son pocas filas, cambian poco, y cuando MLB
+    mueve una fecha conviene poder corregirla sin esperar un export. Por eso la carga es **upsert** y
+    no truncate — reemplazar la tabla entera borraría cualquier ajuste hecho a mano.
+
+    El grano es (temporada, deporte). `sports_id` está porque la fuente distingue ligas: 1 es MLB.
+    Hoy solo se usa esa, pero la clave la respeta para no tener que migrarla si mañana entra otra.
+    """
+
+    MLB = 1  # el único `sports_id` que el sitio usa hoy
+
+    season = models.PositiveSmallIntegerField(verbose_name="Temporada")
+    sports_id = models.PositiveSmallIntegerField(default=MLB, verbose_name="Deporte", help_text="1 = MLB.")
+    season_start_date = models.DateField(verbose_name="Inicio de temporada")
+    # Nullable porque la fuente no dijo lo contrario. Si resulta que nunca viene vacía conviene
+    # apretarlo, pero al revés —exigirla y que llegue nula— bloquearía la carga entera.
+    reg_season_end_date = models.DateField(null=True, blank=True, verbose_name="Fin de serie regular")
+    all_star_game_date = models.DateField(null=True, blank=True, verbose_name="Juego de Estrellas")
+    post_season_start_date = models.DateField(null=True, blank=True, verbose_name="Inicio de postemporada")
+    season_end_date = models.DateField(verbose_name="Fin de temporada")
+    is_active = models.BooleanField(default=False, verbose_name="Temporada en curso")
+
+    class Meta:
+        db_table = "seasons_dates"
+        ordering = ["-season", "sports_id"]
+        verbose_name = "calendario de temporada"
+        verbose_name_plural = "calendarios de temporada"
+        # Obligatoria, no opcional: el modo upsert hace `update_or_create` por esta clave, y sin la
+        # restricción que la respalde dos filas iguales podrían convivir y reventar la carga
+        # siguiente. `StaticDataset.clean()` lo exige (ARCH-04).
+        constraints = [models.UniqueConstraint(fields=["season", "sports_id"], name="unique_season_dates")]
+
+    def __str__(self) -> str:
+        return f"{self.season}" if self.sports_id == self.MLB else f"{self.season} (deporte {self.sports_id})"
+
+    def clean(self) -> None:
+        """Las fechas tienen que ir en orden. Vale igual para el CSV y para la edición a mano.
+
+        Una fecha traspuesta no se ve mirando la fila —todas son plausibles— pero rompe en silencio a
+        cualquiera que después pregunte "¿esta fecha cae en serie regular o en postemporada?".
+        """
+        from django.core.exceptions import ValidationError
+
+        problema = fechas_fuera_de_orden(
+            {
+                "season_start_date": self.season_start_date,
+                "all_star_game_date": self.all_star_game_date,
+                "reg_season_end_date": self.reg_season_end_date,
+                "post_season_start_date": self.post_season_start_date,
+                "season_end_date": self.season_end_date,
+            }
+        )
+        if problema:
+            raise ValidationError({problema[0]: problema[1]})
+
+
+# El orden en que las fechas de una temporada tienen que ocurrir. El Juego de Estrellas va en medio
+# de la serie regular, y la postemporada arranca después de que esta termina.
+_ORDEN_FECHAS = (
+    ("season_start_date", "el inicio de temporada"),
+    ("all_star_game_date", "el Juego de Estrellas"),
+    ("reg_season_end_date", "el fin de la serie regular"),
+    ("post_season_start_date", "el inicio de la postemporada"),
+    ("season_end_date", "el fin de temporada"),
+)
+
+
+def fechas_fuera_de_orden(fechas: dict[str, Any]) -> tuple[str, str] | None:
+    """El primer par que rompe la cronología, o `None`. Las fechas ausentes se saltan."""
+    previo_nombre, previo_valor = "", None
+    for campo, nombre in _ORDEN_FECHAS:
+        valor = fechas.get(campo)
+        if valor is None:
+            continue
+        if previo_valor is not None and valor < previo_valor:
+            return campo, f"{nombre.capitalize()} ({valor}) no puede ser antes que {previo_nombre} ({previo_valor})."
+        previo_nombre, previo_valor = nombre, valor
+    return None
