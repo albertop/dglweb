@@ -32,13 +32,18 @@
 # La carpeta local se monta dentro del contenedor tal cual, así que dejarlas acá basta para que el
 # sitio las sirva — ver `docker-compose.yml`.
 #
-# Se puede correr cuantas veces haga falta: lo que ya está no se vuelve a bajar, salvo con -Forzar.
+# Correrlo REFRESCA todo: cada corrida vuelve a bajar las 637, porque para eso está. MLB actualiza
+# los retratos cuando el pelotero cambia de equipo o de temporada, y una foto vieja no se distingue
+# de una buena mirando el disco. Con `-SoloFaltantes` se baja únicamente lo que no está, que sirve
+# para rellenar una corrida que se cortó a mitad.
 # =====================================================================================
 
 [CmdletBinding()]
 param(
-    # Vuelve a bajar incluso lo que ya existe. Para cuando MLB actualiza los retratos de la temporada.
-    [switch]$Forzar,
+    # Baja únicamente lo que falta. Por defecto se refrescan TODAS: MLB actualiza los retratos cuando
+    # el pelotero cambia de equipo o de temporada, y una foto vieja no se distingue de una buena
+    # mirando el disco. Esta opción es para rellenar una corrida que se cortó, no para el uso normal.
+    [switch]$SoloFaltantes,
     # Solo dice qué haría. Útil para ver el tamaño de la descarga antes de lanzarla.
     [switch]$Simular
 )
@@ -111,16 +116,17 @@ foreach ($t in $Tamanos) {
 $ProgressPreference = 'SilentlyContinue'   # la barra de Invoke-WebRequest hace esto tres veces más lento
 
 $bajadas = 0; $saltadas = 0; $fallidas = @{}
-$total = $tabla.Rows.Count * $Tamanos.Count
-$hecho = 0
+$peloteros = $tabla.Rows.Count
+$vistos = 0
 
 foreach ($fila in $tabla.Rows) {
     $id = $fila.player_id
+    $vistos++
+
     foreach ($t in $Tamanos) {
-        $hecho++
         $ruta = Join-Path (Join-Path $Destino $t) "$id.png"
 
-        if ((Test-Path $ruta) -and -not $Forzar) { $saltadas++; continue }
+        if ($SoloFaltantes -and (Test-Path $ruta)) { $saltadas++; continue }
 
         $url = "https://midfield.mlbstatic.com/v1/people/$id/spots/$t"
         if ($Simular) { Write-Host "  [simulado] $url -> $ruta"; continue }
@@ -135,15 +141,27 @@ foreach ($fila in $tabla.Rows) {
             $fallidas[$id] = $_.Exception.Message
             if (Test-Path $ruta) { Remove-Item $ruta -Force }   # un archivo a medias es peor que ninguno
         }
-
-        if ($hecho % 100 -eq 0) { Write-Host "  $hecho / $total..." }
     }
+
+    # El avance se cuenta en PELOTEROS y no en descargas: «300 / 637» se entiende solo, mientras que
+    # «600 / 1274» obliga a acordarse de que cada uno son dos archivos.
+    #
+    # Y va acá afuera, no dentro del bucle de tamaños: ahí adentro el `continue` de «ya existe» se lo
+    # saltaba, así que en una segunda corrida los hitos desaparecían y el conteo parecía cortado.
+    if ($vistos % 100 -eq 0) { Write-Host "  $vistos / $peloteros peloteros..." }
 }
 
 $ProgressPreference = 'Continue'
 
 # --- Resumen -------------------------------------------------------------------------
-"Bajadas {0} | ya estaban {1} | sin foto {2}" -f $bajadas, $saltadas, $fallidas.Count
+# Se dice de qué se está hablando: son ARCHIVOS, y cada pelotero son dos. Sin eso, «bajadas 868» con
+# 637 peloteros en pantalla parece una contradicción.
+"{0} peloteros x {1} tamanos = {2} archivos" -f $peloteros, $Tamanos.Count, ($peloteros * $Tamanos.Count)
+if ($SoloFaltantes) {
+    "  bajados {0} | ya estaban {1} | sin foto en el CDN {2}" -f $bajadas, $saltadas, $fallidas.Count
+} else {
+    "  refrescados {0} | sin foto en el CDN {1}" -f $bajadas, $fallidas.Count
+}
 
 if ($fallidas.Count -gt 0) {
     # Sin foto no es un error del script: hay peloteros que MLB no retrata, sobre todo debutantes
