@@ -27,12 +27,55 @@ DGL (SQL Server)  ──PowerShell──▶  CSV  ──upload en Backoffice─�
 - Un **encabezado que explique por qué existe**: qué problema resuelve ese dataset y por qué no
   viene del proxy. Sin eso, el script se vuelve un artefacto huérfano.
 
-**2. Backoffice — una página de carga.** Lista las tablas de Postgres que se alimentan por CSV, con
-un botón de upload al lado de cada una. Es la interfaz de la operación semestral.
+**2. El registro de datasets — una tabla en Postgres con su CRUD.** La página de carga no lleva una
+lista escrita a mano: lee de una tabla que el dueño administra desde el Backoffice. Agregar un
+dataset nuevo es crear una fila, no tocar código.
 
-**3. El import: truncar y reemplazar, pero en dos pasos.** El CSV es la verdad completa del dataset,
-no un delta: se vacía la tabla y se carga de nuevo. Sin merges, sin upserts, sin estados intermedios
-que auditar.
+| Columna | Qué es |
+|---|---|
+| `id` | PK autoincremental |
+| `tabla` | La tabla de Postgres destino |
+| `powershell` | El nombre del script en `static_data/` que genera el CSV |
+| `csv` | El nombre del archivo que ese script produce |
+| `truncate` | Marcado: se vacía la tabla y se carga de nuevo. Sin marcar: upsert idempotente |
+| `clave_natural` | Las columnas que identifican una fila, separadas por coma. **Casi siempre compuesta** |
+| `comentario` | Texto libre: por qué existe este dataset, qué ojo hay que tenerle |
+| `last_update` | Cuándo se subió por última vez |
+| `last_filas` | Cuántas filas escribió esa última carga |
+| `last_user` | Quién la subió |
+
+**`clave_natural` no es opcional cuando `truncate` está apagado.** Un upsert necesita saber qué
+identifica una fila para decidir entre actualizar e insertar; sin eso el modo idempotente no puede
+existir. El formulario debe exigirla en ese caso y validar que esas columnas existan en la tabla
+destino — descubrirlo a mitad del import es tarde.
+
+**Y la clave es compuesta casi siempre**, no por excepción: en este dominio ninguna tabla de stats se
+identifica con una sola columna. `mlb_batting` va por *(jugador, temporada, stint)* y `mlb_fielding`
+por *(jugador, temporada, equipo, posición)*. El diseño lo asume desde el principio, y eso aplica a
+las tres piezas por igual:
+
+- El **upsert** empareja por todas las columnas de la clave, no por la primera.
+- La **comparación** agrupa por la clave completa para decir qué desaparece: contar jugadores
+  distintos no sirve si lo que se perdió fue una posición de un jugador que sigue estando.
+- La **validación** verifica que la combinación no se repita dentro del CSV. Un duplicado en la clave
+  es un export mal hecho, y en modo upsert se traga silenciosamente el segundo sobre el primero.
+
+Las tres columnas `last_*` no son adorno: le dan a la pantalla de comparación una **línea base
+histórica**. Sin ellas se puede ver que un CSV trae menos filas que la tabla actual, pero no que el
+dataset viene encogiéndose carga tras carga. Y en una operación que corre dos veces al año, saber
+quién la hizo la última vez vale más que en una diaria.
+
+`csv` sirve además para atajar el error obvio: si el archivo que se está subiendo no se llama como
+dice la fila, la página avisa antes de nada. Cargar el CSV de salarios sobre la tabla de
+transacciones es un error de una sola vez y de consecuencias largas.
+
+**3. Backoffice — la página de carga.** Lista las filas del registro con un botón de upload al lado
+de cada una. Es la interfaz de la operación semestral.
+
+**4. El import, en dos pasos.** Con `truncate` marcado el CSV es la verdad completa del dataset y no
+un delta: se vacía la tabla y se carga de nuevo, sin merges ni estados intermedios que auditar. Sin
+marcar, se hace upsert por `clave_natural` — para los datasets que llegan por partes o donde borrar
+lo viejo perdería algo.
 
 Pero **nada se escribe sin que el usuario lo vea primero**. El flujo es:
 
@@ -61,6 +104,8 @@ Y encima de eso:
 
 - **Temporadas o jugadores que desaparecen.** Estaban en la tabla y no vienen en el CSV. Es la
   señal de alarma más importante: un export que se cortó a la mitad se ve acá y en ningún otro lado.
+  Solo aplica en modo truncate — con upsert las filas ausentes sobreviven, y la pantalla debe decirlo
+  en vez de callarlo, porque "no desaparece nada" significa cosas distintas en cada modo.
 - **La prueba de aceptación del dataset**, corrida sobre el CSV *antes* de escribir. Si
   `FH+GH+LH+PH ≠ H` para alguna fila, la pantalla lo dice y el botón de confirmar no aparece.
 - **Una muestra de filas** del CSV, para detectar un desfase de columnas o un encoding roto de un

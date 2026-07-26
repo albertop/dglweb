@@ -117,8 +117,12 @@ no justifican un pipeline en vivo ni atar el proyecto a SQL Server.
 
 El mecanismo: `static_data/` con un PowerShell por dataset (ruta de salida en constante, el SQL a la
 vista, y el porqué documentado) → CSV → página de carga en el Backoffice → **pantalla de comparación
-contra lo que ya está en la tabla** → recién ahí un import que **trunca y reemplaza**, dentro de una
-transacción y con una prueba de aceptación propia por dataset.
+contra lo que ya está en la tabla** → recién ahí el import, dentro de una transacción y con una
+prueba de aceptación propia por dataset.
+
+Los datasets no se escriben a mano en el código: viven en una **tabla de registro con CRUD** (tabla
+destino, PowerShell, nombre del CSV, modo truncate/upsert, clave natural, comentario y el rastro de
+la última carga). Agregar uno nuevo es crear una fila.
 
 La pantalla de comparación no es ceremonia: un truncate a ciegas es irreversible y silencioso, y un
 CSV que vino corto deja la tabla corta sin que nadie se entere. Es el mismo fallo que originó todo
