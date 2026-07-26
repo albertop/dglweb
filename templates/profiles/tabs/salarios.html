@@ -1,0 +1,51 @@
+{% with d=tab.data %}
+{% comment %}
+Salarios: una fila por (temporada, equipo). El equipo va en el grano porque un traspaso a mitad de
+año son dos filas legítimas — el pelotero cobró de dos organizaciones ese año— y el total las suma.
+La fuente es `dom_salaries`, que viene de DGL y no de la API de MLB; el tab solo existe si el
+jugador tiene alguna fila. Los códigos de equipo y liga son de DGL, no de MLB.
+{% endcomment %}
+<section class="dgl-panel mb-4">
+  <div class="table-responsive">
+    <table class="table table-sm table-striped mb-0 dgl-stats-table">
+      <thead>
+        <tr>
+          <th class="ps-3">Temporada</th>
+          <th class="dgl-mid">Equipo</th>
+          <th class="dgl-mid">Liga</th>
+          <th class="text-end pe-3">Salario</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in d.rows %}
+        <tr>
+          <td class="ps-3">{{ row.season }}</td>
+          <td class="dgl-mid">{{ row.team }}</td>
+          <td class="dgl-mid">{{ row.league }}</td>
+          <td class="text-end pe-3">{{ row.salary }}</td>
+        </tr>
+        {% endfor %}
+        {% comment %}
+        Mismo tratamiento que la línea de total del resto del perfil (`_fielding_total.html`): borde
+        navy arriba y negrita, sin color de fondo. Así se lee como cierre de la tabla y no como una
+        fila más resaltada.
+        {% endcomment %}
+        <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
+          <td class="ps-3">{{ d.seasons }} temporada{{ d.seasons|pluralize:"s" }}</td>
+          <td class="dgl-mid"></td>
+          <td class="dgl-mid"></td>
+          <td class="text-end pe-3">{{ d.total }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="dgl-meta px-3 py-2 border-top">
+    Una fila por temporada y equipo: un traspaso a mitad de año aparece dos veces, y el total las suma.<br>
+    Los códigos de equipo y liga son los de nuestra base, no los de MLB.<br>
+    <b>Esta información es incompleta y no debe tomarse como cifra oficial.</b> Los salarios no vienen
+    de la API de MLB —que no los publica— sino de una recopilación propia, y le faltan temporadas y
+    jugadores: cuanto más atrás en el tiempo, menos completa.<br>
+    Un año sin monto significa que no lo tenemos registrado, no que el pelotero no cobrara.
+  </div>
+</section>
+{% endwith %}

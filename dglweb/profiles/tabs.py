@@ -24,6 +24,7 @@ from dglweb.stats.models import (
     BattingCareer,
     BattingPost,
     CareerLevel,
+    DomSalary,
     Fielding,
     FieldingCareer,
     FieldingPost,
@@ -965,7 +966,57 @@ class PuestosTab(PlayerTab):
         return _puestos_context(player)
 
 
-REGISTRY: list[PlayerTab] = [BattingTab(), PitchingTab(), FieldingTab(), PuestosTab()]  # append new tabs here
+def _money(monto: int | None) -> str:
+    """En dólares completos y con separador de miles. Sin decimales: no los tiene el dato."""
+    return f"${monto:,}" if monto is not None else "—"
+
+
+class SalariesTab(PlayerTab):
+    """Lo que cobró, por temporada y equipo.
+
+    Es el primer tab que se alimenta de un dataset de apoyo (`dom_salaries`) y no del proxy. Por eso
+    `applies_to` importa más que en los otros: la cobertura de la fuente es floja —343 jugadores en
+    60 temporadas— así que en la mayoría de los perfiles el tab simplemente no existe. Un tab vacío
+    sería peor que ninguno.
+
+    Una fila por (temporada, equipo), que es el grano de la tabla: un traspaso a mitad de año son dos
+    filas legítimas y las dos se muestran. El total las suma todas.
+    """
+
+    key = "salarios"
+    label = "Salarios"
+    template = "profiles/tabs/salarios.html"
+    base_order = 50  # después de Puestos
+
+    def applies_to(self, player: Player) -> bool:
+        return DomSalary.objects.filter(player_id=player.player_id).exists()
+
+    def context(self, player: Player) -> dict[str, Any]:
+        filas = DomSalary.objects.filter(player_id=player.player_id).order_by("season", "team_id")
+        return {
+            "rows": [
+                {
+                    "season": fila.season,
+                    "team": fila.team_id,
+                    "league": fila.league_id,
+                    "salary": _money(fila.salary),
+                }
+                for fila in filas
+            ],
+            # Se suma acá y no con un `aggregate`: las filas ya están en memoria y sumar None no
+            # existe — un salario sin registrar no baja el total, simplemente no lo sube.
+            "total": _money(sum(fila.salary or 0 for fila in filas)),
+            "seasons": len({fila.season for fila in filas}),
+        }
+
+
+REGISTRY: list[PlayerTab] = [
+    BattingTab(),
+    PitchingTab(),
+    FieldingTab(),
+    PuestosTab(),
+    SalariesTab(),
+]  # append new tabs here
 
 
 def tabs_for(player: Player) -> list[PlayerTab]:
