@@ -273,3 +273,36 @@ def test_the_previous_run_is_read_before_this_one_overwrites_it(temporada: Seaso
     )
 
     assert debuts.ya_avisados() == {2}
+
+
+# ── El comprobador ──────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_the_checker_explains_a_missing_token_instead_of_crashing(settings: Any, capsys: Any) -> None:
+    """Es una herramienta de diagnóstico: si revienta cuando falta lo que vino a diagnosticar, no sirve."""
+    settings.TELEGRAM_BOT_TOKEN = ""
+
+    call_command("telegram_check")
+
+    assert "@BotFather" in capsys.readouterr().err
+
+
+@pytest.mark.django_db
+def test_the_checker_names_the_bot_and_says_what_is_missing(
+    configurado: None, settings: Any, monkeypatch: pytest.MonkeyPatch, capsys: Any
+) -> None:
+    """El caso del medio, y el que más confunde: token bueno pero sin chat todavía."""
+    settings.TELEGRAM_CHAT_ID = ""
+
+    def falso_get(url: str, **kwargs: Any) -> Any:
+        cuerpo = {"ok": True, "result": {"username": "dglweb_avisos_bot"} if "getMe" in url else []}
+        return httpx.Response(200, json=cuerpo, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr("httpx.get", falso_get)
+
+    call_command("telegram_check", "--buscar")
+
+    salida = capsys.readouterr().out
+    assert "dglweb_avisos_bot" in salida
+    assert "no puede escribir primero" in salida  # la explicación del paso que nadie adivina
