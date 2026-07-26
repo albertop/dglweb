@@ -207,7 +207,8 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   retorna `None` en vez de un outs plausible-pero-falso. Fail-soft en ingest → sale como disparidad en
   paridad. Tests para `.3`/`.9`/`.25`/`abc`/`111.1.2`. (No re-ingesté: la fuente manda notación válida;
   si algún día se re-ingesta fildeo, un valor malo pasaría a NULL y saltaría en paridad.)
-- [ ] **DEV-05 — todos los tabs se calculan por request.** Ya conocido (v3 DEV-01). Carga diferida
+- [ ] **DEV-05 — todos los tabs se calculan por request.** → **Es el mismo ítem que DEV-01 del v3**, que es donde se sigue con la medición.
+  ~~ Ya conocido (v3 DEV-01). Carga diferida
   (HTMX/endpoints por tab) sigue pendiente; el test de presupuesto de queries es el guardarrail.
 - [x] **SAB-02 — panel de receptor sin CS%.** **Corregido**: columna **CS%** (property `cs_pct` en
   `Fielding`/`FieldingCareer`, `CS/(SB+CS)`, recomputada de los conteos de la fila; None sin intentos).
@@ -299,7 +300,8 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [x] **ARCH-03 — `leaderboards.py` importa helpers privados de `tabs.py`.** **Corregido**: nace `profiles/metric_layout.py`, público, con lo que las dos pantallas comparten — `DESCRIPTIVE_COLUMNS`, `divisions_for()`, `pretty_qualifier()` y `qualifier_lookups()`. Ya no hay imports de nombres privados entre módulos de `profiles`. Con tests propios que fijan el acuerdo (ninguna métrica en dos divisiones, el umbral se escribe igual en las dos pantallas).
   ~~ Cierto y lo sufrí al
   agregar fildeo. Mover el layout de métricas y el formato de umbrales a un módulo público.
-- [ ] **QA-02 — las vistas de carga casi no tienen tests (31%).** De acuerdo: es la pieza que
+- [x] **QA-02 — las vistas de carga casi no tienen tests (31%).** **Corregido**: medido hoy, `staticdata/views.py` está en **91%** y `engine.py`/`loaders.py` en 98%. Los tests cubren permisos (anónimo, staff no-admin), los tres portazos (nombre, tamaño, binario), el pk inexistente, confirmar sin borrador, el camino feliz y el disparo de la reconstrucción.
+  ~~ De acuerdo: es la pieza que
   reemplaza tablas y no está ejercitada end-to-end. Los tests que escribí cubren motor y loader.
 - [ ] **SAB-02 — no se reconcilia lo cargado contra `H`/`BIP` de la fila.** La validación defensiva es
   correcta. **Matiz**: el modo de fallo que describe (coeficientes sumando >100%) no se materializó —
@@ -321,9 +323,11 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   **Pendiente de Fase 5**: la portada necesita contenido. El panel de líderes es el primero que conviene rehacer, porque el dato ya existe en `dgl_leader` y solo falta la consulta.
   ~~ Verificado: 7 `href="#"` en `base.html` y 8 en
   `home.html`, más el buscador con `onsubmit="return false"`.
-- [ ] **QA-03 — el scheduler encadena por horario, no por workflow.** Ya está en `MEJORAS_FUTURAS.md`
+- [ ] **QA-03 — el scheduler encadena por horario, no por workflow.** → **Es el mismo ítem que QA-01 + ARCH-01 del v6**, que es donde se sigue. Anotado tres veces en tres reviews; se cuenta una.
+  ~~ Ya está en `MEJORAS_FUTURAS.md`
   como "A DISCUTIR". El review coincide.
-- [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** Mismo caso: ya identificado.
+- [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** → **Es el mismo ítem que SAB-01 del v6**, que trae además la fórmula propuesta (`PA >= 3.1 * team_games`).
+  ~~ Mismo caso: ya identificado.
 - [ ] **SEC-02 / SEC-03 — CDN sin SRI/CSP; Ofelia con socket.** **Parcial**: la imagen de Ofelia ya no es `latest`, queda pinneada por digest (2026-07-26). Sigue pendiente el socket de Docker y todo lo del CDN.
   ~~ original: Ya en backlog para
   Fase 8 (endurecimiento). El review no agrega información nueva pero confirma la prioridad.
