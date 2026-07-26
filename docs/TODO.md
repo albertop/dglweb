@@ -185,7 +185,8 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 
 - [ ] **ARCH-02 — el borrador vive en sesión, no en staging auditable.** Buen señalamiento: sin id de
   revisión ni hash, dos admins pueden confirmar en orden cruzado. Es rediseño, no parche.
-- [ ] **ARCH-03 — `leaderboards.py` importa helpers privados de `tabs.py`.** Cierto y lo sufrí al
+- [x] **ARCH-03 — `leaderboards.py` importa helpers privados de `tabs.py`.** **Corregido**: nace `profiles/metric_layout.py`, público, con lo que las dos pantallas comparten — `DESCRIPTIVE_COLUMNS`, `divisions_for()`, `pretty_qualifier()` y `qualifier_lookups()`. Ya no hay imports de nombres privados entre módulos de `profiles`. Con tests propios que fijan el acuerdo (ninguna métrica en dos divisiones, el umbral se escribe igual en las dos pantallas).
+  ~~ Cierto y lo sufrí al
   agregar fildeo. Mover el layout de métricas y el formato de umbrales a un módulo público.
 - [ ] **QA-02 — las vistas de carga casi no tienen tests (31%).** De acuerdo: es la pieza que
   reemplaza tablas y no está ejercitada end-to-end. Los tests que escribí cubren motor y loader.

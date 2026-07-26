@@ -16,6 +16,12 @@ from django.db import models
 
 from dglweb.players.models import Player
 from dglweb.profiles import columns
+from dglweb.profiles.metric_layout import (
+    DESCRIPTIVE_COLUMNS,
+    divisions_for,
+    pretty_qualifier,
+    qualifier_lookups,
+)
 from dglweb.stats import career_totals, leaders, qualifier
 from dglweb.stats.derive import FIRST_STATCAST_SEASON, UNDERTYPED_STATCAST_SEASONS, batted_ball_coefficients
 from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
@@ -33,8 +39,6 @@ from dglweb.stats.models import (
     Pitching,
     PitchingCareer,
     PitchingPost,
-    QualifierDefault,
-    QualifierSeasonOverride,
 )
 
 _PITCHER_POSITIONS = {"P", "RP", "SP"}  # the master's pitcher codes (starter / reliever / generic)
@@ -70,13 +74,6 @@ _NOT_A_STAT = {"season", "stint", "age"}
 def _catalog(group: str) -> dict[str, Metric]:
     """{column: Metric} for a stat group — gives each column its ranking direction (`+`/`-`)."""
     return {metric.column: metric for metric in Metric.objects.filter(stat_group=group)}
-
-
-def _qualifier_context() -> tuple[qualifier.Defaults, qualifier.Overrides]:
-    """The qualifier cascade lookups (group defaults + per-season overrides), preloaded once."""
-    defaults = {d.stat_group: (d.qualifier_season, d.qualifier_career) for d in QualifierDefault.objects.all()}
-    overrides = {(o.stat_group, o.season): o.qualifier_season for o in QualifierSeasonOverride.objects.all()}
-    return defaults, overrides
 
 
 def _qualifier_row(row: models.Model) -> dict[str, Any]:
@@ -120,8 +117,8 @@ def _personal_bests(
     ]
     best: set[tuple[int, str]] = set()
     for column in stat_columns:
-        if column in _DESCRIPTIVE_COLUMNS:
-            continue  # a style has no "best" — see _DESCRIPTIVE_COLUMNS
+        if column in DESCRIPTIVE_COLUMNS:
+            continue  # a style has no "best" — see DESCRIPTIVE_COLUMNS
         metric = catalog.get(column)
         lower_is_better = metric is not None and metric.direction == Metric.Direction.LOWER
         # Rates distort in small samples either way; the min of a "lower is better" count is trivially
@@ -334,18 +331,6 @@ _PITCHING_TABLES: dict[str, list[columns.Column]] = {
     "ratios": columns.PITCHING_RATIOS,
 }
 
-# Descriptive metrics: they measure a STYLE, not an achievement. A career-high GB% does not say the
-# player got better at anything — his batted-ball profile simply moved, and whether that helps him
-# depends on speed, power, park and era. Painting that extreme with the same badge as a career-high
-# HR invites a false reading, so these get no personal-best mark.
-# Their `direction` stays as it is: the engine still needs an order to rank by. Contrast with
-# Contact% and Whiff%, which DO have a clear sporting direction (set per group, mirrored for
-# pitching) and keep their highlight.
-# PU% se movió aquí (decisión del dueño): es reparto de batazos como las otras cuatro, no una virtud.
-# Antes se leía como que una palomita era un out casi automático — mala para el bateador, buena para
-# el lanzador— y quedaba con direcciones opuestas por grupo; ahora no juzga en ninguno de los dos.
-_DESCRIPTIVE_COLUMNS: frozenset[str] = frozenset({"gb_pct", "fb_pct", "ld_pct", "gb_fb", "pu_pct"})
-
 
 def _cells(
     row: Any,  # noqa: ANN401
@@ -394,7 +379,7 @@ def _group_context(
         # The personal best survives: it compares him only with himself. Same for October.
         season_leads, career_leads = set(), set()
         post_season_leads, post_career_leads = set(), set()
-    defaults, overrides = _qualifier_context()
+    defaults, overrides = qualifier_lookups()
     catalog = _catalog(group)
     best = _personal_bests(model, group, seasons, catalog, defaults, overrides)
     career: list[Any] = list(career_model._default_manager.filter(player=player).order_by("sort_order"))
@@ -581,7 +566,7 @@ def _fielding_context(player: Player) -> dict[str, Any]:
     highlights, personal bests and career leaderships are all scoped to the position — comparing a
     catcher's putouts against a first baseman's would be meaningless. DH is dropped (no defence)."""
     catalog = _catalog("fielding")
-    defaults, overrides = _qualifier_context()
+    defaults, overrides = qualifier_lookups()
     lines = list(Fielding.objects.filter(player=player).position_totals().exclude(pos="DH").order_by("season", "-gp"))
     season_leads, career_leads = _fielding_leaderships(player)
 
@@ -737,70 +722,6 @@ _PUESTOS_CAREER_TOP_N = 25  # the "De por vida" column reaches further — top 2
 _DIRECTION_SIGN: dict[str, str] = {Metric.Direction.HIGHER: "+", Metric.Direction.LOWER: "-"}
 
 
-def _insert_after(columns_: list[str], anchor: str, value: str) -> list[str]:
-    """A copy of `columns_` with `value` inserted right after `anchor` (or appended if absent)."""
-    out = list(columns_)
-    out.insert(out.index(anchor) + 1 if anchor in out else len(out), value)
-    return out
-
-
-def _puestos_layout(group: str) -> list[tuple[str, list[str]]]:
-    """The Puestos divisions and their metric order — taken from the profile tables so the grid reads
-    in the exact same order. Each division is a table pane; a column already placed in an earlier
-    division is not repeated (OPS lives in Estándar, its first table). Statcast/Coeficientes drop the
-    G/AB (pitching: G/IP) context prefix, already counted under Estándar. Two rankable batting metrics
-    are not shown in any table: Sencillos (1B) slots between H and 2B, Boletos intencionales (IBB)
-    after BB.
-    """
-    if group == "fielding":
-        # Fildeo no tiene Statcast ni Coeficientes: los batazos (AO/GO/FH/BIP…) son del bateador y del
-        # lanzador, no de la posición defensiva. Y "Receptor" es su propia división porque solo aplica
-        # a C — la página de líderes la muestra cuando la posición elegida es esa.
-        divisions = [
-            ("Estándar", [c.attr for c in columns.FIELDING_STANDARD]),
-            ("Avanzado", [c.attr for c in columns.FIELDING_ADVANCED]),
-            ("Receptor", [c.attr for c in columns.FIELDING_CATCHER]),
-        ]
-    elif group == "batting":
-        standard = [c.attr for c in columns.BATTING_STANDARD]
-        standard = _insert_after(standard, "h", "x1b")  # Sencillos entre H y 2B
-        standard = _insert_after(standard, "bb", "ibb")  # Boletos intencionales tras BB
-        divisions = [
-            ("Estándar", standard),
-            ("Avanzado", [c.attr for c in columns.BATTING_ADVANCED]),
-            ("Statcast", [c.attr for c in columns.BATTING_STATCAST[2:]]),
-            ("Coeficientes", [c.attr for c in columns.BATTING_RATIOS[2:]]),
-        ]
-    else:
-        divisions = [
-            ("Estándar", [c.attr for c in columns.PITCHING_STANDARD]),
-            ("Avanzado", [c.attr for c in columns.PITCHING_ADVANCED]),
-            ("Statcast", [c.attr for c in columns.PITCHING_STATCAST[2:]]),
-            ("Coeficientes", [c.attr for c in columns.PITCHING_RATIOS[2:]]),
-        ]
-    seen: set[str] = set()
-    layout: list[tuple[str, list[str]]] = []
-    for label, attrs in divisions:
-        ordered: list[str] = []
-        for attr in attrs:
-            if attr not in seen:
-                seen.add(attr)
-                ordered.append(attr)
-        layout.append((label, ordered))
-    return layout
-
-
-def _pretty_qualifier(formula: str) -> str:
-    """`PA>=502` -> `PA ≥ 502`; the coefficient columns get their short label. Blank stays blank."""
-    return (
-        formula.replace("BALLS_IN_PLAY", "BIP")
-        .replace("TOTAL_SWINGS", "swings")
-        .replace(">=", " ≥ ")
-        .replace("<=", " ≤ ")
-        .strip()
-    )
-
-
 _POSITION_ORDER: dict[str, int] = {p: i for i, p in enumerate(["P", "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF"])}
 # La fila de la rejilla es una métrica EN una posición. La posición es None fuera de fildeo, que es
 # donde el ranking no se parte por posición.
@@ -872,7 +793,7 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
             "name": f"{name} ({pos})" if pos else name,
             "abbrev": metric.abbrev,
             "direction": _DIRECTION_SIGN.get(metric.direction, ""),
-            "descriptive": metric.column in _DESCRIPTIVE_COLUMNS,  # SAB-01: perfil, no "mejor/peor"
+            "descriptive": metric.column in DESCRIPTIVE_COLUMNS,  # SAB-01: perfil, no "mejor/peor"
             "cells": [cell(key, Leader.Board.BEST_SEASON, s, by_key.get(key, {}).get(s)) for s in ordered_seasons],
             "career": cell(key, Leader.Board.BEST_CAREER, None, career_rank.get(key)),
         }
@@ -888,7 +809,7 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
     sections: list[dict[str, Any]] = []
     for stat_group in groups:
         cols_here = by_column[stat_group]
-        for label, cols in _puestos_layout(stat_group):
+        for label, cols in divisions_for(stat_group):
             # Varias posiciones en la misma métrica: una fila por posición, en el orden del scorebook.
             section_keys = [k for col in cols for k in sorted(cols_here.get(col, []), key=_position_order)]
             placed.update(section_keys)
@@ -907,7 +828,7 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
         coef_season: list[str] = []  # no batted-ball/coefficient boards in October
         coef_career: list[str] = []
     else:
-        defaults, _ = _qualifier_context()
+        defaults, _ = qualifier_lookups()
         season_q, career_q = defaults.get(group, ("", ""))
         # Fildeo se mide en juegos EN LA POSICIÓN, no en turnos ni entradas, así que su umbral es otro
         # y va en su propia línea cuando la rejilla trae filas de defensa.
@@ -917,12 +838,12 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
         # ambos umbrales del coeficiente (400/2000…), no solo el de temporada. Emparejados para no
         # descolocar season y career cuando distintas métricas usan BIP vs swings.
         pairs = sorted({(m.qualifier_season, m.qualifier_career) for m in metrics.values() if m.qualifier_season})
-        coef_season = list(dict.fromkeys(_pretty_qualifier(s) for s, _ in pairs))
-        coef_career = list(dict.fromkeys(_pretty_qualifier(c) for _, c in pairs if c))
+        coef_season = list(dict.fromkeys(pretty_qualifier(s) for s, _ in pairs))
+        coef_career = list(dict.fromkeys(pretty_qualifier(c) for _, c in pairs if c))
     qualifiers = {
-        "season": _pretty_qualifier(season_q),
-        "career": _pretty_qualifier(career_q),
-        "fielding": {"season": _pretty_qualifier(fielding_q[0]), "career": _pretty_qualifier(fielding_q[1])},
+        "season": pretty_qualifier(season_q),
+        "career": pretty_qualifier(career_q),
+        "fielding": {"season": pretty_qualifier(fielding_q[0]), "career": pretty_qualifier(fielding_q[1])},
         "coefficients": {"season": coef_season, "career": coef_career},
     }
     return {"seasons": ordered_seasons, "sections": sections, "qualifiers": qualifiers}

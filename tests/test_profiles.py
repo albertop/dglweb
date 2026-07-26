@@ -12,13 +12,13 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from dglweb.players.models import Player
+from dglweb.profiles.metric_layout import qualifier_lookups
 from dglweb.profiles.tabs import (
     BattingTab,
     PuestosTab,
     _catalog,
     _personal_bests,
     _puestos_context,
-    _qualifier_context,
     tabs_for,
 )
 from dglweb.profiles.templatetags.stats_extras import dec, innings, num, pct, rate
@@ -327,7 +327,7 @@ def test_personal_best_higher_is_better_is_the_season_maximum() -> None:
     Batting.objects.create(player=player, season=2019, stint=1, team="BOS", pa=600, hr=30)
 
     seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
-    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *_qualifier_context())
+    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *qualifier_lookups())
 
     assert (2018, "hr") in best
     assert (2019, "hr") not in best
@@ -347,7 +347,7 @@ def test_personal_best_lower_is_better_is_the_qualified_minimum() -> None:
     Batting.objects.create(player=player, season=2020, stint=1, team="BOS", pa=40, so=8)  # muestra chica
 
     seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
-    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *_qualifier_context())
+    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *qualifier_lookups())
 
     assert (2018, "so") in best  # el mínimo calificado es su mejor marca
     assert (2019, "so") not in best  # el máximo (peor) nunca
@@ -522,7 +522,7 @@ def test_exclude_zeros_keeps_a_zero_from_winning_the_personal_best() -> None:
     Pitching.objects.create(player=player, season=2019, stint=1, team="BOS", outs=600, hld=0)
 
     seasons = list(Pitching.objects.filter(player=player).season_totals().order_by("season"))
-    best = _personal_bests(Pitching, "pitching", seasons, _catalog("pitching"), *_qualifier_context())
+    best = _personal_bests(Pitching, "pitching", seasons, _catalog("pitching"), *qualifier_lookups())
 
     assert not [column for _, column in best if column == "hld"]  # ninguna temporada marcada
 
@@ -541,7 +541,7 @@ def test_exclude_zeros_still_marks_the_seasons_he_did_it() -> None:
     Pitching.objects.create(player=player, season=2019, stint=1, team="BOS", outs=200, hld=31)
 
     seasons = list(Pitching.objects.filter(player=player).season_totals().order_by("season"))
-    best = _personal_bests(Pitching, "pitching", seasons, _catalog("pitching"), *_qualifier_context())
+    best = _personal_bests(Pitching, "pitching", seasons, _catalog("pitching"), *qualifier_lookups())
 
     assert (2019, "hld") in best
     assert (2018, "hld") not in best
@@ -560,7 +560,7 @@ def test_cs_zero_is_a_personal_best_only_when_he_actually_ran() -> None:
     Batting.objects.create(player=player, season=2018, stint=1, team="BOS", pa=600, sb=5, cs=4)
 
     seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
-    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *_qualifier_context())
+    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *qualifier_lookups())
 
     assert (2017, "cs") in best  # robó 12 y nunca lo atraparon: eso sí es una marca
     assert (2016, "cs") not in best  # 0 de 0 intentos no es un logro
@@ -580,7 +580,7 @@ def test_personal_best_rate_ignores_small_sample_extreme() -> None:
     Batting.objects.create(player=player, season=2007, stint=1, team="BOS", pa=667, babip=0.330)
 
     seasons = list(Batting.objects.filter(player=player).season_totals().order_by("season"))
-    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *_qualifier_context())
+    best = _personal_bests(Batting, "batting", seasons, _catalog("batting"), *qualifier_lookups())
 
     assert (1997, "babip") not in best  # muestra chica sin calificar no cuenta
     assert (2006, "babip") in best  # el máximo entre temporadas calificadas

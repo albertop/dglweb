@@ -16,7 +16,12 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 from dglweb.profiles import columns
-from dglweb.profiles.tabs import _DESCRIPTIVE_COLUMNS, _pretty_qualifier, _puestos_layout, _qualifier_context
+from dglweb.profiles.metric_layout import (
+    DESCRIPTIVE_COLUMNS,
+    divisions_for,
+    pretty_qualifier,
+    qualifier_lookups,
+)
 from dglweb.stats import qualifier
 from dglweb.stats.leaders import _POST_QUALIFIER
 from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching
@@ -115,7 +120,7 @@ def _division_metrics(group: str, scope: str, pos: str | None = None) -> list[tu
         )
         for post in (False, True)
     }
-    layout = _puestos_layout(group)
+    layout = divisions_for(group)
     catcher = [cols for label, cols in layout if label == _CATCHER_DIVISION]
     extra = catcher[0] if catcher and pos == "C" else []
     divisions: list[tuple[str, list[Metric]]] = []
@@ -138,7 +143,7 @@ def _division_metrics(group: str, scope: str, pos: str | None = None) -> list[tu
 
 def _direction_label(metric: Metric) -> str:
     higher = metric.direction == Metric.Direction.HIGHER
-    if metric.column in _DESCRIPTIVE_COLUMNS:  # SAB-02: descriptive stats have no "better", only más alto/bajo
+    if metric.column in DESCRIPTIVE_COLUMNS:  # SAB-02: descriptive stats have no "better", only más alto/bajo
         return "Más alto" if higher else "Más bajo"
     return "Más es mejor" if higher else "Menos es mejor"
 
@@ -162,8 +167,8 @@ def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool, october: boo
     if october:
         season_floor, career_floor = _POST_QUALIFIER.get(metric.stat_group, ("", ""))
         formula = career_floor if scope == "carrera" else season_floor
-        return f"Mínimo para calificar: {_pretty_qualifier(formula)}." if formula else ""
-    defaults, _ = _qualifier_context()
+        return f"Mínimo para calificar: {pretty_qualifier(formula)}." if formula else ""
+    defaults, _ = qualifier_lookups()
     formula = (
         qualifier.resolve_career(metric, defaults)
         if scope == "carrera"
@@ -171,7 +176,7 @@ def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool, october: boo
     )
     if not formula:
         return ""
-    pretty = _pretty_qualifier(formula)
+    pretty = pretty_qualifier(formula)
     if is_rate:
         return f"Mínimo para calificar: {pretty}."
     return f"Mínimo para entrar en Últimos: {pretty}."
@@ -326,7 +331,7 @@ def _column_labels(metric: Metric, scope: str, october: bool) -> tuple[str, str]
     El orden sale de la dirección, no se asume, para que el rótulo siga al tablero si alguien la
     cambia en el Backoffice.
     """
-    if metric.column not in _DESCRIPTIVE_COLUMNS:
+    if metric.column not in DESCRIPTIVE_COLUMNS:
         return "Primeros", "Últimos"
     alto, bajo = "Los más altos", "Los más bajos"
     return (alto, bajo) if metric.direction == Metric.Direction.HIGHER else (bajo, alto)
