@@ -234,3 +234,8 @@ Existe en DGL. Sin diseño todavía.
 - [ ] Si el CSV se versiona en el repo o vive fuera. Vale la pena decidirlo temprano: son datos
       derivados de una base que no es pública, y el repo no es el lugar obvio.
 - [ ] Quién puede subir (hoy el Backoffice es solo staff; la restricción por rol es de Fase 5).
+
+## Cómo se agrega una tabla nueva
+
+El motor es genérico y no se toca: agregar un dataset es escribir un `Loader` con tres atributos y,
+si hace falta, dos hooks. El manual de operación está en **`docs/MOTOR_DATOS_APOYO.md`**.

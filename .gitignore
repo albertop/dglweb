@@ -21,3 +21,8 @@ media/
 Thumbs.db
 _dgl_extract.json
 _parity_*.json
+
+# Datos de apoyo (Fase 4e): los CSV que exportan los PowerShell de static_data/.
+# Los SCRIPTS sí se versionan —son código y explican de dónde sale cada dato—, pero los CSV no:
+# son un volcado de una base que no es pública, pesan, y se regeneran cuando haga falta.
+static_data/csv/

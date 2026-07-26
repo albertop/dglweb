@@ -1291,3 +1291,93 @@ class CareerParityIssue(models.Model):
 
     def __str__(self) -> str:
         return f"{self.player} ({self.group}): {self.detail}"
+
+
+class StaticDataset(models.Model):
+    """El registro de los datasets que se cargan a mano por CSV — Fase 4e.
+
+    El sitio se alimenta del proxy de MLB, pero salarios, transacciones y los tipos de batazo solo
+    existen en la base DGL (SQL Server). Son datos casi estáticos, de una o dos cargas al año, así
+    que van por una vía manual: un PowerShell en `static_data/` los exporta a CSV y el Backoffice
+    los sube. Esta tabla es la lista de qué se puede subir; agregar un dataset es crear una fila,
+    no tocar código. Diseño completo en `docs/DATOS_DE_APOYO.md`.
+    """
+
+    class Mode(models.TextChoices):
+        TRUNCATE = "truncate", "Truncar y reemplazar"
+        UPSERT = "upsert", "Upsert idempotente"
+
+    table = models.CharField(max_length=63, unique=True, verbose_name="Tabla destino")
+    powershell = models.CharField(max_length=120, verbose_name="PowerShell")
+    csv = models.CharField(max_length=120, verbose_name="Archivo CSV")
+    mode = models.CharField(max_length=8, choices=Mode.choices, default=Mode.TRUNCATE, verbose_name="Modo de carga")
+    # Obligatoria en los DOS modos, no solo en upsert: la pantalla de comparación la necesita para
+    # decir qué desapareció, y la validación de unicidad corre siempre. Un duplicado con truncate no
+    # se traga una fila con otra — inserta las dos y deja un registro fantasma.
+    natural_key = models.CharField(
+        max_length=200,
+        verbose_name="Clave natural",
+        help_text="Columnas que identifican una fila, separadas por coma. Casi siempre compuesta: "
+        "player_id,season,stint",
+    )
+    comment = models.TextField(blank=True, verbose_name="Comentario")
+    # El rastro de la última carga le da a la pantalla de comparación una línea base histórica: sin
+    # esto se ve que un CSV trae menos filas que la tabla, pero no que viene encogiéndose carga tras
+    # carga. En una operación semestral, además, importa quién la hizo.
+    last_update = models.DateTimeField(null=True, blank=True, verbose_name="Última carga")
+    last_rows = models.PositiveIntegerField(null=True, blank=True, verbose_name="Filas de la última carga")
+    last_user = models.CharField(max_length=150, blank=True, verbose_name="Cargado por")
+
+    class Meta:
+        db_table = "dgl_static_dataset"
+        ordering = ["table"]
+        verbose_name = "dataset de apoyo"
+        verbose_name_plural = "datasets de apoyo"
+
+    def __str__(self) -> str:
+        return self.table
+
+    @property
+    def key_columns(self) -> list[str]:
+        """La clave natural como lista — el import y la comparación agrupan por TODAS estas columnas."""
+        return [part.strip() for part in self.natural_key.split(",") if part.strip()]
+
+
+class BattedBallHits(models.Model):
+    """Hits por tipo de batazo, traídos de Retrosheet — el primer dataset de la Fase 4e.
+
+    Vive aparte de `mlb_batting`/`mlb_pitching` a propósito: esas tablas son del proxy, y truncarlas
+    para cargar un CSV destruiría el backfill. Acá el dato tiene su propio dueño y su procedencia
+    queda explícita; `derive` lo prefiere sobre el del proxy cuando existe.
+
+    Por qué existe: a la API de MLB le faltan hits por tipo en diez temporadas (1989-90, 1993-97,
+    2000-02), y en 2000-2001 entrega menos del 2%. Retrosheet los tiene con ~97% de cobertura, así
+    que el hueco es de nuestra fuente y no del registro histórico. La prueba de aceptación es exacta:
+    los cuatro tipos son una partición de los hits, así que deben sumar H.
+
+    El grano es (jugador, temporada, oficio) y no incluye el stint: Retrosheet se agrega por evento y
+    el reparto por equipo exigiría casar sus códigos con los nuestros. Los coeficientes se calculan
+    sobre totales de temporada, así que este grano les alcanza.
+    """
+
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name="batted_ball_hits", verbose_name="Jugador"
+    )
+    season = models.PositiveSmallIntegerField(verbose_name="Temporada")
+    stat_group = models.CharField(max_length=8, verbose_name="Oficio")  # batting | pitching
+    ground_hits = models.PositiveSmallIntegerField(default=0, verbose_name="Hits por roletazo")
+    fly_hits = models.PositiveSmallIntegerField(default=0, verbose_name="Hits por elevado")
+    line_hits = models.PositiveSmallIntegerField(default=0, verbose_name="Hits por línea")
+    pop_hits = models.PositiveSmallIntegerField(default=0, verbose_name="Hits por palomita")
+
+    class Meta:
+        db_table = "dgl_batted_ball_hits"
+        ordering = ["player", "season", "stat_group"]
+        verbose_name = "hits por tipo de batazo"
+        verbose_name_plural = "hits por tipo de batazo"
+        constraints = [
+            models.UniqueConstraint(fields=["player", "season", "stat_group"], name="unique_batted_ball_hits")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.player} {self.season} ({self.stat_group})"
