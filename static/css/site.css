@@ -642,12 +642,11 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* El «#» chico y en gris para que el número mande: lo que se compara entre cajas es el 1 o el 8. */
 .dgl-lider-disco.puesto::before { content: "#"; font-size: .62rem; color: var(--dgl-muted); }
 .dgl-lider-disco.puesto b { font-size: 1rem; font-weight: 800; }
-/* La cifra en relleno, que es el dato final de la fila, y del mismo cuerpo que el puesto: son las
-   dos cifras que se leen juntas, y una más chica que la otra se leía como menos importante.
-   El interletraje apretado es lo que deja caber el valor más largo que manda el API —«.328», cuatro
-   caracteres— dentro de los 40px del disco sin achicar la letra. */
+/* La cifra en relleno, que es el dato final de la fila. Un punto por debajo del puesto y con el
+   interletraje apretado: el puesto son una o dos cifras y el valor puede ser «.328», cuatro
+   caracteres que a igual cuerpo se salían del disco. */
 .dgl-lider-disco.valor {
-  background: var(--dgl-red-deep); color: #fff; font-size: 1rem; font-weight: 800;
+  background: var(--dgl-red-deep); color: #fff; font-size: .82rem; font-weight: 800;
   letter-spacing: -.05em;
 }
 
@@ -659,3 +658,41 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 .dgl-lider-mas:hover { text-decoration: underline; }
 .dgl-lider-mas:focus-visible { outline: 2px solid var(--dgl-blue); outline-offset: 2px; }
+
+/* --- Las dos capas que flotan, para que nada empuje lo que hay debajo --- */
+/* La caja es el ancla de su propia capa. */
+.dgl-lider-caja { position: relative; }
+/* Abierta se levanta por encima de sus vecinas y se funde con la capa: el borde de abajo se va y las
+   esquinas inferiores se enderezan, así las dos piezas se leen como una sola. */
+.dgl-lider-caja.is-abierta {
+  z-index: 21; border-color: var(--dgl-blue); border-bottom-color: transparent;
+  border-radius: .5rem .5rem 0 0;
+}
+/* Cuelga del borde inferior, un píxel afuera a cada lado para que los bordes se alineen con los de
+   la caja en vez de quedar metidos hacia adentro. */
+.dgl-lider-extra {
+  position: absolute; top: 100%; left: -1px; right: -1px; z-index: 20;
+  background: var(--dgl-bg); border: 1px solid var(--dgl-blue); border-top: 0;
+  border-radius: 0 0 .5rem .5rem; padding: 0 .7rem .4rem;
+  box-shadow: 0 14px 28px rgba(11, 31, 58, .22);
+}
+
+/* El marco guarda el alto de las tres filas que se ven cerradas. Cuando la lista se despliega pasa a
+   flotar dentro de él, y como el marco no cambia de alto, los artículos de abajo no se mueven. */
+.dgl-lideres-marco { position: relative; }
+.dgl-fila-de-mas { display: none; }
+.dgl-lideres-lista.is-flotante {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+  background: var(--dgl-card); border: 1px solid var(--dgl-line); border-radius: .5rem;
+  padding: .5rem; box-shadow: 0 16px 36px rgba(11, 31, 58, .24);
+  /* Diecinueve categorías no caben en ninguna pantalla: pasado ese alto, la capa se desplaza sola en
+     vez de crecer fuera de la ventana. */
+  max-height: 70vh; overflow-y: auto;
+}
+
+.dgl-lideres-mas {
+  display: block; width: 100%; margin-top: .5rem; padding: .3rem; background: none;
+  border: 0; border-top: 1px solid var(--dgl-line); font: inherit; font-size: .72rem;
+  color: var(--dgl-blue); cursor: pointer;
+}
+.dgl-lideres-mas:hover { text-decoration: underline; }

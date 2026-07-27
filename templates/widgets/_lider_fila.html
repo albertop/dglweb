@@ -1,0 +1,45 @@
+{% load static %}{% comment %}
+Una fila del widget de líderes: la sigla, el retrato, quién es, y los dos discos.
+
+Se comparte entre el que encabeza la categoría y los que aparecen al desplegar, para que las cuatro
+piezas midan y se alineen igual en los dos sitios. `primera` decide lo que solo lleva el de arriba:
+la sigla pintada y el enlace para abrir la caja.
+{% endcomment %}
+<div class="dgl-lider">
+  {% comment %}
+    En las filas de abajo el cuadrado se reserva pero no se pinta: la categoría ya la dijo la fila de
+    arriba, y repetirla dentro de su propia caja es ruido. El hueco mantiene los retratos alineados.
+  {% endcomment %}
+  <span class="dgl-lider-sigla" title="{{ metrica.name_es }}"
+        {% if not primera %}aria-hidden="true"{% endif %}>{{ metrica.abbrev }}</span>
+  {% comment %}
+    `alt` vacío y no el nombre: el nombre ya está al lado, y repetirlo hace que un lector de pantalla
+    lo diga dos veces. `onerror` quita la foto que falte —un debutante que MLB todavía no retrató— en
+    vez de dejar el icono de imagen rota.
+  {% endcomment %}
+  <img class="dgl-lider-foto" src="{{ puesto.foto }}" alt="" loading="lazy" onerror="this.remove()">
+  <div class="dgl-lider-quien">
+    <a class="nombre" href="{% url 'player_detail' puesto.player.slug %}">{{ puesto.player.full_name }}</a>
+    <span class="dgl-lider-donde">
+      {% if puesto.logo %}
+        <img class="dgl-lider-logo" src="{% static puesto.logo %}" width="18" height="18" alt="{{ puesto.team }}">
+      {% endif %}
+      {% comment %}
+        El enlace va pegado al equipo de quien encabeza, y no al pie de la caja: ahí se lee como una
+        acción sobre ESTA categoría y no sobre la lista entera.
+      {% endcomment %}
+      {% if primera and otros %}
+        <button type="button" class="dgl-lider-mas" aria-expanded="false">ver {{ otros }} más</button>
+      {% endif %}
+    </span>
+  </div>
+  {% comment %}
+    El puesto y la cifra en discos del tamaño del retrato: las cuatro piezas quedan a la misma altura
+    y, bajando la vista por las cajas, forman columnas.
+
+    El `title` lleva la frase completa porque «#1» solo no dice contra quién — y contra quién es
+    justamente lo que distingue este widget de la página de Líderes.
+  {% endcomment %}
+  <span class="dgl-lider-disco puesto" title="Puesto {{ puesto.rank }} de las mayores"><b>{{ puesto.rank }}</b></span>
+  <span class="dgl-lider-disco valor" title="{{ metrica.name_es }}">{{ puesto.valor }}</span>
+</div>

@@ -36,62 +36,45 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
       </div>
     </div>
 
+    {% comment %}
+      El marco reserva el alto de lo que se ve cerrado. Cuando la lista se despliega pasa a flotar
+      por encima —posición absoluta dentro de este marco— y el marco conserva su alto, así los
+      artículos de abajo no se mueven de sitio bajo el cursor de quien acaba de hacer clic.
+
+      Cuántas cajas caben en tres filas lo decide lideres.js midiendo la retícula: son dos columnas
+      en escritorio y una en móvil, y contar cajas a mano acertaría solo en uno de los dos casos.
+    {% endcomment %}
+    <div class="dgl-lideres-marco">
     {% for oficio, etiqueta, grupos in lideres.oficios %}
       <div class="dgl-lideres-lista{% if not forloop.first %} d-none{% endif %}" data-oficio="{{ oficio }}">
         {% for grupo in grupos %}
+          {% with otros=grupo.puestos|length|add:"-1" %}
           <article class="dgl-lider-caja">
-            {% for puesto in grupo.puestos %}
-              {% comment %}
-                Del segundo en adelante, oculto hasta que se abra la caja: cerrada enseña a quien
-                encabeza, que es la noticia; los demás son el detalle.
-              {% endcomment %}
-              <div class="dgl-lider{% if not forloop.first %} dgl-de-mas d-none{% endif %}">
-                <span class="dgl-lider-sigla" title="{{ grupo.metrica.name_es }}"
-                      aria-hidden="{% if not forloop.first %}true{% endif %}">{{ grupo.metrica.abbrev }}</span>
-                {% comment %}
-                  `alt` vacío y no el nombre: el nombre ya está al lado, y repetirlo hace que un
-                  lector de pantalla lo diga dos veces. `onerror` quita la foto que falte —un
-                  debutante que MLB todavía no retrató— en vez de dejar el icono de imagen rota.
-                {% endcomment %}
-                <img class="dgl-lider-foto" src="{{ puesto.foto }}" width="40" height="40"
-                     alt="" loading="lazy" onerror="this.remove()">
-                <div class="dgl-lider-quien">
-                  <a class="nombre" href="{% url 'player_detail' puesto.player.slug %}">{{ puesto.player.full_name }}</a>
-                  <span class="dgl-lider-donde">
-                    {% if puesto.logo %}
-                      <img class="dgl-lider-logo" src="{% static puesto.logo %}" width="18" height="18"
-                           alt="{{ puesto.team }}">
-                    {% endif %}
-                    {% comment %}
-                      El «ver más» va acá, pegado al equipo del que encabeza, y no al pie de la caja:
-                      así queda claro que abre ESTA categoría y no la lista entera. Solo en la
-                      primera fila —las demás ya son lo que el botón destapa— y solo si hay alguien
-                      más que enseñar.
-                    {% endcomment %}
-                    {% if forloop.first and grupo.puestos|length > 1 %}
-                      <button type="button" class="dgl-lider-mas" aria-expanded="false">
-                        ver {{ grupo.puestos|length|add:"-1" }} más
-                      </button>
-                    {% endif %}
-                  </span>
-                </div>
-                {% comment %}
-                  El puesto y la cifra en círculos del tamaño de la foto: los tres discos alineados
-                  dan una retícula que se recorre de un vistazo bajando por las cajas.
-
-                  El `title` lleva la frase completa porque «#1» solo no dice contra quién — y contra
-                  quién es justamente lo que distingue este widget de la página de Líderes.
-                {% endcomment %}
-                <span class="dgl-lider-disco puesto" title="Puesto {{ puesto.rank }} de las mayores">
-                  <b>{{ puesto.rank }}</b>
-                </span>
-                <span class="dgl-lider-disco valor" title="{{ grupo.metrica.name_es }}">{{ puesto.valor }}</span>
+            {% include "widgets/_lider_fila.html" with puesto=grupo.puestos.0 metrica=grupo.metrica primera=True otros=otros %}
+            {% comment %}
+              Los demás viven en una capa aparte que cuelga del borde inferior de la caja, no dentro
+              de ella: al abrirse tapa lo que hay debajo en vez de empujarlo, y así ninguna caja
+              cambia de sitio bajo el cursor de quien acaba de hacer clic.
+            {% endcomment %}
+            {% if otros %}
+              <div class="dgl-lider-extra d-none">
+                {% for puesto in grupo.puestos|slice:"1:" %}
+                  {% include "widgets/_lider_fila.html" with puesto=puesto metrica=grupo.metrica primera=False otros=0 %}
+                {% endfor %}
               </div>
-            {% endfor %}
+            {% endif %}
           </article>
+          {% endwith %}
         {% endfor %}
       </div>
     {% endfor %}
+    </div>
+
+    {% comment %}
+      Lo agrega y lo esconde lideres.js según cuántas filas queden fuera, que es un número que solo
+      se sabe después de que el navegador arme la retícula.
+    {% endcomment %}
+    <button type="button" class="dgl-lideres-mas d-none" aria-expanded="false">ver todas</button>
   </div>
 </section>
 {% endif %}
