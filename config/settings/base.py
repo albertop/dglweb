@@ -126,6 +126,15 @@ INGEST_LOG_RETENTION_DAYS = env.int("INGEST_LOG_RETENTION_DAYS", default=30)
 # alerta que salta por eso enseña a ignorarla. Con 30 hay un día entero de margen.
 PIPELINE_STALE_HOURS = env.int("PIPELINE_STALE_HOURS", default=30)
 
+# Quién puede ver el DETALLE del fallo en `/health/pipeline`. El semáforo —200 o 503— es público a
+# propósito, porque quien lo lee es un monitor de uptime externo y pedirle credenciales a un servicio
+# gratuito es cambiar una fuga menor por un monitor que nadie configura.
+#
+# Lo que no es para cualquiera es el detalle: nombres de comandos y el texto del error. Con este
+# token puesto, quien lo mande en `X-Monitor-Token` recibe la respuesta completa. Vacío = nadie
+# anónimo ve detalle, que es el default seguro. El personal del Backoffice lo ve por su sesión.
+PIPELINE_HEALTH_TOKEN = env.str("PIPELINE_HEALTH_TOKEN", default="")
+
 # Avisos por Telegram. Vacíos por defecto: sin token no se manda nada y no se protesta, que es
 # lo que corresponde en desarrollo. El token es un secreto y sale de `.env`, nunca de acá.
 TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")

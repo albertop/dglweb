@@ -1,3 +1,4 @@
+import secrets
 from datetime import timedelta
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -69,6 +70,17 @@ def pipeline_health(request: HttpRequest) -> JsonResponse:
 
     A diferencia de `/health`, este SÍ toca la base — es su trabajo. `/health` sigue siendo el
     liveness del contenedor y no debe depender de Postgres.
+
+    EL SEMÁFORO ES PÚBLICO; EL DETALLE NO
+    -------------------------------------
+    El código —200 o 503— lo ve cualquiera, y así tiene que ser: quien lo lee es un monitor de uptime
+    de afuera, y pedirle credenciales a un servicio gratuito es cambiar una fuga menor por un monitor
+    que nadie llega a configurar.
+
+    Lo que sí se recorta es el cuerpo. Un anónimo que consultara el endpoint cada minuto aprendía qué
+    comandos existen, cuál falló y con qué texto de error — reconocimiento operativo gratis, y con
+    el añadido de saber justo cuándo el sitio está sirviendo datos viejos. Ahora recibe el estado y
+    nada más (SEC-01 del review v7).
     """
     from django.conf import settings
 
@@ -77,35 +89,58 @@ def pipeline_health(request: HttpRequest) -> JsonResponse:
 
     ventana_horas = settings.PIPELINE_STALE_HOURS
     ventana = season_window.evaluate()
+    detallado = _puede_ver_el_detalle(request)
+
+    def respuesta(estado: str, codigo: int = 200, **detalle: object) -> JsonResponse:
+        """El estado siempre; lo demás solo para quien puede verlo."""
+        return JsonResponse({"status": estado, **(detalle if detallado else {})}, status=codigo)
 
     if not ventana.corre:
-        return JsonResponse({"status": "ok", "detalle": f"Fuera de temporada — {ventana.motivo}"})
+        return respuesta("ok", detalle=f"Fuera de temporada — {ventana.motivo}")
 
     desde = timezone.now() - timedelta(hours=ventana_horas)
     ultima = IngestRun.objects.filter(command="refresh_daily", started_at__gte=desde).order_by("-started_at").first()
 
     if ultima is None:
-        return JsonResponse(
-            {
-                "status": "error",
-                "detalle": f"Sin refresco en las últimas {ventana_horas} horas. El scheduler puede estar caído.",
-            },
-            status=503,
+        return respuesta(
+            "error",
+            503,
+            detalle=f"Sin refresco en las últimas {ventana_horas} horas. El scheduler puede estar caído.",
         )
     if ultima.status not in (IngestRun.Status.SUCCESS, IngestRun.Status.SKIPPED):
-        return JsonResponse(
-            {
-                "status": "error",
-                "detalle": f"El refresco de {ultima.scope} terminó en «{ultima.status}».",
-                "pasos": (ultima.detail or "").splitlines(),
-            },
-            status=503,
+        return respuesta(
+            "error",
+            503,
+            detalle=f"El refresco de {ultima.scope} terminó en «{ultima.status}».",
+            pasos=(ultima.detail or "").splitlines(),
         )
-    return JsonResponse(
-        {
-            "status": "ok",
-            "detalle": f"Refresco de {ultima.scope}: {ultima.status}.",
-            "filas": ultima.rows_affected,
-            "hace_horas": round((timezone.now() - ultima.started_at).total_seconds() / 3600, 1),
-        }
+    return respuesta(
+        "ok",
+        detalle=f"Refresco de {ultima.scope}: {ultima.status}.",
+        filas=ultima.rows_affected,
+        hace_horas=round((timezone.now() - ultima.started_at).total_seconds() / 3600, 1),
     )
+
+
+def _puede_ver_el_detalle(request: HttpRequest) -> bool:
+    """Quién recibe el cuerpo completo: el personal del Backoffice, y quien traiga el token.
+
+    El token va en `X-Monitor-Token` y no en la URL a propósito: una query string acaba en los logs
+    del servidor, en el historial del navegador y en el `Referer` de cualquier enlace que se pulse.
+
+    `compare_digest` y no `==` porque comparar cadenas secretas byte a byte con salida temprana deja
+    medir cuántos caracteres se acertaron. Acá el riesgo es remoto, pero el hábito no cuesta nada y
+    la excepción es lo que se termina copiando a un sitio donde sí importa.
+    """
+    from django.conf import settings
+
+    usuario = getattr(request, "user", None)
+    if usuario is not None and getattr(usuario, "is_staff", False):
+        return True
+
+    esperado = settings.PIPELINE_HEALTH_TOKEN
+    # Sin token configurado NADIE anónimo ve detalle: si no, un despiste de configuración lo dejaría
+    # todo abierto, que es justo el fallo que este cambio viene a cerrar.
+    if not esperado:
+        return False
+    return secrets.compare_digest(request.headers.get("X-Monitor-Token", ""), esperado)

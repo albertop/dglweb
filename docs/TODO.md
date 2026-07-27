@@ -259,14 +259,31 @@ contra el código antes de aceptarlos.
 
 ### P3 — higiene
 
-- [ ] **`/health/pipeline` entrega el detalle de los fallos a cualquiera** *(SEC-01, aceptado a medias)*.
+- [x] **`/health/pipeline` entrega el detalle de los fallos a cualquiera** *(SEC-01, aceptado a medias)*. **Corregido.**
   **No estoy de acuerdo con cerrar el endpoint.** Que responda 200/503 sin autenticación fue una
   decisión deliberada del dueño: el que tiene que leerlo es un monitor de uptime externo, y pedirle
   credenciales a un servicio gratuito es cambiar una fuga menor por un monitor que nadie configura.
-  **Sí estoy de acuerdo con la parte concreta**: en el fallo, la respuesta incluye `pasos` con el
+  **Sí estoy de acuerdo con la parte concreta**: en el fallo, la respuesta incluía `pasos` con el
   `detail` completo del `IngestRun` —nombres de comandos y el texto del error—, que es lo único con
-  valor de reconocimiento. Eso se recorta para el visitante anónimo y se conserva tras un
-  encabezado secreto o en el Backoffice. El semáforo sigue público.
+  valor de reconocimiento.
+
+  **Arreglado.** El anónimo recibe `{"status": "ok"}` o `{"status": "error"}` y nada más; el código
+  HTTP no cambia, así que el monitor externo sigue enterándose igual. El cuerpo completo lo ven dos:
+  el personal del Backoffice por su sesión —ya ve el log de ingesta entero, no hay nada que
+  ocultarle— y quien mande `X-Monitor-Token` con el valor de `PIPELINE_HEALTH_TOKEN`.
+
+  Tres decisiones dentro del arreglo:
+  * **El token en un encabezado y no en la URL.** Una query string acaba en los logs del servidor,
+    en el historial del navegador y en el `Referer` de cualquier enlace que se pulse.
+  * **`compare_digest` y no `==`.** Acá el riesgo de medir tiempos es remoto, pero la excepción es lo
+    que se termina copiando a un sitio donde sí importa.
+  * **Sin token configurado, nadie anónimo ve detalle.** El default inverso —«sin token, sin
+    restricción»— es el fallo clásico: el sitio sale a producción sin la variable y el recorte no
+    protege nada.
+
+  Verificado en vivo: `/health/pipeline` anónimo devuelve `{"status": "ok"}`. Seis tests nuevos.
+  **Falta una línea de operación**: poner `PIPELINE_HEALTH_TOKEN` en el `.env` del VPS y dárselo al
+  monitor de uptime cuando se configure — va junto al pendiente de arriba, no antes.
 
 - [ ] **Siglas españolas en los `verbose_name` de los modelos de stats** *(DEV-03 + SAB-02)*.
   Verificado: quedan `J`, `AP`, `C`, `BR`, `AR`, `P`, `GP`, `TS`, `ES`. `docs/AUTORIDAD.md` manda
