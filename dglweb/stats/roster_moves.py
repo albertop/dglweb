@@ -223,10 +223,17 @@ def traer(client: MlbProxyClient, hasta: date, dias: int = DIAS) -> list[Movimie
     return movimientos
 
 
-# Cuántos movimientos entran en el cintillo y cuánto hacia atrás mira. Una semana porque en invierno
-# hay días enteros sin nada: con una ventana de dos días, la cintilla desaparecería la mitad del año.
+# Cuántos movimientos entran en el cintillo y cuánto hacia atrás mira.
+#
+# TRES DÍAS, no una semana. Con la semana entraban noticias de seis días atrás —el dueño las vio— y
+# un cintillo de movimientos que enseña lo de la semana pasada deja de ser noticia y pasa a ser
+# archivo. Con unos cuatro o cinco movimientos nuestros por día, tres días dan una docena larga de
+# entradas: suficiente para que la tira no dé vueltas cortas y todo lo que pasa es reciente.
+#
+# El tope de 25 casi nunca muerde con esa ventana; está para el día raro de muchos movimientos
+# —cierre de cambios, primeros de temporada— en que la tira se haría interminable.
 EN_CINTILLO = 25
-VENTANA_CINTILLO = 7
+VENTANA_CINTILLO = 3
 
 
 def portada() -> list[RosterMove]:

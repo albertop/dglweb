@@ -13,6 +13,12 @@ Cada entrada enlaza a la ficha del jugador CUANDO la hay. No siempre: el univers
 gente de `dom_players` que todavía no llegó a las mayores y por lo tanto no tiene página. Ahí sale el
 nombre sin enlace, que es mejor que dejar la noticia fuera.
 {% endcomment %}
+{% comment %}
+  Dentro de un `.container` para que quede al ancho del bloque central, alineado con el menú de
+  arriba y con el contenido de abajo. A todo el ancho de la pantalla se leía como una franja aparte,
+  pegada al borde, en vez de como parte de la página.
+{% endcomment %}
+<div class="container">
 <div class="dgl-cintillo" role="region" aria-label="Movimientos de roster">
   <div class="dgl-cintillo-titulo" aria-hidden="true">Movimientos</div>
   <div class="dgl-cintillo-marco">
@@ -33,4 +39,5 @@ nombre sin enlace, que es mejor que dejar la noticia fuera.
       {% endfor %}
     </div>
   </div>
+</div>
 </div>

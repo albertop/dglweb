@@ -1101,17 +1101,30 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 }
 
 /* ---------- El cintillo de movimientos de roster ---------- */
-/* Se desliza SIN JavaScript: una animación sobre la tira, que lleva la lista dos veces para que al
-   terminar el ciclo empalme sin dejar ver el vacío del final.
+/* Se desliza sin depender de JavaScript: una animación sobre la tira, que lleva la lista dos veces
+   para que al terminar el ciclo empalme sin dejar ver el vacío del final.
 
-   La duración va en segundos por entrada y no fija: con 25 movimientos y 40s la tira volaría, y con
-   3 se arrastraría. Se calcula en la plantilla… no: se deja larga y constante a propósito, porque
-   una velocidad que cambia según cuántos movimientos haya se siente como un fallo. 90s para la
-   vuelta completa da un paso de lectura cómodo con la lista llena, y con la lista corta simplemente
-   pasa lo mismo más veces. */
+   LA DURACIÓN DE ACÁ ES SOLO EL RESPALDO. Lo que tiene que quedar constante es la VELOCIDAD, y la
+   tira mide lo que midan los movimientos que haya: con 25 entradas son unos 12.000px, y una duración
+   fija de 90s daba 134px/s — hay que perseguir la frase con la vista, y así se publicó hasta que el
+   dueño lo dijo. Pero en invierno, con tres movimientos, esos mismos 90s serían 27px/s y parecería
+   colgada. Por eso  mide la tira y calcula duración = ancho / 55px por segundo. Si el
+   script no carga, manda este valor: se mueve, se lee, y punto. */
+/* Va dentro de un `.container`, así que mide lo que mide el bloque central y queda alineado con el
+   menú de arriba y con el contenido de abajo. A todo el ancho de la pantalla se leía como una franja
+   pegada al borde y no como parte de la página — lo pidió el dueño y tiene razón: es el único
+   elemento del sitio que no respetaba esa columna.
+
+   LAS CUATRO ESQUINAS REDONDEADAS, no solo las de abajo. Con `0 0 .4rem .4rem` el recorte del
+   contenedor le llegaba al rótulo rojo y le redondeaba UNA esquina dejándole tres rectas — se veía
+   como un error de dibujo, y lo era. Redondeando la tira entera, las dos esquinas visibles del
+   rótulo quedan iguales.
+
+   Y separada de la barra por arriba y por abajo: pegada al navy de la cabecera parecía una segunda
+   barra de navegación en vez de una cintilla. */
 .dgl-cintillo {
   display: flex; align-items: stretch; background: var(--dgl-navy-2);
-  border-top: 1px solid rgba(255, 255, 255, .08); overflow: hidden;
+  border-radius: .4rem; overflow: hidden; margin: .1rem 0 .5rem;
 }
 .dgl-cintillo-titulo {
   flex: 0 0 auto; background: var(--dgl-red); color: #fff;
@@ -1119,7 +1132,7 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   display: flex; align-items: center; padding: .35rem .8rem;
 }
 .dgl-cintillo-marco { flex: 1 1 auto; overflow: hidden; }
-.dgl-cintillo-tira { display: flex; width: max-content; animation: dgl-cintillo 90s linear infinite; }
+.dgl-cintillo-tira { display: flex; width: max-content; animation: dgl-cintillo 220s linear infinite; }
 /* Al pasar el ratón se detiene: si no, leer una entrada completa es perseguirla. */
 .dgl-cintillo:hover .dgl-cintillo-tira { animation-play-state: paused; }
 .dgl-cintillo-lista { display: flex; list-style: none; margin: 0; padding: 0; }
