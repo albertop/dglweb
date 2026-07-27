@@ -409,7 +409,42 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
 
 ## Por decidir (traído del CONCEPT)
 
-- [ ] Proveedor de ad server hosted (GAM vs AdButler/Broadstreet/AdSpeed).
+- [ ] **Proveedor de ad server** (GAM vs AdButler/Broadstreet/AdSpeed vs construirlo acá).
+
+  **El criterio cambió el 2026-07-27.** El dueño puso el dato que faltaba: esto es para República
+  Dominicana, donde lo que paga AdSense es ínfimo. Así que **el relleno programático no es el
+  negocio**: el negocio es la venta directa a anunciantes dominicanos, y el dueño necesita colgar sus
+  propios anuncios. Eso reordena lo que hay que buscar:
+
+  1. Cargar la creatividad propia con fechas de inicio y fin.
+  2. Rotar varios anunciantes en el mismo hueco.
+  3. **El reporte para el anunciante** — impresiones y clics. Es lo que RENUEVA el contrato: quien
+     pagó un mes va a preguntar cuánta gente lo vio, y «no sé» no vende el segundo mes.
+
+  Lo que NO hace falta: subastas, segmentación fina, integraciones programáticas. Las tarifas de este
+  mercado son planas por mes, no por millar.
+
+  **Recomendación: Google Ad Manager**, ya no por su demanda —que se ignora— sino porque como
+  servidor de venta directa hace las tres cosas y **cuesta cero**, con roles para delegar el día a
+  día (requisito del dueño). El pero: es la herramienta más compleja de las cuatro y se usaría una
+  fracción pequeña. Plan B si la interfaz espanta: **AdSpeed** (barato y simple). **Broadstreet**
+  encaja como un guante con el modelo —prensa local vendiendo a comercios locales— pero es el más
+  caro.
+
+  **Tercera opción, que con este criterio deja de ser exótica: construirlo en el Backoffice.** Las
+  necesidades son inusualmente simples y la infraestructura ya está: CMS con roles, un Backoffice
+  donde las herramientas se agregan sin tocar el menú, Postgres y un scheduler. Sería anunciante,
+  imagen, enlace, hueco, fechas, peso, y contadores de impresiones y clics. Costo cero y sin
+  dependencia externa. La letra chica: contar impresiones de verdad tiene trampas (bots que inflan,
+  cachés que esconden) y es código propio que mantener, además de trabajo antes del lanzamiento.
+
+  **Siguiente paso sugerido:** abrir una cuenta de GAM y montar un banner de prueba. Es gratis y en
+  una tarde se sabe si la interfaz sirve o espanta — y esa prueba decide entre las tres mejor que
+  cualquier comparativa.
+
+  ⚠️ Los precios de estas plataformas son conocidos hasta mayo de 2026 y cambian; verificar antes de
+  contratar. Del lado del código no urge: los huecos ya están en las plantillas, con alto fijo y
+  agnósticos de proveedor. Elegir es pegar una etiqueta en un sitio.
 - [ ] Listado exacto de métricas sabermétricas por página de jugador.
 - [ ] Redactar legal: privacidad + consentimiento de cookies + ToS.
 - [ ] Dónde/ cuándo se activa el muro de registro (post-launch).
