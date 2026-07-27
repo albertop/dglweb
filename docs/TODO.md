@@ -637,3 +637,26 @@ el derecho y no en el izquierdo, Polanco en segunda.
   la fuente de verdad es `dbo.dglMaster`: si solo se corrige acá, la próxima carga lo revierte.
   Generado `static_data/csv/posiciones_update.sql` con las 96 sentencias, cada una comentada con el
   nombre, el cambio, las entradas y —en los lanzadores— las aperturas sobre juegos.
+
+## La ficha del jugador debe llevar su foto
+
+- [ ] **Poner el retrato en el biobox del perfil**, a la izquierda del nombre.
+  **Los activos ya están**: `static/img/mugshots/360/<player_id>.png`, 637 retratos con fondo
+  transparente, bajados en su día justamente para esto (el tamaño 360 se eligió para mostrarse a
+  ~180px en el perfil, el doble de lo que se ve, que es lo que evita que se vean borrosos en un
+  monitor denso). Los de 120 son para los widgets.
+
+  Lo que hace falta, todo con patrón ya establecido en el sitio:
+  * La ruta se arma en Python y **no con `{% static %}`**: los retratos no entran a la imagen de
+    Docker ni los recoge `collectstatic`, así que nunca están en el manifiesto y esa etiqueta
+    fallaría al buscarlos. Ver `daily.Destacado.foto` y `mlb_leaders.portada`.
+  * `onerror="this.remove()"` para el que falte — un debutante que MLB todavía no retrató, o
+    cualquiera de los ~350 históricos que no están en la descarga (solo se bajaron los que vieron
+    acción en las últimas dos temporadas).
+  * `alt` vacío: el nombre está al lado en un `<h1>` y repetirlo hace que un lector de pantalla lo
+    diga dos veces.
+  * **Reservar el espacio aunque falte la foto**, para que el nombre no salte cuando cargue.
+
+  **Ojo con el comentario del template**: `templates/profiles/player_detail.html` dice todavía «aún
+  no tenemos las fotos, así que por ahora no se reserva el espacio». Quedó viejo el día que se bajaron
+  los retratos y hay que corregirlo al implementar — un comentario que miente guía decisiones.
