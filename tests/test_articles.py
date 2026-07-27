@@ -683,3 +683,100 @@ def test_the_source_arrives_pre_filled_for_our_own_data() -> None:
     from dglweb.articles.blocks import GraficoBlock
 
     assert GraficoBlock().child_blocks["fuente"].get_default() == "Cálculo propio sobre datos de dglweb"
+
+
+# ── El buscador de artículos ────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_the_search_finds_by_title_and_by_body(indice: ArticleIndexPage) -> None:
+    """Título, entradilla y cuerpo: los tres están indexados, y el cuerpo es el que más importa —
+    quien busca «wOBA» quiere el artículo que la explica, no solo el que la lleva en el titular."""
+    _articulo(indice, "Un titular cualquiera", cuerpo=[{"type": "parrafo", "value": "<p>Habla de wOBA.</p>"}])
+    _articulo(indice, "Sobre defensa", cuerpo=[{"type": "parrafo", "value": "<p>Otra cosa.</p>"}])
+
+    contenido = Client().get(f"{indice.url}?q=wOBA").content.decode()
+
+    assert "Un titular cualquiera" in contenido
+    assert "Sobre defensa" not in contenido
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("escrito", ["grafico", "gráfico", "GRAFICO", "Gráficos"])
+def test_the_search_does_not_demand_accents(indice: ArticleIndexPage, escrito: str) -> None:
+    """Medido antes de arreglarlo: «grafico» devolvía CERO y «gráfico» devolvía dos.
+
+    En un sitio en español eso es inaceptable — casi nadie teclea tildes en un buscador, y menos
+    desde un teléfono. Lo resuelve una configuración de Postgres propia (`espanol_sin_tildes`), que
+    de paso trae el stemmer: por eso el plural también encuentra.
+    """
+    _articulo(indice, "Con un gráfico dentro")
+
+    assert "Con un gráfico dentro" in Client().get(f"{indice.url}?q={escrito}").content.decode()
+
+
+@pytest.mark.django_db
+def test_a_search_with_no_results_says_so_instead_of_looking_broken(indice: ArticleIndexPage) -> None:
+    """Una página en blanco tras buscar se lee como un error del sitio, no como «no hay nada»."""
+    _articulo(indice, "Cualquier cosa")
+
+    contenido = Client().get(f"{indice.url}?q=zzzznoexiste").content.decode()
+
+    assert "Sin resultados" in contenido
+
+
+@pytest.mark.django_db
+def test_searching_swaps_the_index_for_a_result_list(indice: ArticleIndexPage) -> None:
+    """Con consulta no hay destacado ni panel de recientes: un «destacado» entre resultados no
+    significa nada, porque acá ordena la relevancia y no la fecha."""
+    for numero in range(8):
+        _articulo(indice, f"Articulo {numero:02d} de prueba")
+
+    con_busqueda = Client().get(f"{indice.url}?q=prueba").content.decode()
+    sin_busqueda = Client().get(indice.url).content.decode()
+
+    assert "dgl-art-destacado" not in con_busqueda
+    assert "Lo más reciente" not in con_busqueda
+    # Y sin buscar, el índice sigue siendo el índice.
+    assert "dgl-art-destacado" in sin_busqueda
+    assert "Lo más reciente" in sin_busqueda
+
+
+@pytest.mark.django_db
+def test_the_category_tabs_survive_a_search(indice: ArticleIndexPage) -> None:
+    """La cabecera de la página es la misma se busque o no.
+
+    Estaban después del retorno temprano de la búsqueda, así que buscar dejaba la fila de categorías
+    con un solo «Todos» — la navegación desaparecía justo cuando hacía falta para acotar.
+    """
+    _articulo(indice, "Cualquier cosa")
+
+    contenido = Client().get(f"{indice.url}?q=cualquier").content.decode()
+
+    assert "Sabermetría" in contenido
+    assert "Cosas raras" in contenido
+
+
+@pytest.mark.django_db
+def test_searching_inside_a_category_keeps_the_filter(indice: ArticleIndexPage) -> None:
+    """Buscar dentro de «Defensa» sin perder el filtro es lo que uno espera. El formulario lo lleva
+    en un campo oculto: sin él, enviar la búsqueda borraría la categoría elegida."""
+    defensa = Categoria.objects.get(slug="defensa")
+    _articulo(indice, "De defensa y de prueba", categoria=defensa)
+    _articulo(indice, "De sabermetria y de prueba", categoria=Categoria.objects.get(slug="sabermetria"))
+
+    contenido = Client().get(f"{indice.url}?q=prueba&categoria=defensa").content.decode()
+
+    assert "De defensa y de prueba" in contenido
+    assert "De sabermetria y de prueba" not in contenido
+    assert 'name="categoria" value="defensa"' in contenido
+
+
+@pytest.mark.django_db
+def test_a_draft_never_shows_up_in_a_search(indice: ArticleIndexPage) -> None:
+    """El buscador es otra puerta al contenido, y tiene que respetar la misma regla que el índice."""
+    borrador = _articulo(indice, "Borrador buscable")
+    borrador.live = False
+    borrador.save()
+
+    assert "Borrador buscable" not in Client().get(f"{indice.url}?q=buscable").content.decode()

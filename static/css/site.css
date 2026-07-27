@@ -1160,3 +1160,10 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   .dgl-cintillo-tira { animation: none; }
   .dgl-cintillo-marco { overflow-x: auto; }
 }
+
+/* La caja de búsqueda del índice de artículos. En su propia fila y no dentro de las pestañas: son
+   dos maneras distintas de llegar —filtrar por sección y buscar por palabra— y apretarlas en la
+   misma línea deja el campo minúsculo justo en el móvil, que es donde más se usa. */
+.dgl-buscar-articulos { display: flex; gap: .5rem; max-width: 32rem; }
+.dgl-buscar-articulos input { flex: 1 1 auto; }
+.dgl-buscar-articulos button { flex: 0 0 auto; }

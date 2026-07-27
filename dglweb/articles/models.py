@@ -61,6 +61,10 @@ INICIALES = DESTACADO + RETICULA + LATERAL
 # Lo que descubre cada clic en «Ver más artículos»: dos filas de tres.
 POR_TANDA = 6
 
+# Cuántos resultados devuelve una búsqueda. Un tope y no paginación: con este volumen, quien no
+# encuentra lo suyo en treinta resultados no lo va a encontrar en la página dos — afina la consulta.
+RESULTADOS = 30
+
 # Cuántas tandas se dibujan escondidas. Tres son 18 artículos además de los seis visibles, de sobra
 # para un sitio que arranca; pasado eso hace falta paginación de verdad y está anotada en el TODO.
 # El tope existe para que el día que haya trescientos artículos la página no pese trescientos.
@@ -166,7 +170,31 @@ class ArticleIndexPage(Page):
         if elegida:
             articulos = articulos.filter(categoria__slug=elegida)
 
-        # Un solo corte y luego se reparte en memoria: son 45 filas como mucho y hacer una consulta
+        # Las pestañas y la elegida se ponen ANTES de cualquier retorno: la cabecera de la página es
+        # la misma se busque o no. Estaban después, y buscar dejaba la fila de categorías vacía —
+        # solo «Todos»— porque el retorno temprano de la búsqueda se las saltaba.
+        contexto["categorias"] = Categoria.objects.all()
+        contexto["elegida"] = elegida
+
+        # LA BÚSQUEDA. Cuando hay consulta, la página deja de ser un índice y pasa a ser una lista de
+        # resultados: sin destacado, sin panel y sin tandas escondidas. Un «destacado» entre
+        # resultados de búsqueda no significa nada —lo que ordena acá es la relevancia, no la fecha—
+        # y el panel de recientes competiría con lo que la persona vino a buscar.
+        consulta = request.GET.get("q", "").strip()
+        contexto["consulta"] = consulta
+        if consulta:
+            # La búsqueda de Wagtail: indexa título, entradilla y cuerpo, y ordena por relevancia. La
+            # configuración de Postgres que usa entiende español y no exige tildes — ver la migración
+            # `0005_busqueda_en_espanol`.
+            # El `ignore` es de tipos, no de lógica: `search()` lo añade Wagtail al queryset de
+            # `Page` y django-stubs no lo ve porque Wagtail no publica tipos.
+            resultados = list(articulos.search(consulta)[:RESULTADOS])  # type: ignore[attr-defined]
+            contexto["resultados"] = resultados
+            contexto["cuantos"] = len(resultados)
+            contexto["destacado"] = None
+            return contexto
+
+        # Un solo corte y luego se reparte en memoria: son 24 filas como mucho y hacer una consulta
         # por hueco sería pagar cinco viajes a la base para trocear una lista que ya está acá.
         tanda = list(articulos[: INICIALES + POR_TANDA * TANDAS])
         contexto["destacado"] = tanda[0] if tanda else None
@@ -175,8 +203,6 @@ class ArticleIndexPage(Page):
         contexto["mas"] = tanda[INICIALES:]
         contexto["por_tanda"] = POR_TANDA
 
-        contexto["categorias"] = Categoria.objects.all()
-        contexto["elegida"] = elegida
         # Para el panel de la derecha. Sale de lo publicado sin filtrar: si filtrara con la retícula
         # repetiría exactamente lo mismo dos veces en la misma pantalla.
         contexto["recientes"] = self.articulos()[:10]
@@ -234,6 +260,11 @@ class ArticlePage(Page):
         *Page.search_fields,
         index.SearchField("entradilla", boost=2),
         index.SearchField("cuerpo"),
+        # Declarada para poder FILTRAR por categoría dentro de una búsqueda. No es indexación de
+        # texto —nadie busca «defensa» esperando la categoría— sino la condición del `WHERE`: sin
+        # esto, buscar dentro de una categoría revienta con «Cannot filter search results with field
+        # slug», y el buscador y las pestañas dejarían de poder combinarse.
+        index.RelatedFields("categoria", [index.FilterField("slug")]),
     ]
     parent_page_types = ["articles.ArticleIndexPage"]
     subpage_types: list[str] = []  # un artículo no tiene hijos

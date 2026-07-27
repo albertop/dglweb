@@ -64,12 +64,28 @@ muestra escritas a mano.
 - [x] **Workflow de aprobación y roles/grupos.** Hecho el 2026-07-27: tres roles montados por
       migración (Redactores / Editores / Administradores), permisos colgados de la sección Artículos
       y no de la raíz, y 9 tests que cubren el flujo entero. Ver `dglweb/core/roles.py`.
-- [ ] **Buscador de artículos.** Pedido del dueño el 2026-07-27. Hoy solo se navega por categoría y
+- [x] **Buscador de artículos.** **Hecho el 2026-07-27.** Va en `/articulos/?q=…`, con formulario GET
+      —o sea que la búsqueda se puede compartir y marcar, y funciona sin JavaScript— y se combina con
+      el filtro de categoría. Con consulta, la página deja de ser un índice y pasa a ser una lista de
+      resultados: sin destacado ni panel, porque ahí ordena la relevancia y no la fecha.
+
+      **Lo que costó de verdad no fue buscar, fue el español.** Medido: «grafico» sin tilde devolvía
+      CERO resultados y «gráfico» devolvía dos. Se resolvió con una configuración de texto de
+      Postgres propia (`espanol_sin_tildes`, migración `articles/0005`) que copia la de español y le
+      antepone `unaccent` — la misma extensión que ya hacía buscable el maestro de jugadores. De
+      paso vino el stemmer: «lanzadores» encuentra «lanzador».
+
+      **Al tocar `search_fields` hay que correr `manage.py update_index`**: lo nuevo se indexa solo
+      por señales, pero lo ya guardado no se entera. Sin eso, el buscador miente en silencio.
+
+      ~~Pedido del dueño el 2026-07-27. Hoy solo se navega por categoría y
       por la lista; con cincuenta artículos publicados eso deja de alcanzar, y los hashtags no sirven
       de índice si no hay dónde escribirlos. Wagtail ya indexa `title`, `entradilla` y `cuerpo` —
       están declarados en `search_fields` de `ArticlePage`— así que la parte de datos está hecha:
       falta la caja, la página de resultados y decidir si comparte sitio con el buscador de
-      jugadores del header o va aparte, dentro de `/articulos/`.
+      jugadores del header o va aparte, dentro de `/articulos/`.~~ (resuelto: aparte, dentro del
+      índice; el del header sigue siendo solo de jugadores para que buscar «Soto» no mezcle una ficha
+      con un artículo sin decir cuál es cuál.)
 - [ ] **Paginación del índice.** Hoy se dibujan hasta 24 artículos y el botón los descubre de seis en
       seis sin ir al servidor (ver `TANDAS` en el modelo). Con cientos publicados eso es una página
       de cientos: ahí hace falta paginación de verdad. Es además la salida buena para el botón que

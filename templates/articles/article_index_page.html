@@ -26,6 +26,27 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
     pestañas, así que `?categoria=defensa` dice exactamente lo que pasa sin obligar a inventar una
     ruta por cada categoría que el editor cree mañana. En móvil la fila se desliza.
   {% endcomment %}
+  {% comment %}
+    El buscador y las pestañas comparten fila: son las dos maneras de llegar a un artículo y se leen
+    como una sola barra de navegación. Es un formulario GET de verdad, así que la búsqueda queda en la
+    URL —se puede compartir, marcar y volver atrás— y funciona sin JavaScript.
+
+    NO es el buscador del encabezado: ese busca JUGADORES, y mezclarlos haría que escribir «Soto»
+    devolviera una ficha y un artículo en la misma lista sin decir cuál es cuál.
+  {% endcomment %}
+  <form class="dgl-buscar-articulos mb-4" method="get" action="{{ page.url }}" role="search"
+        aria-label="Buscar artículos">
+    <label class="visually-hidden" for="buscar-articulos">Buscar artículos</label>
+    <input class="form-control form-control-sm" id="buscar-articulos" type="search" name="q"
+           value="{{ consulta }}" placeholder="🔎 Buscar en los artículos…">
+    {% comment %}
+      La categoría elegida viaja con la búsqueda: buscar dentro de «Defensa» sin perder el filtro es
+      lo que uno espera, y sin este campo el formulario lo borraría al enviarse.
+    {% endcomment %}
+    {% if elegida %}<input type="hidden" name="categoria" value="{{ elegida }}">{% endif %}
+    <button class="btn btn-sm btn-outline-primary" type="submit">Buscar</button>
+  </form>
+
   <nav class="dgl-cats mb-4" aria-label="Categorías">
     {% comment %}
       `nav nav-pills` de Bootstrap, exactamente el mismo control que elige el grupo de estadísticas en
@@ -52,6 +73,27 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
     </ul>
   </nav>
 
+  {% comment %}
+    Con consulta, la página es una lista de RESULTADOS y no el índice: sin destacado, sin panel de
+    recientes y sin tandas escondidas. Un «destacado» entre resultados no significa nada —acá ordena
+    la relevancia, no la fecha— y el panel competiría con lo que la persona vino a buscar.
+  {% endcomment %}
+  {% if consulta %}
+    <p class="dgl-meta mb-3">
+      {% if cuantos %}
+        {{ cuantos }} resultado{{ cuantos|pluralize }} para «{{ consulta }}»
+      {% else %}
+        Sin resultados para «{{ consulta }}». Probá con menos palabras o revisá cómo está escrito.
+      {% endif %}
+      · <a href="{{ page.url }}">volver al índice</a>
+    </p>
+    <div class="row g-3">
+      {% for articulo in resultados %}
+        <div class="col-md-4">{% include "articles/_tarjeta.html" with articulo=articulo %}</div>
+      {% endfor %}
+    </div>
+
+  {% else %}
   {% comment %}
     Un índice vacío tiene que decir que está vacío. Sin esto, la página sale con el título, las
     pestañas y un hueco blanco debajo — que es indistinguible de una página rota.
@@ -144,6 +186,7 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
     <noscript><style>#dgl-ver-mas { display: none; }</style></noscript>
   {% endif %}
   {% endif %}
+  {% endif %}{# el de la búsqueda #}
 
   <div class="dgl-ad dgl-ad-leader mt-4">Espacio publicitario · 728×90</div>
 </main>

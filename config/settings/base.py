@@ -168,7 +168,13 @@ TELEGRAM_CHAT_ID = env.str("TELEGRAM_CHAT_ID", default="")
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"
 WAGTAILSEARCH_BACKENDS = {
-    "default": {"BACKEND": "wagtail.search.backends.database"},
+    "default": {
+        "BACKEND": "wagtail.search.backends.database",
+        # Una configuración propia de Postgres: español CON stemmer y SIN exigir tildes. La crea
+        # `articles/0005_busqueda_en_espanol`, y el porqué está ahí — medido, «grafico» sin tilde
+        # devolvía cero resultados y «gráfico» devolvía dos.
+        "SEARCH_CONFIG": "espanol_sin_tildes",
+    },
 }
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default="http://localhost:8000")
 WAGTAILDOCS_EXTENSIONS = ["csv", "docx", "pdf", "xlsx"]
