@@ -40,12 +40,35 @@ def test_static_url_is_absolute():
 
 
 @pytest.mark.django_db
-def test_home_renders_landing_modules_when_requested():
-    client = Client()
+def test_home_shows_the_articles_section_once_there_are_articles():
+    """Hasta la Fase 5 la sección estaba siempre, porque las tarjetas eran de muestra.
 
-    response = client.get("/")
+    Ahora sale del contenido publicado, así que el test tiene que publicar algo. La otra mitad —qué
+    pasa cuando no hay nada— está en el test siguiente.
+    """
+    from tests.test_articles import _articulo, _indice_de_articulos
+
+    indice = _indice_de_articulos()
+    for numero in range(2):
+        _articulo(indice, f"Un articulo {numero}")
+
+    response = Client().get("/")
 
     assert "Últimos artículos".encode() in response.content
+    assert b"Un articulo 0" in response.content
+
+
+@pytest.mark.django_db
+def test_home_leaves_the_articles_section_out_when_there_is_nothing_published():
+    """Media portada de huecos grises se lee como un sitio roto.
+
+    Y el visitante no tiene por qué enterarse de que el CMS está recién estrenado: mejor una portada
+    más corta que una con el esqueleto de una sección vacía.
+    """
+    response = Client().get("/")
+
+    assert "Últimos artículos".encode() not in response.content
+    assert b"Ver m" not in response.content  # tampoco el enlace al índice
 
 
 @pytest.mark.django_db

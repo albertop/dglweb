@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% comment %}
+`/articulos/`. Ahora recorre lo publicado: hasta la Fase 5 eran tarjetas de muestra escritas a mano.
+
+La categoría es ÚNICA por artículo —el kicker rojo— y se navega con las pestañas de arriba, porque
+son excluyentes. Los hashtags son libres y viven dentro de la tarjeta.
+
+Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lector viene a leer.
+{% endcomment %}
+{% block title %}{{ page.title }} · Dominicanos en Grandes Ligas{% endblock %}
+
+{% block content %}
+<main class="container my-4">
+
+  {# Alto reservado desde el CSS: el título nace en su sitio y no baja cuando el anuncio carga. #}
+  <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
+
+  <h1 class="dgl-page-title">{{ page.title }}</h1>
+  {% if page.entradilla %}
+    <div class="dgl-lede mb-3"><p class="mb-0">{{ page.entradilla }}</p></div>
+  {% endif %}
+
+  {% comment %}
+    Van por querystring y no por una ruta propia por categoría: son excluyentes y se navegan como
+    pestañas, así que `?categoria=defensa` dice exactamente lo que pasa sin obligar a inventar una
+    ruta por cada categoría que el editor cree mañana. En móvil la fila se desliza.
+  {% endcomment %}
+  <nav class="dgl-cats mb-4" aria-label="Categorías">
+    <a class="dgl-pill{% if not elegida %} active{% endif %}" href="{{ page.url }}"
+       {% if not elegida %}aria-current="page"{% endif %}>Todos</a>
+    {% for categoria in categorias %}
+      <a class="dgl-pill{% if elegida == categoria.slug %} active{% endif %}"
+         href="{{ page.url }}?categoria={{ categoria.slug }}"
+         {% if elegida == categoria.slug %}aria-current="page"{% endif %}>{{ categoria.nombre }}</a>
+    {% endfor %}
+  </nav>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      {% comment %}
+        Un índice vacío tiene que decir que está vacío. Sin esto, la página sale con el título, las
+        pestañas y un hueco blanco debajo — que es indistinguible de una página rota.
+      {% endcomment %}
+      {% if not articulos %}
+        <p class="text-secondary py-4 mb-0">
+          {% if elegida %}Todavía no hay artículos en esta categoría.
+          {% else %}Todavía no hay artículos publicados.{% endif %}
+        </p>
+      {% else %}
+        {% for articulo in articulos %}
+          {% if forloop.first %}
+            {# El primero va horizontal: se distingue de la retícula sin necesidad de ser gigante. #}
+            <div class="mb-4">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True %}</div>
+            <div class="row g-3">
+          {% else %}
+            <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=articulo %}</div>
+          {% endif %}
+          {% if forloop.last %}</div>{% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <aside class="col-lg-4">
+      {% comment %}
+        Se llamaba «Lo más leído» y decía una verdad que no teníamos: sin analítica, ese título es
+        una invención. Dice lo que de verdad muestra —los últimos publicados— y cuando haya cuentas
+        de lectura se podrá volver al ranking de verdad.
+
+        Sigue siendo una lista numerada y no más tarjetas: repetir el mismo componente a la derecha
+        haría que la página entera se leyera como una sola lista larga.
+      {% endcomment %}
+      {% if recientes %}
+        <section class="dgl-panel p-3 h-100">
+          <h2 class="dgl-section-title mb-2" style="font-size:.95rem" id="mas-reciente">Lo más reciente</h2>
+          <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-reciente">
+            {% for articulo in recientes %}
+              <li><a href="{{ articulo.url }}">{{ articulo.title }}</a></li>
+            {% endfor %}
+          </ol>
+        </section>
+      {% endif %}
+    </aside>
+  </div>
+
+  <div class="dgl-ad dgl-ad-leader mt-4">Espacio publicitario · 728×90</div>
+</main>
+{% endblock %}

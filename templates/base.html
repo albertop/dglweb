@@ -5,6 +5,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Dominicanos en Grandes Ligas{% endblock %}</title>
+  {% comment %}
+    Vacío por defecto y lo llena quien tenga algo que resumir. Hoy solo el artículo, que trae su
+    entradilla escrita justamente para eso: es lo que sale bajo el titular en Google y en el recuadro
+    que dibujan WhatsApp y Twitter al pegar el enlace. Sin ella, esos recuadros recortan la primera
+    frase que encuentren en la página.
+  {% endcomment %}
+  {% block meta %}{% endblock %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -17,7 +24,7 @@
   <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/site.css' %}?v=86" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=90" rel="stylesheet">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -73,7 +80,15 @@
             <span class="visually-hidden">Inicio</span></a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'leaders' %}">Líderes</a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'players_index' %}">Jugadores</a></li>
-          <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'articles' %}">Artículos</a></li>
+          {% comment %}
+            La URL sale del árbol de Wagtail (ver `articles/context_processors.py`) y no de una ruta
+            fija: desde la Fase 5 la página la sirve el CMS y el editor puede moverla o renombrarla.
+            Si todavía no existe, no se dibuja el enlace — un menú que lleva a ninguna parte es peor
+            que un menú con un elemento menos.
+          {% endcomment %}
+          {% if indice_articulos %}
+            <li class="nav-item"><a class="nav-link dgl-navlink" href="{{ indice_articulos }}">Artículos</a></li>
+          {% endif %}
           <li class="nav-item ms-lg-2"><a class="btn btn-sm btn-outline-light" href="#">Entrar</a></li>
         </ul>
       </div>
@@ -115,7 +130,7 @@
       </div>
       <div class="col-6 col-md-3"><h6 id="pie-secciones">Secciones</h6>
         <ul class="list-unstyled small" aria-labelledby="pie-secciones">
-          <li><a href="{% url 'articles' %}">Artículos</a></li>
+          {% if indice_articulos %}<li><a href="{{ indice_articulos }}">Artículos</a></li>{% endif %}
           <li><a href="{% url 'leaders' %}">Líderes</a></li>
           <li><a href="{% url 'players_index' %}">Jugadores</a></li></ul>
       </div>

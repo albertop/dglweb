@@ -1,0 +1,17 @@
+{% comment %}
+Una mención a un pelotero, con su retrato y el enlace a su ficha.
+
+Es el bloque que conecta el artículo con el resto del sitio: sin él, un texto que habla de Soto es
+una isla, y el lector que quiere ver sus números tiene que salir a buscarlo por el menú.
+
+`enlace` y `foto` los arma el bloque en Python (ver `articles/blocks.py`): `Player` es la fila del
+maestro y no sabe de URLs ni de dónde viven las fotos. `foto` viene vacía cuando el archivo no está
+—un tercio del maestro no tiene retrato— y entonces no se dibuja nada.
+{% endcomment %}
+<aside class="dgl-bloque-jugador">
+  {% if foto %}<img class="dgl-bloque-jugador-foto" src="{{ foto }}" alt="" width="72" height="72">{% endif %}
+  <div class="quien">
+    <a class="nombre" href="{{ enlace }}">{{ value.jugador.full_name }}</a>
+    {% if value.nota %}<p class="nota mb-0">{{ value.nota }}</p>{% endif %}
+  </div>
+</aside>

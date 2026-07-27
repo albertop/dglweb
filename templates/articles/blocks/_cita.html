@@ -1,0 +1,8 @@
+{% comment %}
+`<blockquote>` de verdad y no un párrafo con comillas y otro tamaño de letra: es lo que hace que un
+lector de pantalla la anuncie como cita y no como texto suelto en medio del artículo.
+{% endcomment %}
+<blockquote class="dgl-bloque-cita">
+  <p>{{ value.texto }}</p>
+  {% if value.quien %}<cite>{{ value.quien }}</cite>{% endif %}
+</blockquote>

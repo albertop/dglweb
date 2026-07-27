@@ -1,0 +1,11 @@
+{% load wagtailimages_tags %}{% comment %}
+`width-` y no `fill-`: acá la imagen la eligió quien escribe para que se vea entera, y recortarla a
+una proporción fija le cortaría justo lo que quería enseñar. En las tarjetas es al revés.
+
+El `alt` sale del título de la imagen en la biblioteca. Si está vacío queda vacío a propósito: un
+`alt` con el nombre del archivo es peor que ninguno.
+{% endcomment %}
+<figure class="dgl-bloque-imagen">
+  {% image value.imagen width-1000 alt=value.imagen.title %}
+  {% if value.pie %}<figcaption>{{ value.pie }}</figcaption>{% endif %}
+</figure>

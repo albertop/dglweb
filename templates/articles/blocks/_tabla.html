@@ -1,0 +1,38 @@
+{% comment %}
+La tabla del editor, con el mismo aspecto que las del perfil del jugador.
+
+Wagtail trae su propia plantilla para este bloque, pero la de él pinta una tabla sin clases y en un
+sitio de estadísticas la tabla del artículo tiene que leerse igual que la de la ficha: mismo azul en
+el encabezado, mismas cifras alineadas, misma tipografía monoespaciada. Por eso se reemplaza en vez
+de heredarla.
+
+`table_header_choice` es lo que el editor eligió en el desplegable: primera fila, primera columna,
+las dos, o ninguna. De ahí sale qué celdas van en <th>, que es la diferencia entre una tabla que un
+lector de pantalla puede narrar («Soto, HR, 41») y una cuadrícula de números sueltos.
+
+Va envuelta en `.table-responsive` porque una tabla de nueve columnas no cabe en un teléfono, y sin
+esto empuja la página entera a lo ancho en vez de desplazarse ella sola.
+{% endcomment %}
+<div class="table-responsive dgl-bloque-tabla">
+  <table class="table table-sm table-striped dgl-stats-table mb-0">
+    {% if value.table_caption %}<caption>{{ value.table_caption }}</caption>{% endif %}
+    {% for fila in value.data %}
+      {% if forloop.first and value.first_row_is_table_header %}
+        <thead><tr>{% for celda in fila %}<th scope="col">{{ celda }}</th>{% endfor %}</tr></thead>
+        {% if not forloop.last %}<tbody>{% endif %}
+      {% else %}
+        {% if forloop.first %}<tbody>{% endif %}
+        <tr>
+          {% for celda in fila %}
+            {% if forloop.first and value.first_col_is_header %}
+              <th scope="row">{{ celda }}</th>
+            {% else %}
+              <td>{{ celda }}</td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+        {% if forloop.last %}</tbody>{% endif %}
+      {% endif %}
+    {% endfor %}
+  </table>
+</div>

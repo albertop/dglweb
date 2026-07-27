@@ -5,11 +5,26 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+# Cuántos artículos entran en la portada: uno grande arriba y tres en la fila de abajo, que es la
+# retícula que ya estaba dibujada. El corte vive acá y no en la plantilla para que el HTML no tenga
+# que contar posiciones del bucle.
+PORTADA_DESTACADO = 1
+PORTADA_RESTO = 3
+
 
 def home(request: HttpRequest) -> HttpResponse:
-    """La portada. La franja de arriba son widgets: la pizarra, los destacados y los líderes."""
+    """La portada. La franja de arriba son widgets: la pizarra, los destacados y los líderes.
+
+    Debajo van los artículos, que desde la Fase 5 son páginas de Wagtail de verdad y no las tarjetas
+    de muestra que había escritas a mano. El primero se lleva el espacio grande y los tres siguientes
+    la fila de abajo — cuántos van no lo decide la plantilla, lo decide este corte, para que no haya
+    que contar `forloop` en el HTML.
+    """
+    from dglweb.articles.models import ArticlePage
     from dglweb.stats import daily, mlb_leaders, scoreboard
 
+    cuantos = PORTADA_DESTACADO + PORTADA_RESTO
+    articulos = list(ArticlePage.objects.live().select_related("categoria").order_by("-fecha", "-pk")[:cuantos])
     return render(
         request,
         "home.html",
@@ -17,22 +32,24 @@ def home(request: HttpRequest) -> HttpResponse:
             "destacados": daily.portada(),
             "pizarra": scoreboard.del_dia(),
             "lideres": mlb_leaders.portada(),
+            "articulo": articulos[0] if articulos else None,
+            "articulos": articulos[PORTADA_DESTACADO:],
+            "indice": _url_del_indice(),
         },
     )
 
 
-def articles_index(request: HttpRequest) -> HttpResponse:
-    """El índice de artículos.
+def _url_del_indice() -> str:
+    """La URL de `/articulos/`, preguntada al árbol y no escrita a mano.
 
-    Categoría única por artículo —el kicker— y hashtags libres. Sin widget de líderes: acá el lector
-    viene a leer, no a consultar.
-
-    Las tarjetas todavía son de muestra, como las de la portada: el modelo `Article` de Wagtail llega
-    en la Fase 5 y esta vista pasará a listar lo publicado. La página existe desde ahora porque el
-    enlace del menú ya la promete, y un menú que lleva a `#` es peor que uno que lleva a una lista
-    provisional.
+    El editor puede renombrar la página o moverla; el enlace de «Ver más artículos» tiene que seguirla
+    en vez de apuntar a una ruta que dejó de existir. Devuelve vacío si todavía no hay índice, y la
+    plantilla esconde el enlace: mejor sin botón que con un botón a ninguna parte.
     """
-    return render(request, "articles.html", {})
+    from dglweb.articles.models import ArticleIndexPage
+
+    indice = ArticleIndexPage.objects.live().first()
+    return indice.url if indice else ""
 
 
 def pizarra(request: HttpRequest) -> HttpResponse:

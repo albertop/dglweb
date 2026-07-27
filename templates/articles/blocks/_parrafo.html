@@ -1,0 +1,5 @@
+{% load wagtailcore_tags %}{% comment %}
+El párrafo. `richtext` escapa lo que haga falta y convierte los enlaces internos de Wagtail en URLs
+de verdad — pegar `{{ value }}` a pelo dejaría las etiquetas crudas a la vista.
+{% endcomment %}
+<div class="dgl-bloque-parrafo">{{ value|richtext }}</div>

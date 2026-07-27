@@ -31,53 +31,43 @@
     El destacado y su anuncio van en su propia fila para que el anuncio pueda alcanzar la altura del
     artículo: dentro de la columna larga crecería solo hasta su alto fijo y dejaría un hueco al lado.
   {% endcomment %}
+  {% comment %}
+    Desde la Fase 5 los artículos son páginas de Wagtail y no las tarjetas de muestra que había acá
+    escritas a mano. Cuántos entran lo decide la vista (`PORTADA_DESTACADO` y `PORTADA_RESTO`); la
+    plantilla solo los coloca.
+
+    El bloque entero desaparece si no hay ninguno publicado: media portada de huecos grises se lee
+    como un sitio roto, y el visitante no tiene por qué saber que el CMS está recién estrenado.
+  {% endcomment %}
+  {% if articulo %}
   <div class="row g-4 mb-4">
-    <div class="col-lg-8">
-      <article class="card dgl-hero h-100 shadow-sm">
-        <div class="dgl-thumb">Gráfico · wOBA por temporada</div>
-        <div class="card-body">
-          <div class="dgl-kicker">Sabermetría</div>
-          <a href="#" class="h3 d-block dgl-article-title mb-2">
-            El salto de Juan Soto: qué dice su wOBA sobre el mejor bateador dominicano de la década
-          </a>
-          <p class="text-secondary mb-2">Un análisis de plate discipline, xwOBA y contacto de calidad
-            que explica por qué Soto está en camino a números históricos entre los dominicanos.</p>
-          <div class="dgl-meta">Por <b>A. Perdomo</b> · 16 jul 2026 · 8 min
-            &nbsp; <span class="dgl-tag">#JuanSoto</span> <span class="dgl-tag">#wOBA</span></div>
-        </div>
-      </article>
-    </div>
+    {% comment %}
+      `portada` fija la tarjeta en 300px. El anuncio de al lado lleva `h-100`, así que se estira a lo
+      que mida la fila: con la tarjeta fija, los dos miden igual siempre — con un titular de una línea
+      o de tres, con foto o sin ella. Antes la fila la medía el artículo y el hueco publicitario
+      cambiaba de tamaño con cada publicación.
+    {% endcomment %}
+    <div class="col-lg-8">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True portada=True %}</div>
     <div class="col-lg-4">
       <div class="dgl-ad dgl-ad-alto h-100">Espacio publicitario · 300×250</div>
     </div>
   </div>
 
-  <h2 class="dgl-section-title">Últimos artículos</h2>
-  <div class="row g-4">
-    <div class="col-lg-8">
-      <div class="row g-3">
-        <div class="col-md-6"><div class="card h-100 shadow-sm">
-          <div class="dgl-thumb" style="height:120px">Gráfico · K% vs BB%</div>
-          <div class="card-body"><div class="dgl-kicker">Cosas raras</div>
-            <a href="#" class="h6 d-block dgl-article-title">Los 5 dominicanos con el K-BB% más raro de 2026</a>
-            <div class="dgl-meta mt-2">14 jul · 6 min</div></div></div></div>
-        <div class="col-md-6"><div class="card h-100 shadow-sm">
-          <div class="dgl-thumb" style="height:120px">Tabla · Defensa (OAA)</div>
-          <div class="card-body"><div class="dgl-kicker">Defensa</div>
-            <a href="#" class="h6 d-block dgl-article-title">Outs Above Average: los guantes dominicanos que nadie mira</a>
-            <div class="dgl-meta mt-2">12 jul · 7 min</div></div></div></div>
-      </div>
+  {% if articulos %}
+    <h2 class="dgl-section-title">Últimos artículos</h2>
+    <div class="row g-3">
+      {% for otro in articulos %}
+        <div class="col-md-6 col-lg-4">{% include "articles/_tarjeta.html" with articulo=otro %}</div>
+      {% endfor %}
     </div>
-    <div class="col-lg-4"><div class="card h-100 shadow-sm">
-      <div class="dgl-thumb" style="height:120px">Gráfico · Edad vs OPS</div>
-      <div class="card-body"><div class="dgl-kicker">Sabermetría</div>
-        <a href="#" class="h6 d-block dgl-article-title">La curva de envejecimiento de los bateadores dominicanos</a>
-        <div class="dgl-meta mt-2">11 jul · 8 min</div></div></div></div>
-  </div>
+  {% endif %}
 
-  <div class="text-center my-4">
-    <a href="#" class="btn btn-outline-primary btn-sm px-4">Ver más artículos</a>
-  </div>
+  {% if indice %}
+    <div class="text-center my-4">
+      <a href="{{ indice }}" class="btn btn-outline-primary btn-sm px-4">Ver más artículos</a>
+    </div>
+  {% endif %}
+  {% endif %}
 
   <div class="dgl-ad dgl-ad-leader">Espacio publicitario · 728×90</div>
 </main>

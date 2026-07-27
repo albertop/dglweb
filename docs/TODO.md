@@ -51,9 +51,29 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 - [x] ~~Definir el subtítulo del brand~~ → **descartado**: se quita, es redundante con el nombre.
 - [x] ~~Afinar el tamaño del brand en móvil~~ **Hecho**, aunque el diagnóstico estaba mal: el nombre NO se recortaba. Lo que pasaba es que a 375px la hamburguesa caía a una segunda fila y el header pasaba de 54px a 84px. Dos escalones (`≤400px` y `≤340px`) lo devuelven a una fila hasta 320px, sin partir ni abreviar el nombre. Verificado a 320, 375 y 1280.
 
+## Fase 5 — artículos en Wagtail (2026-07-27)
+
+**Hecho:** el modelo `ArticlePage` bajo `ArticleIndexPage`, que sirve `/articulos/` y
+`/articulos/<slug>/` desde el árbol de Wagtail. Categoría única (snippet, siete sembradas por la
+migración) + hashtags libres. Siete bloques de cuerpo: párrafo, subtítulo, imagen, cita, tabla,
+mención de jugador y gráfico. La portada y el índice listan lo publicado; se fueron las tarjetas de
+muestra escritas a mano.
+
+**Lo que falta de la fase**, y no es poco:
+
+- [ ] **Workflow de aprobación** (borrador → revisión → publicado) y **roles/grupos** de Wagtail.
+      Estaba en el plan de la fase y quedó fuera de este primer corte.
+- [ ] **Paginación del índice.** Hoy muestra los primeros 12 y no hay «cargar más»: con menos de una
+      docena publicados no se nota, y a la trigésima entrada sí.
+- [ ] **Restringir el Backoffice al rol *administrators*** (hoy es solo `staff`). Ya estaba anotado
+      como pendiente de esta fase en el BUILD_PLAN.
+- [ ] **«Lo más leído» de verdad.** El panel dice «Lo más reciente» porque no hay analítica; el
+      dueño lo prefirió así antes que inventar un ranking. Cuando haya cuentas de lectura, volver.
+
 ## Contenido
 
-- [ ] Escribir los 8–12 artículos semilla (cuello de botella — empezar temprano, en paralelo).
+- [ ] Escribir los 8–12 artículos semilla (cuello de botella — **ya no está bloqueado**: el CMS
+      quedó utilizable el 2026-07-27).
 
 ## Deferido a Fase 8 (hardening de prod) — de code review
 

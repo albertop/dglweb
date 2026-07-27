@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+{% comment %}
+Un artículo. La columna de texto es estrecha a propósito —`.dgl-articulo` la limita— porque una línea
+de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde cuál venía.
+{% endcomment %}
+{% block title %}{{ page.title }} · Dominicanos en Grandes Ligas{% endblock %}
+{% block meta %}<meta name="description" content="{{ page.entradilla|truncatechars:160 }}">{% endblock %}
+
+{% block content %}
+<main class="container my-4">
+
+  <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
+
+  <article class="dgl-articulo">
+    <header class="mb-4">
+      {% if page.categoria %}
+        {% comment %}
+          El kicker enlaza a su filtro del índice: quien acaba de leer algo de Defensa es justo quien
+          quiere ver el resto de Defensa.
+        {% endcomment %}
+        <a class="dgl-kicker d-inline-block mb-2"
+           href="{{ page.get_parent.url }}?categoria={{ page.categoria.slug }}">{{ page.categoria }}</a>
+      {% endif %}
+      <h1 class="dgl-page-title">{{ page.title }}</h1>
+      <p class="dgl-articulo-entradilla">{{ page.entradilla }}</p>
+      <div class="dgl-meta">
+        {% if page.autor %}Por <b>{{ page.autor }}</b> · {% endif %}
+        {{ page.fecha|date:"j M Y" }} · {{ page.minutos }} min de lectura
+      </div>
+    </header>
+
+    {% if page.imagen %}
+      <figure class="dgl-articulo-foto mb-4">
+        {% image page.imagen width-1200 alt=page.imagen.title %}
+        {% if page.imagen.title %}<figcaption class="dgl-meta mt-2">{{ page.imagen.title }}</figcaption>{% endif %}
+      </figure>
+    {% endif %}
+
+    {# Cada bloque trae su propia plantilla; ver `articles/blocks.py`. #}
+    <div class="dgl-articulo-cuerpo">{% include_block page.cuerpo %}</div>
+
+    {% if page.hashtags.all %}
+      <footer class="dgl-art-tags mt-4 pt-3 border-top">
+        {% for tag in page.hashtags.all %}<span class="dgl-tag">#{{ tag.name }}</span>{% endfor %}
+      </footer>
+    {% endif %}
+  </article>
+
+  <div class="dgl-ad dgl-ad-leader mt-4">Espacio publicitario · 728×90</div>
+</main>
+{% endblock %}

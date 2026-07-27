@@ -923,3 +923,157 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    ratón, porque hereda `currentColor`. */
 .dgl-navhome { display: inline-flex; align-items: center; }
 .dgl-navhome svg { display: block; }
+
+/* ---------- Artículos: la miniatura real ---------- */
+/* `.dgl-thumb` era el rectángulo azul de los mockups, con el nombre del gráfico escrito dentro.
+   Desde la Fase 5 hay imágenes de verdad, y esto es lo que ocupa su sitio: mismas medidas, mismo
+   recorte. `object-fit: cover` porque Wagtail ya sirve el archivo recortado a la proporción pedida,
+   pero un `fill-` puede quedar un píxel corto y sin esto la imagen se deforma para cuadrar. */
+.dgl-thumb-img { display: block; width: 100%; height: 130px; object-fit: cover; }
+.dgl-art-destacado .dgl-thumb-img { flex: 0 0 33%; height: auto; min-height: 220px; }
+@media (max-width: 767px) {
+  .dgl-art-destacado .dgl-thumb-img { flex: 0 0 auto; height: 180px; min-height: 0; }
+}
+
+/* ---------- Un artículo ---------- */
+/* El ancho de la columna es la decisión de esta pantalla, y sale de dos fuerzas que tiran en contra.
+
+   Por un lado, una línea muy larga se lee peor: al saltar de renglón el ojo pierde cuál venía. Por
+   otro, una columna estrecha estira el artículo hacia abajo, y este sitio publica piezas con
+   gráficos y tablas que en 620px quedaban apretadas y obligaban a hacer scroll sin parar — que es
+   justo lo que pidió corregir el dueño.
+
+   820px son unos 89 caracteres por línea con esta serif. Está por encima de los 75 de manual y por
+   debajo del punto en que la lectura se rompe de verdad; y como el contenedor mide 1.320, la columna
+   sigue sin ocupar la página entera.
+
+   En píxeles y no en `ch` a propósito: `ch` se mide con la letra HEREDADA, que acá es la monoespaciada
+   del sitio y no la serif del cuerpo. Los «72ch» que había antes no eran 72 caracteres de lo que se
+   lee, eran 69 — una medida que parecía tipográfica y no lo era. */
+.dgl-articulo { max-width: 820px; margin: 0 auto; }
+.dgl-articulo .dgl-page-title { font-size: 2.4rem; }
+a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
+/* La entradilla en serif y más grande que el cuerpo: hace de puente entre el titular y el texto. */
+.dgl-articulo-entradilla {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 1.15rem; line-height: 1.55; color: #374151; margin: .6rem 0 .8rem;
+}
+.dgl-articulo-foto img { width: 100%; height: auto; border-radius: .5rem; }
+.dgl-articulo-cuerpo {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 1.08rem; line-height: 1.7; color: var(--dgl-ink);
+}
+.dgl-bloque-parrafo p { margin-bottom: 1.1rem; }
+.dgl-bloque-parrafo a { color: var(--dgl-blue); text-decoration: underline; }
+/* Los subtítulos vuelven a la tipografía del sitio: el serif es para leer seguido, y un rótulo que
+   corta el texto se lee mejor con la letra de los rótulos. */
+.dgl-bloque-titulo {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 1.3rem; font-weight: 800; letter-spacing: -.02em; margin: 2rem 0 .8rem;
+}
+.dgl-bloque-imagen { margin: 1.6rem 0; }
+.dgl-bloque-imagen img { width: 100%; height: auto; border-radius: .5rem; }
+.dgl-bloque-imagen figcaption {
+  color: var(--dgl-muted); font-size: .82rem; margin-top: .5rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+/* La cita con una barra roja a la izquierda, como los títulos de sección: es el mismo gesto del
+   sitio, así que la página no gana un elemento nuevo, reusa uno que el lector ya conoce. */
+.dgl-bloque-cita {
+  border-left: 4px solid var(--dgl-red); padding: .2rem 0 .2rem 1.1rem; margin: 1.6rem 0;
+  font-size: 1.2rem; font-style: italic; color: #374151;
+}
+.dgl-bloque-cita p { margin-bottom: .4rem; }
+.dgl-bloque-cita cite {
+  display: block; font-style: normal; font-size: .82rem; color: var(--dgl-muted);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.dgl-bloque-tabla { margin: 1.6rem 0; }
+.dgl-bloque-tabla caption {
+  caption-side: bottom; color: var(--dgl-muted); font-size: .8rem; padding-top: .4rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* La mención de jugador. Sale del ancho del texto hacia los dos lados —queda claro que no es un
+   párrafo— pero sin llegar a ser una tarjeta suelta: es un apunte dentro del artículo. */
+.dgl-bloque-jugador {
+  display: flex; align-items: center; gap: .9rem; margin: 1.6rem 0; padding: .8rem 1rem;
+  background: var(--dgl-card); border: 1px solid var(--dgl-line);
+  border-left: 4px solid var(--dgl-blue); border-radius: .4rem;
+}
+.dgl-bloque-jugador-foto { flex: 0 0 auto; width: 56px; height: 56px; border-radius: 50%; background: #eef1f6; }
+.dgl-bloque-jugador .nombre {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700; font-size: .95rem; color: var(--dgl-ink);
+}
+.dgl-bloque-jugador .nombre:hover { color: var(--dgl-blue); text-decoration: none; }
+.dgl-bloque-jugador .nota { font-size: .88rem; color: var(--dgl-muted); }
+
+/* ---------- El gráfico ---------- */
+/* Lo dibuja el servidor en SVG, sin librería ni JavaScript: ver `articles/blocks.py`. Todo el estilo
+   vive acá y no en atributos del SVG, que es lo que permite cambiar el aspecto de todos los gráficos
+   publicados sin volver a guardar un solo artículo.
+
+   `height: auto` es imprescindible: un SVG en línea con `viewBox` toma el ancho del padre pero NO
+   deduce el alto, así que sin esto se estira al alto por defecto de 150px o al que le dé el
+   contenedor — y el dibujo sale con las proporciones destrozadas. */
+.dgl-bloque-grafico { margin: 1.8rem 0; }
+.dgl-bloque-grafico .titulo {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700; font-size: .9rem; margin-bottom: .5rem; color: var(--dgl-ink);
+}
+.dgl-bloque-grafico .fuente {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: .72rem; color: var(--dgl-muted); margin: .5rem 0 0;
+}
+.dgl-grafico { display: block; width: 100%; height: auto; overflow: visible; }
+/* Las líneas de referencia, por debajo del dato. La del cero va más marcada: es la base contra la
+   que se compara todo lo demás. */
+.dgl-grafico .ref { stroke: var(--dgl-line); stroke-width: 1; }
+.dgl-grafico .ref.cero { stroke: #9aa4b2; }
+/* Las cifras del SVG no heredan el tamaño del CSS del documento: se declaran en unidades del
+   `viewBox`, que es lo mismo que decir «relativas al dibujo». Por eso van en px y no en rem. */
+.dgl-grafico .eje {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 13px; fill: var(--dgl-muted);
+}
+.dgl-grafico .cifra {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 13px; font-weight: 700; fill: var(--dgl-ink);
+}
+.dgl-grafico .barra { fill: var(--dgl-blue); }
+.dgl-grafico .linea { stroke: var(--dgl-red); stroke-width: 2.5; stroke-linejoin: round; }
+.dgl-grafico .punto { fill: var(--dgl-red); }
+/* La primera columna cuando el editor la marca como encabezado. Va en <th> por accesibilidad —así un
+   lector de pantalla dice «Juan Soto, HR, 41» en vez de leer números sueltos— pero SIN el azul del
+   encabezado de arriba: una columna entera pintada de navy compite con la fila de títulos y la tabla
+   pierde la jerarquía que ese color venía a marcar. */
+.dgl-bloque-tabla tbody th {
+  background: transparent; color: var(--dgl-ink); text-align: left; font-weight: 700;
+}
+
+/* El destacado de la PORTADA, con alto fijo. Decisión del dueño: tiene que medir lo mismo que el
+   espacio publicitario que lleva al lado, pase lo que pase con el contenido.
+
+   Antes la fila la medía el artículo —un titular de tres líneas la estiraba, uno de una la encogía—
+   y el hueco del anuncio cambiaba de tamaño con cada publicación. Un formato de anuncio que no mide
+   siempre igual no se puede vender.
+
+   El `overflow: hidden` del cuerpo y el recorte de la entradilla son la otra mitad: sin ellos, un
+   texto largo se desbordaría fuera de los 300px en vez de quedarse dentro. Va en el CSS y no
+   recortando en Python porque cuánto cabe depende del ancho de la columna, que solo sabe el
+   navegador. Solo en la portada: en el índice el destacado crece con su contenido, que ahí no
+   compite con ningún anuncio. */
+.dgl-art-portada { height: 300px; }
+.dgl-art-portada .cuerpo { overflow: hidden; }
+.dgl-art-portada .dgl-thumb-img { height: 100%; min-height: 0; }
+/* Dos líneas de titular y tres de entradilla es lo que entra en 300px dejando sitio a la firma. El
+   `line-clamp` corta con puntos suspensivos en la línea justa en vez de tajar a media palabra. */
+.dgl-art-portada h3 {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden;
+}
+.dgl-art-portada .entradilla {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
+  overflow: hidden;
+}

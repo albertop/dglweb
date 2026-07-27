@@ -1,0 +1,46 @@
+{% load wagtailimages_tags %}{% comment %}
+Una tarjeta de artículo. La comparten la portada y el índice para que no se separen con el tiempo:
+eran dos bloques de HTML calcados y el primer cambio de estilo habría dejado una de las dos vieja.
+
+Parámetros:
+  articulo   la página
+  destacado  horizontal y con la entradilla completa; sin esto, vertical y compacta
+  portada    alto fijo de 300px, para que iguale al espacio publicitario que lleva al lado
+
+La miniatura solo aparece si hay imagen. No se dibuja un rectángulo de relleno en su lugar: un hueco
+gris con el nombre del gráfico dentro es lo que hacían los mockups, y en producción se lee como una
+imagen que no cargó.
+{% endcomment %}
+<article class="dgl-art{% if destacado %} dgl-art-destacado{% endif %}{% if portada %} dgl-art-portada{% endif %}">
+  {% if articulo.imagen %}
+    {% comment %}
+      `fill` recorta a la proporción pedida en vez de deformar. El destacado pide más ancho porque se
+      lee al lado del texto y no encima.
+    {% endcomment %}
+    {% if destacado %}
+      {% image articulo.imagen fill-560x420 class="dgl-thumb-img" alt=articulo.imagen.title %}
+    {% else %}
+      {% image articulo.imagen fill-640x320 class="dgl-thumb-img" alt=articulo.imagen.title %}
+    {% endif %}
+  {% endif %}
+  <div class="cuerpo">
+    {% if articulo.categoria %}<div class="dgl-kicker">{{ articulo.categoria }}</div>{% endif %}
+    <h3><a href="{{ articulo.url }}">{{ articulo.title }}</a></h3>
+    {% comment %}
+      La entradilla completa solo en el destacado. En la retícula se recorta: cuatro tarjetas con
+      párrafos de distinto largo dejan los pies a alturas distintas y la fila se ve rota.
+    {% endcomment %}
+    <p class="entradilla">{% if destacado %}{{ articulo.entradilla }}{% else %}{{ articulo.entradilla|truncatechars:110 }}{% endif %}</p>
+    <div class="pie">
+      {% if articulo.hashtags.all %}
+        <div class="dgl-art-tags">
+          {% for tag in articulo.hashtags.all %}<span class="dgl-tag">#{{ tag.name }}</span>{% endfor %}
+        </div>
+      {% endif %}
+      <div class="dgl-meta mt-2">
+        {% if articulo.autor %}Por <b>{{ articulo.autor }}</b> · {% endif %}
+        {{ articulo.fecha|date:"j M Y" }} · {{ articulo.minutos }} min
+      </div>
+    </div>
+  </div>
+</article>

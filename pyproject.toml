@@ -68,6 +68,15 @@ django_settings_module = "config.settings.dev"
 module = ["wagtail.*", "modelcluster.*", "taggit.*", "environ.*"]
 ignore_missing_imports = true
 
+# Wagtail no publica tipos, así que para mypy sus clases son `Any`. Heredar de `Page` —que es lo que
+# hace toda página del CMS— dispara `disallow_subclassing_any`, y cualquier valor que devuelva un
+# método suyo dispara `warn_return_any`. Las dos son quejas sobre la librería y no sobre este código,
+# así que se apagan SOLO en el módulo que define las páginas. El resto del proyecto sigue estricto.
+[[tool.mypy.overrides]]
+module = ["dglweb.articles.models", "dglweb.articles.blocks"]
+disallow_subclassing_any = false
+warn_return_any = false
+
 # Tests are not a public interface; don't require return annotations on every test.
 [[tool.mypy.overrides]]
 module = ["tests.*"]

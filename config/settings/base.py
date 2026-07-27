@@ -26,8 +26,11 @@ INSTALLED_APPS = [
     "dglweb.stats",
     "dglweb.backoffice",
     "dglweb.profiles",
+    "dglweb.articles",
     # Wagtail
     "wagtail.contrib.forms",
+    # El bloque de tabla del cuerpo de los artículos: el editor la llena como una hoja de cálculo.
+    "wagtail.contrib.table_block",
     "wagtail.contrib.redirects",
     "wagtail.embeds",
     "wagtail.sites",
@@ -74,6 +77,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # `indice_articulos`, que usan el menú y el pie en todas las páginas. Ver el módulo:
+                # la ruta la decide el editor desde que la página la sirve Wagtail.
+                "dglweb.articles.context_processors.indice",
             ],
         },
     },

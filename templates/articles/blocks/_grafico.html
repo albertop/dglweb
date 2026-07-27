@@ -1,0 +1,67 @@
+{% load l10n %}{% comment %}
+El gráfico, dibujado como SVG aquí mismo. Toda la aritmética viene hecha desde `articles/blocks.py`:
+la plantilla de Django no sabe restar ni dividir, así que sin eso haría falta un filtro aritmético
+—o JavaScript— para calcular el alto de una barra.
+
+`{% localize off %}` NO ES OPCIONAL. El sitio está en español, así que Django formatea los números
+con coma decimal: un `x="83.06"` sale escrito `x="83,06"`, que como coordenada SVG no es válida. El
+dibujo aparece con las barras encogidas a cero y las etiquetas amontonadas en una esquina, y el
+navegador no dice nada — no es un error, es un atributo que no entiende. Pasó en la primera versión
+de este bloque. La coma es correcta para un dato que lee una persona y es veneno dentro de un
+atributo que lee una máquina.
+
+Por qué SVG en el servidor y no una librería de gráficos está explicado en la cabecera de ese módulo.
+Lo que se ve acá es la consecuencia: no hay <script>, funciona con JavaScript apagado, se imprime y
+escala sin pixelarse.
+
+ACCESIBILIDAD. Un SVG suelto es un hueco silencioso para quien usa lector de pantalla. Lleva
+`role="img"` y un `<title>`/`<desc>` con el gráfico entero dicho en una frase —«2022: .401; 2023:
+.410»— que es la única forma de que el dato llegue igual sin ver el dibujo.
+
+`preserveAspectRatio` por defecto: el SVG se estira al ancho de la columna manteniendo la
+proporción, así que las mismas coordenadas sirven en un teléfono y en un monitor.
+{% endcomment %}
+<figure class="dgl-bloque-grafico">
+  <figcaption class="titulo">{{ value.titulo }}</figcaption>
+  {% localize off %}
+  <svg viewBox="0 0 {{ lienzo.ancho }} {{ lienzo.alto }}" role="img"
+       aria-labelledby="g{{ block.id }}-t g{{ block.id }}-d" class="dgl-grafico">
+    <title id="g{{ block.id }}-t">{{ value.titulo }}</title>
+    <desc id="g{{ block.id }}-d">{{ resumen }}</desc>
+
+    {% comment %}
+      Las líneas de referencia van DEBAJO del dato: dibujadas encima lo cruzan y le restan lectura.
+      La de abajo es el cero y se pinta más marcada, porque es la base contra la que se compara todo.
+    {% endcomment %}
+    {% for referencia in referencias %}
+      <line class="ref{% if forloop.first %} cero{% endif %}"
+            x1="52" y1="{{ referencia.y }}" x2="{{ lienzo.ancho }}" y2="{{ referencia.y }}"/>
+      <text class="eje" x="46" y="{{ referencia.y }}" text-anchor="end" dominant-baseline="middle"
+            >{{ referencia.valor }}</text>
+    {% endfor %}
+
+    {% if value.tipo == "barras" %}
+      {% for barra in barras %}
+        <rect class="barra" x="{{ barra.x }}" y="{{ barra.y }}"
+              width="{{ barra.ancho }}" height="{{ barra.alto }}" rx="2"/>
+        <text class="cifra" x="{{ barra.centro }}" y="{{ barra.y }}" dy="-6"
+              text-anchor="middle">{{ barra.valor }}</text>
+      {% endfor %}
+    {% else %}
+      <polyline class="linea" points="{{ linea }}" fill="none"/>
+      {% for barra in barras %}
+        <circle class="punto" cx="{{ barra.centro }}" cy="{{ barra.y }}" r="4"/>
+        {# `debajo` lo decide el bloque: en un valle, la cifra encima la tacharía el propio trazo. #}
+        <text class="cifra" x="{{ barra.centro }}" y="{{ barra.y }}" dy="{% if barra.debajo %}18{% else %}-10{% endif %}"
+              text-anchor="middle">{{ barra.valor }}</text>
+      {% endfor %}
+    {% endif %}
+
+    {% for barra in barras %}
+      <text class="eje" x="{{ barra.centro }}" y="{{ lienzo.base }}" dy="18"
+            text-anchor="middle">{{ barra.etiqueta }}</text>
+    {% endfor %}
+  </svg>
+  {% endlocalize %}
+  {% if value.fuente %}<p class="fuente">Fuente: {{ value.fuente }}</p>{% endif %}
+</figure>
