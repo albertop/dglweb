@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Dominicanos en Grandes Ligas">
+  <!-- El favicon del sitio: el plato blanco sobre el rojo de la marca.
+
+       NO lleva las letras «DGL» del monograma a propósito. A 16 píxeles, que es el tamaño real de
+       una pestaña, tres letras son una mancha ilegible; una silueta se reconoce. Y el plato ya es
+       parte del lenguaje del sitio: es el icono de «Inicio» en el menú.
+
+       Va como figura y no como texto porque un favicon no carga las fuentes de la página: «DGL» en
+       SVG se dibujaría con la tipografía por defecto del sistema, distinta en cada máquina.
+
+       El rojo es el de la bandera y el del monograma, #ce1126. Se escribe literal porque un SVG
+       suelto no ve las variables del CSS del sitio.
+
+       Lleva `width` y `height` además del `viewBox`: sin tamaño intrínseco, un SVG cargado fuera de
+       una página (que es como lo pide un favicon) no tiene con qué decidir a qué escala dibujarse.
+
+       Ojo al escribir en este comentario: XML prohíbe dos guiones seguidos dentro de un comentario.
+       Nombrar aquí la variable de CSS con sus dos guiones delante deja el archivo mal formado y el
+       navegador no dibuja nada. Pasó, y no da ningún error visible: el icono simplemente no sale. -->
+  <rect width="64" height="64" rx="12" fill="#ce1126"/>
+  <path d="M15 14h34v22L32 52 15 36z" fill="#ffffff"/>
+</svg>
