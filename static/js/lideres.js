@@ -1,8 +1,8 @@
-// El widget de líderes: las pestañas de oficio y el «ver más».
+// El widget de líderes: las pestañas de oficio y el «ver más» de cada caja.
 //
-// Todo el contenido viene ya en el HTML —son unas treinta filas— y acá solo se muestra u oculta. Eso
-// significa que sin JavaScript la página sigue sirviendo: se ve la primera pestaña con sus métricas
-// principales, que es información correcta, solo que menos.
+// Todo el contenido viene ya en el HTML —son unas treinta filas— y acá solo se muestra u oculta. Sin
+// JavaScript la página sigue sirviendo: se ve la primera pestaña con el líder de cada categoría, que
+// es información correcta, solo que menos.
 //
 // La marcación de pestañas accesible (role, aria-selected, flechas del teclado) se agrega desde acá y
 // no en la plantilla a propósito: prometer `role="tablist"` sin el JS que cumple su contrato de
@@ -12,17 +12,13 @@
   var caja = document.querySelector('.dgl-lideres');
   if (!caja) return;
 
+  // ── Pestañas ────────────────────────────────────────────────────────────────────────────────
   var pestanas = Array.prototype.slice.call(caja.querySelectorAll('.dgl-lideres-tab'));
   var listas = Array.prototype.slice.call(caja.querySelectorAll('.dgl-lideres-lista'));
-  var mas = caja.querySelector('.dgl-lideres-mas');
-  var abierto = false;
-
-  // ── Pestañas ────────────────────────────────────────────────────────────────────────────────
   var tabs = caja.querySelector('.dgl-lideres-tabs');
   tabs.setAttribute('role', 'tablist');
 
   pestanas.forEach(function (pestana, i) {
-    var lista = listas[i];
     var id = 'lideres-' + pestana.dataset.oficio;
     pestana.setAttribute('role', 'tab');
     pestana.id = id + '-tab';
@@ -31,15 +27,15 @@
     // Solo la pestaña activa es tabulable: el grupo entero se recorre con las flechas, que es como
     // se espera que funcione un tablist.
     pestana.tabIndex = i === 0 ? 0 : -1;
-    lista.setAttribute('role', 'tabpanel');
-    lista.id = id;
-    lista.setAttribute('aria-labelledby', id + '-tab');
+    listas[i].setAttribute('role', 'tabpanel');
+    listas[i].id = id;
+    listas[i].setAttribute('aria-labelledby', id + '-tab');
   });
 
   function mostrar(i, mover) {
     pestanas.forEach(function (pestana, j) {
       var activa = i === j;
-      pestana.classList.toggle('is-on', activa);
+      pestana.classList.toggle('active', activa);
       pestana.setAttribute('aria-selected', activa ? 'true' : 'false');
       pestana.tabIndex = activa ? 0 : -1;
       listas[j].classList.toggle('d-none', !activa);
@@ -57,18 +53,25 @@
     });
   });
 
-  // ── Ver más ─────────────────────────────────────────────────────────────────────────────────
-  // Una sola vez para las dos pestañas: si se abriera por pestaña, cambiar de oficio cerraría lo que
-  // el lector acababa de abrir.
-  if (!mas) return;
-  if (!caja.querySelector('.dgl-de-mas')) { mas.remove(); return; }  // no hay nada más que enseñar
+  // ── El «ver más» de cada caja ───────────────────────────────────────────────────────────────
+  // Cada caja se abre y se cierra sola: abrir Bases robadas no tiene por qué mover Jonrones, que
+  // está tres cajas más abajo y saltaría bajo el cursor del lector.
+  //
+  // Un solo escucha en el contenedor en vez de uno por botón: son hasta diecinueve cajas por
+  // pestaña, y el que decide es el botón donde se hizo clic.
+  caja.addEventListener('click', function (e) {
+    var boton = e.target.closest('.dgl-lider-mas');
+    if (!boton) return;
 
-  mas.addEventListener('click', function () {
-    abierto = !abierto;
-    Array.prototype.forEach.call(caja.querySelectorAll('.dgl-de-mas'), function (fila) {
-      fila.classList.toggle('d-none', !abierto);
+    var suCaja = boton.closest('.dgl-lider-caja');
+    var abierto = boton.getAttribute('aria-expanded') === 'true';
+    var ocultos = suCaja.querySelectorAll('.dgl-de-mas');
+
+    Array.prototype.forEach.call(ocultos, function (fila) {
+      fila.classList.toggle('d-none', abierto);
     });
-    mas.textContent = abierto ? 'ver menos' : 'ver más';
-    mas.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+    boton.setAttribute('aria-expanded', abierto ? 'false' : 'true');
+    boton.textContent = abierto ? 'ver ' + ocultos.length + ' más' : 'ver menos';
+    suCaja.classList.toggle('is-abierta', !abierto);
   });
 })();

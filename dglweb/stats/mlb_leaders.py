@@ -76,6 +76,10 @@ CATEGORIAS: dict[str, tuple[str, str]] = {
 # «pitching»). Una llamada por oficio.
 _OFICIOS = {"batting": "hitting", "pitching": "pitching"}
 
+# Los mismos treinta SVG que usa la pizarra, con los mismos nombres de archivo. Los baja
+# `manage.py download_team_logos`.
+_LOGOS = "img/equipos/"
+
 
 @dataclass(frozen=True)
 class Puesto:
@@ -204,6 +208,10 @@ def portada(metricas: int = 5) -> dict[str, Any] | None:
         # entran a la imagen de Docker ni los recoge `collectstatic`, así que nunca están en el
         # manifiesto y esa etiqueta fallaría al buscarlos. Se sirven por su ruta literal.
         fila.foto = f"{settings.STATIC_URL}img/mugshots/120/{fila.player_id}.png"  # type: ignore[attr-defined]
+        # El logo sí va por `{% static %}`, como en la pizarra: esos treinta SVG sí viven en la
+        # imagen. Se arma la ruta completa —y no un prefijo más el código en la plantilla— porque el
+        # manifiesto de producción resuelve archivos, no pedazos de ruta.
+        fila.logo = f"{_LOGOS}{fila.team}.svg" if fila.team else ""  # type: ignore[attr-defined]
         # Una entrada por métrica, con todos los nuestros que caen ahí. El primero de la lista es el
         # mejor rankeado, porque así vienen ordenadas.
         if grupo and grupo[-1]["metrica"] == fila.metric:

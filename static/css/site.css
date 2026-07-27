@@ -569,42 +569,74 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 
 /* ---------- Widget: dominicanos en el top de las mayores ---------- */
-/* Pestañas planas y no las de Bootstrap: el widget vive en media columna y el marco de `nav-tabs`
-   se come un alto que acá hace falta para las filas. */
-.dgl-lideres-tabs { display: flex; gap: .4rem; border-bottom: 1px solid var(--dgl-line); }
-.dgl-lideres-tab {
-  background: none; border: 0; border-bottom: 2px solid transparent; padding: .2rem .5rem .35rem;
-  font: inherit; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--dgl-muted); cursor: pointer;
-}
-.dgl-lideres-tab:hover { color: var(--dgl-ink); }
-.dgl-lideres-tab.is-on { color: var(--dgl-ink); border-bottom-color: var(--dgl-red); font-weight: 700; }
-.dgl-lideres-tab:focus-visible { outline: 2px solid var(--dgl-red); outline-offset: 2px; }
+/* Las pestañas son `.dgl-pill`, el mismo control redondeado del perfil y de Líderes. Acá solo se
+   ajusta la separación; el aspecto viene de allá para que un pill se vea igual en todo el sitio. */
+.dgl-lideres-tabs { display: flex; gap: .4rem; }
 
-/* La sigla a la izquierda, en columna fija, para que los nombres arranquen todos en la misma vertical
-   sin importar si la métrica es «H» o «WHIP». */
-.dgl-lider-metrica { display: flex; gap: .5rem; align-items: baseline; padding: .3rem 0; }
-.dgl-lider-metrica + .dgl-lider-metrica { border-top: 1px solid var(--dgl-line); }
-.dgl-lider-abbr {
-  flex: 0 0 2.6rem; font-size: .68rem; font-weight: 700; letter-spacing: .06em;
-  color: var(--dgl-muted); text-transform: uppercase; cursor: help;
+/* Una caja por categoría. Se lee sola —qué estadística, quién la encabeza, cuánto— y por eso tiene
+   marco propio en vez de ser un renglón más de una lista. */
+.dgl-lider-caja {
+  border: 1px solid var(--dgl-line); border-radius: .5rem; padding: .55rem .7rem;
+  background: var(--dgl-card);
 }
-.dgl-lider-gente { flex: 1 1 auto; min-width: 0; }
+.dgl-lider-caja + .dgl-lider-caja { margin-top: .5rem; }
+/* Abierta se marca con el filo, no con un fondo: el fondo competiría con las fotos, que son lo que
+   la caja quiere que se mire. */
+.dgl-lider-caja.is-abierta { border-color: var(--dgl-blue); }
 
-.dgl-lider { display: flex; align-items: center; gap: .4rem; font-size: .8rem; padding: .1rem 0; }
+
+.dgl-lider { display: flex; align-items: center; gap: .55rem; padding: .3rem 0; }
+.dgl-lider + .dgl-lider { border-top: 1px solid var(--dgl-line); }
 /* Fondo tenue bajo el recorte transparente: sin él, un retrato de pelo oscuro se pierde contra el
-   blanco de la tarjeta. */
+   blanco de la caja. */
 .dgl-lider-foto { flex: 0 0 auto; border-radius: 50%; background: var(--dgl-bg); }
-.dgl-lider .nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dgl-lider .team { font-size: .62rem; letter-spacing: .06em; color: var(--dgl-muted); }
-/* El puesto empujado a la derecha junto al valor: son las dos cifras que se comparan de un vistazo
-   bajando la vista por la lista. */
-.dgl-lider .puesto { margin-left: auto; font-size: .72rem; color: var(--dgl-muted); }
-.dgl-lider .valor { flex: 0 0 3.2rem; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
-
-.dgl-lideres-mas {
-  display: block; width: 100%; margin-top: .5rem; padding: .3rem; background: none;
-  border: 0; border-top: 1px solid var(--dgl-line); font: inherit; font-size: .72rem;
-  color: var(--dgl-link); cursor: pointer;
+.dgl-lider-quien { flex: 1 1 auto; min-width: 0; }
+.dgl-lider-quien .nombre {
+  display: block; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.dgl-lideres-mas:hover { text-decoration: underline; }
+.dgl-lider-quien .nombre:hover { color: var(--dgl-blue); text-decoration: none; }
+/* La sigla en un cuadrado del alto de la foto, abriendo la fila. Cuadrado y no redondo a propósito:
+   es la única pieza que no es una persona ni una cifra, y la forma distinta lo dice sin leerla. */
+.dgl-lider-sigla {
+  flex: 0 0 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  border-radius: .35rem; background: var(--dgl-navy); color: #fff;
+  font-size: .78rem; font-weight: 800; letter-spacing: .02em; cursor: help;
+}
+/* En las filas que se ven al desplegar, el cuadrado se reserva pero no se pinta: la categoría ya la
+   dijo la fila de arriba, y repetirla cuatro veces dentro de la misma caja es ruido. El hueco se
+   queda para que las fotos sigan alineadas en la misma vertical. */
+.dgl-de-mas .dgl-lider-sigla { visibility: hidden; }
+
+/* El equipo y el «ver más» en una línea propia bajo el nombre, para que el nombre pueda usar todo el
+   ancho antes de recortarse con puntos suspensivos. */
+.dgl-lider-donde { display: flex; align-items: center; gap: .4rem; margin-top: .1rem; }
+.dgl-lider-logo { flex: 0 0 auto; }
+
+/* El puesto y la cifra en discos del tamaño de la foto: los cuatro elementos de la fila quedan a la
+   misma altura, y bajando la vista por las cajas se forma una retícula de columnas. */
+.dgl-lider-disco {
+  flex: 0 0 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-variant-numeric: tabular-nums; line-height: 1; cursor: help;
+}
+.dgl-lider-disco.puesto { background: var(--dgl-bg); border: 1px solid var(--dgl-line); font-size: .7rem; }
+/* El «#» chico y en gris para que el número mande: lo que se compara entre cajas es el 1 o el 8. */
+.dgl-lider-disco.puesto::before { content: "#"; font-size: .62rem; color: var(--dgl-muted); }
+.dgl-lider-disco.puesto b { font-size: 1rem; font-weight: 800; }
+/* La cifra en relleno, que es el dato final de la fila, y del mismo cuerpo que el puesto: son las
+   dos cifras que se leen juntas, y una más chica que la otra se leía como menos importante.
+   El interletraje apretado es lo que deja caber el valor más largo que manda el API —«.328», cuatro
+   caracteres— dentro de los 40px del disco sin achicar la letra. */
+.dgl-lider-disco.valor {
+  background: var(--dgl-red-deep); color: #fff; font-size: 1rem; font-weight: 800;
+  letter-spacing: -.05em;
+}
+
+/* Pegado al equipo del que encabeza la categoría, no al pie de la caja: ahí se lee como lo que es,
+   una acción sobre ESTA categoría y no sobre la lista entera. */
+.dgl-lider-mas {
+  padding: 0; background: none; border: 0; font: inherit; font-size: .68rem;
+  letter-spacing: .02em; color: var(--dgl-blue); cursor: pointer; white-space: nowrap;
+}
+.dgl-lider-mas:hover { text-decoration: underline; }
+.dgl-lider-mas:focus-visible { outline: 2px solid var(--dgl-blue); outline-offset: 2px; }
