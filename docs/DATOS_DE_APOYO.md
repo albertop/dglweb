@@ -178,6 +178,46 @@ fly_hits + ground_hits + line_hits + pop_hits = H
 
 por (jugador, temporada). En 1999, con datos sanos, da 4.957 = 4.957 clavado.
 
+### La otra mitad: contra `balls_in_play` (SAB-02)
+
+Lo de arriba reconcilia hits contra hits. Falta el denominador, que es donde se puede publicar un
+imposible:
+
+```
+gb_pct = (ground_outs + ground_hits) / balls_in_play
+          └ MLB ────┘   └Retrosheet┘   └ MLB ────┘
+```
+
+Los cuatro tipos son una partición de los batazos, así que **sus proporciones no pueden sumar más de
+100%**. Pueden hacerlo porque el numerador mezcla dos fuentes y el denominador viene de una tercera
+cuenta. Se mide con `derive.batted_ball_excess()`, en batazos enteros y no en proporciones: son
+exactos, así que `> 0` es una respuesta limpia sin epsilon que calibrar.
+
+Se aplica en dos momentos: `post_apply` aborta la transacción si **lo que se carga empeora** el
+desajuste —no si simplemente lo hay, ver abajo— y `manage.py check_batted_balls` audita lo que ya
+está guardado.
+
+### Anomalía conocida y aceptada: Rafael Soriano 2010
+
+| | |
+|---|---|
+| **Fila** | `player_id` 400089, temporada 2010, pitcheo |
+| **Qué pasa** | 129 outs + 36 hits = **165 batazos** contra **164** `balls_in_play` |
+| **Efecto** | GB%+FB%+LD%+PU% suma **100,61%** en su perfil |
+| **Origen** | **La fuente de MLB, no nosotros.** 2010 no está entre las temporadas que se cargan del CSV de Retrosheet: esos hits los entregó el proxy. Es MLB inconsistente consigo mismo. |
+| **Decisión (2026-07-27)** | **Se deja como está.** Subir su `balls_in_play` a 165 para que cuadre sería corregir a la fuente por nuestra cuenta, y la regla de este proyecto es no inventar datos. Un batazo de diferencia sobre 164 no cambia ninguna lectura. |
+
+Está declarada en `ACEPTADAS`, dentro del comando de auditoría. **Esa lista existe para que la
+auditoría pueda salir en verde**: un comando que siempre termina en rojo es un comando que nadie
+corre, y entonces no habría servido de nada construirlo. Las conocidas se listan aparte y no fallan;
+cualquier fila nueva sí.
+
+Se audita así, y no debería reportar nada fuera de lo conocido:
+
+```
+manage.py check_batted_balls
+```
+
 ## Datasets
 
 ### 1. Tipos de batazo en los hits — el que originó esto

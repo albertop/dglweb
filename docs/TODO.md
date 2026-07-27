@@ -677,8 +677,13 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   exceso, y eso habría tumbado un import legítimo por una fila rota desde antes, señalando al CSV
   equivocado. Ahora compara antes/después y solo corta si NOSOTROS lo empeoramos.
 
-  Pendiente menor, no bloqueante: **decidir qué se hace con la fila de Soriano** (1 de 6.896
-  medibles). Es dato de la fuente, así que no se toca sin decisión del dueño.
+  **Decisión del dueño (2026-07-27): la fila de Soriano se deja como está y se documenta.**
+  Corregirle el `balls_in_play` a 165 sería enmendarle la plana a la fuente por nuestra cuenta, y un
+  batazo sobre 164 no cambia ninguna lectura. Está declarada en `ACEPTADAS`, dentro del comando, con
+  su porqué; el detalle vive en `docs/DATOS_DE_APOYO.md`. Esa lista existe **para que la auditoría
+  pueda salir en verde**: un comando que siempre termina en rojo es un comando que nadie corre. Las
+  conocidas se listan y no fallan, cualquier fila nueva sí, y el comando avisa cuando una excepción
+  deja de disparar para que se borre.
 - [ ] **DEV-03 / DEV-04 — `compare()` carga todo en memoria; el upsert hace una query por fila.**
   Ciertos. Con 1.500 filas no se nota; el propio review dice que es tolerable. Documentar el límite
   del motor y volver si aparece un dataset grande.
