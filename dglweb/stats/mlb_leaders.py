@@ -179,23 +179,19 @@ def guardar(temporada: int, puestos: list[Puesto], codigos: dict[int, str]) -> i
     return len(filas)
 
 
-# A partir de acá el nombre no cabe en la fila del widget y se recorta con puntos suspensivos, que es
-# peor que abreviarlo: «Fernando Tatis…» pierde justo el apellido, que es por lo que se le reconoce.
-LARGO_MAXIMO = 15
-
-
 def nombre_corto(nombre: str) -> str:
-    """«Fernando Tatis Jr.» → «F. Tatis Jr.», pero «Juan Soto» se queda entero.
+    """«Fernando Tatis Jr.» → «F. Tatis Jr.», «Juan Soto» → «J. Soto».
 
-    Se sacrifica el nombre de pila y no el apellido porque es el apellido el que identifica al
-    pelotero. Y solo cuando hace falta: abreviar a todos por igual haría ilegible una lista donde la
-    mayoría cabe completa.
+    Todos por igual, quepan o no. Abreviar solo a los largos dejaba una columna despareja —unos con
+    pila y otros con inicial— y esa irregularidad se nota más que el nombre completo que se pierde.
+
+    Se sacrifica la pila y no el apellido porque es el apellido el que identifica al pelotero. Es
+    también lo contrario de lo que haría dejar que el CSS lo recorte: los puntos suspensivos se
+    comerían el final, que es la parte que importa.
 
     Un nombre de una sola palabra se deja como está: no hay pila que quitar, y dejarlo en una letra
     sería borrarlo.
     """
-    if len(nombre) <= LARGO_MAXIMO:
-        return nombre
     pila, _, resto = nombre.partition(" ")
     return f"{pila[:1]}. {resto}" if resto else nombre
 

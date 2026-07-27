@@ -619,10 +619,10 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    gris de la caja. Sin fondo, un pelo oscuro se derretiría contra el fondo. */
 .dgl-lider-foto { flex: 0 0 var(--pieza); width: var(--pieza); height: var(--pieza); border-radius: 50%; background: var(--dgl-card); }
 .dgl-lider-quien { flex: 1 1 auto; min-width: 0; }
-/* Un punto por debajo del texto del sitio: en media columna, «Fernando Tatis Jr.» a cuerpo normal se
-   cortaba con puntos suspensivos, y un nombre a medias vale menos que un nombre pequeño. */
+/* A cuerpo pleno: los nombres vienen ya abreviados desde Python —«F. Tatis Jr.»— así que caben sin
+   tener que achicar la letra. */
 .dgl-lider-quien .nombre {
-  display: block; font-weight: 700; font-size: .76rem; color: var(--dgl-ink);
+  display: block; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .dgl-lider-quien .nombre:hover { color: var(--dgl-blue); text-decoration: none; }

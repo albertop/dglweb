@@ -321,9 +321,9 @@ def test_the_photo_path_is_literal_and_not_hashed(temporada: SeasonDates, hr: Me
 @pytest.mark.parametrize(
     ("entero", "esperado"),
     [
-        ("Juan Soto", "Juan Soto"),  # 9: cabe
-        ("Junior Caminero", "Junior Caminero"),  # 15 justos: el límite entra
-        ("Fernando Tatis Jr.", "F. Tatis Jr."),  # 18: se abrevia la pila
+        ("Juan Soto", "J. Soto"),
+        ("Junior Caminero", "J. Caminero"),
+        ("Fernando Tatis Jr.", "F. Tatis Jr."),
         ("Cristopher Sánchez", "C. Sánchez"),
         ("Vladimir Guerrero Jr.", "V. Guerrero Jr."),
     ],
@@ -331,8 +331,8 @@ def test_the_photo_path_is_literal_and_not_hashed(temporada: SeasonDates, hr: Me
 def test_the_first_name_is_the_one_that_gives_way(entero: str, esperado: str) -> None:
     """Se sacrifica la pila y no el apellido: es el apellido el que identifica al pelotero.
 
-    Y solo cuando hace falta — abreviar a todos por igual haría ilegible una lista donde la mayoría
-    cabe completa.
+    Todos por igual, quepan o no: abreviar solo a los largos dejaba una columna despareja —unos con
+    pila y otros con inicial— y esa irregularidad se nota más que el nombre que se pierde.
     """
     assert mlb_leaders.nombre_corto(entero) == esperado
 
