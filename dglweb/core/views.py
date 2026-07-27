@@ -11,6 +11,17 @@ from django.utils import timezone
 PORTADA_DESTACADO = 1
 PORTADA_RESTO = 3
 
+# Los jobs que corren cada hora y alimentan módulos que el visitante VE. Se vigilan aparte del
+# refresco diario porque fallan distinto: el diario se nota al día siguiente, y estos dejan la
+# portada enseñando dato viejo con cara de fresco. Ver `_horarios_atrasados()`.
+HORARIOS = ("build_mlb_leaders", "update_roster_moves")
+
+# Cuánto se cachea la respuesta ANÓNIMA de `/health/pipeline`. Medio minuto: un monitor externo que
+# pregunta cada minuto sigue detectando un fallo en el siguiente sondeo, y mientras tanto ninguna
+# petición pública toca la base. La respuesta detallada no se cachea — ver la vista.
+SEGUNDOS_SEMAFORO = 30
+CLAVE_SEMAFORO = "health:pipeline"
+
 
 def home(request: HttpRequest) -> HttpResponse:
     """La portada. La franja de arriba son widgets: la pizarra, los destacados y los líderes.
@@ -100,16 +111,34 @@ def pipeline_health(request: HttpRequest) -> JsonResponse:
     nada más (SEC-01 del review v7).
     """
     from django.conf import settings
+    from django.core.cache import cache
 
     from dglweb.stats import season_window
     from dglweb.stats.models import IngestRun
 
     ventana_horas = settings.PIPELINE_STALE_HOURS
-    ventana = season_window.evaluate()
     detallado = _puede_ver_el_detalle(request)
+
+    # El semáforo anónimo se cachea; el detallado NO. Son dos lectores distintos: el monitor externo
+    # pregunta cada minuto y le sirve una respuesta de hace treinta segundos, mientras que quien pide
+    # el detalle es una persona mirando qué se rompió y necesita el estado de AHORA.
+    #
+    # Cachear el anónimo es lo que quita el trabajo de verdad: sin esto, cada petición pública evalúa
+    # la ventana de temporada y consulta `IngestRun` tres veces, y el endpoint es público a propósito
+    # (SEC-01 del v8). El rate limit NO va acá — un limitador dentro de Django gasta el proceso que
+    # quiere proteger, así que vive en el proxy inverso, que es Fase 8.
+    if not detallado:
+        cacheada = cache.get(CLAVE_SEMAFORO)
+        if cacheada is not None:
+            estado, codigo = cacheada
+            return JsonResponse({"status": estado}, status=codigo)
+
+    ventana = season_window.evaluate()
 
     def respuesta(estado: str, codigo: int = 200, **detalle: object) -> JsonResponse:
         """El estado siempre; lo demás solo para quien puede verlo."""
+        if not detallado:
+            cache.set(CLAVE_SEMAFORO, (estado, codigo), SEGUNDOS_SEMAFORO)
         return JsonResponse({"status": estado, **(detalle if detallado else {})}, status=codigo)
 
     if not ventana.corre:
@@ -117,6 +146,18 @@ def pipeline_health(request: HttpRequest) -> JsonResponse:
 
     desde = timezone.now() - timedelta(hours=ventana_horas)
     ultima = IngestRun.objects.filter(command="refresh_daily", started_at__gte=desde).order_by("-started_at").first()
+
+    # Los jobs HORARIOS, con su propio umbral. El semáforo miraba solo el refresco diario, así que
+    # `build_mlb_leaders` y `update_roster_moves` podían llevar seis horas fallando —líderes viejos en
+    # la portada, cintillo congelado— con el monitor en verde. Un fallo user-facing que ninguna
+    # alerta veía es exactamente el agujero que este endpoint vino a tapar (QA-01/ARCH-01 del v8).
+    #
+    # Umbral distinto a propósito: un día para lo diario y tres horas para lo horario. Con el mismo
+    # umbral, o el diario da falsas alarmas o lo horario tarda un día en avisar.
+    if ultima is not None and ultima.status in (IngestRun.Status.SUCCESS, IngestRun.Status.SKIPPED):
+        atrasados = _horarios_atrasados()
+        if atrasados:
+            return respuesta("error", 503, detalle="; ".join(atrasados))
 
     if ultima is None:
         return respuesta(
@@ -137,6 +178,30 @@ def pipeline_health(request: HttpRequest) -> JsonResponse:
         filas=ultima.rows_affected,
         hace_horas=round((timezone.now() - ultima.started_at).total_seconds() / 3600, 1),
     )
+
+
+def _horarios_atrasados() -> list[str]:
+    """Los jobs horarios que llevan demasiado sin una corrida buena.
+
+    Se miran aparte del refresco diario porque fallan distinto y avisan distinto: el diario se nota
+    al día siguiente, y estos dejan la portada enseñando dato viejo con cara de fresco. Un cintillo
+    congelado no parece roto, parece que no pasó nada — que es peor.
+    """
+    from django.conf import settings
+
+    from dglweb.stats.models import IngestRun
+
+    desde = timezone.now() - timedelta(hours=settings.PIPELINE_HOURLY_STALE_HOURS)
+    atrasados = []
+    for comando in HORARIOS:
+        ultima = (
+            IngestRun.objects.filter(command=comando, started_at__gte=desde, status=IngestRun.Status.SUCCESS)
+            .order_by("-started_at")
+            .first()
+        )
+        if ultima is None:
+            atrasados.append(f"{comando} sin corrida buena en {settings.PIPELINE_HOURLY_STALE_HOURS}h")
+    return atrasados
 
 
 def _puede_ver_el_detalle(request: HttpRequest) -> bool:

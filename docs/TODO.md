@@ -988,25 +988,25 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
 
 ### Aceptados — prioridad media
 
-- [ ] **DEV-01 — `update_roster_moves` no usa `build_client()`.** Aceptado, y es culpa mía de hoy.
+- [x] **DEV-01 — `update_roster_moves` no usa `build_client()`.** **Corregido el 2026-07-27.** Aceptado, y es culpa mía de hoy.
       Comprobado: `build_client()` existe, aplica `MLB_PROXY_TIMEOUT`, y lo usan otros diez comandos;
       el mío instancia el cliente a mano y **se salta el timeout configurado**. Son tres líneas.
 
-- [ ] **DEV-02 + QA-02 — una fila malformada tumba la corrida entera.** Aceptados como uno solo: es
+- [x] **DEV-02 + QA-02 — una fila malformada tumba la corrida entera.** **Corregido el 2026-07-27**, con seis casos parametrizados de fila podrida. Aceptados como uno solo: es
       el mismo problema, visto en el código por una persona y en los tests por otra. `_movimiento()`
       maneja los campos que faltan pero no captura `ValueError`/`TypeError`, así que un `id` no
       numérico o una fecha con formato raro aborta las 130 filas buenas. Arreglo: aislar la
       conversión de cada fila, saltar la mala y dejar nota en `IngestRun`. Con tests de
       `date="2026-07-20T00:00:00Z"`, `id="abc"` y un `transactions` que no sea lista.
 
-- [ ] **QA-01 + ARCH-01 — los jobs horarios no los vigila el semáforo.** Aceptados como uno.
+- [x] **QA-01 + ARCH-01 — los jobs horarios no los vigila el semáforo.** **Corregido el 2026-07-27**: umbral propio de 3h en `PIPELINE_HOURLY_STALE_HOURS`. Aceptados como uno.
       Comprobado: `/health/pipeline` solo mira la última fila de `refresh_daily`. Si
       `build_mlb_leaders` o `update_roster_moves` fallan seis horas seguidas, el monitor sigue verde
       mientras la portada enseña líderes viejos y un cintillo congelado. Arreglo: frescura por
       comando con umbrales distintos — un día para el refresco diario, dos o tres horas para los
       horarios.
 
-- [ ] **SEC-01 (parcial) — cachear el semáforo anónimo.** Aceptada la mitad barata: cachear la
+- [x] **SEC-01 (parcial) — cachear el semáforo anónimo.** **Corregido el 2026-07-27**: 30s, y comprobado que la segunda petición no toca la base. Aceptada la mitad barata: cachear la
       respuesta pública 30–60s, que quita la consulta a `IngestRun` en cada petición. El *rate limit*
       NO se acepta acá — ver el rechazo razonado más abajo.
 

@@ -34,6 +34,7 @@ en inglés dentro de una cintilla en español no se lee como un dato, se lee com
 original queda guardado para poder agregar el patrón que falte.
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -44,6 +45,8 @@ from django.db import transaction
 from dglweb.mlb.client import MlbProxyClient
 from dglweb.players.models import Player
 from dglweb.stats.models import DomPlayer, RosterMove
+
+logger = logging.getLogger(__name__)
 
 # Cuántos días pide cada corrida. Dos y no uno: la corrida de la medianoche tiene que alcanzar lo que
 # pasó tarde el día anterior, y repetir lo ya guardado no cuesta nada porque se guarda por id.
@@ -181,16 +184,34 @@ def traducir(fila: dict[str, Any]) -> str:
 
 
 def _movimiento(fila: dict[str, Any]) -> Movimiento | None:
-    """Convierte una fila del feed. `None` si le falta algo con lo que no se puede trabajar."""
+    """Convierte una fila del feed. `None` si no se puede trabajar con ella.
+
+    Las conversiones van dentro de un `try` y NO por paranoia: `int()` y `date.fromisoformat()`
+    lanzan si el feed manda un `id` con letras o una fecha con hora pegada. Sin esto, **una sola fila
+    rara aborta la corrida entera** y se pierden las ciento treinta buenas — el cintillo se queda con
+    lo de ayer y nadie sabe por qué. Un contrato ajeno se valida, no se supone.
+    """
     persona = fila.get("person") or {}
     identificador, mlb_id = fila.get("id"), persona.get("id")
     if not identificador or not mlb_id or not fila.get("date"):
         return None
+    try:
+        return _convertir(fila, persona)
+    except (TypeError, ValueError):
+        logger.warning("Transacción con formato inesperado, se salta: %r", fila, exc_info=True)
+        return None
+
+
+def _convertir(fila: dict[str, Any], persona: dict[str, Any]) -> Movimiento:
+    """La conversión propiamente dicha. Aparte para que el `try` de arriba envuelva justo esto y no
+    se coma por accidente un error de otra parte."""
     return Movimiento(
-        transaction_id=int(identificador),
-        mlb_id=int(mlb_id),
+        transaction_id=int(fila["id"]),
+        mlb_id=int(persona["id"]),
         nombre=str(persona.get("fullName") or ""),
-        fecha=date.fromisoformat(str(fila["date"])),
+        # `[:10]` para tolerar la fecha con hora («2026-07-20T00:00:00Z»). El feed manda solo la
+        # fecha, pero es un contrato de MLB y no nuestro.
+        fecha=date.fromisoformat(str(fila["date"])[:10]),
         type_code=str(fila.get("typeCode") or "")[:8],
         type_desc=str(fila.get("typeDesc") or "")[:60],
         desde=str((fila.get("fromTeam") or {}).get("name") or "")[:80],
@@ -214,7 +235,12 @@ def traer(client: MlbProxyClient, hasta: date, dias: int = DIAS) -> list[Movimie
     )
     nuestros = universo()
     movimientos = []
-    for fila in payload.get("transactions") or []:
+    #  podría no ser una lista, o traer algo que no sea un diccionario. Es un contrato
+    # ajeno: se comprueba en vez de suponerse, porque el precio de equivocarse es perder la corrida.
+    filas = payload.get("transactions")
+    for fila in filas if isinstance(filas, list) else []:
+        if not isinstance(fila, dict):
+            continue
         if (fila.get("person") or {}).get("id") not in nuestros:
             continue
         movimiento = _movimiento(fila)

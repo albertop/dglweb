@@ -10,10 +10,12 @@ from datetime import date, timedelta
 from typing import Any
 
 import pytest
+from django.core.cache import cache
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
+from dglweb.core.views import HORARIOS
 from dglweb.stats.models import IngestRun, SeasonDates
 from dglweb.stats.season_window import MLB
 
@@ -42,6 +44,27 @@ def _refresco(estado: str, hace_horas: float = 1, detalle: str = "") -> IngestRu
     )
 
 
+def _horario(comando: str, hace_horas: float = 1, estado: str = IngestRun.Status.SUCCESS) -> IngestRun:
+    """Una corrida de un job HORARIO. Los alimenta la portada, así que el semáforo los vigila con su
+    propio umbral — tres horas, no las treinta del refresco diario."""
+    momento = timezone.now() - timedelta(hours=hace_horas)
+    return IngestRun.objects.create(
+        command=comando, scope="2026-07-27", status=estado, started_at=momento, finished_at=momento
+    )
+
+
+def _todo_sano(estado: str = IngestRun.Status.SUCCESS) -> None:
+    """El pipeline entero al día: el refresco diario y los dos jobs horarios.
+
+    Existe porque desde el v8 «sano» dejó de significar solo «corrió el refresco»: con los líderes o
+    el cintillo congelados, la portada enseña dato viejo con cara de fresco y el semáforo tiene que
+    encenderse igual.
+    """
+    _refresco(estado)
+    for comando in HORARIOS:
+        _horario(comando)
+
+
 TOKEN = "el-token-del-monitor"
 
 
@@ -58,7 +81,7 @@ def _pedir_con_token(settings: Any, token: str = TOKEN) -> Any:
 
 @pytest.mark.django_db
 def test_a_healthy_refresh_answers_200(temporada: SeasonDates) -> None:
-    _refresco(IngestRun.Status.SUCCESS)
+    _todo_sano()
 
     respuesta = _pedir()
 
@@ -129,7 +152,7 @@ def test_an_anonymous_caller_gets_the_light_but_not_the_reasons(temporada: Seaso
 @pytest.mark.django_db
 def test_the_healthy_answer_also_hides_its_numbers(temporada: SeasonDates) -> None:
     """En verde tampoco: las filas escritas y las horas desde el refresco son telemetría."""
-    _refresco(IngestRun.Status.SUCCESS)
+    _todo_sano()
 
     assert _pedir().json() == {"status": "ok"}
 
@@ -193,3 +216,120 @@ def test_the_liveness_probe_stays_independent(temporada: SeasonDates) -> None:
     assert _pedir().status_code == 503  # el pipeline está mal…
 
     assert Client().get("/health").status_code == 200  # …y el contenedor sigue vivo
+
+
+# ── QA-01 + ARCH-01: los jobs horarios ──────────────────────────────────────────────────────────
+#
+# El semáforo miraba solo el refresco diario. Un `build_mlb_leaders` o un `update_roster_moves`
+# fallando seis horas dejaba la portada con líderes viejos y el cintillo congelado, y el monitor en
+# verde. Es peor que un 503: un módulo «vivo» que enseña dato de ayer no parece roto, parece que no
+# pasó nada.
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("comando", HORARIOS)
+def test_a_stale_hourly_job_turns_the_light_red(temporada: SeasonDates, comando: str) -> None:
+    """Aunque el refresco diario esté impecable."""
+    _refresco(IngestRun.Status.SUCCESS)
+    for otro in HORARIOS:
+        # Todos al día menos el que se prueba, que lleva un día entero sin correr.
+        _horario(otro, hace_horas=24 if otro == comando else 1)
+
+    respuesta = _pedir()
+
+    assert respuesta.status_code == 503, f"{comando} atrasado tiene que encender el semáforo"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("comando", HORARIOS)
+def test_an_hourly_job_that_only_fails_is_as_bad_as_one_that_does_not_run(
+    temporada: SeasonDates, comando: str
+) -> None:
+    """Se exige una corrida BUENA, no una corrida cualquiera.
+
+    Un job que arranca cada hora y revienta cada hora deja filas recientes en el log; si el semáforo
+    solo mirara que existan, estaría verde mientras nada se actualiza.
+    """
+    _refresco(IngestRun.Status.SUCCESS)
+    for otro in HORARIOS:
+        _horario(otro, estado=IngestRun.Status.FAILED if otro == comando else IngestRun.Status.SUCCESS)
+
+    assert _pedir().status_code == 503
+
+
+@pytest.mark.django_db
+def test_the_hourly_threshold_is_shorter_than_the_daily_one(temporada: SeasonDates, settings: Any) -> None:
+    """Dos relojes distintos porque son dos problemas distintos.
+
+    Con el umbral del diario —treinta horas— un cintillo congelado tardaría más de un día en avisar,
+    y para entonces la portada lleva un día entero mintiendo.
+    """
+    assert settings.PIPELINE_HOURLY_STALE_HOURS < settings.PIPELINE_STALE_HOURS
+
+    _refresco(IngestRun.Status.SUCCESS)
+    for comando in HORARIOS:
+        # Cuatro horas: dentro del margen del diario, fuera del margen horario.
+        _horario(comando, hace_horas=4)
+
+    assert _pedir().status_code == 503
+
+
+@pytest.mark.django_db
+def test_out_of_season_the_hourly_jobs_do_not_raise_an_alarm(temporada: SeasonDates) -> None:
+    """En invierno no hay líderes que recalcular ni movimientos que traer. Un 503 diario durante
+    cinco meses enseña a ignorar la alerta, que es la peor manera de tener una."""
+    SeasonDates.objects.update(is_active=False)
+
+    assert _pedir().status_code == 200
+
+
+# ── SEC-01: la respuesta anónima se cachea ──────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_the_anonymous_answer_is_cached_and_stops_hitting_the_database(temporada: SeasonDates) -> None:
+    """El endpoint es público a propósito, así que cualquiera puede pedirlo en bucle.
+
+    Con la caché, la segunda petición no consulta nada: solo devuelve lo guardado.
+    """
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    _todo_sano()
+    cache.clear()
+
+    _pedir()  # la primera llena la caché
+    with CaptureQueriesContext(connection) as capturadas:
+        segunda = _pedir()
+
+    assert segunda.status_code == 200
+    assert len(capturadas) == 0, "la respuesta cacheada no debería tocar la base"
+
+
+@pytest.mark.django_db
+def test_the_detailed_answer_is_never_served_from_cache(temporada: SeasonDates, settings: Any) -> None:
+    """Quien pide el detalle es una persona mirando qué se rompió: necesita el estado de AHORA.
+
+    Y al revés importa igual: una respuesta detallada no puede quedar guardada donde la recoja el
+    siguiente anónimo.
+    """
+    _todo_sano()
+    cache.clear()
+
+    _pedir_con_token(settings)
+    guardado = cache.get("health:pipeline")
+
+    assert guardado is None, "el detalle no se cachea, ni para sí mismo ni para el anónimo siguiente"
+
+
+@pytest.mark.django_db
+def test_a_cached_healthy_light_does_not_leak_detail(temporada: SeasonDates) -> None:
+    """Lo cacheado es el semáforo, no el cuerpo: si guardáramos la respuesta entera, el detalle del
+    primer consultante autorizado se le serviría al siguiente anónimo."""
+    _todo_sano()
+    cache.clear()
+
+    _pedir()
+    cuerpo = _pedir().json()
+
+    assert cuerpo == {"status": "ok"}

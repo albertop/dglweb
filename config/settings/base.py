@@ -145,6 +145,11 @@ INGEST_LOG_RETENTION_DAYS = env.int("INGEST_LOG_RETENTION_DAYS", default=30)
 # Treinta y no veinticuatro: un refresco que se atrasa unas horas no es una emergencia, y una
 # alerta que salta por eso enseña a ignorarla. Con 30 hay un día entero de margen.
 PIPELINE_STALE_HOURS = env.int("PIPELINE_STALE_HOURS", default=30)
+# Y el de los jobs HORARIOS, que es otro problema. Tres horas y no treinta: con el umbral del diario,
+# un cintillo congelado tardaría más de un día en encender el semáforo, y para entonces la portada
+# lleva un día entero enseñando dato viejo. Tres deja margen para un par de corridas fallidas
+# seguidas sin gritar por una sola.
+PIPELINE_HOURLY_STALE_HOURS = env.int("PIPELINE_HOURLY_STALE_HOURS", default=3)
 
 # Quién puede ver el DETALLE del fallo en `/health/pipeline`. El semáforo —200 o 503— es público a
 # propósito, porque quien lo lee es un monitor de uptime externo y pedirle credenciales a un servicio

@@ -10,11 +10,10 @@ solo están los argumentos, la bitácora y la salida por consola.
 from datetime import timedelta
 from typing import Any
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 
-from dglweb.mlb.client import MlbProxyClient
+from dglweb.mlb.client import build_client
 from dglweb.stats import roster_moves
 from dglweb.stats.runlog import record_run
 
@@ -40,8 +39,11 @@ class Command(BaseCommand):
         alcance = f"{hoy - timedelta(days=dias - 1)}..{hoy}"
 
         with record_run("update_roster_moves", alcance) as run:
-            cliente = MlbProxyClient(settings.MLB_PROXY_URL, settings.MLB_PROXY_API_KEY)
-            movimientos = roster_moves.traer(cliente, hoy, dias)
+            # `build_client()` y no el constructor a mano: es la única puerta donde viven la URL, la
+            # clave Y el `MLB_PROXY_TIMEOUT`. Armándolo acá —como estaba— este job se saltaba el
+            # timeout configurado, así que en producción se habría comportado distinto que los otros
+            # diez comandos sin que nada lo dijera.
+            movimientos = roster_moves.traer(build_client(), hoy, dias)
             run.add_rows(roster_moves.guardar(movimientos))
 
             # Cuántas quedaron sin traducir es el número que hay que vigilar: si MLB cambia una

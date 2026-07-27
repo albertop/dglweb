@@ -9,6 +9,7 @@ nuestras regex se entienden a sí mismas.
 """
 
 from datetime import date
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from django.test import Client
@@ -16,6 +17,9 @@ from django.test import Client
 from dglweb.players.models import Player
 from dglweb.stats import roster_moves
 from dglweb.stats.models import RosterMove
+
+if TYPE_CHECKING:
+    from dglweb.mlb.client import MlbProxyClient
 from tests.test_players import _other_player
 
 
@@ -31,6 +35,17 @@ def _fila(descripcion: str, **campos: object) -> dict[str, object]:
         "toTeam": {"id": 121, "name": "New York Mets"},
     }
     return base | campos
+
+
+class _ClienteFalso:
+    """Un cliente del proxy que devuelve lo que se le diga. Sin red: lo que se prueba acá es cómo
+    reacciona el parser a un payload roto, no que httpx funcione."""
+
+    def __init__(self, payload: Any) -> None:
+        self._payload = payload
+
+    def get(self, ruta: str, params: dict[str, object] | None = None) -> Any:
+        return self._payload
 
 
 # ── El español ──────────────────────────────────────────────────────────────────────────────────
@@ -335,3 +350,77 @@ def test_the_duplicated_strip_is_out_of_the_tab_order(client: Client) -> None:
     assert listas == 2, "la tira lleva la lista dos veces para que el ciclo empalme"
     # Exactamente UNA de las dos es inerte: la otra es la que recorre el teclado y lee el lector.
     assert copias == 1, "la copia del cintillo tiene que ser inerte, no solo aria-hidden"
+
+
+# ── QA-02: contratos ajenos rotos ───────────────────────────────────────────────────────────────
+#
+# El feed es de MLB, no nuestro. Una fila con un `id` de letras o una fecha con hora pegada aborta
+# `int()` o `date.fromisoformat()`, y sin aislarla **se pierde la corrida entera**: el cintillo se
+# queda con lo de ayer y nadie sabe por qué. Lo que se prueba es que la fila mala se salte y las
+# buenas lleguen.
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("rota", "por_que"),
+    [
+        ({"id": "abc"}, "id con letras"),
+        ({"id": None}, "id nulo"),
+        ({"date": ""}, "fecha vacía"),
+        ({"date": "no-es-fecha"}, "fecha ilegible"),
+        ({"person": None}, "sin persona"),
+        ({"person": {"id": "x", "fullName": "Raro"}}, "id de persona con letras"),
+    ],
+)
+def test_a_broken_row_is_skipped_and_the_good_ones_survive(
+    monkeypatch: pytest.MonkeyPatch, rota: dict[str, object], por_que: str
+) -> None:
+    """Una fila podrida no puede llevarse por delante a las demás."""
+    buena = {
+        "id": 900201,
+        "person": {"id": 665742, "fullName": "Juan Soto"},
+        "date": "2026-07-20",
+        "typeCode": "SC",
+        "typeDesc": "Status Change",
+        "description": "New York Mets activated LF Juan Soto.",
+        "toTeam": {"name": "New York Mets"},
+    }
+    mala = {**buena, "id": 900202, **rota}
+
+    monkeypatch.setattr(roster_moves, "universo", lambda: {665742})
+    cliente = _ClienteFalso({"transactions": [mala, buena]})
+
+    movimientos = roster_moves.traer(cast("MlbProxyClient", cliente), date(2026, 7, 20))
+
+    assert [m.transaction_id for m in movimientos] == [900201], f"se perdió la buena con «{por_que}»"
+
+
+@pytest.mark.django_db
+def test_a_date_with_a_timestamp_is_accepted() -> None:
+    """MLB manda solo la fecha, pero es su contrato y puede cambiarlo sin avisarnos. Recortar a diez
+    caracteres cuesta nada y evita perder la fila el día que le peguen la hora."""
+    fila = {
+        "id": 900203,
+        "person": {"id": 665742, "fullName": "Juan Soto"},
+        "date": "2026-07-20T00:00:00Z",
+        "typeCode": "SC",
+        "typeDesc": "Status Change",
+        "description": "New York Mets activated LF Juan Soto.",
+        "toTeam": {"name": "New York Mets"},
+    }
+
+    movimiento = roster_moves._movimiento(fila)
+
+    assert movimiento is not None
+    assert movimiento.fecha == date(2026, 7, 20)
+
+
+@pytest.mark.django_db
+def test_a_payload_that_is_not_a_list_does_not_explode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`transactions` podría no venir, venir a nulo o venir como diccionario. Ninguna de las tres
+    puede tumbar el job: son formas de que el contrato ajeno cambie."""
+    monkeypatch.setattr(roster_moves, "universo", lambda: {665742})
+
+    for payload in ({}, {"transactions": None}, {"transactions": {"raro": 1}}, {"transactions": ["texto suelto"]}):
+        falso = cast("MlbProxyClient", _ClienteFalso(payload))
+        assert roster_moves.traer(falso, date(2026, 7, 20)) == []
