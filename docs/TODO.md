@@ -111,7 +111,10 @@ muestra escritas a mano.
 - [ ] **Imagen prod separada:** Dockerfile de producción con `collectstatic` en el build, solo
   deps de runtime, `config.settings.prod` por defecto, gunicorn, y fallo-ruidoso si faltan
   secretos. (El manifest storage de prod requiere `collectstatic`, que hoy no corre en el build.)
-- [ ] **Vendorizar Bootstrap + fuentes** (o al menos SRI): hoy vienen de CDN sin `integrity`.
+- [x] **Vendorizar Bootstrap + fuentes.** **Hecho el 2026-07-27**, y entero: no queda una sola
+      petición a terceros en ninguna página. 664 KB en `static/vendor/`, con su README y el script
+      que los regenera. Se recortaron los alfabetos cirílico, griego y vietnamita —que un sitio de
+      béisbol dominicano no va a usar— y eso solo ahorró 321 KB.
   Self-host mejora resiliencia (Principio #0), privacidad y prepara CSP.
 - [ ] **`restart` policy** del contenedor web en el compose de prod.
 
