@@ -70,9 +70,10 @@ muestra escritas a mano.
       están declarados en `search_fields` de `ArticlePage`— así que la parte de datos está hecha:
       falta la caja, la página de resultados y decidir si comparte sitio con el buscador de
       jugadores del header o va aparte, dentro de `/articulos/`.
-- [ ] **Paginación del índice.** Hoy se dibujan hasta 45 artículos y el botón los descubre de doce en
-      doce sin ir al servidor (ver `TANDAS` en el modelo). Con cientos publicados eso es una página
-      de cientos: ahí hace falta paginación de verdad.
+- [ ] **Paginación del índice.** Hoy se dibujan hasta 24 artículos y el botón los descubre de seis en
+      seis sin ir al servidor (ver `TANDAS` en el modelo). Con cientos publicados eso es una página
+      de cientos: ahí hace falta paginación de verdad. Es además la salida buena para el botón que
+      queda muerto sin JavaScript — ver el rechazo razonado de QA-03/FE-03 en el review v8.
 - [x] **Restringir el Backoffice al rol *Administradores*.** Hecho el 2026-07-27. A un redactor no
       le aparece el menú siquiera, y no por una regla suelta sino porque no tiene permisos sobre esos
       modelos — Wagtail esconde lo que no se puede tocar.
@@ -732,7 +733,10 @@ Con guardián: `tests/test_no_avisar_en_tests.py` comprueba que la suite no tien
 
 ## Pendiente de operación — el scheduler no recarga el calendario
 
-- [ ] **Reiniciar `scheduler` después de tocar `ofelia/config.ini`.** Descubierto el 2026-07-27: el
+- [x] **Reiniciar `scheduler` después de tocar `ofelia/config.ini`.** **REGLA PERMANENTE, no una
+  tarea**: hay que hacerlo CADA vez que se toque el archivo. Se cumplió el 2026-07-27 al agregar
+  `roster-moves-hourly` — el log dijo «Starting scheduler with 5 jobs», que es la comprobación.
+  Descubierto el 2026-07-27: el
   job `mlb-leaders-hourly` se agregó al archivo a las 18:58 del 26, y el scheduler llevaba corriendo
   desde las 15:39. Ofelia lee el calendario **solo al arrancar**, así que el proceso tenía cargados 2
   jobs —`Starting scheduler with 2 jobs` en su log— y el horario nunca se registró: `build_mlb_leaders`
@@ -832,13 +836,14 @@ falso). Los archivos viven en el volumen `dglweb_media`.
       si se pierde el volumen, las fotos de todos los artículos se van con él y no hay de dónde
       recuperarlas.
 
-## Aparcado — el ticker en vivo (2026-07-27)
+## El cintillo de movimientos de roster — ✅ CONSTRUIDO (2026-07-27)
 
-**Decisión del dueño: prioridad muy baja.** La cintilla de la cabecera era el último módulo que le
-faltaba a la Fase 6 y se queda esperando. No bloquea nada: la pizarra y los destacados —los otros dos
-módulos vivos de esa fase— están hechos y funcionando.
+Se aparcó por la mañana con prioridad muy baja y se construyó por la tarde, cuando el dueño decidió
+qué mostraba. Lo que sigue es el registro de las decisiones, que siguen valiendo para mantenerlo.
 
-- [ ] **El ticker de movimientos de roster.** Qué muestra ya está decidido (dueño, 2026-07-27):
+- [x] **El ticker de movimientos de roster.** **Hecho**: `stats/roster_moves.py`, el comando
+  `update_roster_moves`, el job horario y el widget `_cintillo.html`. 30 plantillas traducen el 100%
+  de las transacciones de un mes; una llamada al API por corrida. Qué muestra ya está decidido (dueño, 2026-07-27):
   **los movimientos de roster de nuestros peloteros** — firmados, subidos, bajados, cambiados,
   liberados. No marcadores en vivo ni jugadas del día.
 
@@ -1091,3 +1096,39 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
       un editor subiendo algo interno creyendo que es privado— así que se resuelve diciéndolo, no
       borrando una función que probablemente haga falta («descarga los datos de este gráfico»).
       Falta: escribirlo donde lo lea quien escribe, y un test que congele la decisión.
+
+## Lo hecho el 2026-07-27 — resumen de la jornada
+
+Un día largo, y esto es el índice para no tener que reconstruirlo del historial de git.
+
+**Fase 5 cerrada.** `ArticlePage` bajo `ArticleIndexPage`, siete bloques de cuerpo, categoría única +
+hashtags, medios en un volumen, y el flujo editorial con tres roles montados por migración
+(Redactores / Editores / Administradores). El «Done when» de la fase —borrador → revisión →
+publicado— está cubierto por 9 tests.
+
+**Fase 6 cerrada**, con su «Done when» enmendado y escrito como enmienda: la pizarra y los destacados
+ya cumplían los tres requisitos, y el ticker salió del camino crítico… hasta que el mismo día se
+construyó, cuando el dueño decidió que mostraba movimientos de roster.
+
+**El cintillo**, entero: fuente decidida contra alternativas medidas, 1 llamada al API por corrida,
+30 plantillas que traducen el 100% de un mes sin LLM, y un job horario idempotente.
+
+**Review v8 completo**: 15 findings verificados uno por uno contra el código, 11 aceptados y
+corregidos, 4 rechazados con su razón escrita.
+
+**Dos hallazgos que valen más que los findings que los provocaron**, los dos encontrados por tests
+que se escribieron para confirmar que todo estaba bien:
+
+* El gráfico de barras **se rompía con valores negativos** —barra cuatro veces más alta que el lienzo,
+  o barra invisible— y en un sitio de sabermetría eso no es hipotético.
+* El texto enriquecido **no filtraba el esquema de los enlaces**: un `javascript:` en el cuerpo
+  llegaba intacto a la página.
+
+**Y uno que encontró el CI**: la suite llevaba doce pushes en rojo porque `settings.test` clavaba el
+host `db`, que solo existe dentro de Docker.
+
+**Cobertura**: `refresh_daily`, `pipeline`, `rebuilds` y `telegram_check` al 100%, y de paso apareció
+un bug — cuando un paso reventaba antes de registrarse, el mensaje de la excepción se perdía y salía
+«no dejó fila en el log», que es justo el mensaje que ya había confundido una mañana entera.
+
+La suite pasó de 825 a 946 tests.
