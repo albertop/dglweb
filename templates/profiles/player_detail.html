@@ -53,16 +53,30 @@
   panel, y el `role="presentation"` del <li> evita que se anuncie como ítem de lista además de como
   pestaña. Con eso puesto, Bootstrap además habilita las flechas del teclado para moverse entre ellas.
   {% endcomment %}
-  <ul class="nav nav-tabs mb-3" role="tablist" aria-label="Estadísticas del jugador">
-    {% for tab in tabs %}
-    <li class="nav-item" role="presentation">
-      <button class="nav-link {% if tab.active %}active{% endif %}" data-bs-toggle="tab"
-              id="tab-{{ tab.key }}-btn" data-bs-target="#tab-{{ tab.key }}" type="button" role="tab"
-              aria-controls="tab-{{ tab.key }}" aria-selected="{% if tab.active %}true{% else %}false{% endif %}"
-              >{{ tab.label }}</button>
-    </li>
-    {% endfor %}
-  </ul>
+  {% comment %}
+    Las pestañas comparten fila con el anuncio, que aprovecha el vacío a su derecha.
+
+    El hueco lo reserva el CSS —`.dgl-ad-leader` son 90px fijos— y no lo decide lo que se cargue
+    dentro: así la tabla de abajo nace en su sitio definitivo y no da un salto cuando el anuncio
+    llega. `align-items-end` deja las pestañas apoyadas en la base de la fila, donde estaban.
+  {% endcomment %}
+  <div class="row g-3 align-items-end mb-3">
+    <div class="col-lg-7">
+      <ul class="nav nav-tabs mb-0" role="tablist" aria-label="Estadísticas del jugador">
+        {% for tab in tabs %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if tab.active %}active{% endif %}" data-bs-toggle="tab"
+                  id="tab-{{ tab.key }}-btn" data-bs-target="#tab-{{ tab.key }}" type="button" role="tab"
+                  aria-controls="tab-{{ tab.key }}" aria-selected="{% if tab.active %}true{% else %}false{% endif %}"
+                  >{{ tab.label }}</button>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="col-lg-5">
+      <div class="dgl-ad dgl-ad-banner">Espacio publicitario · 468×60</div>
+    </div>
+  </div>
   <div class="tab-content">
     {% for tab in tabs %}
     <div class="tab-pane fade {% if tab.active %}show active{% endif %}" id="tab-{{ tab.key }}"

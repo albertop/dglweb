@@ -772,3 +772,13 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* El anuncio lateral se queda a la vista mientras se baja por un tablero largo. `top` con aire para
    que no quede pegado al borde de la ventana. */
 .dgl-ad-pegado { position: sticky; top: 1rem; }
+
+/* Rascacielos: el formato que corresponde al hueco alto y estrecho de la derecha. Ancho fijo y
+   pegado al borde —`margin-left: auto`— en vez de ocupar toda la columna: un anuncio estirado hasta
+   los 470px de la columna no es ningún formato que exista. */
+.dgl-ad-torre { width: 300px; max-width: 100%; height: 600px; margin-left: auto; }
+
+/* Banner chico, para el hueco corto que queda al lado de unas pestañas. Ancho fijo y pegado a la
+   derecha: estirado a la columna entera pesaba más que las pestañas, que son el control de la
+   página. `max-width` para que en móvil se encoja en vez de desbordar. */
+.dgl-ad-banner { width: 468px; max-width: 100%; height: 60px; margin-left: auto; }
