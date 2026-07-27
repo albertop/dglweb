@@ -126,7 +126,10 @@ a:hover { text-decoration: underline; }
 /* ---------- Cards / articles ---------- */
 .card { border-color: var(--dgl-line); }
 .dgl-hero { overflow: hidden; }
-.dgl-hero .dgl-thumb { height: 260px; }
+/* La imagen del destacado de la portada, por debajo del texto que la acompaña: lo que vende el
+   artículo es el titular y la entradilla, no un rectángulo azul con una etiqueta. A 260px se comía
+   el 53% de la tarjeta; a 190 baja al 45% y el texto pasa a mandar. */
+.dgl-hero .dgl-thumb { height: 190px; }
 .dgl-thumb {
   background: linear-gradient(135deg, var(--dgl-navy), var(--dgl-blue));
   color: #cfe0ff; display: flex; align-items: center; justify-content: center;
@@ -444,11 +447,14 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    cuando en realidad es a donde hay que hacer clic. */
 .nav-tabs .nav-link { font-weight: 700; color: var(--dgl-ink); font-size: .9rem; }
 /* El tab activo va en bloque, no en subrayado: con seis pestañas el borde inferior costaba de
-   ubicar. Se usa el rojo profundo para que el elemento seleccionado tenga el mismo peso visual que
-   la barra superior, que es lo que ancla la identidad de la página. */
+   ubicar.
+
+   En el MISMO rojo del monograma de la marca y no en el profundo. Eran dos rojos a un palmo uno del
+   otro —#ce1126 arriba y #a50e1e aquí— y esa diferencia no se lee como una decisión, se lee como un
+   descuido. Contra blanco da 5,6:1, que sigue cumpliendo el AA de la WCAG. */
 .nav-tabs .nav-link.active {
-  background-color: var(--dgl-red-deep); color: #fff;
-  border-color: var(--dgl-red-deep) var(--dgl-red-deep) transparent;
+  background-color: var(--dgl-red); color: #fff;
+  border-color: var(--dgl-red) var(--dgl-red) transparent;
 }
 .nav-tabs .nav-link.active:hover { color: #fff; }
 /* La línea de la barra: el gris de Bootstrap es tan claro que los tabs flotaban sueltos en vez de
