@@ -112,9 +112,17 @@ class GraficoBlock(blocks.StructBlock):
         help_text="Barras para comparar cosas distintas; línea para una misma cosa a lo largo del tiempo.",
     )
     puntos = blocks.ListBlock(PuntoBlock(), label="Datos", min_num=2)
+    # OBLIGATORIA desde el 2026-07-27, por decisión del dueño. El texto de ayuda ya decía la regla
+    # —un gráfico sin fuente no se puede comprobar— y el modelo no la hacía cumplir: un lector podía
+    # ver una comparación de WAR sin saber si salía de MLB, de Savant, de FanGraphs o de nuestro
+    # cálculo, y eso convierte un dato en una afirmación.
+    #
+    # El `default` está puesto para que la regla no obligue a inventarse una fuente externa cuando el
+    # dato sale de nuestras propias tablas: llega escrito y el redactor lo cambia si toca.
     fuente = blocks.CharBlock(
         max_length=160,
-        required=False,
+        required=True,
+        default="Cálculo propio sobre datos de dglweb",
         label="Fuente",
         help_text="De dónde sale el dato. Un gráfico sin fuente no se puede comprobar.",
     )

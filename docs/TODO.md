@@ -1078,12 +1078,13 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
 
 ### Preguntas abiertas del dueño (salidas de este review)
 
-- [x] **¿La categoría del artículo es obligatoria?** **Sí** — decisión del dueño (2026-07-27). Pasa
-      a ser obligatoria en el modelo. Ojo al implementarlo: hay artículos publicados sin ella, así
-      que la migración tiene que decidir qué hacer con esos y no fallar a mitad.
-- [x] **¿La fuente del gráfico es obligatoria?** **Sí** — decisión del dueño (2026-07-27). Con un
-      valor sugerido para cuando el dato salga de nuestras tablas, para que la regla no obligue a
-      inventar una fuente externa que no existe.
+- [x] **¿La categoría del artículo es obligatoria?** **Sí, e IMPLEMENTADO el 2026-07-27.** Obligatoria
+      en el modelo, con `PROTECT` para que borrar una categoría con artículos dentro falle en vez de
+      dejarlos huérfanos. La migración va en dos pasos —primero rellena, después prohíbe el nulo— y
+      ASIGNA en vez de borrar: una migración que borra filas se lleva trabajo de verdad el día que
+      alguien la corra sobre otra base. Eran cuatro artículos de 31.
+- [x] **¿La fuente del gráfico es obligatoria?** **Sí, e IMPLEMENTADO el 2026-07-27**, con el valor
+      «Cálculo propio sobre datos de dglweb» llegando escrito en el formulario.
 - [x] **¿Los documentos del CMS se quitan o se declaran públicos?** **Públicos** — decisión del dueño
       (2026-07-27). Se quedan, y queda escrito que **todo lo que entre ahí es público**: se sirve en
       `/documents/<id>/<archivo>` sin pedir permisos. El riesgo no era técnico sino de expectativa —

@@ -9,10 +9,14 @@ punto de meter un CMS.
 
 CATEGORÍA ÚNICA, HASHTAGS LIBRES
 --------------------------------
-Decisión del dueño y la estructura la respeta: la categoría es una clave foránea —una y solo una, y
-es el kicker rojo de la tarjeta— y los hashtags son un `taggit` sin límite. Son dos cosas distintas
-aunque las dos «etiqueten»: la categoría dice DÓNDE vive el artículo y sirve para navegar; el
-hashtag dice DE QUÉ habla y sirve para relacionar.
+Decisión del dueño y la estructura la respeta: la categoría es una clave foránea —una sola, y es el
+kicker rojo de la tarjeta— y los hashtags son un `taggit` sin límite. Son dos cosas distintas aunque
+las dos «etiqueten»: la categoría dice DÓNDE vive el artículo y sirve para navegar; el hashtag dice
+DE QUÉ habla y sirve para relacionar.
+
+Y desde el 2026-07-27 la categoría es OBLIGATORIA. La razón no es de forma: sin ella, el artículo no
+aparece bajo ningún filtro del índice — solo se llega desde la lista general, así que se publica y se
+pierde.
 
 LO QUE NO SE LE PIDE AL EDITOR
 ------------------------------
@@ -194,11 +198,16 @@ class ArticlePage(Page):
         related_name="+",
         help_text="La de la tarjeta y la cabecera. Sin ella la tarjeta sale solo con texto.",
     )
+    # OBLIGATORIA desde el 2026-07-27, por decisión del dueño. La razón es concreta: un artículo sin
+    # categoría **no aparece bajo ningún filtro del índice** — solo se llega a él desde la lista
+    # general, así que se publica y se pierde. Lo destapó el review v8 (DEV-03).
+    #
+    # `PROTECT` y no `SET_NULL`, que era lo que había: sin nulos, `SET_NULL` ni siquiera es legal, y
+    # además la semántica correcta es esa. Borrar una categoría con artículos dentro tiene que
+    # fallar y obligar a reasignarlos, no dejarlos huérfanos en silencio.
     categoria = models.ForeignKey(
         Categoria,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name="articulos",
         verbose_name="categoría",
     )

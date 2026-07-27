@@ -49,6 +49,10 @@ def indice(db: None) -> ArticleIndexPage:
 def _articulo(indice: ArticleIndexPage, titulo: str, **campos: object) -> ArticlePage:
     campos.setdefault("entradilla", "Una entradilla cualquiera.")
     campos.setdefault("fecha", HOY)
+    # La categoría es obligatoria desde el 2026-07-27, así que el ayudante pone una por defecto: sin
+    # esto, cada test que solo quiere comprobar otra cosa tendría que acordarse de la regla. Los
+    # tests que SÍ prueban la categoría la pasan explícita y esta línea no los toca.
+    campos.setdefault("categoria", Categoria.objects.order_by("orden").first())
     articulo = ArticlePage(title=titulo, slug=titulo.lower().replace(" ", "-"), **campos)
     indice.add_child(instance=articulo)
     return articulo
@@ -604,3 +608,78 @@ def test_cms_documents_are_public_on_purpose() -> None:
     assert "wagtail.documents" in settings.INSTALLED_APPS
     rutas = {str(p.pattern) for p in get_resolver().url_patterns}
     assert "documents/" in rutas, "la ruta pública de documentos es parte de la decisión"
+
+
+# ── Las dos reglas editoriales que el dueño hizo obligatorias (2026-07-27) ──────────────────────
+
+
+@pytest.mark.django_db
+def test_an_article_cannot_be_saved_without_a_category(indice: ArticleIndexPage) -> None:
+    """Sin categoría el artículo no sale bajo ningún filtro del índice: se publica y se pierde.
+
+    La regla vive en el MODELO y no solo en el formulario del CMS. Un `full_clean()` la ve, y también
+    la ve un import o un script — que es por donde se cuelan los datos que nadie revisó.
+    """
+    from django.core.exceptions import ValidationError
+
+    articulo = ArticlePage(
+        title="Sin categoria", slug="sin-categoria", entradilla="Algo.", fecha=HOY, categoria=None
+    )
+
+    with pytest.raises(ValidationError) as fallo:
+        articulo.full_clean()
+
+    assert "categoria" in fallo.value.error_dict
+
+
+@pytest.mark.django_db
+def test_a_category_with_articles_cannot_be_deleted_by_accident(indice: ArticleIndexPage) -> None:
+    """`PROTECT`, no `SET_NULL`. Borrar una categoría con artículos dentro tiene que fallar y obligar
+    a reasignarlos; dejarlos huérfanos en silencio es exactamente lo que la regla vino a evitar."""
+    from django.db.models import ProtectedError
+
+    defensa = Categoria.objects.get(slug="defensa")
+    _articulo(indice, "De defensa", categoria=defensa)
+
+    with pytest.raises(ProtectedError):
+        defensa.delete()
+
+
+@pytest.mark.django_db
+def test_a_chart_without_a_source_is_rejected(indice: ArticleIndexPage) -> None:
+    """Un gráfico sin fuente no se puede comprobar, y el texto de ayuda ya lo decía antes de que el
+    modelo lo hiciera cumplir. Sin fuente, una comparación de WAR deja de ser un dato y pasa a ser
+    una afirmación: el lector no sabe si viene de MLB, de Savant, de FanGraphs o de nuestro cálculo.
+    """
+    from wagtail.blocks import StreamBlockValidationError
+
+    from dglweb.articles.blocks import CuerpoStreamBlock
+
+    bloque = CuerpoStreamBlock()
+    sin_fuente = bloque.to_python(
+        [
+            {
+                "type": "grafico",
+                "value": {
+                    "titulo": "Un gráfico",
+                    "tipo": "barras",
+                    "puntos": [{"etiqueta": "A", "valor": "1"}, {"etiqueta": "B", "valor": "2"}],
+                    "fuente": "",
+                },
+            }
+        ]
+    )
+
+    with pytest.raises(StreamBlockValidationError):
+        bloque.clean(sin_fuente)
+
+
+def test_the_source_arrives_pre_filled_for_our_own_data() -> None:
+    """La regla no puede obligar a inventarse una fuente externa cuando el dato sale de acá.
+
+    El valor por defecto llega escrito en el formulario y quien escribe lo cambia si toca. Sin él, la
+    salida fácil sería teclear cualquier cosa con tal de poder guardar, que es peor que no exigirlo.
+    """
+    from dglweb.articles.blocks import GraficoBlock
+
+    assert GraficoBlock().child_blocks["fuente"].get_default() == "Cálculo propio sobre datos de dglweb"
