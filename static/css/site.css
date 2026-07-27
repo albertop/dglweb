@@ -19,6 +19,14 @@
   --dgl-line: #e5e7eb;
   --dgl-bg: #f6f7f9;
   --dgl-card: #ffffff;
+  /* El alto de TODA tarjeta de artículo, en toda página. Es una variable y no un número suelto
+     porque hay dos cosas que tienen que seguirlo para que la cuadrícula no se desarme: el panel de
+     «Lo más reciente», que mide dos tarjetas, y el hueco publicitario que acompaña al destacado en
+     la portada. Cambiarlo acá los mueve a los tres a la vez. */
+  --dgl-art-alto: 300px;
+  /* El canalón entre el destacado y la retícula (`g-4` de Bootstrap). También lo necesita el panel
+     para su cuenta, así que se nombra en vez de repetir 1.5rem en dos sitios que deben coincidir. */
+  --dgl-art-hueco: 1.5rem;
   /* Resaltados de las tablas: fondos pastel, matices distintos pero coordinados (un barrido de
      matiz con luminosidad y saturación parejas — el truco de una paleta coolors), con texto en
      tinta oscura. Suaves porque son claros, no lavados. Azul → menta → verde: distintos de verdad
@@ -856,8 +864,17 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* ---------- Índice de artículos ---------- */
 /* La tarjeta. Sin sombra y con un filo tenue: son doce en pantalla, y doce sombras convierten la
    lista en un relieve. El realce llega al pasar el mouse. */
+/* ALTO FIJO, EL MISMO PARA TODAS Y EN TODAS LAS PÁGINAS. Decisión del dueño y la razón es la
+   simetría: con tarjetas que crecen con su contenido, un titular de seis líneas estira su fila y la
+   retícula queda a saltos — una tarjeta enorme al lado de una diminuta. Con 300px, la página se lee
+   como una cuadrícula pase lo que pase, y la limitante la asume quien escribe: si el titular no cabe
+   en dos líneas, hay que acortarlo. Es la misma medida del espacio publicitario que acompaña al
+   destacado en la portada, así que los dos casan sin más cuentas.
+
+   Antes era `height: 100%`, que igualaba las tarjetas DENTRO de una fila pero no entre filas, y
+   obligaba al destacado a llevar su propia excepción para no estirarse a la columna entera. */
 .dgl-art {
-  display: flex; flex-direction: column; height: 100%;
+  display: flex; flex-direction: column; height: var(--dgl-art-alto);
   background: var(--dgl-card); border: 1px solid var(--dgl-line); border-radius: .5rem;
   overflow: hidden; transition: border-color .15s, transform .15s;
 }
@@ -867,11 +884,21 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    texto quedaba recortado por el `overflow: hidden`. `min-width: 0` por lo mismo — un hijo flex no
    se encoge por debajo de su contenido sin él. */
 .dgl-art .cuerpo {
-  padding: .8rem .9rem 1rem; display: flex; flex-direction: column;
-  flex: 1 1 auto; min-width: 0;
+  padding: .7rem .9rem .7rem; display: flex; flex-direction: column;
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
 }
+/* Recortado a dos líneas, con puntos suspensivos en la línea justa en vez de tajar a media palabra.
+   Es la otra mitad del alto fijo: sin esto un titular largo desborda los 300px y se lo come el
+   `overflow`, que corta a media altura de las letras y se ve como un error de dibujo.
+
+   `flex-shrink: 0` es la parte que no se ve venir: `.pie` lleva `margin-top: auto` para quedar
+   pegado abajo, y cuando el contenido no deja espacio libre el flex se cobra la diferencia
+   ENCOGIENDO a sus hermanos — la entradilla pasaba de 48px a 40 y la segunda línea aparecía cortada
+   por la mitad. No era el recorte fallando, era el flex apretando. */
 .dgl-art h3 {
-  font-size: .95rem; font-weight: 750; letter-spacing: -.01em; line-height: 1.3; margin: .35rem 0 .5rem;
+  font-size: .95rem; font-weight: 750; letter-spacing: -.01em; line-height: 1.3; margin: .3rem 0 .45rem;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; flex-shrink: 0;
 }
 .dgl-art h3 a { color: var(--dgl-ink); }
 .dgl-art h3 a:hover { color: var(--dgl-blue); text-decoration: none; }
@@ -879,28 +906,22 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-art .entradilla {
   font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
   font-size: .9rem; line-height: 1.5; color: #4b5563; margin-bottom: .6rem;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; flex-shrink: 0;
 }
 /* La meta pegada abajo, para que las tarjetas de una fila la alineen aunque los títulos midan
    distinto. */
 .dgl-art .pie { margin-top: auto; }
 .dgl-art-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .5rem; }
 
-/* El destacado: la misma tarjeta en horizontal. Se distingue de la retícula sin ser gigante.
+/* El destacado: la MISMA tarjeta y el mismo alto, solo con el titular y la entradilla más grandes.
+   Se distingue de la retícula por la letra y por lo ancho, no por medir distinto — que es lo que
+   pedía la simetría.
 
-   `height: auto` anula el `height: 100%` de `.dgl-art`, que existe para que las tarjetas de una fila
-   se igualen. El destacado no está en una retícula: es hijo directo de una columna estirada, así que
-   ese 100% lo hacía crecer hasta el alto de la columna entera —1500px de tarjeta— en vez de medir lo
-   que mide su contenido. */
-.dgl-art-destacado { flex-direction: row; height: auto; }
-/* Un tercio para la imagen y dos para el texto: en el destacado lo que vende es el titular y la
-   entradilla, no un rectángulo azul con una etiqueta. */
-.dgl-art-destacado .dgl-thumb { flex: 0 0 33%; min-height: 220px; }
+   Apilado, NUNCA con la imagen al lado del texto: la banda arriba y el texto debajo, a todo el
+   ancho. Antes esto era `flex-direction: row` con la imagen ocupando un tercio. */
 .dgl-art-destacado h3 { font-size: 1.5rem; line-height: 1.2; }
 .dgl-art-destacado .entradilla { font-size: 1rem; }
-@media (max-width: 767px) {
-  .dgl-art-destacado { flex-direction: column; }
-  .dgl-art-destacado .dgl-thumb { flex: 0 0 auto; min-height: 180px; }
-}
 
 /* Las categorías. Se deslizan en móvil en vez de apilarse en tres renglones. */
 .dgl-cats { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .3rem; scrollbar-width: none; }
@@ -929,11 +950,14 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    Desde la Fase 5 hay imágenes de verdad, y esto es lo que ocupa su sitio: mismas medidas, mismo
    recorte. `object-fit: cover` porque Wagtail ya sirve el archivo recortado a la proporción pedida,
    pero un `fill-` puede quedar un píxel corto y sin esto la imagen se deforma para cuadrar. */
-.dgl-thumb-img { display: block; width: 100%; height: 130px; object-fit: cover; }
-.dgl-art-destacado .dgl-thumb-img { flex: 0 0 33%; height: auto; min-height: 220px; }
-@media (max-width: 767px) {
-  .dgl-art-destacado .dgl-thumb-img { flex: 0 0 auto; height: 180px; min-height: 0; }
-}
+/* Una banda apaisada a todo el ancho, y a la MITAD de lo que medía: 130→65 en la retícula y 220→110
+   en el destacado. Decisión del dueño, y la razón es buena — lo que vende un artículo es el titular,
+   y una banda alta le comía el sitio al texto dentro de una tarjeta que mide lo que mide.
+
+   `object-fit: cover` porque Wagtail ya sirve el archivo recortado a la proporción pedida, pero un
+   `fill-` puede quedar un píxel corto y sin esto la imagen se deforma para cuadrar. */
+.dgl-thumb-img { display: block; width: 100%; height: 65px; object-fit: cover; }
+.dgl-art-destacado .dgl-thumb-img { height: 70px; }
 
 /* ---------- Un artículo ---------- */
 /* El ancho de la columna es la decisión de esta pantalla, y sale de dos fuerzas que tiran en contra.
@@ -1052,28 +1076,22 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   background: transparent; color: var(--dgl-ink); text-align: left; font-weight: 700;
 }
 
-/* El destacado de la PORTADA, con alto fijo. Decisión del dueño: tiene que medir lo mismo que el
-   espacio publicitario que lleva al lado, pase lo que pase con el contenido.
+/* La tarjeta de la portada ya no necesita reglas propias: el alto fijo, el recorte a dos lineas y
+   el relleno viven en `.dgl-art`, que los aplica a TODAS las tarjetas del sitio. Quedo asi cuando el
+   dueno pidio simetria — antes esto era la excepcion de una sola pantalla. */
 
-   Antes la fila la medía el artículo —un titular de tres líneas la estiraba, uno de una la encogía—
-   y el hueco del anuncio cambiaba de tamaño con cada publicación. Un formato de anuncio que no mide
-   siempre igual no se puede vender.
+/* El panel de «Lo más reciente», con alto FIJO: exactamente dos tarjetas más el canalón que las
+   separa. Decisión del dueño y el motivo es la cuadrícula.
 
-   El `overflow: hidden` del cuerpo y el recorte de la entradilla son la otra mitad: sin ellos, un
-   texto largo se desbordaría fuera de los 300px en vez de quedarse dentro. Va en el CSS y no
-   recortando en Python porque cuánto cabe depende del ancho de la columna, que solo sabe el
-   navegador. Solo en la portada: en el índice el destacado crece con su contenido, que ahí no
-   compite con ningún anuncio. */
-.dgl-art-portada { height: 300px; }
-.dgl-art-portada .cuerpo { overflow: hidden; }
-.dgl-art-portada .dgl-thumb-img { height: 100%; min-height: 0; }
-/* Dos líneas de titular y tres de entradilla es lo que entra en 300px dejando sitio a la firma. El
-   `line-clamp` corta con puntos suspensivos en la línea justa en vez de tajar a media palabra. */
-.dgl-art-portada h3 {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
-  overflow: hidden;
-}
-.dgl-art-portada .entradilla {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
+   Sin esto el panel medía lo que midiera su lista, el artículo de debajo empezaba a una altura
+   cualquiera, y la columna derecha terminaba 107px más arriba que la izquierda: la página se leía
+   como dos listas desalineadas en vez de una retícula. Con esta medida, ese artículo arranca a la
+   misma altura que la segunda fila de la izquierda y las dos columnas cierran juntas.
+
+   La cuenta se hace con las variables y no con un 624 escrito a mano: si mañana la tarjeta mide
+   otra cosa, esto la sigue solo. `overflow: hidden` por si la lista trae diez titulares largos —
+   antes que romper la rejilla, se corta. */
+.dgl-panel-reciente {
+  height: calc(var(--dgl-art-alto) * 2 + var(--dgl-art-hueco));
   overflow: hidden;
 }

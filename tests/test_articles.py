@@ -14,7 +14,7 @@ import datetime
 import re
 
 import pytest
-from django.test import Client
+from django.test import Client, RequestFactory
 from wagtail.models import Page, Site
 
 from dglweb.articles.blocks import cifra
@@ -356,3 +356,67 @@ def test_the_menu_link_follows_the_page_instead_of_a_fixed_route(indice: Article
 
     cache.clear()
     assert f'href="{indice.url}"' in Client().get("/").content.decode()
+
+
+# ── El reparto del índice ───────────────────────────────────────────────────────────────────────
+#
+# Nueve huecos con nombre —destacado, retícula, lateral y fila— y el resto escondido detrás del
+# botón. Se prueba acá y no a ojo porque son cortes de una lista: equivocarse en un índice deja un
+# artículo repetido en dos sitios o desaparecido, y las dos cosas se ven igual de bien en la pantalla.
+
+
+@pytest.mark.django_db
+def test_the_index_fills_its_nine_slots_in_order_without_repeating(indice: ArticleIndexPage) -> None:
+    from dglweb.articles import models
+
+    for numero in range(models.INICIALES):
+        _articulo(indice, f"Articulo {numero:02d}", fecha=datetime.date(2026, 7, 27) - datetime.timedelta(days=numero))
+
+    contexto = indice.get_context(RequestFactory().get(indice.url))
+    colocados = [
+        contexto["destacado"].title,
+        *[a.title for a in contexto["reticula"]],
+        *[a.title for a in contexto["lateral"]],
+    ]
+
+    # En orden, sin huecos y sin repetir: es exactamente la lista, troceada.
+    assert colocados == [f"Articulo {numero:02d}" for numero in range(models.INICIALES)]
+    assert contexto["mas"] == []
+
+
+@pytest.mark.django_db
+def test_beyond_the_nine_the_rest_is_drawn_hidden(indice: ArticleIndexPage) -> None:
+    """Vienen en el HTML pero con `hidden`: el botón los descubre sin ir al servidor."""
+    from dglweb.articles import models
+
+    for numero in range(models.INICIALES + 3):
+        _articulo(indice, f"Articulo {numero:02d}", fecha=datetime.date(2026, 7, 27) - datetime.timedelta(days=numero))
+
+    contenido = Client().get(indice.url).content.decode()
+
+    assert len(indice.get_context(RequestFactory().get(indice.url))["mas"]) == 3
+    assert contenido.count('dgl-oculto" hidden') == 3
+    assert "Articulo 07" in contenido  # está dibujado, aunque escondido
+
+
+@pytest.mark.django_db
+def test_the_index_stops_drawing_at_the_cap(indice: ArticleIndexPage) -> None:
+    """El tope existe para que el día que haya trescientos artículos la página no pese trescientos."""
+    from dglweb.articles import models
+
+    tope = models.INICIALES + models.POR_TANDA * models.TANDAS
+    for numero in range(tope + 5):
+        _articulo(indice, f"Articulo {numero:03d}", fecha=datetime.date(2026, 7, 27) - datetime.timedelta(days=numero))
+
+    contexto = indice.get_context(RequestFactory().get(indice.url))
+
+    assert len(contexto["mas"]) == tope - models.INICIALES
+    assert f"Articulo {tope:03d}" not in Client().get(indice.url).content.decode()
+
+
+@pytest.mark.django_db
+def test_the_button_is_left_out_when_there_is_nothing_to_reveal(indice: ArticleIndexPage) -> None:
+    """Un botón que promete más artículos y no los tiene es peor que no tenerlo."""
+    _articulo(indice, "El unico")
+
+    assert 'id="dgl-ver-mas"' not in Client().get(indice.url).content.decode()

@@ -41,8 +41,26 @@ from dglweb.articles.blocks import CuerpoStreamBlock
 # ya lo compensa.
 PALABRAS_POR_MINUTO = 200
 
-# Cuántos artículos por página en el índice.
-POR_PAGINA = 12
+# El reparto del índice, en el orden en que se leen. La suma —seis— es lo que se ve al abrir.
+#
+# Vive acá y no en la plantilla porque son cortes de una lista, y hacerlos con `forloop.counter` en el
+# HTML obliga a leer varias condiciones para saber qué sale dónde. Acá cada hueco tiene nombre.
+#
+# Hubo una fila más, a todo el ancho, cerrando lo visible: nueve artículos de entrada. El dueño la
+# quitó porque la página se veía cargada, y tiene razón — lo que hace útil un índice es que se
+# abarque de un vistazo, no que quepa todo.
+DESTACADO = 1  # el grande de arriba, con la banda ancha
+RETICULA = 4  # las dos filas de dos que van debajo del destacado
+LATERAL = 1  # el que va bajo el panel de «Lo más reciente», en la columna estrecha
+INICIALES = DESTACADO + RETICULA + LATERAL
+
+# Lo que descubre cada clic en «Ver más artículos»: dos filas de tres.
+POR_TANDA = 6
+
+# Cuántas tandas se dibujan escondidas. Tres son 18 artículos además de los seis visibles, de sobra
+# para un sitio que arranca; pasado eso hace falta paginación de verdad y está anotada en el TODO.
+# El tope existe para que el día que haya trescientos artículos la página no pese trescientos.
+TANDAS = 3
 
 
 @register_snippet
@@ -144,7 +162,15 @@ class ArticleIndexPage(Page):
         if elegida:
             articulos = articulos.filter(categoria__slug=elegida)
 
-        contexto["articulos"] = articulos[:POR_PAGINA]
+        # Un solo corte y luego se reparte en memoria: son 45 filas como mucho y hacer una consulta
+        # por hueco sería pagar cinco viajes a la base para trocear una lista que ya está acá.
+        tanda = list(articulos[: INICIALES + POR_TANDA * TANDAS])
+        contexto["destacado"] = tanda[0] if tanda else None
+        contexto["reticula"] = tanda[DESTACADO : DESTACADO + RETICULA]
+        contexto["lateral"] = tanda[DESTACADO + RETICULA : INICIALES]
+        contexto["mas"] = tanda[INICIALES:]
+        contexto["por_tanda"] = POR_TANDA
+
         contexto["categorias"] = Categoria.objects.all()
         contexto["elegida"] = elegida
         # Para el panel de la derecha. Sale de lo publicado sin filtrar: si filtrara con la retícula

@@ -63,8 +63,15 @@ muestra escritas a mano.
 
 - [ ] **Workflow de aprobación** (borrador → revisión → publicado) y **roles/grupos** de Wagtail.
       Estaba en el plan de la fase y quedó fuera de este primer corte.
-- [ ] **Paginación del índice.** Hoy muestra los primeros 12 y no hay «cargar más»: con menos de una
-      docena publicados no se nota, y a la trigésima entrada sí.
+- [ ] **Buscador de artículos.** Pedido del dueño el 2026-07-27. Hoy solo se navega por categoría y
+      por la lista; con cincuenta artículos publicados eso deja de alcanzar, y los hashtags no sirven
+      de índice si no hay dónde escribirlos. Wagtail ya indexa `title`, `entradilla` y `cuerpo` —
+      están declarados en `search_fields` de `ArticlePage`— así que la parte de datos está hecha:
+      falta la caja, la página de resultados y decidir si comparte sitio con el buscador de
+      jugadores del header o va aparte, dentro de `/articulos/`.
+- [ ] **Paginación del índice.** Hoy se dibujan hasta 45 artículos y el botón los descubre de doce en
+      doce sin ir al servidor (ver `TANDAS` en el modelo). Con cientos publicados eso es una página
+      de cientos: ahí hace falta paginación de verdad.
 - [ ] **Restringir el Backoffice al rol *administrators*** (hoy es solo `staff`). Ya estaba anotado
       como pendiente de esta fase en el BUILD_PLAN.
 - [ ] **«Lo más leído» de verdad.** El panel dice «Lo más reciente» porque no hay analítica; el

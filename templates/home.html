@@ -42,12 +42,13 @@
   {% if articulo %}
   <div class="row g-4 mb-4">
     {% comment %}
-      `portada` fija la tarjeta en 300px. El anuncio de al lado lleva `h-100`, así que se estira a lo
-      que mida la fila: con la tarjeta fija, los dos miden igual siempre — con un titular de una línea
-      o de tres, con foto o sin ella. Antes la fila la medía el artículo y el hueco publicitario
-      cambiaba de tamaño con cada publicación.
+      Toda tarjeta de artículo mide 300px de alto (`.dgl-art` en site.css), y el anuncio de al lado
+      lleva `h-100`, así que se estira a lo que mida la fila: los dos miden igual siempre, con un
+      titular de una línea o de tres, con banda o sin ella. Antes la fila la medía el artículo y el
+      hueco publicitario cambiaba de tamaño con cada publicación — un formato que no mide siempre
+      igual no se puede vender.
     {% endcomment %}
-    <div class="col-lg-8">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True portada=True %}</div>
+    <div class="col-lg-8">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True %}</div>
     <div class="col-lg-4">
       <div class="dgl-ad dgl-ad-alto h-100">Espacio publicitario · 300×250</div>
     </div>

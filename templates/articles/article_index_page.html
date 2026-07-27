@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% comment %}
 `/articulos/`. Ahora recorre lo publicado: hasta la Fase 5 eran tarjetas de muestra escritas a mano.
 
@@ -35,29 +36,29 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
     {% endfor %}
   </nav>
 
+  {% comment %}
+    Un índice vacío tiene que decir que está vacío. Sin esto, la página sale con el título, las
+    pestañas y un hueco blanco debajo — que es indistinguible de una página rota.
+  {% endcomment %}
+  {% if not destacado %}
+    <p class="text-secondary py-4 mb-0">
+      {% if elegida %}Todavía no hay artículos en esta categoría.
+      {% else %}Todavía no hay artículos publicados.{% endif %}
+    </p>
+  {% else %}
+
+  {% comment %}
+    El reparto de los huecos —cuántos van en cada sitio— lo decide el modelo y no este archivo: acá
+    solo se colocan. Ver `DESTACADO`, `RETICULA`, `LATERAL` y `FILA` en `articles/models.py`.
+  {% endcomment %}
   <div class="row g-4">
     <div class="col-lg-8">
-      {% comment %}
-        Un índice vacío tiene que decir que está vacío. Sin esto, la página sale con el título, las
-        pestañas y un hueco blanco debajo — que es indistinguible de una página rota.
-      {% endcomment %}
-      {% if not articulos %}
-        <p class="text-secondary py-4 mb-0">
-          {% if elegida %}Todavía no hay artículos en esta categoría.
-          {% else %}Todavía no hay artículos publicados.{% endif %}
-        </p>
-      {% else %}
-        {% for articulo in articulos %}
-          {% if forloop.first %}
-            {# El primero va horizontal: se distingue de la retícula sin necesidad de ser gigante. #}
-            <div class="mb-4">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True %}</div>
-            <div class="row g-3">
-          {% else %}
-            <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=articulo %}</div>
-          {% endif %}
-          {% if forloop.last %}</div>{% endif %}
+      <div class="mb-4">{% include "articles/_tarjeta.html" with articulo=destacado destacado=True %}</div>
+      <div class="row g-3">
+        {% for articulo in reticula %}
+          <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=articulo %}</div>
         {% endfor %}
-      {% endif %}
+      </div>
     </div>
 
     <aside class="col-lg-4">
@@ -68,9 +69,17 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
 
         Sigue siendo una lista numerada y no más tarjetas: repetir el mismo componente a la derecha
         haría que la página entera se leyera como una sola lista larga.
+
+        Alto FIJO —dos tarjetas más el canalón, ver `.dgl-panel-reciente`— y no `h-100` ni el alto de
+        su lista. Estirado al alto de la columna dejaba medio metro de blanco debajo de la última
+        entrada; midiendo lo que midiera la lista, el artículo de abajo empezaba a una altura
+        cualquiera y las dos columnas cerraban a distinta altura. Fijo, la retícula se sostiene.
+
+        `mb-3` y no `mb-4`: el hueco que lo separa del artículo de abajo tiene que ser el mismo que
+        `g-3` deja entre las filas de la izquierda, o el desfase vuelve por otro lado.
       {% endcomment %}
       {% if recientes %}
-        <section class="dgl-panel p-3 h-100">
+        <section class="dgl-panel dgl-panel-reciente p-3 mb-3">
           <h2 class="dgl-section-title mb-2" style="font-size:.95rem" id="mas-reciente">Lo más reciente</h2>
           <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-reciente">
             {% for articulo in recientes %}
@@ -79,9 +88,43 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
           </ol>
         </section>
       {% endif %}
+      {% for articulo in lateral %}
+        {% include "articles/_tarjeta.html" with articulo=articulo %}
+      {% endfor %}
     </aside>
   </div>
 
+  {% comment %}
+    Los siguientes vienen dibujados y escondidos, y el botón los va destapando de seis en seis —dos
+    filas por clic—. Sin ir al servidor: ya están en la página, así que la espera es cero y funciona
+    igual si la red se cae a mitad de lectura.
+
+    El precio es que la página trae hasta 24 artículos aunque se lean seis. Es asumible con este
+    volumen y deja de serlo cuando haya cientos: ahí toca paginación de verdad, que está anotada en
+    el TODO. `TANDAS` en el modelo es el tope que impide que crezca sin freno mientras tanto.
+  {% endcomment %}
+  {% if mas %}
+    <div class="row g-3 mt-1" id="dgl-mas-articulos" data-por-tanda="{{ por_tanda }}">
+      {% for articulo in mas %}
+        <div class="col-md-4 dgl-oculto" hidden>{% include "articles/_tarjeta.html" with articulo=articulo %}</div>
+      {% endfor %}
+    </div>
+    {% comment %}
+      Nace visible y sin JavaScript no hace nada, así que `articulos.js` lo esconde al arrancar si no
+      pudo engancharlo. Al revés —nacer escondido y que el JS lo muestre— dejaría el botón invisible
+      justo cuando el script falla, que es cuando más falta hace saber que hay más artículos.
+    {% endcomment %}
+    <div class="text-center my-4">
+      <button type="button" class="btn btn-outline-primary btn-sm px-4" id="dgl-ver-mas"
+              aria-controls="dgl-mas-articulos">Ver más artículos</button>
+    </div>
+  {% endif %}
+  {% endif %}
+
   <div class="dgl-ad dgl-ad-leader mt-4">Espacio publicitario · 728×90</div>
 </main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/articulos.js' %}?v=1" defer></script>
 {% endblock %}

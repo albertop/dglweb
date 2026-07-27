@@ -5,22 +5,24 @@ eran dos bloques de HTML calcados y el primer cambio de estilo habría dejado un
 Parámetros:
   articulo   la página
   destacado  horizontal y con la entradilla completa; sin esto, vertical y compacta
-  portada    alto fijo de 300px, para que iguale al espacio publicitario que lleva al lado
+  (el alto es fijo — 300px — para todas las tarjetas del sitio; ver `.dgl-art` en site.css)
 
 La miniatura solo aparece si hay imagen. No se dibuja un rectángulo de relleno en su lugar: un hueco
 gris con el nombre del gráfico dentro es lo que hacían los mockups, y en producción se lee como una
 imagen que no cargó.
 {% endcomment %}
-<article class="dgl-art{% if destacado %} dgl-art-destacado{% endif %}{% if portada %} dgl-art-portada{% endif %}">
+<article class="dgl-art{% if destacado %} dgl-art-destacado{% endif %}">
   {% if articulo.imagen %}
     {% comment %}
-      `fill` recorta a la proporción pedida en vez de deformar. El destacado pide más ancho porque se
-      lee al lado del texto y no encima.
+      Siempre ARRIBA y a todo el ancho, nunca al lado del texto — decisión del dueño. `fill` recorta a
+      la proporción pedida en vez de deformar, y las dos son bandas apaisadas: el destacado más alta
+      porque es más ancho, y aun así de la mitad de lo que medía antes. Lo que manda en una tarjeta
+      de artículo es el titular; la banda acompaña.
     {% endcomment %}
     {% if destacado %}
-      {% image articulo.imagen fill-560x420 class="dgl-thumb-img" alt=articulo.imagen.title %}
+      {% image articulo.imagen fill-1200x140 class="dgl-thumb-img" alt=articulo.imagen.title %}
     {% else %}
-      {% image articulo.imagen fill-640x320 class="dgl-thumb-img" alt=articulo.imagen.title %}
+      {% image articulo.imagen fill-640x130 class="dgl-thumb-img" alt=articulo.imagen.title %}
     {% endif %}
   {% endif %}
   <div class="cuerpo">
