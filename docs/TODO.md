@@ -522,6 +522,17 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   **El pie pasó a cuatro columnas** (marca · agencia · secciones · legal). La ficha de Adcio Media
   tenía su propia franja bajo el filete y costaba unos 60px de alto en todas las páginas para decir
   tres líneas: 270px → 207px.
+- [ ] **Añadir el dominio del ad server a la CSP.** Desde el 27-07 el sitio manda
+  `Content-Security-Policy` con `script-src 'self'` (ver `dglweb/core/csp.py`), así que **la etiqueta
+  del ad server no va a cargar hasta que su dominio esté en esa lista** — y va a fallar en silencio,
+  que es lo peor: el hueco se queda vacío y la consola del navegador es el único sitio donde se dice
+  por qué. Depende de qué proveedor se elija, así que no se puede dejar puesto de antemano.
+
+  Hay que tocar `script-src` y casi seguro `img-src`, `frame-src` y `connect-src`: un anuncio carga
+  su script, sirve la creatividad como imagen, la mete en un iframe y reporta la impresión.
+
+  **Que haya que tocarlo a mano es la garantía, no el estorbo:** ese archivo es la lista, en un solo
+  sitio, de a quién se le permite ejecutar código en el sitio.
 - [ ] Dónde/ cuándo se activa el muro de registro (post-launch).
 
 ## Code review v4 — findings (2026-07-24)
