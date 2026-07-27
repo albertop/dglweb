@@ -150,3 +150,50 @@ def test_build_career_totals_command_is_recorded_in_the_ingest_log(batter: Playe
 
     run = IngestRun.objects.get(command="build_career_totals")
     assert run.status == IngestRun.Status.SUCCESS
+
+
+@pytest.mark.django_db
+def test_career_cera_is_weighted_by_innings_and_not_by_games() -> None:
+    """cERA son carreras limpias por 9 entradas MIENTRAS el receptor está detrás del plato.
+
+    Con el peso de fildeo —juegos— tres apariciones de un inning pesaban casi como una temporada de
+    titular. Caso real de la base, Guillermo García: 82,7 entradas en 11 juegos con 6,31 y luego 4,3
+    entradas en 3 juegos con 0,00.
+
+        por juegos    (6.31·11 + 0·3) / 14   = 4.96   <- lo que se mostraba
+        por entradas  (6.31·248 + 0·13) / 261 = 6.00  <- lo correcto
+
+    Y no es solo «más justo»: es exacto. Como cERA = 9·ER/IP, la media ponderada por entradas colapsa
+    a 9·ΣER/ΣIP, que es la cERA de carrera de verdad.
+    """
+    player = Player.objects.create(**_other_player(player_id=770001, dgl_id="cera01"))
+    Fielding.objects.create(
+        player=player, season=1998, team="BOS", pos="C", gp=11, innings_outs=248, catcher_era=6.31
+    )
+    Fielding.objects.create(player=player, season=1999, team="BOS", pos="C", gp=3, innings_outs=13, catcher_era=0.0)
+
+    build_career_totals()
+
+    fila = FieldingCareer.objects.get(player=player, level=CareerLevel.POSITION, pos="C")
+    assert fila.catcher_era is not None
+    assert fila.catcher_era == pytest.approx(6.31 * 248 / 261, abs=0.01)
+    assert fila.catcher_era > 5.9  # y NO 4.96, que es lo que daba por juegos
+
+
+@pytest.mark.django_db
+def test_a_season_without_the_rate_no_longer_drags_the_career_down() -> None:
+    """El peso se cuenta por tasa, así que una temporada sin el dato no entra en el divisor.
+
+    Antes el divisor era el tiempo de juego total, viniera o no la tasa: una campaña con entradas
+    pero sin cERA registrada —histórico incompleto— restaba sin aportar.
+    """
+    player = Player.objects.create(**_other_player(player_id=770002, dgl_id="cera02"))
+    Fielding.objects.create(player=player, season=2019, team="BOS", pos="C", gp=100, innings_outs=2400, catcher_era=3.0)
+    Fielding.objects.create(
+        player=player, season=1975, team="BOS", pos="C", gp=100, innings_outs=2400, catcher_era=None
+    )
+
+    build_career_totals()
+
+    fila = FieldingCareer.objects.get(player=player, level=CareerLevel.POSITION, pos="C")
+    assert fila.catcher_era == pytest.approx(3.0)  # y no 1.5, que era diluirla con la que no existe

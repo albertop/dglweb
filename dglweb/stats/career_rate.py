@@ -81,6 +81,24 @@ COMPONENTS: dict[str, tuple[str, ...]] = {
 # The playing-time weight column used both to prorate and to test the qualifier.
 WEIGHT: dict[str, str] = {"batting": "pa", "pitching": "outs", "fielding": "gp"}
 
+# Tasas que NO se ponderan con el peso de su oficio, porque su denominador natural es otro.
+#
+# `catcher_era` son carreras limpias por 9 entradas MIENTRAS el receptor está detrás del plato. Con
+# el peso de fildeo —juegos— dos temporadas de 50 juegos pesaban igual fueran 900 entradas o 90, que
+# es la diferencia entre un receptor titular y un cambio defensivo de la novena entrada.
+#
+# Ponderar por entradas no es solo más justo: es EXACTO. Como cERA = 9·ER/IP, la media ponderada por
+# entradas Σ(cERA·IP)/ΣIP colapsa a 9·ΣER/ΣIP, que es la cERA de carrera de verdad. Pasa de
+# aproximación a fórmula cerrada sin necesidad de guardar las limpias por separado.
+PESO_PROPIO: dict[tuple[str, str], str] = {
+    ("fielding", "catcher_era"): "innings_outs",
+}
+
+
+def peso_de(group: str, column: str) -> str:
+    """La columna que pondera esta tasa: la suya propia si la tiene, si no la de su oficio."""
+    return PESO_PROPIO.get((group, column), WEIGHT[group])
+
 # Floats that are ADDITIVE (runs/wins above average), not rates: their career value is the SUM over
 # seasons, never a prorated average. Rates/indexes/scores (wOBA, wRC+, SPD, FIP-, ERA-, LI) are not
 # here. Curated with the owner (review v2, SAB-03).

@@ -59,10 +59,11 @@ def aggregate_lines(group: str, model: type[models.Model], rows: Sequence[models
         is_rate = isinstance(field, models.FloatField) and (group, field.name) not in career_rate.CUMULATIVE_FLOATS
         (rates if is_rate else counting).append(field.name)
 
-    weight_col = career_rate.WEIGHT[group]
-    columns = list(dict.fromkeys([*counting, *rates, weight_col]))
+    # Todas las columnas de peso que alguna tasa vaya a usar, no solo la del oficio.
+    pesos = {career_rate.peso_de(group, rate) for rate in rates} | {career_rate.WEIGHT[group]}
+    columns = list(dict.fromkeys([*counting, *rates, *sorted(pesos)]))
     values = [{column: getattr(row, column, None) for column in columns} for row in rows]
-    bucket = _accumulate(values, counting, rates, weight_col, lambda _: "all").get("all")
+    bucket = _accumulate(values, counting, rates, group, lambda _: "all").get("all")
     return _stats(bucket, group, rates) if bucket else {}
 
 
@@ -82,29 +83,43 @@ def _accumulate(
     rows: list[dict[str, Any]],
     counting: list[str],
     rates: list[str],
-    weight_col: str,
+    group: str,
     key: Callable[[dict[str, Any]], Any],
 ) -> dict[Any, dict[str, Any]]:
-    """Sum counting columns and (Σ rate·weight, Σ weight) per key. `key` returning None drops a row."""
+    """Suma las columnas de conteo y, por tasa, (Σ tasa·peso, Σ peso). `key` a None descarta la fila.
+
+    El peso se guarda POR TASA y no uno solo por cubeta, por dos motivos:
+
+    * Casi todas se ponderan con el tiempo de juego de su oficio, pero alguna tiene el suyo —la cERA
+      va por entradas y no por juegos; ver `career_rate.PESO_PROPIO`.
+    * Una temporada sin ese dato ya no diluye. Antes el peso se sumaba mirando solo el tiempo de
+      juego, así que una campaña con turnos pero sin wOBA registrada entraba en el divisor y no en el
+      dividendo, y empujaba la carrera hacia abajo. Ahora cada tasa suma peso solo cuando tiene valor.
+    """
+    pesos = {rate: career_rate.peso_de(group, rate) for rate in rates}
     acc: dict[Any, dict[str, Any]] = {}
     for row in rows:
         bucket_key = key(row)
         if bucket_key is None:
             continue
         bucket = acc.setdefault(
-            bucket_key, {"sums": dict.fromkeys(counting), "weighted": dict.fromkeys(rates, 0.0), "weight": 0.0}
+            bucket_key,
+            {
+                "sums": dict.fromkeys(counting),
+                "weighted": dict.fromkeys(rates, 0.0),
+                "pesos": dict.fromkeys(rates, 0.0),
+            },
         )
         for column in counting:
             value = row[column]
             if value is not None:
                 bucket["sums"][column] = (bucket["sums"][column] or 0) + value
-        weight = row[weight_col]
-        if weight:
-            bucket["weight"] += weight
-            for rate in rates:
-                rate_value = row[rate]
-                if rate_value is not None:
-                    bucket["weighted"][rate] += rate_value * weight
+        for rate in rates:
+            peso = row.get(pesos[rate])
+            valor = row[rate]
+            if peso and valor is not None:
+                bucket["weighted"][rate] += valor * peso
+                bucket["pesos"][rate] += peso
     return acc
 
 
@@ -114,25 +129,25 @@ def _stats(bucket: dict[str, Any], group: str, rates: list[str]) -> dict[str, An
         if career_rate.has_exact(group, rate):
             fields[rate] = career_rate.exact_value(group, rate, bucket["sums"])
         else:
-            fields[rate] = bucket["weighted"][rate] / bucket["weight"] if bucket["weight"] else None
+            peso = bucket["pesos"][rate]
+            fields[rate] = bucket["weighted"][rate] / peso if peso else None
     return fields
 
 
 def _build_batting_pitching(group: str, career_model: type[models.Model], season_model: type[models.Model]) -> int:
     counting, rates = _stat_fields(group, career_model)
-    weight_col = career_rate.WEIGHT[group]
     order_col = "pa" if group == "batting" else "bf"  # the pitcher's PA is bf
     columns = list(dict.fromkeys(["player_id", "team", "league", *counting, *rates]))
 
     manager = only_visible(season_model._default_manager.all())
     season_rows = list(manager.season_totals().values(*columns))  # type: ignore[attr-defined]
-    grand = _accumulate(season_rows, counting, rates, weight_col, lambda r: r["player_id"])
+    grand = _accumulate(season_rows, counting, rates, group, lambda r: r["player_id"])
     per_team_rows = list(manager.exclude(team="XXX").values(*columns))
     teams = _accumulate(
-        per_team_rows, counting, rates, weight_col, lambda r: (r["player_id"], r["team"]) if r["team"] else None
+        per_team_rows, counting, rates, group, lambda r: (r["player_id"], r["team"]) if r["team"] else None
     )
     leagues = _accumulate(
-        per_team_rows, counting, rates, weight_col, lambda r: (r["player_id"], r["league"]) if r["league"] else None
+        per_team_rows, counting, rates, group, lambda r: (r["player_id"], r["league"]) if r["league"] else None
     )
 
     teams_by_player: dict[int, list[tuple[str, dict[str, Any]]]] = defaultdict(list)
@@ -184,14 +199,15 @@ def _build_batting_pitching(group: str, career_model: type[models.Model], season
 def _build_fielding() -> int:
     group = "fielding"
     counting, rates = _stat_fields(group, FieldingCareer)
-    weight_col = career_rate.WEIGHT[group]
+    # `innings_outs` viaja en `counting` —es entero— y es lo que pondera la cERA. Si algún día la
+    # columna de peso de una tasa no fuera de conteo, habría que sumarla acá a mano.
     columns = list(dict.fromkeys(["player_id", "pos", *counting, *rates]))
 
     rows = list(
         only_visible(Fielding.objects.position_totals()).exclude(pos="DH").values(*columns)
     )  # DH is not a position
-    positions = _accumulate(rows, counting, rates, weight_col, lambda r: (r["player_id"], r["pos"]))
-    grand = _accumulate(rows, counting, rates, weight_col, lambda r: r["player_id"])
+    positions = _accumulate(rows, counting, rates, group, lambda r: (r["player_id"], r["pos"]))
+    grand = _accumulate(rows, counting, rates, group, lambda r: r["player_id"])
 
     positions_by_player: dict[int, list[tuple[str, dict[str, Any]]]] = defaultdict(list)
     for (player_id, pos), bucket in positions.items():

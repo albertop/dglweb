@@ -182,7 +182,7 @@ contra el código antes de aceptarlos.
   2026) y su contrario, el camino bueno — un validador que no deja hacer lo correcto se termina
   desactivando.
 
-- [ ] **cERA de carrera se pondera por juegos, no por entradas** *(SAB-01)*.
+- [x] **cERA de carrera se pondera por juegos, no por entradas** *(SAB-01)*. **Corregido.**
   Verificado: `career_rate.WEIGHT["fielding"] = "gp"` y `catcher_era` no está en `_FIELDING`, así que
   el motor lo prorratea por juegos. Dos temporadas de 50 juegos pesan igual aunque una sean 900
   entradas detrás del plato y la otra 90 — que es la diferencia entre un receptor titular y un
@@ -190,8 +190,21 @@ contra el código antes de aceptarlos.
   **El review se queda corto en la solución**: ponderar por `innings_outs` no es solo *mejor*, es
   **exacto**. Como cERA = 9·ER/IP, la media ponderada por entradas Σ(cERA·IP)/ΣIP colapsa a
   9·ΣER/ΣIP, que es la cERA de carrera de verdad. Pasa de aproximación a fórmula cerrada.
-  El dato existe: `rf_per9` ya usa `innings_outs` en el mismo diccionario. Falta que el peso pueda
-  ser por columna y no solo por oficio.
+  **Arreglado**: el motor de carrera pasa de un peso por oficio a un peso **por tasa**
+  (`career_rate.PESO_PROPIO`), y la cERA declara el suyo, `innings_outs`.
+
+  De regalo, el cambio arregla algo que nadie había reportado: el peso se sumaba mirando solo el
+  tiempo de juego, viniera o no la tasa, así que una temporada con entradas pero **sin** cERA
+  registrada entraba en el divisor y no en el dividendo, y empujaba la carrera hacia abajo. Ahora
+  cada tasa suma peso solo cuando tiene valor. Vale para todas, no solo para la cERA.
+
+  Medido reconstruyendo la base real: **28 de 52 receptores cambiaron**, media 0,095 y máximo 1,04.
+  El caso extremo es el ejemplo perfecto — Guillermo García, 82,7 entradas en 11 juegos con 6,31 y
+  luego 4,3 entradas en 3 juegos con 0,00: por juegos daba 4,96 y por entradas da 6,00. Tres
+  apariciones de un inning le rebajaban la carrera un punto entero.
+
+  Comprobado además que el valor guardado ES la media ponderada por entradas, recalculándolo a mano
+  desde `position_totals()` para los 50 receptores: cero discrepancias.
 
 ### P2 — concurrencia y acceso
 
