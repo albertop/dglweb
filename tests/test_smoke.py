@@ -69,7 +69,7 @@ def test_the_widget_zone_shows_the_stored_standouts(db):
 
     body = Client().get("/").content
 
-    assert b"Destacados de la jornada" in body
+    assert b"Destacados del" in body
     assert b"3-4, 2B, HR, 4 RBI" in body
 
 

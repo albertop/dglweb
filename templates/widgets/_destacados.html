@@ -18,7 +18,14 @@ mejor que no esté a que esté hueco.
       misma esquina o la franja se lee como dos cosas distintas.
     {% endcomment %}
     <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
-      <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="destacados-titulo">Destacados de la jornada</h2>
+      {% comment %}
+        La fecha va DENTRO del título y no en una esquina: el widget muestra la jornada más reciente
+        que haya guardada, que en el receso del Juego de Estrellas no es la de ayer. Sin decir cuál
+        es, el título afirma algo que el lector no puede comprobar.
+      {% endcomment %}
+      <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="destacados-titulo">
+        Destacados del {{ destacados.dia|date:"j M" }}
+      </h2>
       <div class="dgl-pestanas">
         {% for oficio, etiqueta, actuaciones in destacados.grupos %}
           <button type="button" class="dgl-pill{% if forloop.first %} active{% endif %}"
