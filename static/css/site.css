@@ -184,8 +184,15 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   flex: 0 0 auto; min-width: 9rem; padding: .45rem .7rem;
   border-left: 1px solid var(--dgl-line);
 }
-.dgl-con-detalle { cursor: default; }
-.dgl-con-detalle:hover { background: #f7f9fc; }
+/* Es un control: el cursor lo dice, y el fondo responde igual al ratón, al foco y a estar abierta —
+   las tres son la misma cosa vista desde tres dispositivos distintos. */
+.dgl-con-detalle { cursor: pointer; }
+.dgl-con-detalle:hover,
+.dgl-con-detalle:focus-visible,
+.dgl-con-detalle.is-abierta { background: #f7f9fc; }
+/* El anillo por dentro: la tarjeta está dentro de una tira con `overflow-x`, y un `outline` normal
+   se recortaría contra el borde al llegar tabulando a la última visible. */
+.dgl-con-detalle:focus-visible { outline: 2px solid var(--dgl-blue); outline-offset: -2px; }
 .dgl-juego-estado {
   display: flex; align-items: center; gap: .3rem;
   color: var(--dgl-muted); font-size: .62rem; font-weight: 700;

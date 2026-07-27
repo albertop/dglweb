@@ -2,10 +2,21 @@
 Una tarjeta del banner: estado arriba, y debajo los dos equipos con su logo, su marca y su carrera.
 
 El detalle de los dominicanos va escondido dentro de la propia tarjeta y el JS lo saca al panel de
-abajo cuando se le pasa el mouse por encima. Se genera en el servidor y no se pide aparte para que
-aparezca al instante y para que no haya una llamada por cada juego sobre el que uno pasa.
+abajo. Se genera en el servidor y no se pide aparte para que aparezca al instante y para que no haya
+una llamada por cada juego que uno mire.
+
+La tarjeta que tiene detalle es un CONTROL, no un adorno: se abre con el mouse, con Enter, con
+Espacio y al recibir el foco. Antes solo respondía al `mouseenter`, y en un teléfono no hay hover —
+se veía la banderita prometiendo dominicanos y no había forma de llegar a ellos ni a sus videos.
+
+`role="button"` y `tabindex` van en la plantilla y no en el JS, al revés que en otros sitios: acá el
+comportamiento no depende de JavaScript para existir —el panel se abre con un clic, que un `div` con
+`role="button"` ya anuncia— y la tarjeta es el único camino al contenido.
 {% endcomment %}
-<div class="dgl-juego{% if juego.detallable %} dgl-con-detalle{% endif %}">
+<div class="dgl-juego{% if juego.detallable %} dgl-con-detalle{% endif %}"
+     {% if juego.detallable %}role="button" tabindex="0" aria-expanded="false"
+     aria-controls="pizarra-detalle"
+     aria-label="Ver los dominicanos de {{ juego.visitante.codigo }} en {{ juego.local.codigo }}"{% endif %}>
   <div class="dgl-juego-estado{% if juego.estado == 'vivo' %} dgl-vivo{% endif %}">
     {{ juego.detalle }}
     {% comment %}

@@ -47,6 +47,13 @@
     if (cierre) { clearTimeout(cierre); cierre = null; }
   }
 
+  function marcarAbierta(raiz, tarjeta) {
+    raiz.querySelectorAll(".dgl-con-detalle").forEach(function (otra) {
+      otra.setAttribute("aria-expanded", String(otra === tarjeta));
+      otra.classList.toggle("is-abierta", otra === tarjeta);
+    });
+  }
+
   function mostrarDetalle(raiz, tarjeta) {
     cancelarCierre();
     var panel = raiz.querySelector(".dgl-detalle");
@@ -56,6 +63,7 @@
     panel.innerHTML = "";
     panel.appendChild(plantilla.content.cloneNode(true));
     panel.hidden = false;
+    marcarAbierta(raiz, tarjeta);
 
     // Alineado con la tarjeta, pero sin salirse del banner por la derecha.
     var izquierda = tarjeta.getBoundingClientRect().left - raiz.getBoundingClientRect().left;
@@ -66,6 +74,22 @@
   function ocultarDetalle(raiz) {
     var panel = raiz.querySelector(".dgl-detalle");
     if (panel) { panel.hidden = true; }
+    marcarAbierta(raiz, null);
+  }
+
+  function abierta(raiz) {
+    return raiz.querySelector('.dgl-con-detalle[aria-expanded="true"]');
+  }
+
+  function entrarAlPanel(raiz) {
+    var panel = raiz.querySelector(".dgl-detalle");
+    if (!panel || panel.hidden) return;
+    // Al primer enlace o botón que haya. Si no hay ninguno —un juego sin videos ni perfiles— se
+    // enfoca el panel mismo, para que el lector de pantalla lo lea y Escape tenga desde dónde volver.
+    var primero = panel.querySelector('a[href], button:not([disabled])');
+    if (primero) { primero.focus(); return; }
+    panel.tabIndex = -1;
+    panel.focus();
   }
 
   /* ---------- El refresco ---------- */
@@ -118,13 +142,62 @@
     raiz.querySelectorAll(".dgl-con-detalle").forEach(function (tarjeta) {
       tarjeta.addEventListener("mouseenter", function () { mostrarDetalle(raiz, tarjeta); });
       tarjeta.addEventListener("mouseleave", function () { programarCierre(raiz); });
+
+      // El clic sirve al dedo y al ratón, y es lo único que un teléfono puede hacer: ahí no hay
+      // hover, así que sin esto el detalle era inalcanzable. Alterna, para poder cerrarlo igual que
+      // se abrió.
+      tarjeta.addEventListener("click", function () {
+        if (tarjeta.getAttribute("aria-expanded") === "true") { ocultarDetalle(raiz); } else { mostrarDetalle(raiz, tarjeta); }
+      });
+
+      // Enter y Espacio abren Y METEN EL FOCO en el panel. No es un adorno: el panel está después de
+      // las quince tarjetas en el orden del documento, así que quien tabula desde una tarjeta llega
+      // a la siguiente, no a los nombres ni a los botones de video. Sin este salto el contenido
+      // seguía siendo inalcanzable por teclado aunque la tarjeta ya respondiera.
+      //
+      // Espacio además desplaza la página, así que hay que quedarse con el evento.
+      tarjeta.addEventListener("keydown", function (evento) {
+        if (evento.key !== "Enter" && evento.key !== " ") return;
+        evento.preventDefault();
+        mostrarDetalle(raiz, tarjeta);
+        entrarAlPanel(raiz);
+      });
+
+      // Al tabular se abre, igual que al pasar el mouse: es la misma promesa para el otro dispositivo.
+      tarjeta.addEventListener("focus", function () { mostrarDetalle(raiz, tarjeta); });
+      // Y se cierra al salir, salvo que el foco se vaya HACIA el panel — que es justo adonde va el
+      // siguiente tabulador, a los nombres y a los botones de video.
+      tarjeta.addEventListener("blur", function (evento) {
+        var panel = raiz.querySelector(".dgl-detalle");
+        if (!panel || !panel.contains(evento.relatedTarget)) programarCierre(raiz);
+      });
     });
 
     var panel = raiz.querySelector(".dgl-detalle");
     if (panel) {
       panel.addEventListener("mouseenter", cancelarCierre);
       panel.addEventListener("mouseleave", function () { programarCierre(raiz); });
+      // El foco dentro del panel lo mantiene abierto; salir de él lo cierra.
+      panel.addEventListener("focusin", cancelarCierre);
+      panel.addEventListener("focusout", function (evento) {
+        if (!panel.contains(evento.relatedTarget)) programarCierre(raiz);
+      });
     }
+
+    // Escape cierra y devuelve el foco a la tarjeta: si el foco se quedara dentro de un panel que
+    // acaba de esconderse, el siguiente tabulador saldría de la nada.
+    raiz.addEventListener("keydown", function (evento) {
+      if (evento.key !== "Escape") return;
+      var tarjeta = abierta(raiz);
+      if (!tarjeta) return;
+      ocultarDetalle(raiz);
+      tarjeta.focus();
+    });
+
+    // Un toque fuera cierra. En el móvil no hay `mouseleave` que lo haga.
+    document.addEventListener("click", function (evento) {
+      if (!raiz.contains(evento.target)) ocultarDetalle(raiz);
+    });
 
     if (inicial) {
       // Se abre en los juegos de hoy: lo de ayer queda a la izquierda para quien lo busque.

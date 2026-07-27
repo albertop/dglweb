@@ -233,13 +233,29 @@ contra el código antes de aceptarlos.
   Cuatro tests, uno de ellos leyendo el código para que nadie le dé a un comando su propia clave
   «para que no se estorben», que es exactamente lo que hay que evitar.
 
-- [ ] **El detalle de la pizarra solo se abre con el mouse** *(QA-02 + FE-01)*.
+- [x] **El detalle de la pizarra solo se abre con el mouse** *(QA-02 + FE-01)*. **Corregido.**
   Verificado: `pizarra.js` solo escucha `mouseenter`/`mouseleave`, y la tarjeta no tiene `tabindex`
   ni `role`. **En un teléfono no hay hover**: se ve la banderita que promete dominicanos y no hay
   forma de llegar al detalle ni a los videos.
   Pesa más ahora que antes, porque este panel creció: enseña la línea de los juegos en curso y el
-  abridor probable de los que no han empezado. Hay que convertir la tarjeta detallable en un control
-  con `aria-expanded` que abra con clic, Enter y Espacio, y dejar el hover como comodidad del ratón.
+  abridor probable de los que no han empezado.
+
+  **Arreglado.** La tarjeta con detalle pasa a ser un control de verdad: `role="button"`,
+  `tabindex="0"`, `aria-expanded` y `aria-controls` apuntando al panel. Abre con clic —que es lo
+  único que un teléfono puede hacer—, con Enter, con Espacio y al recibir el foco; cierra con Escape,
+  con un toque fuera o al salir. El hover se queda como comodidad del ratón.
+
+  **Lo que casi se me pasa**: hacer la tarjeta focusable no bastaba. El panel está DESPUÉS de las
+  quince tarjetas en el orden del documento, así que tabular desde una tarjeta llevaba a la
+  siguiente, nunca a los nombres ni a los botones de video — medido, no supuesto. Por eso Enter y
+  Espacio además **meten el foco dentro del panel**, y Escape lo devuelve a la tarjeta.
+
+  Comprobado en el navegador: Enter deja el foco en «J. Ramírez», tabular dentro no cierra, hay 3
+  elementos alcanzables, Escape cierra y vuelve, el clic alterna, y Espacio abre sin desplazar la
+  página. Las 15 tarjetas tabulables con su ARIA completa.
+  El único punto que no se pudo probar con eventos reales es el foco: el panel del navegador va
+  oculto (`document.hasFocus()` en falso) y el motor no emite `focus`. Con evento sintético el
+  manejador responde bien.
 
 ### P3 — higiene
 
