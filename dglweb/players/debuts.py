@@ -45,7 +45,21 @@ class Debut:
     debut_date: str | None
 
     def __str__(self) -> str:
+        """La línea del LOG. **El formato es contrato**: `ya_avisados()` lo parsea y espera que
+        empiece por el id. Cambiarlo rompe la deduplicación y el mismo debut vuelve cada mañana."""
         return f"{self.player_id} {self.full_name} (debut {self.debut_date or 'sin fecha'})"
+
+    @property
+    def aviso(self) -> str:
+        """La misma información, escrita para un teléfono.
+
+        Va aparte de `__str__` a propósito: aquella la lee una máquina y esta una persona que está a
+        punto de dar de alta al pelotero en el Backoffice. Lo que necesita es el nombre para
+        reconocerlo y el `player_id` para pegarlo, así que el id va rotulado y en su propia línea —
+        en el móvil eso se selecciona con dos toques, y «• 2 Debutante D» no: ahí el número se lee
+        como parte de la viñeta.
+        """
+        return f"• {self.full_name}\n  player_id {self.player_id} · debut {self.debut_date or 'sin fecha'}"
 
 
 def players_with_stats(client: MlbProxyClient, season: int) -> set[int]:

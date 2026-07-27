@@ -247,3 +247,25 @@ def test_an_unexpected_error_is_not_swallowed_as_a_nameless_debut() -> None:
 
     with pytest.raises(AttributeError):
         debuts.detect(_ProxyConBug({2}), 2026)  # type: ignore[arg-type]
+
+
+def test_the_alert_labels_the_id_and_the_log_line_leads_with_it() -> None:
+    """Dos formatos porque son dos lectores, y confundirlos rompe algo en cada dirección.
+
+    El del log lo parsea `ya_avisados()` y DEBE empezar por el id: si cambia, la deduplicación falla
+    y el mismo debut vuelve a avisarse cada mañana hasta que se cargue.
+
+    El del aviso lo lee una persona que va a dar de alta al pelotero, así que el id va rotulado y en
+    su propia línea — en el móvil eso se selecciona con dos toques.
+    """
+    debut = debuts.Debut(player_id=691406, full_name="Esmerlyn Valdez", debut_date="2026-06-01")
+
+    assert str(debut).startswith("691406 ")  # contrato con ya_avisados()
+    assert debut.aviso == "• Esmerlyn Valdez\n  player_id 691406 · debut 2026-06-01"
+
+
+def test_the_alert_says_when_the_debut_date_is_missing() -> None:
+    """La API no siempre la publica el mismo día. Un hueco en blanco se leería como un error."""
+    debut = debuts.Debut(player_id=1, full_name="Sin Fecha", debut_date=None)
+
+    assert "debut sin fecha" in debut.aviso

@@ -65,7 +65,9 @@ class Command(BaseCommand):
         """Telegram solo para los que no salieron ayer. Ver `debuts.ya_avisados`."""
         if not nuevos:
             return
+        # `debut.aviso` y no `str(debut)`: el del log empieza por el id porque `ya_avisados()` lo
+        # parsea, y en el teléfono ese número se lee como parte de la viñeta. Ver `debuts.Debut`.
         lineas = [f"⚾ Debut dominicano en Grandes Ligas ({season})", ""]
-        lineas += [f"• {debut}" for debut in nuevos]
+        lineas += [debut.aviso for debut in nuevos]
         lineas += ["", "Cargalo en el Backoffice para que aparezca en el sitio."]
         notify.enviar("\n".join(lineas))
