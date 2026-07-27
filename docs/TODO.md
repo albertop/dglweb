@@ -669,7 +669,7 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   como "A DISCUTIR". El review coincide.
 - [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** → **Es el mismo ítem que SAB-01 del v6**, que trae además la fórmula propuesta (`PA >= 3.1 * team_games`).
   ~~ Mismo caso: ya identificado.
-- [ ] **SEC-02 / SEC-03 — CDN sin SRI/CSP; Ofelia con socket.** **Parcial**: la imagen de Ofelia ya no es `latest`, queda pinneada por digest (2026-07-26). Sigue pendiente el socket de Docker y todo lo del CDN.
+- [ ] **SEC-02 / SEC-03 — CDN sin SRI/CSP; Ofelia con socket.** **Parcial**: la imagen de Ofelia ya no es `latest`, queda pinneada por digest (2026-07-26). **El CDN dejó de existir (2026-07-27)**: Bootstrap y las fuentes se sirven desde `static/vendor/`, así que ya no hay nada que firmar con SRI ni ningún tercero al que pedirle recursos. Siguen pendientes el socket de Docker de Ofelia y la CSP.
   ~~ original: Ya en backlog para
   Fase 8 (endurecimiento). El review no agrega información nueva pero confirma la prioridad.
 
