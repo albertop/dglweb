@@ -10,38 +10,49 @@ mejor que no esté a que esté hueco.
 {% endcomment %}
 {% if destacados %}
 <section class="dgl-panel p-3 h-100" aria-labelledby="destacados-titulo">
-  <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
-    <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="destacados-titulo">Destacados de la jornada</h2>
-    <span class="dgl-final">{{ destacados.dia|date:"j M" }}</span>
-  </div>
+  <div class="dgl-destacados" data-pestanas>
+    {% comment %}
+      Mismas pestañas que el widget de líderes, en el mismo sitio y con el mismo script: son dos
+      oficios que no se comparan entre sí, y en media pantalla apilarlos dejaba el pitcheo fuera de
+      vista. Los dos widgets están uno al lado del otro, así que su control tiene que estar en la
+      misma esquina o la franja se lee como dos cosas distintas.
+    {% endcomment %}
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+      <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="destacados-titulo">Destacados de la jornada</h2>
+      <div class="dgl-pestanas">
+        {% for oficio, etiqueta, actuaciones in destacados.grupos %}
+          <button type="button" class="dgl-pill{% if forloop.first %} active{% endif %}"
+                  data-oficio="{{ oficio }}">{{ etiqueta }}</button>
+        {% endfor %}
+      </div>
+    </div>
 
-  <div class="dgl-destacados">
-    {% for etiqueta, actuaciones in destacados.grupos %}
-      <div class="dgl-group-label mb-1{% if not forloop.first %} mt-2{% endif %}">{{ etiqueta }}</div>
-      <div class="dgl-destacados-lista">
+    {% for oficio, etiqueta, actuaciones in destacados.grupos %}
+      <div class="dgl-oficio dgl-destacados-lista{% if not forloop.first %} d-none{% endif %}"
+           data-oficio="{{ oficio }}">
         {% for actuacion in actuaciones %}
+          {% comment %}
+            Misma anatomía que una caja del top 10 —logo, retrato y una columna de dos renglones— para
+            que las dos midan lo mismo: el alto lo marca el retrato en ambas.
+          {% endcomment %}
           <article class="dgl-destacado-caja">
+            {% if actuacion.logo %}
+              <img class="dgl-destacado-logo" src="{% static actuacion.logo %}" width="20" height="20"
+                   alt="{{ actuacion.team }}">
+            {% endif %}
+            {% comment %}
+              `alt` vacío y no el nombre: el nombre ya está al lado, y repetirlo hace que un lector de
+              pantalla lo diga dos veces. `onerror` quita la foto que falte —un debutante que MLB
+              todavía no retrató— en vez de dejar el icono de imagen rota.
+            {% endcomment %}
+            <img class="dgl-destacado-foto" src="{{ actuacion.foto }}" alt="" loading="lazy"
+                 onerror="this.remove()">
             <div class="dgl-destacado-quien">
-              {% if actuacion.logo %}
-                <img class="dgl-destacado-logo" src="{% static actuacion.logo %}" width="20" height="20"
-                     alt="{{ actuacion.team }}">
-              {% endif %}
-              {% comment %}
-                `alt` vacío y no el nombre: el nombre ya está al lado, y repetirlo hace que un lector
-                de pantalla lo diga dos veces. `onerror` quita la foto que falte —un debutante que MLB
-                todavía no retrató— en vez de dejar el icono de imagen rota.
-              {% endcomment %}
-              <img class="dgl-destacado-foto" src="{{ actuacion.foto }}" alt="" loading="lazy"
-                   onerror="this.remove()">
               <a class="nombre" href="{% url 'player_detail' actuacion.player.slug %}"
                  title="{{ actuacion.player.full_name }}">{{ actuacion.nombre }}</a>
-            </div>
-            {% comment %}
-              La línea del día y su video debajo, no al lado: es lo que se lee de un vistazo y merece
-              el ancho entero de la caja.
-            {% endcomment %}
-            <div class="dgl-destacado-linea">
-              {{ actuacion.linea }}{% include "widgets/_video_boton.html" with clips=actuacion.clips %}
+              <span class="dgl-destacado-linea">
+                {{ actuacion.linea }}{% include "widgets/_video_boton.html" with clips=actuacion.clips %}
+              </span>
             </div>
           </article>
         {% endfor %}

@@ -324,9 +324,11 @@ def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
     }
     return {
         "dia": ultima,
-        # `grupos` es lo que recorre la plantilla, con su etiqueta ya puesta: un solo bucle en vez de
-        # dos bloques calcados. Las claves sueltas se quedan porque los tests las usan por nombre.
-        "grupos": (("🏏 Bateadores", armadas["bateo"]), ("⚾ Lanzadores", armadas["pitcheo"])),
+        # `grupos` es lo que recorre la plantilla —una vez para las pestañas y otra para las listas—
+        # con su clave y su etiqueta ya puestas. Las etiquetas riman con las del widget de líderes,
+        # que está al lado y dice lo mismo con las mismas palabras.
+        # Las claves sueltas se quedan porque los tests las usan por nombre.
+        "grupos": (("bateo", "Bateo", armadas["bateo"]), ("pitcheo", "Pitcheo", armadas["pitcheo"])),
         **armadas,
     }
 

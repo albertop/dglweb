@@ -16,21 +16,19 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
 {% endcomment %}
 {% if lideres %}
 <section class="dgl-panel p-3 h-100" aria-labelledby="lideres-titulo">
-  <div class="dgl-lideres">
+  <div class="dgl-lideres" data-pestanas>
     {% comment %}
       Las pestañas comparten la línea del título, en el lugar donde estaba el año: son el control del
       widget, y ahí arriba se leen como parte del encabezado en vez de como una fila más de la lista.
-
-      `role="tablist"` y las flechas del teclado los pone lideres.js: sin JS quedan dos botones que
-      no hacen nada, así que la marcación accesible la agrega quien sí puede cumplirla.
+      Los `role` y las flechas del teclado los pone `pestanas.js`, común con los destacados.
     {% endcomment %}
     <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="lideres-titulo">
         En el top 10
       </h2>
-      <div class="dgl-lideres-tabs">
+      <div class="dgl-pestanas">
         {% for oficio, etiqueta, grupos in lideres.oficios %}
-          <button type="button" class="dgl-pill dgl-lideres-tab{% if forloop.first %} active{% endif %}"
+          <button type="button" class="dgl-pill{% if forloop.first %} active{% endif %}"
                   data-oficio="{{ oficio }}">{{ etiqueta }}</button>
         {% endfor %}
       </div>
@@ -46,7 +44,8 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
     {% endcomment %}
     <div class="dgl-lideres-marco">
     {% for oficio, etiqueta, grupos in lideres.oficios %}
-      <div class="dgl-lideres-lista{% if not forloop.first %} d-none{% endif %}" data-oficio="{{ oficio }}">
+      <div class="dgl-oficio dgl-lideres-lista{% if not forloop.first %} d-none{% endif %}"
+           data-oficio="{{ oficio }}">
         {% for grupo in grupos %}
           {% with otros=grupo.puestos|length|add:"-1" %}
           <article class="dgl-lider-caja">

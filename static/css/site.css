@@ -257,13 +257,21 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* ---------- Destacados de la jornada ---------- */
 /* Mismas cajas que el widget de líderes de al lado: las dos mitades de la franja tienen que rimar.
    Lo que cambia es lo de adentro — acá la noticia es la línea del día, no un puesto en un ranking. */
-.dgl-destacados { --pieza: 34px; }
-.dgl-destacados-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: .5rem; }
+/* Los mismos tres números que el widget de líderes, y con los mismos valores: las cajas de las dos
+   mitades tienen que medir igual, y eso solo se sostiene si el alto sale de la misma cuenta. */
+.dgl-destacados { --pieza: 34px; --caja: 3.9rem; --hueco: .5rem; }
+.dgl-destacados-lista {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: var(--caja); align-content: start; gap: var(--hueco);
+}
+/* La caja es una fila: logo, retrato y una columna de dos renglones. El alto lo marca el retrato,
+   igual que en el top 10 — por eso las dos miden lo mismo sin fijarlo a mano. */
 .dgl-destacado-caja {
-  border: 1px solid #dfe3e9; border-radius: .5rem; padding: .5rem .7rem;
+  display: flex; align-items: center; gap: .45rem;
+  border: 1px solid #dfe3e9; border-radius: .5rem; padding: .4rem .6rem;
   background: var(--dgl-bg);
 }
-.dgl-destacado-quien { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+.dgl-destacado-quien { flex: 1 1 auto; min-width: 0; }
 .dgl-destacado-logo { flex: 0 0 auto; }
 /* Blanco bajo el recorte transparente: le da al retrato su propio disco, que es lo que lo separa del
    gris de la caja cuando el pelotero tiene el pelo oscuro. */
@@ -274,15 +282,16 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* El nombre enlaza al perfil pero se lee como texto: en azul, cinco enlaces seguidos convierten el
    panel en una lista de links y el dato —que es la línea— pasa a segundo plano. */
 .dgl-destacado-quien .nombre {
-  min-width: 0; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
+  display: block; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .dgl-destacado-quien .nombre:hover { color: var(--dgl-blue); text-decoration: none; }
-/* La línea a todo el ancho de la caja y con el video pegado al final. `tabular-nums` para que los
-   «3-4» de dos cajas distintas queden en la misma vertical. */
+/* Justo debajo del nombre, con el video pegado al final. `tabular-nums` para que los «3-4» de dos
+   cajas distintas queden en la misma vertical. */
 .dgl-destacado-linea {
-  display: flex; align-items: center; flex-wrap: wrap; gap: .3rem; margin-top: .35rem;
-  color: var(--dgl-blue); font-weight: 600; font-size: .82rem; font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; gap: .3rem; margin-top: .05rem;
+  color: var(--dgl-blue); font-weight: 600; font-size: .78rem; font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .dgl-group-label { color: var(--dgl-muted); font-size: .72rem; font-weight: 700;
   letter-spacing: .1em; text-transform: uppercase; }
@@ -598,7 +607,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 @media (min-width: 992px) { .dgl-lideres { --pieza: 34px; --caja: 3.9rem; } }
 /* Las pestañas son `.dgl-pill`, el mismo control redondeado del perfil y de Líderes. Acá solo se
    ajusta la separación; el aspecto viene de allá para que un pill se vea igual en todo el sitio. */
-.dgl-lideres-tabs { display: flex; gap: .4rem; }
+.dgl-pestanas { display: flex; gap: .4rem; }
 
 /* Una caja por categoría. Se lee sola —qué estadística, quién la encabeza, cuánto— y por eso tiene
    marco propio en vez de ser un renglón más de una lista. */
