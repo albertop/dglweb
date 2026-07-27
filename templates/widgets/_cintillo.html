@@ -1,0 +1,36 @@
+{% comment %}
+El cintillo de movimientos de roster, bajo la barra de navegación y en todas las páginas.
+
+Se desliza solo, sin JavaScript: es una animación de CSS sobre la tira, y la tira lleva la lista DOS
+veces —la segunda marcada `aria-hidden`— para que al terminar el ciclo empalme sin salto. Sin el
+duplicado se ve el vacío al final de la vuelta.
+
+Se detiene al pasar el ratón por encima y también para quien pidió menos movimiento en su sistema
+(`prefers-reduced-motion`): un texto que se desplaza sin parar es de lo que peor le sienta a quien
+tiene vértigo o problemas de atención, y aquí encima hay que poder leerlo.
+
+Cada entrada enlaza a la ficha del jugador CUANDO la hay. No siempre: el universo dominicano incluye
+gente de `dom_players` que todavía no llegó a las mayores y por lo tanto no tiene página. Ahí sale el
+nombre sin enlace, que es mejor que dejar la noticia fuera.
+{% endcomment %}
+<div class="dgl-cintillo" role="region" aria-label="Movimientos de roster">
+  <div class="dgl-cintillo-titulo" aria-hidden="true">Movimientos</div>
+  <div class="dgl-cintillo-marco">
+    <div class="dgl-cintillo-tira">
+      {% for vuelta in "12" %}
+        <ul class="dgl-cintillo-lista"{% if not forloop.first %} aria-hidden="true"{% endif %}>
+          {% for movimiento in movimientos %}
+            <li>
+              <span class="cuando">{{ movimiento.fecha|date:"j M" }}</span>
+              {% if movimiento.player %}
+                <a href="{% url 'player_detail' movimiento.player.slug %}">{{ movimiento.texto }}</a>
+              {% else %}
+                {{ movimiento.texto }}
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </div>
+  </div>
+</div>

@@ -80,6 +80,9 @@ TEMPLATES = [
                 # `indice_articulos`, que usan el menú y el pie en todas las páginas. Ver el módulo:
                 # la ruta la decide el editor desde que la página la sirve Wagtail.
                 "dglweb.articles.context_processors.indice",
+                # `movimientos`, el cintillo de la cabecera. También en todas las páginas, así que
+                # tampoco puede depender de que cada vista se acuerde de ponerlo.
+                "dglweb.core.context_processors.cintillo",
             ],
         },
     },

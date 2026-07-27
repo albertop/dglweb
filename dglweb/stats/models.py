@@ -1837,3 +1837,69 @@ class GameVideo(models.Model):
 
     def __str__(self) -> str:
         return f"{self.fecha} {self.player}: {self.titulo}"
+
+
+class RosterMove(models.Model):
+    """Un movimiento de roster de un dominicano: firmado, subido, bajado, cambiado, liberado.
+
+    De dónde sale y por qué así está en `stats/roster_moves.py`. Lo que importa del modelo son tres
+    decisiones.
+
+    EL GRANO ES LA TRANSACCIÓN DE MLB, NO EL JUGADOR-DÍA
+    ----------------------------------------------------
+    Cada fila del feed trae un `id` propio y estable, y ese id es la clave única de acá. Es lo que
+    permite que la corrida horaria pida SIEMPRE los últimos dos días y vuelva a guardar lo mismo sin
+    duplicar: una corrida que falle no pierde nada, la siguiente la recupera. El horario del job pasa
+    a ser una perilla de latencia y no de correctitud.
+
+    EL JUGADOR NO ES UNA CLAVE FORÁNEA OBLIGATORIA
+    ----------------------------------------------
+    El universo dominicano es la unión de `dgl_master` y `dom_players`, y el segundo es mucho más grande: hay
+    firmas de ligas menores de gente que todavía no llegó a las mayores y por lo tanto no tiene ficha.
+    Medido sobre un mes: 117 movimientos de jugadores del maestro y 16 de los que solo están en
+    `dom_players`, casi todos «Signed as Free Agent» a contrato de ligas menores.
+
+    Por eso `player` admite nulo y siempre se guardan `mlb_id` y `nombre`. Con ficha, el cintillo
+    enlaza; sin ficha, muestra el nombre y ya. Perder esas filas por no tener a quién apuntar sería
+    tirar noticias que a un lector dominicano le importan.
+
+    EL INGLÉS SE GUARDA, PERO NO SE MUESTRA
+    ---------------------------------------
+    `descripcion` es el texto tal como lo manda MLB. Se guarda porque es la materia prima de la
+    traducción y porque, si un patrón deja de reconocerse, hace falta el original para arreglarlo.
+    `texto` es la frase en español ya armada, y queda VACÍA cuando ningún patrón encajó — el sitio
+    nunca enseña el inglés, así que una fila sin traducir simplemente no sale en el cintillo.
+    """
+
+    # El `id` de la transacción en MLB. Es lo que hace idempotente a la corrida horaria.
+    transaction_id = models.BigIntegerField(unique=True, verbose_name="ID de la transacción")
+    # El id de MLB de la persona. Se guarda suelto además de la FK porque la FK puede faltar.
+    mlb_id = models.PositiveIntegerField(db_index=True, verbose_name="ID del jugador en MLB")
+    player = models.ForeignKey(
+        Player,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="movimientos",
+        verbose_name="Jugador",
+    )
+    nombre = models.CharField(max_length=120, verbose_name="Nombre")
+    fecha = models.DateField(db_index=True, verbose_name="Fecha")
+    # El código corto de MLB (`SC`, `OPT`, `REL`…). Se guarda además del `type_desc` porque es el
+    # identificador estable: la descripción legible la pueden reescribir, el código no.
+    type_code = models.CharField(max_length=8, verbose_name="Código")
+    type_desc = models.CharField(max_length=60, verbose_name="Tipo")
+    desde = models.CharField(max_length=80, blank=True, verbose_name="Desde")
+    hasta = models.CharField(max_length=80, blank=True, verbose_name="Hasta")
+    descripcion = models.TextField(verbose_name="Texto original (inglés)")
+    texto = models.TextField(blank=True, verbose_name="Texto en español")
+
+    class Meta:
+        db_table = "dgl_roster_move"
+        ordering = ["-fecha", "-transaction_id"]
+        verbose_name = "movimiento de roster"
+        verbose_name_plural = "movimientos de roster"
+        indexes = [models.Index(fields=["-fecha", "mlb_id"], name="dgl_roster_fecha_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.fecha} {self.nombre}: {self.type_desc}"

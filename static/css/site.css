@@ -1099,3 +1099,43 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   height: calc(var(--dgl-art-alto) * 2 + var(--dgl-art-hueco));
   overflow: hidden;
 }
+
+/* ---------- El cintillo de movimientos de roster ---------- */
+/* Se desliza SIN JavaScript: una animación sobre la tira, que lleva la lista dos veces para que al
+   terminar el ciclo empalme sin dejar ver el vacío del final.
+
+   La duración va en segundos por entrada y no fija: con 25 movimientos y 40s la tira volaría, y con
+   3 se arrastraría. Se calcula en la plantilla… no: se deja larga y constante a propósito, porque
+   una velocidad que cambia según cuántos movimientos haya se siente como un fallo. 90s para la
+   vuelta completa da un paso de lectura cómodo con la lista llena, y con la lista corta simplemente
+   pasa lo mismo más veces. */
+.dgl-cintillo {
+  display: flex; align-items: stretch; background: var(--dgl-navy-2);
+  border-top: 1px solid rgba(255, 255, 255, .08); overflow: hidden;
+}
+.dgl-cintillo-titulo {
+  flex: 0 0 auto; background: var(--dgl-red); color: #fff;
+  font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  display: flex; align-items: center; padding: .35rem .8rem;
+}
+.dgl-cintillo-marco { flex: 1 1 auto; overflow: hidden; }
+.dgl-cintillo-tira { display: flex; width: max-content; animation: dgl-cintillo 90s linear infinite; }
+/* Al pasar el ratón se detiene: si no, leer una entrada completa es perseguirla. */
+.dgl-cintillo:hover .dgl-cintillo-tira { animation-play-state: paused; }
+.dgl-cintillo-lista { display: flex; list-style: none; margin: 0; padding: 0; }
+.dgl-cintillo-lista li {
+  display: flex; align-items: center; gap: .4rem; white-space: nowrap;
+  padding: .35rem 1.1rem; font-size: .78rem; color: #cfe0ff;
+  border-right: 1px solid rgba(255, 255, 255, .1);
+}
+.dgl-cintillo-lista .cuando { color: #8ba6cf; font-weight: 700; font-size: .7rem; }
+.dgl-cintillo-lista a { color: #fff; font-weight: 600; }
+.dgl-cintillo-lista a:hover { color: #cfe0ff; text-decoration: underline; }
+@keyframes dgl-cintillo { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+/* Quien pidió menos movimiento en su sistema no ve nada moverse. Un texto que se desplaza sin parar
+   es de lo que peor le sienta a quien tiene vértigo o problemas de atención — y acá encima hay que
+   poder leerlo. Sin animación, la tira se queda quieta y se desplaza con el dedo o la rueda. */
+@media (prefers-reduced-motion: reduce) {
+  .dgl-cintillo-tira { animation: none; }
+  .dgl-cintillo-marco { overflow-x: auto; }
+}
