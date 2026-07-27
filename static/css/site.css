@@ -168,8 +168,11 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-fecha b { font-size: 1rem; font-weight: 800; }
 .dgl-fecha-hoy { background: var(--dgl-red); }
 
+/* El ancho mínimo lo pide la línea de estado —«Alta del 7» más la banderita—, no los dos lados, que
+   con sus cuatro piezas caben en menos. A 10,5rem sobraba un hueco entre el código del equipo y su
+   marca, porque el `margin-left: auto` del récord reparte ahí todo lo que no se usa. */
 .dgl-juego {
-  flex: 0 0 auto; min-width: 10.5rem; padding: .45rem .7rem;
+  flex: 0 0 auto; min-width: 9rem; padding: .45rem .7rem;
   border-left: 1px solid var(--dgl-line);
 }
 .dgl-con-detalle { cursor: default; }
@@ -761,3 +764,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-abridor {
   font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--dgl-muted);
 }
+
+/* El h1 cuando comparte fila con un widget: a 3rem y con su margen de siempre, la columna crecía
+   hasta doblar el alto del panel de al lado. */
+.dgl-titulo-junto { font-size: 2.2rem; margin-bottom: .5rem; }

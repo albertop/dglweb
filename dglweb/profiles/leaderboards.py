@@ -505,6 +505,8 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
 
 
 def leaders_index(request: HttpRequest) -> HttpResponse:
+    from dglweb.stats import mlb_leaders
+
     context = leaders_context(
         group=request.GET.get("g", "batting"),
         tab=request.GET.get("d", ""),
@@ -513,4 +515,8 @@ def leaders_index(request: HttpRequest) -> HttpResponse:
         season=request.GET.get("season", ""),
         pos=request.GET.get("pos", ""),
     )
+    # El mismo widget de la portada. Acá dice algo que esta página no puede: sus tableros ordenan a
+    # los nuestros ENTRE NOSOTROS, y el widget dice cuáles están en el top de las mayores. Verlos
+    # juntos es lo que hace evidente que son dos preguntas distintas.
+    context["lideres"] = mlb_leaders.portada()
     return render(request, "profiles/leaders.html", context)

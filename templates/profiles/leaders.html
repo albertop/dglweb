@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% comment %}
 Página de líderes (/lideres/): boards del subconjunto dominicano desde dgl_leader. Mismo lenguaje
 visual que el perfil — tabs de grupo, pills de división, dgl-stats-table. Los controles navegan por
@@ -20,17 +21,26 @@ muda y el usuario vuelve a hacer clic.
   encabezado visible lleva el nombre de la sección, y el detalle de la selección queda en el <title>
   del documento, que es donde sirve para buscadores y para la pestaña.
   {% endcomment %}
-  <h1 class="dgl-page-title">Líderes</h1>
-  <div class="dgl-lede mb-4">
-    <p>
-      Los rankings se calculan <b>solo entre dominicanos</b>: el puesto 1 es el mejor de entre los
-      nuestros, no el de las mayores.
-    </p>
-    <p class="mb-0">
-      Elige en las pestañas —bateo, pitcheo o fildeo—, el grupo de estadísticas en los
-      botones de abajo, y luego el alcance y la métrica. Se muestran dos listas: los primeros y los
-      últimos del ranking.
-    </p>
+  {% comment %}
+    La entradilla a la izquierda y el widget de la portada a la derecha. Los dos dicen «líderes» pero
+    cuentan cosas opuestas —esta página ordena a los nuestros ENTRE NOSOTROS y el widget dice cuáles
+    están en el top de las mayores— así que verlos juntos es lo que hace evidente la diferencia.
+  {% endcomment %}
+  <div class="row g-4 mb-4">
+    {% comment %}
+      El título más chico que en otras páginas y sin aire debajo: comparte fila con el widget, y a
+      3rem con sus márgenes de siempre empujaba la columna hasta doblar el alto del panel de al lado.
+    {% endcomment %}
+    <div class="col-lg-6 d-flex flex-column justify-content-center">
+      <h1 class="dgl-page-title dgl-titulo-junto">Líderes</h1>
+      <div class="dgl-lede">
+        <p class="mb-0">
+          Los rankings se calculan <b>solo entre dominicanos</b>: el puesto 1 es el mejor de entre los
+          nuestros, no el de las mayores.
+        </p>
+      </div>
+    </div>
+    <div class="col-lg-6">{% include "widgets/_lideres.html" %}</div>
   </div>
 
   {% if empty %}
@@ -112,7 +122,14 @@ muda y el usuario vuelve a hacer clic.
   {% endcomment %}
   {% with split=board.columns|length %}
   <div class="dgl-leaders-board{% if split > 1 %} dgl-leaders-board-split{% endif %}">
+    {% comment %}
+      Las tablas dejan sitio a la derecha para el anuncio. `col-xl-*` y no `col-md-*` en la fila
+      exterior: por debajo de eso el anuncio se va abajo y las tablas recuperan el ancho completo,
+      que es lo que necesitan para no partir columnas.
+    {% endcomment %}
     <div class="row g-3 mb-3">
+      <div class="col-xl-9">
+        <div class="row g-3">
       {% for column in board.columns %}
       <div class="{% if split > 1 %}col-md-6{% else %}col-12{% endif %}">
         <div class="dgl-leaders-caption">{{ column.label }}</div>
@@ -138,6 +155,16 @@ muda y el usuario vuelve a hacer clic.
         </section>
       </div>
       {% endfor %}
+        </div>
+      </div>
+      {% comment %}
+        El anuncio a su tamaño y arriba del todo, no estirado al alto de la tabla: un tablero de
+        quince filas lo convertía en una tira vertical de 150px de ancho por mil de alto, que no es
+        ningún formato publicitario existente.
+      {% endcomment %}
+      <div class="col-xl-3">
+        <div class="dgl-ad dgl-ad-rect">Espacio publicitario · 300×250</div>
+      </div>
     </div>
 
     {# Separado de las tablas: pegado al panel se leía como una fila más del tablero. #}
@@ -183,4 +210,13 @@ muda y el usuario vuelve a hacer clic.
   <div class="container dgl-ad-pie">
     <div class="dgl-ad dgl-ad-leader">Espacio publicitario · 728×90</div>
   </div>
+{% endblock %}
+
+{% block extra_js %}
+{% comment %}
+  Los mismos dos de la portada, porque acá va el mismo widget: `pestanas.js` mueve las pestañas y
+  `lideres.js` el «ver más» de cada caja y el del panel entero.
+{% endcomment %}
+<script src="{% static 'js/pestanas.js' %}?v=1" defer></script>
+<script src="{% static 'js/lideres.js' %}?v=7" defer></script>
 {% endblock %}
