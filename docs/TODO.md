@@ -285,12 +285,33 @@ contra el código antes de aceptarlos.
   **Falta una línea de operación**: poner `PIPELINE_HEALTH_TOKEN` en el `.env` del VPS y dárselo al
   monitor de uptime cuando se configure — va junto al pendiente de arriba, no antes.
 
-- [ ] **Siglas españolas en los `verbose_name` de los modelos de stats** *(DEV-03 + SAB-02)*.
+- [x] **Siglas españolas en los `verbose_name` de los modelos de stats** *(DEV-03 + SAB-02)*. **Corregido.**
   Verificado: quedan `J`, `AP`, `C`, `BR`, `AR`, `P`, `GP`, `TS`, `ES`. `docs/AUTORIDAD.md` manda
   siglas inglesas y las columnas que ve el lector ya las usan (`profiles/columns.py`), así que esto
   es metadata desalineada, no un error visible.
   No urge —esas tablas no tienen CRUD— pero es exactamente por donde vuelve: cualquier admin
-  genérico, export o formulario futuro las reintroduce sin que nadie lo decida. Un pase de labels.
+  genérico, export o formulario futuro las reintroduce sin que nadie lo decida.
+
+  **Arreglado**: 15 etiquetas, migración `0026`. Ocho no se inventaron — el sitio ya las mostraba así
+  en `profiles/columns.py` (`G`, `R`, `SO`, `IBB`, `HBP`, `LOB`, `RP`) y el mapeo de la fuente ya
+  usaba `PA`, `SB`, `CS`, `SH`, `SF`. Los modelos eran los únicos desalineados.
+
+  | campo | decía | dice |
+  |---|---|---|
+  | `g` `pa` `r` | J AP C | **G PA R** |
+  | `sb` `cs` `so` | BR AR P | **SB CS SO** |
+  | `ibb` `nibb` `hbp` | BBI BBNI GP | **IBB NIBB HBP** |
+  | `sh` `sf` `lob` | TS ES DEB | **SH SF LOB** |
+  | `bb_per_so` `pa_per_so` `runs_produced` | BB/P AP/P CP | **BB/SO PA/SO RP** |
+
+  `total_avg` se queda en `TA`: *Total Average* ya es inglés.
+  Y los tres `"CI"` de los mapeos **no se tocan**: son claves del payload de MLB —*catcher
+  interference*— y no etiquetas nuestras. Queda dicho para que nadie los «arregle».
+
+  Con guardián: `tests/test_autoridad_siglas.py` recorre por introspección todos los campos de la app
+  `stats` y falla si aparece cualquiera de las veinte siglas prohibidas, diciendo cuál poner. Lleva
+  además un test que comprueba que `AUTORIDAD.md` sigue diciendo esto — sin ese anclaje la regla
+  queda huérfana y la siguiente persona la borra por molesta en vez de discutirla.
 
 
 ## Code review v6 — findings (2026-07-26)
