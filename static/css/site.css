@@ -816,7 +816,14 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   overflow: hidden; transition: border-color .15s, transform .15s;
 }
 .dgl-art:hover { border-color: var(--dgl-blue); transform: translateY(-2px); }
-.dgl-art .cuerpo { padding: .8rem .9rem 1rem; display: flex; flex-direction: column; flex: 1 0 auto; }
+/* `1 1 auto` y no `1 0 auto`: con `flex-shrink: 0` el cuerpo no bajaba de su ancho de contenido, así
+   que en la tarjeta horizontal el título estiraba la caja a 1261px dentro de una tarjeta de 736 y el
+   texto quedaba recortado por el `overflow: hidden`. `min-width: 0` por lo mismo — un hijo flex no
+   se encoge por debajo de su contenido sin él. */
+.dgl-art .cuerpo {
+  padding: .8rem .9rem 1rem; display: flex; flex-direction: column;
+  flex: 1 1 auto; min-width: 0;
+}
 .dgl-art h3 {
   font-size: .95rem; font-weight: 750; letter-spacing: -.01em; line-height: 1.3; margin: .35rem 0 .5rem;
 }
@@ -832,9 +839,14 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-art .pie { margin-top: auto; }
 .dgl-art-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .5rem; }
 
-/* El destacado: la misma tarjeta en horizontal. Se distingue de la retícula sin ser gigante. */
-.dgl-art-destacado { flex-direction: row; }
-.dgl-art-destacado .dgl-thumb { flex: 0 0 45%; height: auto; min-height: 260px; }
+/* El destacado: la misma tarjeta en horizontal. Se distingue de la retícula sin ser gigante.
+
+   `height: auto` anula el `height: 100%` de `.dgl-art`, que existe para que las tarjetas de una fila
+   se igualen. El destacado no está en una retícula: es hijo directo de una columna estirada, así que
+   ese 100% lo hacía crecer hasta el alto de la columna entera —1500px de tarjeta— en vez de medir lo
+   que mide su contenido. */
+.dgl-art-destacado { flex-direction: row; height: auto; }
+.dgl-art-destacado .dgl-thumb { flex: 0 0 40%; min-height: 240px; }
 .dgl-art-destacado h3 { font-size: 1.5rem; line-height: 1.2; }
 .dgl-art-destacado .entradilla { font-size: 1rem; }
 @media (max-width: 767px) {
