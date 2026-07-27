@@ -254,6 +254,34 @@ class Destacado:
     linea: str
     clips: tuple[Any, ...]  # `videos.Clip`
 
+    @property
+    def foto(self) -> str:
+        """La ruta del retrato, armada acá y no con `{% static %}` en la plantilla.
+
+        Los retratos NO entran a la imagen de Docker ni los recoge `collectstatic`, así que nunca
+        están en el manifiesto y esa etiqueta fallaría al buscarlos. Se sirven por su ruta literal.
+        """
+        from django.conf import settings
+
+        return f"{settings.STATIC_URL}img/mugshots/120/{self.player.player_id}.png"
+
+    @property
+    def logo(self) -> str:
+        """Ruta relativa a `static/`, para `{% static %}`.
+
+        Los treinta SVG de los equipos SÍ viven en la imagen. Se devuelve la ruta completa —y no un
+        prefijo que la plantilla complete— porque el manifiesto de producción resuelve archivos, no
+        pedazos de ruta.
+        """
+        return f"img/equipos/{self.team}.svg" if self.team else ""
+
+    @property
+    def nombre(self) -> str:
+        """Abreviado como en el widget de líderes, para que las dos mitades de la franja rimen."""
+        from dglweb.stats.mlb_leaders import nombre_corto
+
+        return nombre_corto(self.player.full_name)
+
 
 def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
     """Los destacados que muestra la portada, de la jornada más reciente que haya guardada.
@@ -282,20 +310,24 @@ def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
     # El video se resuelve acá y no en la plantilla: una sola consulta para los cinco, y así la
     # plantilla no tiene que saber que existe una tabla de videos.
     clips = videos.por_jugador(ultima, {fila.player_id for lista in filas.values() for fila in lista})
+    armadas = {
+        oficio: [
+            Destacado(
+                player=fila.player,
+                team=fila.team,
+                linea=fila.linea,
+                clips=clips.get(fila.player_id, ()),
+            )
+            for fila in lista
+        ]
+        for oficio, lista in filas.items()
+    }
     return {
         "dia": ultima,
-        **{
-            oficio: [
-                Destacado(
-                    player=fila.player,
-                    team=fila.team,
-                    linea=fila.linea,
-                    clips=clips.get(fila.player_id, ()),
-                )
-                for fila in lista
-            ]
-            for oficio, lista in filas.items()
-        },
+        # `grupos` es lo que recorre la plantilla, con su etiqueta ya puesta: un solo bucle en vez de
+        # dos bloques calcados. Las claves sueltas se quedan porque los tests las usan por nombre.
+        "grupos": (("🏏 Bateadores", armadas["bateo"]), ("⚾ Lanzadores", armadas["pitcheo"])),
+        **armadas,
     }
 
 

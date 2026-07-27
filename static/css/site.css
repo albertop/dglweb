@@ -255,16 +255,35 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-sin-scroll { overflow: hidden; }
 
 /* ---------- Destacados de la jornada ---------- */
-.dgl-standout { border-bottom: 1px solid var(--dgl-line); }
-.dgl-standout:last-child { border-bottom: 0; }
-.dgl-standout .name { font-weight: 700; }
+/* Mismas cajas que el widget de líderes de al lado: las dos mitades de la franja tienen que rimar.
+   Lo que cambia es lo de adentro — acá la noticia es la línea del día, no un puesto en un ranking. */
+.dgl-destacados { --pieza: 34px; }
+.dgl-destacados-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: .5rem; }
+.dgl-destacado-caja {
+  border: 1px solid #dfe3e9; border-radius: .5rem; padding: .5rem .7rem;
+  background: var(--dgl-bg);
+}
+.dgl-destacado-quien { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+.dgl-destacado-logo { flex: 0 0 auto; }
+/* Blanco bajo el recorte transparente: le da al retrato su propio disco, que es lo que lo separa del
+   gris de la caja cuando el pelotero tiene el pelo oscuro. */
+.dgl-destacado-foto {
+  flex: 0 0 var(--pieza); width: var(--pieza); height: var(--pieza);
+  border-radius: 50%; background: var(--dgl-card);
+}
 /* El nombre enlaza al perfil pero se lee como texto: en azul, cinco enlaces seguidos convierten el
    panel en una lista de links y el dato —que es la línea— pasa a segundo plano. */
-.dgl-standout .name a { color: var(--dgl-ink); }
-.dgl-standout .name a:hover { color: var(--dgl-blue); }
-.dgl-standout .team { color: var(--dgl-muted); font-size: .72rem; }
-.dgl-standout .line { color: var(--dgl-blue); font-weight: 600; font-size: .82rem;
-  font-variant-numeric: tabular-nums; }
+.dgl-destacado-quien .nombre {
+  min-width: 0; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dgl-destacado-quien .nombre:hover { color: var(--dgl-blue); text-decoration: none; }
+/* La línea a todo el ancho de la caja y con el video pegado al final. `tabular-nums` para que los
+   «3-4» de dos cajas distintas queden en la misma vertical. */
+.dgl-destacado-linea {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .3rem; margin-top: .35rem;
+  color: var(--dgl-blue); font-weight: 600; font-size: .82rem; font-variant-numeric: tabular-nums;
+}
 .dgl-group-label { color: var(--dgl-muted); font-size: .72rem; font-weight: 700;
   letter-spacing: .1em; text-transform: uppercase; }
 
