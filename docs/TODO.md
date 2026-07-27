@@ -958,3 +958,127 @@ las alertas de Telegram.
       entonces será un error, y ahí ya no es cosmético: no arranca. Como la política del proyecto es
       quedarse en versiones LTS, esto no urge — pero cuando toque el salto, es lo primero que hay que
       mirar. La decisión no es nuestra: la tiene que resolver Wagtail en su código.
+
+## Code review v8 — findings (2026-07-27)
+
+Quince findings, **verificados uno por uno contra el código** antes de decidir. Lo que sigue dice qué
+se acepta, qué no, y por qué. Los duplicados van fusionados: QA-01 y ARCH-01 son el mismo problema
+visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
+
+### Aceptados — prioridad alta
+
+- [ ] **SAB-01 — el gráfico de barras se rompe con valores negativos.** Aceptado, y **es peor de lo
+      que dice el review**. Comprobado ejecutando `_escala()`: con `[-8, -2]` la escala sale
+      `(0, -2)`, o sea rango NEGATIVO, y la proporción da 4 — la barra se dibujaría cuatro veces más
+      alta que el lienzo. Con `[5, -3]` el alto sale negativo y el `<rect>` no se dibuja: la barra
+      desaparece sin avisar.
+
+      Importa mucho acá: OAA, DRS, run value, WPA, RE24 y el WAR en muestras cortas son
+      rutinariamente negativos, y este es un sitio de sabermetría. Un artículo publicaría un gráfico
+      que miente aunque las cifras escritas estén bien. Arreglo: dominio de `min(0, mínimo)` a
+      `max(0, máximo)`, la línea de cero dibujada dentro del SVG, y las barras hacia arriba o hacia
+      abajo según el signo. Con tests para `[5, -3]` y `[-8, -2]`.
+
+- [ ] **FE-01 — el cintillo deja enlaces enfocables dentro de `aria-hidden`.** Aceptado. La lista va
+      duplicada para que el ciclo empalme, y la copia lleva `aria-hidden="true"` — pero eso **no la
+      saca del orden de tabulación**. Quien navega con teclado cae en enlaces que el lector de
+      pantalla ignora, dentro de una tira en movimiento, y la animación no se detiene porque solo
+      existe `:hover`. Arreglo: `inert` en la copia y `:focus-within` para pausar. Es barato, y lo
+      escribí yo hoy.
+
+### Aceptados — prioridad media
+
+- [ ] **DEV-01 — `update_roster_moves` no usa `build_client()`.** Aceptado, y es culpa mía de hoy.
+      Comprobado: `build_client()` existe, aplica `MLB_PROXY_TIMEOUT`, y lo usan otros diez comandos;
+      el mío instancia el cliente a mano y **se salta el timeout configurado**. Son tres líneas.
+
+- [ ] **DEV-02 + QA-02 — una fila malformada tumba la corrida entera.** Aceptados como uno solo: es
+      el mismo problema, visto en el código por una persona y en los tests por otra. `_movimiento()`
+      maneja los campos que faltan pero no captura `ValueError`/`TypeError`, así que un `id` no
+      numérico o una fecha con formato raro aborta las 130 filas buenas. Arreglo: aislar la
+      conversión de cada fila, saltar la mala y dejar nota en `IngestRun`. Con tests de
+      `date="2026-07-20T00:00:00Z"`, `id="abc"` y un `transactions` que no sea lista.
+
+- [ ] **QA-01 + ARCH-01 — los jobs horarios no los vigila el semáforo.** Aceptados como uno.
+      Comprobado: `/health/pipeline` solo mira la última fila de `refresh_daily`. Si
+      `build_mlb_leaders` o `update_roster_moves` fallan seis horas seguidas, el monitor sigue verde
+      mientras la portada enseña líderes viejos y un cintillo congelado. Arreglo: frescura por
+      comando con umbrales distintos — un día para el refresco diario, dos o tres horas para los
+      horarios.
+
+- [ ] **SEC-01 (parcial) — cachear el semáforo anónimo.** Aceptada la mitad barata: cachear la
+      respuesta pública 30–60s, que quita la consulta a `IngestRun` en cada petición. El *rate limit*
+      NO se acepta acá — ver el rechazo razonado más abajo.
+
+- [ ] **SEC-03 — falta prueba de regresión para el texto enriquecido.** Aceptado. Hoy el
+      comportamiento es seguro —`RichTextBlock` limita a `bold/italic/link/ol/ul` y las plantillas
+      escapan— pero nada lo congela. Tests con `javascript:` en un enlace y con HTML en celdas de
+      tabla y en la entradilla, para que ampliar `features` mañana falle ruidosamente y no en
+      silencio.
+
+### Aceptados — prioridad baja
+
+- [ ] **ARCH-02 — la URL del índice cacheada puede quedar vieja, y el comentario MIENTE.** Aceptado,
+      y lo segundo molesta más que lo primero: el comentario dice literalmente «se guarda en caché
+      por su ID, no por su URL» y el código guarda la URL. Lo escribí yo. Si el editor mueve o
+      despublica el índice, el menú y el pie apuntan a una ruta muerta hasta 24 horas. Arreglo:
+      limpiar la caché con las señales de Wagtail al publicar, mover y despublicar, y corregir el
+      comentario. Con un test que mueva la página y compruebe que el menú cambia sin esperar el TTL.
+
+- [ ] **SAB-03 — se puede enlazar a un jugador oculto.** Aceptado. Comprobado: el modelo declara
+      `default_manager_name = "todos"`, que es el manager que SÍ incluye a los deshabilitados, así
+      que el selector del CMS los ofrece. Y el perfil público usa `Player.objects`, que los excluye —
+      o sea 404. Un artículo publicado hoy queda con un enlace roto el día que el dueño deshabilite a
+      ese jugador. Hoy no hay ninguno deshabilitado (984 = 984), así que no urge. Arreglo: comprobar
+      la visibilidad al renderizar y mostrar solo el nombre si está oculto.
+
+- [ ] **SEC-02 — política de documentos del CMS.** Aceptado como decisión, no como código. Los
+      documentos de Wagtail se sirven públicos bajo `/documents/`, y hoy no usamos ninguno. Hay que
+      elegir: o se quita `wagtail.documents` con su ruta, o se escribe que **son públicos** para que
+      ningún editor suba ahí algo creyendo que es privado. Con un test que congele la elección.
+
+- [ ] **QA-03 + FE-03 (parcial) — el botón «Ver más artículos» queda muerto sin JavaScript.**
+      Aceptada solo la mitigación barata: esconderlo con `<noscript>`. Un control visible que no hace
+      nada es peor que no tenerlo. El resto se rechaza — ver abajo.
+
+### Rechazados, con su razón
+
+- **DEV-03 — hacer obligatoria la categoría del artículo.** No se acepta *como está planteado*, pero
+  el reviewer tiene razón a medias y la parte cierta no es la que propone.
+
+  El docstring dice «una y solo una» en contraste con los hashtags, que son varios: significa **como
+  máximo una**, no «obligatoria». Y que la tarjeta funcione sin categoría es deliberado y está
+  probado. Así que no hay drift entre documentación y código.
+
+  Lo que sí es cierto, y el review roza sin nombrarlo: **un artículo sin categoría no aparece bajo
+  ningún filtro del índice**. Solo se llega a él desde la lista general. Eso no es un defecto del
+  modelo, es una decisión editorial — y es del dueño. Queda como pregunta abierta, no como tarea.
+
+- **ARCH-03 — índice parcial para la consulta del cintillo.** Rechazado por ahora, y el propio review
+  lo concede: «para el volumen actual no duele». Son 128 filas, la consulta está cacheada 15 minutos
+  y corre una vez por cuarto de hora, no por visita. Un índice parcial hoy es optimizar sin medir. Se
+  revisa cuando la tabla pase de unas decenas de miles de filas — a cuatro movimientos nuestros por
+  día, eso es dentro de varios años.
+
+- **SEC-01 (la otra mitad) — rate limit dentro de la aplicación.** Rechazado en este sitio. Un
+  limitador dentro de Django gasta el proceso que quiere proteger: para cuando cuenta la petición, ya
+  la aceptó. Donde corresponde es en el proxy inverso, y eso es Fase 8 y ya está en el plan. Se
+  acepta solo la caché, que sí quita trabajo de verdad.
+
+- **QA-03 + FE-03 (el resto) — dibujar los 24 artículos visibles y esconderlos con JS.** Rechazado.
+  Cambia un control muerto por un defecto peor y visible para TODOS: la página cargaría con
+  veinticuatro tarjetas y se encogería a seis en cuanto arrancara el script. Y el arreglo de verdad
+  ya está en el TODO — la paginación del servidor, que resuelve esto y el peso de la página a la vez.
+
+- **SAB-02 — hacer obligatoria la fuente del gráfico.** No lo decido yo: es una regla editorial y la
+  pone el dueño. El argumento del review es bueno —un gráfico sin fuente no se puede comprobar, y el
+  propio texto de ayuda ya lo dice— y **lo recomiendo**. La contrapartida es que obliga a escribir
+  algo aunque el dato salga de nuestras tablas, y se resuelve con un valor por defecto tipo «Cálculo
+  propio sobre dgl_batting». Pregunta abierta al dueño.
+
+### Preguntas abiertas del dueño (salidas de este review)
+
+- [ ] ¿La categoría del artículo es obligatoria? Hoy no lo es, y un artículo sin ella no sale bajo
+      ningún filtro del índice.
+- [ ] ¿La fuente del gráfico es obligatoria? Recomiendo que sí (SAB-02).
+- [ ] ¿Los documentos del CMS se quitan o se declaran públicos? (SEC-02)
