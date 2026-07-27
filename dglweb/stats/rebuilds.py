@@ -14,6 +14,8 @@ from collections.abc import Sequence
 
 from django.db import connections
 
+from dglweb.stats import locks
+
 # Lo derivado, en orden de dependencia: los liderazgos de por vida leen los totales de carrera.
 DERIVED = ("build_career_totals", "build_leaders")
 
@@ -27,13 +29,18 @@ def run(names: Sequence[str]) -> None:
     from django.core.management import call_command
 
     try:
-        for nombre in names:
-            # `force=True` a propósito. Estos comandos tienen puerta de temporada porque como job
-            # DIARIO no tienen nada que hacer en invierno, pero acá no los despierta el reloj: los
-            # dispara una persona que acaba de cargar datos o de dar de baja a un jugador. Y el dato
-            # histórico se carga justamente fuera de temporada, así que sin esto la carga entraría y
-            # los liderazgos seguirían viejos hasta marzo — el bug que ARCH-01 vino a matar.
-            call_command(nombre, force=True)  # lo que imprima va al log del servidor
+        # Toda la cadena bajo un candado, no cada comando por su cuenta: los liderazgos de por vida
+        # leen los totales de carrera, así que dos cadenas entrelazadas publican líderes calculados
+        # sobre unos totales que ya se reemplazaron. Ver `stats/locks.py`.
+        with locks.cadena_derivada():
+            for nombre in names:
+                # `force=True` a propósito. Estos comandos tienen puerta de temporada porque como job
+                # DIARIO no tienen nada que hacer en invierno, pero acá no los despierta el reloj:
+                # los dispara una persona que acaba de cargar datos o de dar de baja a un jugador. Y
+                # el dato histórico se carga justamente fuera de temporada, así que sin esto la carga
+                # entraría y los liderazgos seguirían viejos hasta marzo — el bug que ARCH-01 vino a
+                # matar.
+                call_command(nombre, force=True)  # lo que imprima va al log del servidor
     finally:
         # Solo si corremos en un hilo propio. El hilo abre sus conexiones y nadie las va a cerrar por
         # él, así que sin esto cada carga deja una colgada en Postgres. Pero en el hilo principal las

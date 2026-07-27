@@ -31,7 +31,7 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from dglweb.core import notify
-from dglweb.stats import season_window
+from dglweb.stats import locks, season_window
 from dglweb.stats.models import IngestRun
 from dglweb.stats.runlog import record_run, record_skip
 
@@ -164,8 +164,12 @@ def run_daily(*, force: bool = False, publicar_parcial: bool = False, note: obje
             )
     else:
         resultado.derivados_publicados = True
-        for comando in DERIVADOS:
-            resultado.pasos.append(_correr(comando, inicio, note))
+        # Los dos derivados bajo el mismo candado, y no cada uno el suyo: son una cadena —los
+        # liderazgos de por vida leen los totales de carrera— y protegerlos por separado deja que
+        # otra cadena se cuele entre medio y publique líderes de una foto que ya no existe.
+        with locks.cadena_derivada():
+            for comando in DERIVADOS:
+                resultado.pasos.append(_correr(comando, inicio, note))
 
     for comando in (*PORTADA, *AVISOS):
         resultado.pasos.append(_correr(comando, inicio, note))

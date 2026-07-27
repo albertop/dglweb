@@ -208,14 +208,30 @@ contra el código antes de aceptarlos.
 
 ### P2 — concurrencia y acceso
 
-- [ ] **`build_career_totals` no tiene candado** *(DEV-02 + ARCH-02)*.
+- [x] **`build_career_totals` no tiene candado** *(DEV-02 + ARCH-02)*. **Corregido.**
   Verificado: `build_leaders` toma `pg_advisory_xact_lock` antes de reconstruir; `career_totals` no
   tiene nada, y borra e inserta las tres tablas de carrera. Son una cadena (`rebuilds.py`) con solo
   la segunda mitad protegida.
   Dejó de ser teórico cuando se implementó que cargar datos de apoyo dispare los rebuilds: ahora el
   Backoffice y el orquestador pueden reconstruir a la vez, cada uno sobre una foto distinta, y el que
-  termine último publica. Mismo lock para toda la cadena, o dos locks tomados siempre en el mismo
-  orden.
+  termine último publica.
+
+  **Arreglado con UNA sola clave en dos niveles** (`stats/locks.py`), que es lo que evita razonar
+  sobre el orden en que se toman — de ahí salen los abrazos mortales:
+  * **De sesión**, tomada por quien corre la cadena completa: el orquestador (`pipeline.py`) y el
+    hilo del Backoffice (`rebuilds.py`). Cubre los dos comandos y NO se suelta entre uno y otro.
+  * **De transacción**, dentro de cada comando, para cuando alguien lo corre suelto desde
+    `manage.py`.
+
+  Funciona porque los advisory locks de Postgres son **reentrantes dentro de una sesión**: el comando
+  vuelve a pedir la clave que su propia cadena ya tiene y sigue de largo, mientras que otra sesión
+  espera.
+
+  Comprobado contra Postgres real, con dos conexiones: la segunda cadena espera (1,01 s medidos) y
+  entra en cuanto la primera suelta; el comando no se cuelga dentro de su propia cadena; y una
+  excepción a mitad del rebuild no deja el candado tomado — cero `advisory` colgados después.
+  Cuatro tests, uno de ellos leyendo el código para que nadie le dé a un comando su propia clave
+  «para que no se estorben», que es exactamente lo que hay que evitar.
 
 - [ ] **El detalle de la pizarra solo se abre con el mouse** *(QA-02 + FE-01)*.
   Verificado: `pizarra.js` solo escucha `mouseenter`/`mouseleave`, y la tarjeta no tiene `tabindex`

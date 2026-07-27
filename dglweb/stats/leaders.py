@@ -15,10 +15,10 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from typing import Any
 
-from django.db import connection, models, transaction
+from django.db import models, transaction
 
 from dglweb.players.visibility import only_visible
-from dglweb.stats import career_rate, qualifier
+from dglweb.stats import career_rate, locks, qualifier
 from dglweb.stats.models import (
     Batting,
     BattingPost,
@@ -46,7 +46,8 @@ _BOARDS: list[tuple[str, str, bool, str]] = [
     (Leader.Board.WORST_CAREER, "worst_career", False, "career"),
 ]
 _BATCH = 2000
-_LOCK_KEY = 8412025  # arbitrary but stable key for the build_leaders advisory lock
+# La clave vive en `stats/locks.py`: la comparte con `build_career_totals`, que es la otra mitad de
+# la cadena derivada. Dos claves distintas es lo mismo que no tener candado.
 # Columns stored as outs but ranked/displayed as innings: the value is outs/3 (IP = outs/3).
 _INNINGS_COLUMNS = frozenset({"outs", "innings_outs"})
 
@@ -448,10 +449,9 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
     sums_cache: dict[tuple[str, str | None, int], dict[int, dict[str, Any]]] = {}  # per (group, pos, floor)
     written = prorated = 0
     with transaction.atomic():
-        # A transaction-scoped advisory lock: a second concurrent build_leaders blocks here until the
-        # first commits, instead of interleaving delete+insert and duplicating rows.
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_LOCK_KEY])
+        # Un segundo `build_leaders` espera acá hasta que el primero haga commit, en vez de
+        # intercalar borrado e inserción y duplicar filas.
+        locks.tomar_en_transaccion()
         Leader.objects.all().delete()
         buffer: list[Leader] = []
         for metric in Metric.objects.filter(is_active=True):

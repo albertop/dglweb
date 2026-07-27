@@ -22,7 +22,7 @@ from typing import Any
 from django.db import models, transaction
 
 from dglweb.players.visibility import only_visible
-from dglweb.stats import career_rate
+from dglweb.stats import career_rate, locks
 from dglweb.stats.models import (
     Batting,
     BattingCareer,
@@ -244,6 +244,10 @@ def build_career_totals(note: Callable[[str], None] = lambda _: None) -> dict[st
     """Rebuild every career table (with subtotals) from scratch. Returns {written}."""
     written = 0
     with transaction.atomic():
+        # Borra las tres tablas y las reescribe: dos procesos a la vez intercalarían borrados e
+        # inserciones y lo que quedaría no sería ninguno de los dos resultados. La misma clave que
+        # `build_leaders`, porque son una cadena — ver `stats/locks.py`.
+        locks.tomar_en_transaccion()
         for group, career_model, season_model in [
             ("batting", BattingCareer, Batting),
             ("pitching", PitchingCareer, Pitching),
