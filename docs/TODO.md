@@ -796,3 +796,28 @@ falso). Los archivos viven en el volumen `dglweb_media`.
 - [ ] **Respaldar `dglweb_media`.** Es contenido del sitio escrito por una persona, igual que la base:
       si se pierde el volumen, las fotos de todos los artículos se van con él y no hay de dónde
       recuperarlas.
+
+## Aparcado — el ticker en vivo (2026-07-27)
+
+**Decisión del dueño: prioridad muy baja.** La cintilla de la cabecera era el último módulo que le
+faltaba a la Fase 6 y se queda esperando. No bloquea nada: la pizarra y los destacados —los otros dos
+módulos vivos de esa fase— están hechos y funcionando.
+
+- [ ] **El ticker en vivo de la cabecera.** El hueco está reservado desde la Fase 1: `base.html`
+  tiene un `{% block ticker %}` vacío con un comentario que dice que espera «a data-driven,
+  season-aware component». Ese comentario es la regla que hay que respetar cuando se retome — **no se
+  publica una cintilla con datos falsos** para que el sitio parezca vivo.
+
+  Lo que hay que decidir ANTES de escribir código, y es del dueño: **qué pasa por la cintilla**.
+  Marcadores en vivo de los juegos con dominicanos, jugadas del día, quién está bateando ahora,
+  líderes que se movieron hoy… son productos distintos.
+
+  Lo que NO hay que decidir: la técnica. El plan de la fase decía «vistas HTMX» y **HTMX nunca se
+  instaló**. La pizarra se refresca con `static/js/pizarra.js`, cuarenta líneas de `fetch` contra un
+  fragmento, con respaldo en caché cuando el proxy falla. Funciona, está probado y no arrastra una
+  dependencia por CDN — que es justo la deuda que la Fase 8 viene a pagar. El ticker debería seguir
+  ese mismo patrón.
+
+**La página aparte de la pizarra NO se va a hacer** — decisión del dueño (2026-07-27). La Fase 0 la
+mencionaba («pizarra completa → página aparte») y queda descartada: la pizarra vive en la portada y
+ya está. Se escribe acá para que nadie la vuelva a proponer leyendo aquel plan viejo.

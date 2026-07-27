@@ -37,7 +37,9 @@
   - **CSS:** Bootstrap 5. **Paleta:** navy sobrio + acentos rojo/azul (guiño RD). Responsive OK.
   - **Tipografía:** **JetBrains Mono** (UI/stats/títulos) + **Source Serif** (cuerpo de artículo).
   - **Sin subtítulo** en el brand (redundante). Títulos de página a 3rem.
-  - Módulo del sidebar = "Destacados de la jornada" (no pizarra); pizarra completa → página aparte.
+  - Módulo del sidebar = "Destacados de la jornada" (no pizarra); ~~pizarra completa → página
+    aparte~~ — **descartado por el dueño el 2026-07-27**: la pizarra vive en la portada y no lleva
+    página propia.
 - **⭐ No desechable:** el mock es **HTML/CSS reutilizable** → se convierte en los templates base de
   Django en la **Fase 1**.
 - **✅ Done:** el dueño **aprobó** el layout/estilo. Fase 0 cerrada.
@@ -287,12 +289,30 @@
 - [ ] **Servir `/media/` desde el proxy en producción.** WhiteNoise no sirve medios. Y respaldar el
       volumen: si se pierde, se van las fotos de todos los artículos.
 
-## Fase 6 — Módulos vivos: pizarra MLB + resumen jornada + ticker (season-aware)
+## Fase 6 — Módulos vivos: pizarra MLB + resumen jornada + ticker (season-aware) — ✅ COMPLETADA (2026-07-27)
 
 - **Meta:** el sitio "se siente vivo".
 - **Entrega:** vistas **HTMX** que consultan el proxy (server-side, con timeout); lógica
   **season-aware**; degradación elegante en off-season/proxy caído.
-- **Done when:** pizarra/ticker MLB actualizándose en staging.
+- **Done when (original):** pizarra/ticker MLB actualizándose en staging.
+- **Done when (enmendado por el dueño, 2026-07-27):** ✅ **la pizarra y los destacados**. El
+  **ticker queda aparcado con prioridad muy baja** y sale del camino crítico — ver el TODO. No
+  bloquea nada de lo que viene.
+
+### Cómo quedó
+
+- **Pizarra MLB.** Se refresca sola contra el proxy y, cuando el proxy falla, **muestra la última
+  buena en vez de desaparecer** (respaldo en caché, con tests que lo fijan). Cumple los tres
+  requisitos de la entrega: consulta server-side con timeout, season-aware y degradación elegante.
+- **Resumen de jornada.** Es «Destacados de la jornada», el módulo que la Fase 0 eligió para ese
+  hueco. Se construye cada madrugada dentro del refresco diario.
+- **Ticker.** Sin empezar, aparcado. El hueco sigue reservado en `base.html` y **vacío a propósito**:
+  no se publica una cintilla con datos falsos para aparentar que el sitio está vivo.
+
+- **⚠️ Desvío del plan, consciente: HTMX nunca se instaló.** La entrega lo nombraba, y los dos
+  módulos vivos salieron sin él — la pizarra se refresca con cuarenta líneas de `fetch` contra un
+  fragmento de Django. Funciona, está probado, y no suma una dependencia por CDN, que es
+  precisamente la deuda que la Fase 8 viene a pagar. Se deja escrito para que no parezca un olvido.
 
 ## Fase 7 — Auth social + zonas de ads + landing + players search
 
