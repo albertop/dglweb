@@ -552,6 +552,27 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   BIP). Temporada intacta (400/1000). BD actualizada y `dgl_leader` reconstruido (GB% carrera bateo pasó
   de 203 a 85 calificados).
 
+## Incidente — el CI llevaba doce pushes en rojo y nadie lo vio (2026-07-27)
+
+**Qué pasó.** Desde `508635e` (run #141, 26 de julio) hasta `24e359b` (#152) TODAS las corridas de
+GitHub Actions fallaron. 558 errores por corrida, siempre el mismo: `failed to resolve host 'db'`.
+Los 269 tests que no tocan la base pasaban; el resto ni arrancaba.
+
+**Por qué.** Ese commit clavó `HOST: "db"` en `config/settings/test.py`. El arreglo era correcto en
+su intención —evitar que la suite heredara `DATABASE_URL` y se pusiera a crear bases contra la real
+en 10.0.0.39— pero `db` es el nombre del servicio de compose y solo existe dentro de la red de
+Docker. En un runner de GitHub el Postgres es un `service` con el puerto publicado: `localhost`.
+
+**Cómo se arregló.** El host y el puerto salen ahora de `DGLWEB_TEST_DB_HOST` / `..._PORT`, con el
+del compose por defecto, y el workflow pone `localhost`. Es una variable SOLO de la suite: no la
+hereda el contenedor y no puede apuntar sin querer a la base real, que era el riesgo original.
+
+**Lo que hay que mirar.** El gate local siguió en verde los doce pushes, así que nada avisó. Vale la
+pena que un fallo del CI llegue al mismo grupo de Telegram que ya recibe los del refresco diario —
+requiere meter el token como secreto del repositorio, y eso es decisión del dueño.
+
+- [ ] **Avisar por Telegram cuando el CI falle**, o al menos activar el correo de GitHub Actions.
+
 ## Incidente — la suite mandaba alertas de Telegram de verdad (2026-07-27)
 
 **Qué pasó.** El dueño recibió en el grupo de avisos mensajes como «Refresco diario con fallos —

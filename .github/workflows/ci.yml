@@ -29,6 +29,10 @@ jobs:
     env:
       # Matches config.settings.dev; points at the CI Postgres service.
       DATABASE_URL: postgres://dglweb:dglweb@localhost:5432/dglweb
+      # La suite ignora DATABASE_URL a propósito (ver config/settings/test.py) y arma la conexión
+      # ella misma, con el host del compose por defecto. Acá no hay red de Docker: el `service` de
+      # arriba publica su puerto en el propio runner, así que el Postgres descartable es localhost.
+      DGLWEB_TEST_DB_HOST: localhost
 
     steps:
       - uses: actions/checkout@v4
