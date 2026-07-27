@@ -157,23 +157,28 @@ enlace del menú ya la promete.
     </div>
 
     <aside class="col-lg-4">
-      {# `dgl-ad-pegado` ya existe: es el pegajoso por arriba que usa la página de líderes. #}
-      <div class="dgl-ad-pegado">
-        {% comment %}
-          Un ranking corto y no más tarjetas: repetir el mismo componente a la derecha haría que la
-          página entera se leyera como una sola lista larga.
-        {% endcomment %}
-        <section class="dgl-panel p-3">
-          <h2 class="dgl-section-title mb-2" style="font-size:.95rem" id="mas-leido">Lo más leído</h2>
-          <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-leido">
-            <li><a href="#">El salto de Juan Soto: qué dice su wOBA sobre el mejor bateador dominicano</a></li>
-            <li><a href="#">Outs Above Average: los guantes dominicanos que nadie mira</a></li>
-            <li><a href="#">Los dominicanos que debutaron en 2026, uno por uno</a></li>
-            <li><a href="#">FIP vs ERA: qué lanzadores han tenido suerte (o no)</a></li>
-            <li><a href="#">La curva de envejecimiento de los bateadores dominicanos</a></li>
-          </ol>
-        </section>
-      </div>
+      {% comment %}
+        El panel se estira al alto de la columna de artículos y la lista se alarga a diez para
+        llenarlo: cinco títulos dejaban metro y medio de página en blanco a la derecha.
+
+        Sigue siendo un ranking numerado y no más tarjetas — repetir el mismo componente a la derecha
+        haría que la página entera se leyera como una sola lista larga.
+      {% endcomment %}
+      <section class="dgl-panel p-3 h-100">
+        <h2 class="dgl-section-title mb-2" style="font-size:.95rem" id="mas-leido">Lo más leído</h2>
+        <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-leido">
+          <li><a href="#">El salto de Juan Soto: qué dice su wOBA sobre el mejor bateador dominicano</a></li>
+          <li><a href="#">Outs Above Average: los guantes dominicanos que nadie mira</a></li>
+          <li><a href="#">Los dominicanos que debutaron en 2026, uno por uno</a></li>
+          <li><a href="#">FIP vs ERA: qué lanzadores han tenido suerte (o no)</a></li>
+          <li><a href="#">La curva de envejecimiento de los bateadores dominicanos</a></li>
+          <li><a href="#">Los 5 dominicanos con el K-BB% más raro de 2026</a></li>
+          <li><a href="#">Velocidad en las bases: el top dominicano por sprint speed</a></li>
+          <li><a href="#">Quién manda en la Liga Nacional: los nuestros por WAR</a></li>
+          <li><a href="#">El receptor que roba strikes: framing dominicano en 2026</a></li>
+          <li><a href="#">De Bani a las mayores: la ruta que más peloteros ha dado</a></li>
+        </ol>
+      </section>
     </aside>
   </div>
 

@@ -870,3 +870,8 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 .dgl-top a { color: var(--dgl-ink); font-size: .82rem; font-weight: 650; line-height: 1.35; }
 .dgl-top a:hover { color: var(--dgl-blue); text-decoration: none; }
+
+/* El plato del menú. Se alinea con el texto de sus vecinos y se aclara igual que ellos al pasar el
+   ratón, porque hereda `currentColor`. */
+.dgl-navhome { display: inline-flex; align-items: center; }
+.dgl-navhome svg { display: block; }
