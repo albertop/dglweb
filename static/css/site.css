@@ -692,7 +692,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-lider-sigla {
   flex: 0 0 var(--pieza); height: var(--pieza); display: flex; align-items: center; justify-content: center;
   border-radius: .35rem; background: var(--dgl-navy); color: #fff;
-  font-size: .78rem; font-weight: 800; letter-spacing: .02em; cursor: help;
+  font-size: .78rem; font-weight: 800; letter-spacing: .02em;
 }
 /* En las filas que se ven al desplegar, el cuadrado se reserva pero no se pinta: la categoría ya la
    dijo la fila de arriba, y repetirla cuatro veces dentro de la misma caja es ruido. El hueco se
@@ -708,7 +708,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    misma altura, y bajando la vista por las cajas se forma una retícula de columnas. */
 .dgl-lider-disco {
   flex: 0 0 var(--pieza); height: var(--pieza); display: flex; align-items: center; justify-content: center;
-  border-radius: 50%; font-variant-numeric: tabular-nums; line-height: 1; cursor: help;
+  border-radius: 50%; font-variant-numeric: tabular-nums; line-height: 1;
 }
 .dgl-lider-disco.puesto { background: var(--dgl-card); border: 1px solid #dfe3e9; font-size: .7rem; }
 /* El «#» chico y en gris para que el número mande: lo que se compara entre cajas es el 1 o el 8. */
