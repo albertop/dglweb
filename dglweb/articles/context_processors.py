@@ -10,8 +10,14 @@ Wagtail trae `{% slugurl 'articulos' %}`, que hace exactamente esto. El problema
 por página —menú y pie— y cada uno cobra su consulta, en todas las páginas del sitio. Acá se resuelve
 una vez por petición y además se cachea, así que el coste normal es cero consultas.
 
-Y se guarda en caché por su ID, no por su URL: si el editor mueve la página, `Page.url` lo refleja
-solo. El ID es lo único que no cambia.
+Lo que se guarda en caché es la URL, y por eso hace falta INVALIDARLA. El comentario que había acá
+decía que se cacheaba «por su ID, no por su URL» — y era falso: el código guardaba la URL desde el
+primer día. Un comentario que miente es peor que ninguno, porque manda a buscar un comportamiento que
+no existe; lo destapó el review v8 (ARCH-02).
+
+La invalidación va por señales de Wagtail: al publicar, mover o despublicar el índice, se tira la
+entrada. Sin eso, el editor movía la página y el menú de TODAS las páginas apuntaba a una ruta muerta
+hasta 24 horas.
 """
 
 from typing import Any
@@ -39,3 +45,20 @@ def indice(request: HttpRequest) -> dict[str, Any]:
         url = pagina.url if pagina else ""
         cache.set(CLAVE, url, SEGUNDOS)
     return {"indice_articulos": url}
+
+
+def _olvidar(**kwargs: Any) -> None:  # noqa: ANN401 — la firma es la de las señales de Django
+    """Tira la URL cacheada. La llaman las señales de Wagtail — ver abajo.
+
+    No comprueba QUÉ página se movió: es una sola entrada de caché y recalcularla cuesta una
+    consulta. Filtrar por tipo de página sería más código para ahorrar algo que no duele.
+    """
+    cache.delete(CLAVE)
+
+
+def conectar_senales() -> None:
+    """Engancha el olvido a publicar, despublicar y mover. La llama `ArticlesConfig.ready()`."""
+    from wagtail.signals import page_published, page_unpublished
+
+    page_published.connect(_olvidar, dispatch_uid="articles-indice-publicado")
+    page_unpublished.connect(_olvidar, dispatch_uid="articles-indice-despublicado")

@@ -512,3 +512,95 @@ def test_the_zero_line_is_not_drawn_when_it_falls_outside_the_chart(indice: Arti
     )
 
     assert 'class="ref cero"' not in Client().get(articulo.url).content.decode()
+
+
+# ── SEC-03: el texto enriquecido, congelado ─────────────────────────────────────────────────────
+#
+# Hoy el comportamiento es seguro, y estos tests existen para que SIGA siéndolo. `RichTextBlock` está
+# limitado a `bold/italic/link/ol/ul` y las plantillas escapan; el riesgo no es hoy sino el día que
+# alguien amplíe `features` para poder poner una imagen y se lleve por delante el filtro sin notarlo.
+# Un test que falla ruidosamente es lo que convierte ese descuido en una decisión.
+
+
+@pytest.mark.django_db
+def test_a_javascript_link_does_not_survive_the_rich_text(indice: ArticleIndexPage) -> None:
+    """`javascript:` en un href es el XSS almacenado de manual."""
+    articulo = _articulo(
+        indice,
+        "Con enlace raro",
+        cuerpo=[{"type": "parrafo", "value": '<p><a href="javascript:alert(1)">pincha</a></p>'}],
+    )
+
+    contenido = Client().get(articulo.url).content.decode()
+
+    assert "javascript:alert" not in contenido
+
+
+@pytest.mark.django_db
+def test_html_in_a_table_cell_is_escaped_not_executed(indice: ArticleIndexPage) -> None:
+    """Las celdas las teclea una persona y salen tal cual en la página."""
+    articulo = _articulo(
+        indice,
+        "Con tabla rara",
+        cuerpo=[
+            {
+                "type": "tabla",
+                "value": {
+                    "first_row_is_table_header": True,
+                    "first_col_is_header": False,
+                    "data": [["Jugador"], ["<script>alert(1)</script>"]],
+                },
+            }
+        ],
+    )
+
+    contenido = Client().get(articulo.url).content.decode()
+
+    assert "<script>alert(1)</script>" not in contenido
+    assert "&lt;script&gt;" in contenido
+
+
+@pytest.mark.django_db
+def test_html_in_the_summary_is_escaped(indice: ArticleIndexPage) -> None:
+    """La entradilla sale en la tarjeta, en el artículo Y en la `meta description`: tres sitios."""
+    articulo = _articulo(indice, "Con entradilla rara", entradilla="<script>alert(1)</script> y más")
+
+    contenido = Client().get(articulo.url).content.decode()
+
+    assert "<script>alert(1)</script>" not in contenido
+    assert "&lt;script&gt;" in contenido
+
+
+@pytest.mark.django_db
+def test_the_rich_text_features_stay_narrow(indice: ArticleIndexPage) -> None:
+    """El filtro de arriba solo vale mientras la lista de `features` siga siendo corta.
+
+    Este test es el que hace ruido el día que alguien la amplíe: no dice que ampliarla esté mal, dice
+    que hay que volver a mirar los tres tests anteriores antes de hacerlo.
+    """
+    from dglweb.articles.blocks import CuerpoStreamBlock
+
+    parrafo = CuerpoStreamBlock().child_blocks["parrafo"]
+
+    assert set(parrafo.features) == {"bold", "italic", "link", "ol", "ul"}
+
+
+# ── SEC-02: la política de documentos del CMS ───────────────────────────────────────────────────
+
+
+def test_cms_documents_are_public_on_purpose() -> None:
+    """Decisión del dueño (2026-07-27): los documentos del CMS SON PÚBLICOS.
+
+    Se sirven en `/documents/<id>/<archivo>` sin pedir permisos, y se quedan así porque hacen falta
+    para lo que viene —«descarga los datos de este gráfico»—. El riesgo no era técnico sino de
+    expectativa: un editor subiendo algo interno creyendo que es privado.
+
+    Este test no comprueba una implementación, congela una DECISIÓN. Si algún día alguien monta una
+    vista con permisos, va a fallar y va a obligar a actualizar lo que se le dice a quien escribe.
+    """
+    from django.conf import settings
+    from django.urls import get_resolver
+
+    assert "wagtail.documents" in settings.INSTALLED_APPS
+    rutas = {str(p.pattern) for p in get_resolver().url_patterns}
+    assert "documents/" in rutas, "la ruta pública de documentos es parte de la decisión"

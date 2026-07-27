@@ -1,5 +1,9 @@
-{% load wagtailcore_tags %}{% comment %}
+{% load wagtailcore_tags articles_extras %}{% comment %}
 El párrafo. `richtext` escapa lo que haga falta y convierte los enlaces internos de Wagtail en URLs
 de verdad — pegar `{{ value }}` a pelo dejaría las etiquetas crudas a la vista.
+
+Y encima `enlaces_seguros`, que quita los `href` con esquemas que no están en la lista blanca. Hace
+falta porque `richtext` NO lo hace: un `javascript:` escrito en el cuerpo llegaba tal cual a la
+página. Ver `articles/templatetags/articles_extras.py`.
 {% endcomment %}
-<div class="dgl-bloque-parrafo">{{ value|richtext }}</div>
+<div class="dgl-bloque-parrafo">{{ value|richtext|enlaces_seguros }}</div>

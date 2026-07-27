@@ -134,6 +134,14 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
       <button type="button" class="btn btn-outline-primary btn-sm px-4" id="dgl-ver-mas"
               aria-controls="dgl-mas-articulos">Ver más artículos</button>
     </div>
+    {% comment %}
+      Sin JavaScript el botón no puede destapar nada, así que se esconde: un control visible que no
+      hace nada es peor que no tenerlo. No se dibujan los artículos ya visibles como alternativa —lo
+      proponía el review v8— porque entonces la página cargaría con veinticuatro tarjetas y se
+      encogería a seis en cuanto arrancara el script, un defecto peor y visible para TODOS. La salida
+      buena es la paginación en el servidor, que está en el TODO.
+    {% endcomment %}
+    <noscript><style>#dgl-ver-mas { display: none; }</style></noscript>
   {% endif %}
   {% endif %}
 

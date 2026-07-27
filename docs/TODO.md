@@ -1010,7 +1010,7 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
       respuesta pública 30–60s, que quita la consulta a `IngestRun` en cada petición. El *rate limit*
       NO se acepta acá — ver el rechazo razonado más abajo.
 
-- [ ] **SEC-03 — falta prueba de regresión para el texto enriquecido.** Aceptado. Hoy el
+- [x] **SEC-03 — falta prueba de regresión para el texto enriquecido.** **Corregido el 2026-07-27, y el test encontró un fallo REAL**: Wagtail no filtra el esquema de los enlaces, así que un `javascript:` en el cuerpo llegaba tal cual a la página. Ahora hay un filtro de lista blanca (`enlaces_seguros`) que parsea con bs4 en vez de usar regex sobre HTML. Aceptado. Hoy el
       comportamiento es seguro —`RichTextBlock` limita a `bold/italic/link/ol/ul` y las plantillas
       escapan— pero nada lo congela. Tests con `javascript:` en un enlace y con HTML en celdas de
       tabla y en la entradilla, para que ampliar `features` mañana falle ruidosamente y no en
@@ -1018,26 +1018,26 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
 
 ### Aceptados — prioridad baja
 
-- [ ] **ARCH-02 — la URL del índice cacheada puede quedar vieja, y el comentario MIENTE.** Aceptado,
+- [x] **ARCH-02 — la URL del índice cacheada puede quedar vieja, y el comentario MIENTE.** **Corregido el 2026-07-27**: invalidación por señales de Wagtail y comentario reescrito. Aceptado,
       y lo segundo molesta más que lo primero: el comentario dice literalmente «se guarda en caché
       por su ID, no por su URL» y el código guarda la URL. Lo escribí yo. Si el editor mueve o
       despublica el índice, el menú y el pie apuntan a una ruta muerta hasta 24 horas. Arreglo:
       limpiar la caché con las señales de Wagtail al publicar, mover y despublicar, y corregir el
       comentario. Con un test que mueva la página y compruebe que el menú cambia sin esperar el TTL.
 
-- [ ] **SAB-03 — se puede enlazar a un jugador oculto.** Aceptado. Comprobado: el modelo declara
+- [x] **SAB-03 — se puede enlazar a un jugador oculto.** **Corregido el 2026-07-27**: sin enlace si no es visible, pero el nombre se queda. Aceptado. Comprobado: el modelo declara
       `default_manager_name = "todos"`, que es el manager que SÍ incluye a los deshabilitados, así
       que el selector del CMS los ofrece. Y el perfil público usa `Player.objects`, que los excluye —
       o sea 404. Un artículo publicado hoy queda con un enlace roto el día que el dueño deshabilite a
       ese jugador. Hoy no hay ninguno deshabilitado (984 = 984), así que no urge. Arreglo: comprobar
       la visibilidad al renderizar y mostrar solo el nombre si está oculto.
 
-- [ ] **SEC-02 — política de documentos del CMS.** Aceptado como decisión, no como código. Los
+- [x] **SEC-02 — política de documentos del CMS.** **Decidido el 2026-07-27: son PÚBLICOS**, con un test que congela la decisión. Aceptado como decisión, no como código. Los
       documentos de Wagtail se sirven públicos bajo `/documents/`, y hoy no usamos ninguno. Hay que
       elegir: o se quita `wagtail.documents` con su ruta, o se escribe que **son públicos** para que
       ningún editor suba ahí algo creyendo que es privado. Con un test que congele la elección.
 
-- [ ] **QA-03 + FE-03 (parcial) — el botón «Ver más artículos» queda muerto sin JavaScript.**
+- [x] **QA-03 + FE-03 (parcial) — el botón «Ver más artículos» queda muerto sin JavaScript.** **Corregido el 2026-07-27** con `<noscript>`.
       Aceptada solo la mitigación barata: esconderlo con `<noscript>`. Un control visible que no hace
       nada es peor que no tenerlo. El resto se rechaza — ver abajo.
 

@@ -7,11 +7,19 @@ una isla, y el lector que quiere ver sus números tiene que salir a buscarlo por
 `enlace` y `foto` los arma el bloque en Python (ver `articles/blocks.py`): `Player` es la fila del
 maestro y no sabe de URLs ni de dónde viven las fotos. `foto` viene vacía cuando el archivo no está
 —un tercio del maestro no tiene retrato— y entonces no se dibuja nada.
+
+Y `enlace` viene vacío cuando el jugador está deshabilitado: su ficha da 404, así que el nombre sale
+sin enlazar. La mención es del artículo y no tiene por qué desaparecer porque el dueño ocultara la
+ficha después de publicarlo.
 {% endcomment %}
 <aside class="dgl-bloque-jugador">
   {% if foto %}<img class="dgl-bloque-jugador-foto" src="{{ foto }}" alt="" width="72" height="72">{% endif %}
   <div class="quien">
-    <a class="nombre" href="{{ enlace }}">{{ value.jugador.full_name }}</a>
+    {% if enlace %}
+      <a class="nombre" href="{{ enlace }}">{{ value.jugador.full_name }}</a>
+    {% else %}
+      <span class="nombre">{{ value.jugador.full_name }}</span>
+    {% endif %}
     {% if value.nota %}<p class="nota mb-0">{{ value.nota }}</p>{% endif %}
   </div>
 </aside>

@@ -241,11 +241,19 @@ class JugadorBlock(blocks.StructBlock):
         from django.urls import reverse
 
         from dglweb.players import mugshots
+        from dglweb.players.models import Player
 
         contexto = super().get_context(value, parent_context)
         jugador = value.get("jugador")
         if jugador is not None:
-            contexto["enlace"] = reverse("player_detail", args=[jugador.slug])
+            # El enlace SOLO si el jugador es visible en el sitio. El selector del CMS ofrece a
+            # todos —el modelo declara `default_manager_name = "todos"`, que incluye a los
+            # deshabilitados— pero el perfil público usa `Player.objects`, que los excluye y devuelve
+            # 404. Sin esta comprobación, un artículo publicado hoy queda con un enlace roto el día
+            # que el dueño deshabilite a ese jugador (SAB-03 del v8). Sin enlace, el nombre sigue
+            # saliendo: la mención es del artículo y no depende de que la ficha exista.
+            visible = Player.objects.filter(pk=jugador.pk).exists()
+            contexto["enlace"] = reverse("player_detail", args=[jugador.slug]) if visible else ""
             # Vacío si el archivo no está —un tercio del maestro— y la plantilla no dibuja nada.
             contexto["foto"] = (
                 mugshots.url(jugador.player_id, mugshots.CHICO)
