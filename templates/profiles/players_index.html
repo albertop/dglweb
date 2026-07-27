@@ -10,6 +10,9 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
 
 {% block content %}
 <div class="container my-4">
+  {# A todo lo ancho y con su alto reservado, para que el título no salte cuando cargue. #}
+  <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
+
   <h1 class="dgl-page-title">Jugadores</h1>
   <div class="dgl-lede mb-4">
     <p>
@@ -75,5 +78,18 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
     </p>
   </section>
   {% endif %}
+</div>
+{% endblock %}
+
+{% block anuncio_pie %}
+{% comment %}
+  Pegajoso por abajo: mientras se recorren los seiscientos nombres se queda al pie de la ventana, y
+  al llegar al final aterriza justo encima del pie de página en vez de taparlo.
+
+  `position: sticky` y no `fixed` a propósito: `fixed` lo sacaría del flujo y se quedaría montado
+  sobre el pie para siempre, tapando los enlaces legales.
+{% endcomment %}
+<div class="container">
+  <div class="dgl-ad dgl-ad-leader dgl-ad-pegajoso">Espacio publicitario · 728×90</div>
 </div>
 {% endblock %}

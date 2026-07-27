@@ -43,6 +43,12 @@ mejor que no esté a que esté hueco.
       </div>
     </div>
 
+    {% comment %}
+      El marco mide tres filas de cajas, exactamente igual que el del widget de al lado. Es un alto
+      calculado y no el del contenido: una jornada de cinco destacados y una de nueve tienen que
+      dejar el panel del mismo tamaño, o los artículos de abajo cambian de sitio de un día para otro.
+    {% endcomment %}
+    <div class="dgl-destacados-marco">
     {% for oficio, etiqueta, actuaciones in destacados.grupos %}
       <div class="dgl-oficio dgl-destacados-lista{% if not forloop.first %} d-none{% endif %}"
            data-oficio="{{ oficio }}">
@@ -80,6 +86,14 @@ mejor que no esté a que esté hueco.
         {% endfor %}
       </div>
     {% endfor %}
+    </div>
+
+    {% comment %}
+      Reserva el renglón que en el widget de al lado ocupa el «ver más». Acá no hay nada que
+      desplegar —caben todos— pero sin este hueco los dos paneles medirían distinto, y están uno al
+      lado del otro donde cualquier diferencia se nota.
+    {% endcomment %}
+    <div class="dgl-lideres-mas esta-de-mas" aria-hidden="true">&nbsp;</div>
   </div>
 </section>
 {% endif %}

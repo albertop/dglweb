@@ -568,9 +568,13 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 
 /* Las dos listas largas van en columnas: 132 nombres en una sola columna obligan a un scroll que no
    aporta nada, y el ojo los recorre mejor en bloques. */
-.dgl-resultados, .dgl-activos { columns: 3; column-gap: 1.5rem; }
+.dgl-resultados, .dgl-activos { columns: 4; column-gap: 1.5rem; }
 .dgl-resultados li, .dgl-activos li { break-inside: avoid; padding: .12rem 0; }
 .dgl-resultados .dgl-meta, .dgl-activos .dgl-meta { margin-left: .4rem; }
+/* Menos columnas a medida que se estrecha: a cuatro, un nombre largo con su posición al lado
+   —«Fernando Tatis Jr. SS»— no cabe por debajo de los 1200px y parte en dos líneas. */
+@media (max-width: 1199px) { .dgl-resultados, .dgl-activos { columns: 3; } }
+@media (max-width: 991px) { .dgl-resultados, .dgl-activos { columns: 2; } }
 @media (max-width: 767px) { .dgl-resultados, .dgl-activos { columns: 1; } }
 
 /* El asterisco del debutante. Mismo tratamiento visual que `.dgl-partial` pero con nombre propio:
@@ -782,3 +786,23 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    derecha: estirado a la columna entera pesaba más que las pestañas, que son el control de la
    página. `max-width` para que en móvil se encoja en vez de desbordar. */
 .dgl-ad-banner { width: 468px; max-width: 100%; height: 60px; margin-left: auto; }
+
+/* Tres filas exactas, el mismo cálculo que el marco del top 10: los dos widgets comparten `--caja` y
+   `--hueco`, así que la cuenta da igual en ambos y los paneles miden lo mismo por su cuenta, sin
+   depender de que la fila los estire.
+   Con `overflow: hidden` —al revés que en líderes— porque acá no hay capas flotantes que recortar:
+   los destacados no se despliegan. Es lo que garantiza que una jornada larga no lo haga crecer. */
+.dgl-destacados-marco {
+  height: calc(3 * var(--caja) + 2 * var(--hueco));
+  overflow: hidden;
+}
+
+/* El anuncio que se queda a la vista mientras se baja y aterriza sobre el pie de página al llegar al
+   final. Con fondo propio porque, al flotar sobre el contenido, sin él se leería el texto por debajo
+   del patrón rayado.
+
+   Nombre propio y NO `.dgl-ad-pie`, que ya existe y significa otra cosa —«vete al fondo del espacio
+   que sobre»— y se usa en el perfil y en líderes sobre un `.container`. Ponerle a esa clase un fondo
+   blanco pintaba los márgenes del contenedor, que son más anchos que el anuncio, y dejaba dos
+   franjas blancas a los lados. */
+.dgl-ad-pegajoso { position: sticky; bottom: .75rem; background-color: var(--dgl-card); }
