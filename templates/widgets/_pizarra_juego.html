@@ -35,7 +35,16 @@ aparezca al instante y para que no haya una llamada por cada juego sobre el que 
             {% for nuestro in lado.nuestros %}
               <div class="dgl-detalle-jugador">
                 <a href="{% url 'player_detail' nuestro.slug %}">{{ nuestro.nombre }}</a>
-                <span class="line">{{ nuestro.linea }}{% include "widgets/_video_boton.html" with clips=nuestro.clips %}</span>
+                {% comment %}
+                  En un juego que no ha empezado no hay línea que enseñar, así que el sitio de la
+                  línea lo ocupa lo único que sí se sabe: quién abre. En uno terminado el abridor ya
+                  tiene sus entradas y la etiqueta sobraría.
+                {% endcomment %}
+                {% if juego.estado == 'programado' and nuestro.abridor %}
+                  <span class="dgl-abridor">Abridor</span>
+                {% else %}
+                  <span class="line">{{ nuestro.linea }}{% include "widgets/_video_boton.html" with clips=nuestro.clips %}</span>
+                {% endif %}
               </div>
             {% endfor %}
           {% endif %}

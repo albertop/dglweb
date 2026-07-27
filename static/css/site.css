@@ -755,3 +755,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    mida igual con él y sin él. Los dos de la franja están uno al lado del otro y cualquier diferencia
    de alto los desalinea. Vale para el «ver N más» y para la fila de pestañas. */
 .esta-de-mas { visibility: hidden; }
+
+/* La etiqueta del abridor probable, donde iría la línea de un juego ya jugado. En gris y no en el
+   azul del dato: no es una estadística, es lo único que se sabe todavía. */
+.dgl-abridor {
+  font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--dgl-muted);
+}

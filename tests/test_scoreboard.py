@@ -37,13 +37,20 @@ def _juego(
     inning: int = 9,
     mitad: str = "Bottom",
     alineacion: dict[str, list[int]] | None = None,
+    abridores: dict[str, int] | None = None,
     hora: str = "2026-07-26T23:10:00Z",
     pk: int = 800001,
     doble: str = "N",
 ) -> dict[str, Any]:
-    def lado(datos: tuple[int, str, int | None]) -> dict[str, Any]:
+    def lado(datos: tuple[int, str, int | None], cual: str) -> dict[str, Any]:
         equipo_id, codigo, carreras = datos
-        return {"team": {"id": equipo_id, "teamCode": codigo, "teamName": codigo.upper()}, "score": carreras}
+        salida: dict[str, Any] = {
+            "team": {"id": equipo_id, "teamCode": codigo, "teamName": codigo.upper()},
+            "score": carreras,
+        }
+        if (abridores or {}).get(cual) is not None:
+            salida["probablePitcher"] = {"id": abridores[cual]}  # type: ignore[index]
+        return salida
 
     return {
         "gamePk": pk,
@@ -51,7 +58,7 @@ def _juego(
         "gameDate": hora,
         "status": {"abstractGameState": estado, "detailedState": detallado},
         "linescore": {"currentInning": inning, "inningState": mitad},
-        "teams": {"away": lado(visitante), "home": lado(local)},
+        "teams": {"away": lado(visitante, "away"), "home": lado(local, "home")},
         "lineups": {
             "awayPlayers": [{"id": pid} for pid in (alineacion or {}).get("away", [])],
             "homePlayers": [{"id": pid} for pid in (alineacion or {}).get("home", [])],
@@ -408,6 +415,34 @@ def test_a_game_that_has_not_started_does_not_open_a_panel(monkeypatch: pytest.M
 
     assert juego.con_dominicanos is True
     assert juego.detallable is False
+
+
+@pytest.mark.django_db
+def test_a_dominican_probable_starter_opens_the_panel_before_first_pitch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No hay líneas que enseñar, pero «hoy lanza uno de los nuestros» es noticia por sí sola."""
+    _jugador(1, "Cristopher", "Sánchez")
+    proxy = _Proxy([_juego(estado="Preview", detallado="Scheduled", abridores={"home": 1})])
+    _instalar(monkeypatch, proxy)
+
+    juego = _hoy(_armada()).juegos[0]
+
+    assert juego.detallable is True
+    assert [(n.nombre, n.abridor) for n in juego.local.nuestros] == [("C. Sánchez", True)]
+
+
+@pytest.mark.django_db
+def test_the_starter_label_belongs_to_the_starter_and_to_nobody_else(monkeypatch: pytest.MonkeyPatch) -> None:
+    """El resto de la alineación anunciada sale sin etiqueta: no van a abrir, van a batear."""
+    _jugador(1, "Cristopher", "Sánchez")
+    _jugador(2, "Juan", "Soto")
+    proxy = _Proxy(
+        [_juego(estado="Preview", detallado="Scheduled", alineacion={"home": [2]}, abridores={"home": 1})]
+    )
+    _instalar(monkeypatch, proxy)
+
+    juego = _hoy(_armada()).juegos[0]
+
+    assert {(n.nombre, n.abridor) for n in juego.local.nuestros} == {("C. Sánchez", True), ("J. Soto", False)}
 
 
 # ── Los dos días de la tira ─────────────────────────────────────────────────────────────────────

@@ -91,6 +91,9 @@ class Nuestro:
     slug: str
     linea: str
     clips: tuple[Any, ...] = ()  # `videos.Clip`, sin importarlo para no atar los dos módulos
+    # Abridor probable. Es lo único que se sabe de un juego que no ha empezado, y lo que hace que
+    # valga la pena abrir su panel: «hoy lanza uno de los nuestros» es noticia por sí sola.
+    abridor: bool = False
 
 
 @dataclass(frozen=True)
@@ -121,13 +124,26 @@ class Juego:
         return bool(self.visitante.nuestros or self.local.nuestros)
 
     @property
+    def abridor_nuestro(self) -> bool:
+        """Si el abridor probable de alguno de los dos lados es dominicano."""
+        return any(nuestro.abridor for lado in self.lados for nuestro in lado.nuestros)
+
+    @property
     def detallable(self) -> bool:
         """Si vale la pena abrir el panel al pasar el mouse.
 
-        Terminado o en curso, y con alguien nuestro que haya hecho algo. Un juego que no ha empezado
-        queda fuera: se sabe quién está anunciado, pero abrir un panel con cinco nombres y ninguna
-        línea al lado es prometer un dato que todavía no existe.
+        Dos casos, y por motivos distintos:
+
+        * **Terminado o en curso**, con alguien nuestro que haya hecho algo. Ahí el panel enseña qué
+          hizo cada uno, que es el dato.
+        * **Sin empezar, con un abridor probable dominicano.** Ahí no hay líneas que enseñar, pero
+          «hoy lanza uno de los nuestros» es noticia por sí sola y merece poder mirarse.
+
+        Un juego que no ha empezado y solo tiene bateadores anunciados queda fuera: abrir un panel
+        con cinco nombres y ninguna línea al lado es prometer un dato que todavía no existe.
         """
+        if self.estado == PROGRAMADO:
+            return self.abridor_nuestro
         return self.estado in (FINAL, VIVO) and any(
             nuestro.linea for lado in self.lados for nuestro in lado.nuestros
         )
@@ -314,14 +330,19 @@ def _accion_por_juego(client: MlbProxyClient, crudos: list[dict[str, Any]], univ
     return _Accion(por_equipo={}, lineas={}, por_lado=por_lado)
 
 
+def _abridor(juego: dict[str, Any], visitante: bool) -> int | None:
+    """El abridor probable de un lado, si el calendario ya lo publicó."""
+    lado = (juego.get("teams") or {}).get("away" if visitante else "home") or {}
+    return (lado.get("probablePitcher") or {}).get("id")
+
+
 def _anunciados(juego: dict[str, Any], visitante: bool) -> set[int]:
     """La alineación publicada de un lado, más su abridor. Vacía si todavía no la publican."""
     alineaciones = juego.get("lineups") or {}
     jugadores = alineaciones.get("awayPlayers" if visitante else "homePlayers") or []
     ids = {jugador["id"] for jugador in jugadores if jugador.get("id") is not None}
 
-    lado = (juego.get("teams") or {}).get("away" if visitante else "home") or {}
-    abridor = (lado.get("probablePitcher") or {}).get("id")
+    abridor = _abridor(juego, visitante)
     if abridor is not None:
         ids.add(abridor)
     return ids
@@ -370,6 +391,7 @@ def _lado(
     ids = _anunciados(juego, visitante) & universo
     ids |= del_juego if del_juego is not None else accion.por_equipo.get(equipo_id or 0, set())
 
+    abridor = _abridor(juego, visitante)
     # Por nombre y no por id: el orden de un conjunto cambia entre corridas, y una lista que se
     # reordena sola cada minuto en la pantalla se lee como un error.
     nuestros = sorted(
@@ -379,6 +401,7 @@ def _lado(
                 slug=nombres[pid][1],
                 linea=accion.linea_de(pk, equipo_id, pid),
                 clips=clips.get(pid, ()),
+                abridor=pid == abridor,
             )
             for pid in ids
             if pid in nombres
