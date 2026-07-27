@@ -214,6 +214,62 @@ def test_without_an_active_season_nothing_is_pruned(temporada: SeasonDates) -> N
     assert DailyStandout.objects.count() == 1
 
 
+# ── Lo que ve la portada ────────────────────────────────────────────────────────────────────────
+
+
+def _guardar_jornada(bateadores: int, lanzadores: int) -> None:
+    for n in range(bateadores + lanzadores):
+        jugador = _jugador(100 + n)
+        DailyStandout.objects.create(
+            fecha=AYER,
+            grupo=DailyStandout.Grupo.BATEO if n < bateadores else DailyStandout.Grupo.PITCHEO,
+            player=jugador,
+            linea="1-4",
+            valor=1.0 - n / 100,
+        )
+
+
+@pytest.mark.django_db
+def test_a_short_day_shows_everyone_together_without_tabs(temporada: SeasonDates) -> None:
+    """Con pocos destacados las pestañas estorban: un clic para ver cinco nombres que cabían juntos."""
+    _guardar_jornada(bateadores=3, lanzadores=2)
+
+    datos = daily.portada()
+
+    assert datos is not None
+    assert datos["con_pestanas"] is False
+    assert len(datos["grupos"]) == 1
+    assert len(datos["grupos"][0][2]) == 5
+
+
+@pytest.mark.django_db
+def test_a_long_day_splits_the_two_crafts(temporada: SeasonDates) -> None:
+    """Pasado el corte la lista se hace larga, y ahí sí conviene separarlos."""
+    _guardar_jornada(bateadores=5, lanzadores=4)
+
+    datos = daily.portada(bateadores=5, lanzadores=4)
+
+    assert datos is not None
+    assert datos["con_pestanas"] is True
+    assert [clave for clave, _, _ in datos["grupos"]] == ["bateo", "pitcheo"]
+
+
+@pytest.mark.django_db
+def test_the_two_crafts_are_never_ranked_against_each_other(temporada: SeasonDates) -> None:
+    """Un 3-4 y siete entradas de una carrera no están en la misma escala.
+
+    Juntos en una sola caja van igual —bateadores primero, lanzadores después— pero NO reordenados
+    por valor: ese orden daría a entender una comparación que no existe.
+    """
+    _guardar_jornada(bateadores=2, lanzadores=2)
+
+    datos = daily.portada()
+
+    assert datos is not None
+    grupos = [d.player.player_id for d in datos["grupos"][0][2]]
+    assert grupos == [100, 101, 102, 103]
+
+
 # ── El comando ──────────────────────────────────────────────────────────────────────────────────
 
 

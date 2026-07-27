@@ -202,10 +202,12 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-flecha-izq { left: 0; border-left: 0; border-right: 1px solid var(--dgl-line); }
 .dgl-flecha-der { right: 0; }
 
-/* El panel que baja al pasar el mouse por un juego terminado. */
+/* El panel que baja al pasar el mouse por un juego terminado.
+   En gris y no en blanco: la tira también es blanca, así que el panel se despegaba solo por su filo
+   y su sombra. Es el mismo gris que usan las cajas de los widgets de abajo. */
 .dgl-detalle {
   position: absolute; top: 100%; z-index: 20; min-width: 15rem; max-width: 22rem;
-  background: var(--dgl-card); border: 1px solid var(--dgl-line); border-top: 0;
+  background: var(--dgl-bg); border: 1px solid var(--dgl-line); border-top: 0;
   border-radius: 0 0 .4rem .4rem; box-shadow: 0 6px 18px rgb(0 0 0 / .12); padding: .5rem .7rem;
 }
 .dgl-detalle-equipo {
@@ -281,16 +283,20 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 /* El nombre enlaza al perfil pero se lee como texto: en azul, cinco enlaces seguidos convierten el
    panel en una lista de links y el dato —que es la línea— pasa a segundo plano. */
+/* El video y el nombre en una fila: el icono abre y el nombre se recorta si hace falta. `min-width:0`
+   en los dos porque un hijo flex no baja de su ancho de contenido sin él, y sin eso el nombre
+   empujaría al icono fuera de la caja en vez de recortarse. */
+.dgl-destacado-nombre { display: flex; align-items: center; gap: .3rem; min-width: 0; }
 .dgl-destacado-quien .nombre {
-  display: block; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
+  min-width: 0; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .dgl-destacado-quien .nombre:hover { color: var(--dgl-blue); text-decoration: none; }
-/* Justo debajo del nombre, con el video pegado al final. `tabular-nums` para que los «3-4» de dos
-   cajas distintas queden en la misma vertical. */
+/* Justo debajo del nombre. `tabular-nums` para que los «3-4» de dos cajas distintas queden en la
+   misma vertical. */
 .dgl-destacado-linea {
-  display: flex; align-items: center; gap: .3rem; margin-top: .05rem;
-  color: var(--dgl-blue); font-weight: 600; font-size: .78rem; font-variant-numeric: tabular-nums;
+  display: block; color: var(--dgl-blue); font-weight: 600; font-size: .78rem;
+  font-variant-numeric: tabular-nums;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .dgl-group-label { color: var(--dgl-muted); font-size: .72rem; font-weight: 700;

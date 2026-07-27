@@ -283,6 +283,11 @@ class Destacado:
         return nombre_corto(self.player.full_name)
 
 
+# Hasta acá caben todos juntos y las pestañas sobran. Pasado eso, la lista se hace larga y conviene
+# separar los dos oficios, que además no se comparan entre sí.
+SIN_PESTANAS = 6
+
+
 def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
     """Los destacados que muestra la portada, de la jornada más reciente que haya guardada.
 
@@ -322,13 +327,26 @@ def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
         ]
         for oficio, lista in filas.items()
     }
+    # Con pocos destacados las pestañas estorban: obligan a un clic para ver cinco nombres que
+    # cabían juntos, y esconden la mitad del contenido detrás de una pestaña que nadie va a tocar.
+    # Solo se separan los oficios cuando la lista se hace larga de verdad.
+    total = sum(len(lista) for lista in armadas.values())
+    grupos = (
+        (("bateo", "Bateo", armadas["bateo"]), ("pitcheo", "Pitcheo", armadas["pitcheo"]))
+        if total > SIN_PESTANAS
+        # Bateadores primero y lanzadores después, sin mezclar: sus valores no están en la misma
+        # escala —un 3-4 y siete entradas de una carrera no se comparan— así que ordenarlos juntos
+        # daría una lista con un criterio que no existe.
+        else (("todos", "", [*armadas["bateo"], *armadas["pitcheo"]]),)
+    )
     return {
         "dia": ultima,
         # `grupos` es lo que recorre la plantilla —una vez para las pestañas y otra para las listas—
         # con su clave y su etiqueta ya puestas. Las etiquetas riman con las del widget de líderes,
         # que está al lado y dice lo mismo con las mismas palabras.
         # Las claves sueltas se quedan porque los tests las usan por nombre.
-        "grupos": (("bateo", "Bateo", armadas["bateo"]), ("pitcheo", "Pitcheo", armadas["pitcheo"])),
+        "grupos": grupos,
+        "con_pestanas": len(grupos) > 1,
         **armadas,
     }
 

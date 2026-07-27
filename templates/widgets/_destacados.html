@@ -26,12 +26,14 @@ mejor que no esté a que esté hueco.
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="destacados-titulo">
         Destacados del {{ destacados.dia|date:"j M" }}
       </h2>
-      <div class="dgl-pestanas">
-        {% for oficio, etiqueta, actuaciones in destacados.grupos %}
-          <button type="button" class="dgl-pill{% if forloop.first %} active{% endif %}"
-                  data-oficio="{{ oficio }}">{{ etiqueta }}</button>
-        {% endfor %}
-      </div>
+      {% if destacados.con_pestanas %}
+        <div class="dgl-pestanas">
+          {% for oficio, etiqueta, actuaciones in destacados.grupos %}
+            <button type="button" class="dgl-pill{% if forloop.first %} active{% endif %}"
+                    data-oficio="{{ oficio }}">{{ etiqueta }}</button>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
 
     {% for oficio, etiqueta, actuaciones in destacados.grupos %}
@@ -55,11 +57,17 @@ mejor que no esté a que esté hueco.
             <img class="dgl-destacado-foto" src="{{ actuacion.foto }}" alt="" loading="lazy"
                  onerror="this.remove()">
             <div class="dgl-destacado-quien">
-              <a class="nombre" href="{% url 'player_detail' actuacion.player.slug %}"
-                 title="{{ actuacion.player.full_name }}">{{ actuacion.nombre }}</a>
-              <span class="dgl-destacado-linea">
-                {{ actuacion.linea }}{% include "widgets/_video_boton.html" with clips=actuacion.clips %}
+              {% comment %}
+                El video va pegado al nombre y no al final de la línea de estadísticas: ahí quedaba
+                escondido detrás de un texto de largo variable, y su sitio en la fila cambiaba de caja
+                en caja.
+              {% endcomment %}
+              <span class="dgl-destacado-nombre">
+                <a class="nombre" href="{% url 'player_detail' actuacion.player.slug %}"
+                   title="{{ actuacion.player.full_name }}">{{ actuacion.nombre }}</a>
+                {% include "widgets/_video_boton.html" with clips=actuacion.clips %}
               </span>
+              <span class="dgl-destacado-linea">{{ actuacion.linea }}</span>
             </div>
           </article>
         {% endfor %}
