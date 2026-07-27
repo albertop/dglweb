@@ -803,20 +803,74 @@ falso). Los archivos viven en el volumen `dglweb_media`.
 faltaba a la Fase 6 y se queda esperando. No bloquea nada: la pizarra y los destacados —los otros dos
 módulos vivos de esa fase— están hechos y funcionando.
 
-- [ ] **El ticker en vivo de la cabecera.** El hueco está reservado desde la Fase 1: `base.html`
-  tiene un `{% block ticker %}` vacío con un comentario que dice que espera «a data-driven,
-  season-aware component». Ese comentario es la regla que hay que respetar cuando se retome — **no se
-  publica una cintilla con datos falsos** para que el sitio parezca vivo.
+- [ ] **El ticker de movimientos de roster.** Qué muestra ya está decidido (dueño, 2026-07-27):
+  **los movimientos de roster de nuestros peloteros** — firmados, subidos, bajados, cambiados,
+  liberados. No marcadores en vivo ni jugadas del día.
 
-  Lo que hay que decidir ANTES de escribir código, y es del dueño: **qué pasa por la cintilla**.
-  Marcadores en vivo de los juegos con dominicanos, jugadas del día, quién está bateando ahora,
-  líderes que se movieron hoy… son productos distintos.
+  El hueco está reservado desde la Fase 1: `base.html` tiene un `{% block ticker %}` vacío con un
+  comentario que dice que espera «a data-driven, season-aware component». Esa es la regla que hay que
+  respetar al retomarlo — **no se publica una cintilla con datos falsos** para que el sitio parezca
+  vivo.
 
-  Lo que NO hay que decidir: la técnica. El plan de la fase decía «vistas HTMX» y **HTMX nunca se
-  instaló**. La pizarra se refresca con `static/js/pizarra.js`, cuarenta líneas de `fetch` contra un
-  fragmento, con respaldo en caché cuando el proxy falla. Funciona, está probado y no arrastra una
-  dependencia por CDN — que es justo la deuda que la Fase 8 viene a pagar. El ticker debería seguir
-  ese mismo patrón.
+  **La preocupación del dueño es el costo en llamadas al API, y con razón: hay que pensarlo mil veces
+  antes de hacerlo.** Su idea era leer el endpoint de rosters y sacar los movimientos por diferencia
+  entre la foto de ayer y la de hoy. Antes de tomar ese camino, un dato medido el 2026-07-27:
+
+  **El proxy ya expone `/api/v1/transactions`**, y una sola llamada con `startDate`/`endDate` del
+  mismo día devolvió **142 transacciones de toda la MLB**. O sea **1 llamada por día**, contra **30**
+  —una por equipo— del camino de las diferencias de roster.
+
+  Y no es solo más barato, es mejor dato. Cada fila trae `typeDesc` (*Signed*, *Optioned*,
+  *Recalled*, *Released*, *Trade*…), la persona, los dos equipos y una descripción ya redactada. La
+  diferencia entre dos rosters solo dice que alguien dejó de estar: **no distingue** una bajada a
+  ligas menores de una cesión, de un cambio o de una liberación, que es justamente lo que hace
+  noticiable el movimiento. Sacar eso del diff pediría más llamadas, no menos.
+
+  Filtrar a los nuestros no cuesta llamadas: es un cruce contra `dgl_master` ∪ `dom_players`, que es
+  la única autoridad de quién es dominicano — **el `birthCountry` del API no vale**.
+
+  Lo que NO hay que decidir: la técnica de refresco. El plan de la fase decía «vistas HTMX» y **HTMX
+  nunca se instaló**. La pizarra se refresca con `static/js/pizarra.js`, cuarenta líneas de `fetch`
+  contra un fragmento, con respaldo en caché cuando el proxy falla. Funciona, está probado y no
+  arrastra una dependencia por CDN — que es justo la deuda que la Fase 8 viene a pagar. El ticker
+  debería seguir ese mismo patrón, y además leer de nuestra tabla y no del proxy en cada visita: los
+  movimientos los trae un job diario, como todo lo demás.
+
+  ### El español, sin LLM — medido el 2026-07-27
+
+  **Sí se puede con reglas.** MLB no escribe prosa: rellena plantillas. Sobre un mes real (2.139
+  transacciones de toda la MLB, traídas en 5 llamadas), sustituyendo nombres, equipos, posiciones y
+  números por marcadores:
+
+  | | |
+  |---|---|
+  | Frases totales | 2.139 |
+  | Esqueletos distintos | 226 |
+  | **Esqueletos que cubren el 90%** | **29** |
+  | De los nuestros, en el mes | 165 filas · **36 esqueletos** |
+
+  Las más frecuentes son de este tenor — `{EQUIPO} optioned {POS} {JUGADOR} to {EQUIPO}.`,
+  `{EQUIPO} activated {POS} {JUGADOR} from the {N}-day injured list.` — o sea una tabla de unas
+  treinta entradas, no un modelo de lenguaje.
+
+  **El atajo que NO funciona**, para que nadie lo intente de nuevo: componer la frase solo desde los
+  campos estructurados, ignorando el inglés. `typeDesc` es demasiado grueso. «Status Change» —el
+  segundo tipo más frecuente— mete en la misma bolsa *activado*, *lista de lesionados*, *paternidad*,
+  *duelo*, *restringido* y *suspendido*. Saldría «cambio de estatus» donde la noticia era la lesión.
+
+  **Lo correcto es híbrido:** reconocer la frase inglesa contra la tabla de patrones, y rellenar la
+  plantilla española con los CAMPOS DEL JSON —`person`, `toTeam`, `fromTeam`—, no con lo que se
+  extraiga del texto. Dos residuos: el detalle de la lesión («Left hamstring strain»), texto libre
+  pero de vocabulario acotado que cubre un glosario chico; y lo que no encaje en ningún patrón, donde
+  **la regla es no mostrar nunca el inglés** — se omite del ticker o se cae a una frase genérica. Una
+  línea en inglés dentro de una cintilla en español se lee como un error, no como un dato.
+
+  ### El costo en llamadas, medido
+
+  El endpoint acepta rangos de fechas: **una sola llamada trajo dos semanas enteras**. Un job diario
+  pidiendo el día anterior es **1 llamada/día** — contra las 30 diarias (una por equipo) del camino
+  de diferencias de roster que se barajó primero. Y de esas 2.139 filas del mes, **165 eran nuestras**
+  (unas 5 por día), así que el ticker tiene material sin quedarse vacío ni desbordarse.
 
 **La página aparte de la pizarra NO se va a hacer** — decisión del dueño (2026-07-27). La Fase 0 la
 mencionaba («pizarra completa → página aparte») y queda descartada: la pizarra vive en la portada y
