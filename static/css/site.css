@@ -743,10 +743,15 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 
 /* Siempre ocupa su sitio, aunque no haya nada más que enseñar: si desapareciera, el widget mediría
    distinto en la pestaña que lo lleva y en la que no. Se apaga con `visibility` y no con `d-none`. */
+/* `line-height` fijo y no heredado: es lo que garantiza que el botón mida igual diga «ver 9 más» o
+   no diga nada, y por tanto que el widget no cambie de alto al saltar de pestaña. */
 .dgl-lideres-mas {
   display: block; width: 100%; margin-top: .5rem; padding: .3rem; background: none;
-  border: 0; font: inherit; font-size: .72rem;
+  border: 0; font: inherit; font-size: .72rem; line-height: 1.4;
   color: var(--dgl-blue); cursor: pointer;
 }
 .dgl-lideres-mas:hover { text-decoration: underline; }
-.dgl-lideres-mas.esta-de-mas { visibility: hidden; }
+/* Un control que sobra hoy pero puede hacer falta mañana: se apaga sin quitarse, para que el widget
+   mida igual con él y sin él. Los dos de la franja están uno al lado del otro y cualquier diferencia
+   de alto los desalinea. Vale para el «ver N más» y para la fila de pestañas. */
+.esta-de-mas { visibility: hidden; }

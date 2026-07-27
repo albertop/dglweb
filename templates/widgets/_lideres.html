@@ -26,14 +26,20 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="lideres-titulo">
         En el top 10
       </h2>
-      {% if lideres.con_pestanas %}
-        <div class="dgl-pestanas">
+      {% comment %}
+        Se dibuja siempre, aunque hoy sobre: apagada reserva su alto, y así el widget mide igual con
+        pestañas que sin ellas. Mismo motivo que en destacados, que está justo al lado.
+      {% endcomment %}
+      <div class="dgl-pestanas{% if not lideres.con_pestanas %} esta-de-mas{% endif %}">
+        {% if lideres.con_pestanas %}
           {% for oficio, etiqueta, grupos in lideres.oficios %}
             <button type="button" class="dgl-pill{% if forloop.first %} active{% endif %}"
                     data-oficio="{{ oficio }}">{{ etiqueta }}</button>
           {% endfor %}
-        </div>
-      {% endif %}
+        {% else %}
+          <span class="dgl-pill" aria-hidden="true">&nbsp;</span>
+        {% endif %}
+      </div>
     </div>
 
     {% comment %}
@@ -75,7 +81,7 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
       Lo agrega y lo esconde lideres.js según cuántas filas queden fuera, que es un número que solo
       se sabe después de que el navegador arme la retícula.
     {% endcomment %}
-    <button type="button" class="dgl-lideres-mas esta-de-mas" aria-expanded="false"></button>
+    <button type="button" class="dgl-lideres-mas esta-de-mas" aria-expanded="false">&nbsp;</button>
   </div>
 </section>
 {% endif %}

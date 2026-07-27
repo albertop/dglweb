@@ -68,7 +68,10 @@
     // Cuando no hay nada más se apaga pero NO se quita: sigue ocupando su renglón, para que el widget
     // mida igual en la pestaña que lo lleva y en la que no.
     verTodas.classList.toggle('esta-de-mas', enLaActiva === 0);
-    verTodas.textContent = enLaActiva ? 'ver ' + enLaActiva + ' más' : '';
+    // Espacio duro y no cadena vacía: un botón sin texto no tiene alto de línea, así que al pasar a
+    // la pestaña que no lo necesita el widget encogía unos píxeles. `visibility` lo esconde, pero
+    // solo reserva el sitio si hay algo que medir.
+    verTodas.textContent = enLaActiva ? 'ver ' + enLaActiva + ' más' : ' ';
   }
 
   function cerrar() {
