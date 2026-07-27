@@ -567,11 +567,12 @@ Docker. En un runner de GitHub el Postgres es un `service` con el puerto publica
 del compose por defecto, y el workflow pone `localhost`. Es una variable SOLO de la suite: no la
 hereda el contenedor y no puede apuntar sin querer a la base real, que era el riesgo original.
 
-**Lo que hay que mirar.** El gate local siguió en verde los doce pushes, así que nada avisó. Vale la
-pena que un fallo del CI llegue al mismo grupo de Telegram que ya recibe los del refresco diario —
-requiere meter el token como secreto del repositorio, y eso es decisión del dueño.
+**Sin aviso automático, por decisión del dueño (2026-07-27).** El gate local siguió en verde los doce
+pushes, así que nada avisó del rojo. Se planteó mandar los fallos del CI al grupo de Telegram que ya
+recibe los del refresco diario y el dueño lo descartó: se sigue adelante mirando Actions a mano.
+Queda escrito para que nadie lo vuelva a proponer como si fuera un olvido.
 
-- [ ] **Avisar por Telegram cuando el CI falle**, o al menos activar el correo de GitHub Actions.
+**Confirmado**: el run #153 cerró en verde, el primero desde el #140.
 
 ## Incidente — la suite mandaba alertas de Telegram de verdad (2026-07-27)
 
