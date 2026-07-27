@@ -23,8 +23,12 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
       Los `role` y las flechas del teclado los pone `pestanas.js`, común con los destacados.
     {% endcomment %}
     <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+      {% comment %}
+        El año en el título y no suelto en una esquina: sin él, «en el top 10» se lee como algo
+        permanente, y es una foto de la temporada en curso que cambia cada hora.
+      {% endcomment %}
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="lideres-titulo">
-        En el top 10
+        En el top 10 del {{ lideres.temporada }}
       </h2>
       {% comment %}
         Se dibuja siempre, aunque hoy sobre: apagada reserva su alto, y así el widget mide igual con
