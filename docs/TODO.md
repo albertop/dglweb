@@ -550,3 +550,43 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   bateo `BIP≥2000` / `swings≥5000`, pitcheo `BIP≥3000` / `swings≥8000` (el pitcheo enfrenta muchas más
   BIP). Temporada intacta (400/1000). BD actualizada y `dgl_leader` reconstruido (GB% carrera bateo pasó
   de 203 a 85 calificados).
+
+## Incidente — la suite mandaba alertas de Telegram de verdad (2026-07-27)
+
+**Qué pasó.** El dueño recibió en el grupo de avisos mensajes como «Refresco diario con fallos —
+update_fielding: failed (10 filas)» y «Debut dominicano — Jugador 2», minutos después de una corrida
+de tests. No había ningún fallo: `IngestRun` tenía cero corridas no exitosas en 36 horas y el
+refresco de las 6:00 salió limpio, 8/8 pasos y 417.575 filas.
+
+**Por qué.** `config/settings/test.py` no tocaba las credenciales de Telegram, así que heredaba las
+reales del `.env`. Y `tests/test_pipeline.py` hace fallar pasos **a propósito** —es lo que prueba—
+sin silenciar el aviso. Cada corrida de la suite disparaba mensajes auténticos.
+
+Se reconocían por el detalle: «no dejó fila en el log» en los nueve pasos a la vez, y «10 filas»,
+que es exactamente lo que escribe el doble de `call_command`. Ningún fallo real se ve así.
+
+**Lo que se rompía de verdad** no era el ruido: un canal de alertas donde la mitad son falsas deja de
+leerse, y entonces la alerta real llega igual y nadie la mira. Es el mismo daño que el incidente de
+Ofelia, por el otro extremo — allá no avisaba nada, acá avisaba de más.
+
+**Arreglado**: `settings.test` vacía `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`. `notify` ya tenía
+previsto ese caso —sin token no manda y no protesta— así que no hizo falta código nuevo.
+
+**No se hizo con un prefijo «TEST»**, que fue la primera idea: seguiría mandando mensajes reales y
+seguiría metiendo la red en la suite. Para probar el canal a mano está `manage.py telegram_check
+--probar`.
+
+Con guardián: `tests/test_no_avisar_en_tests.py` comprueba que la suite no tiene credenciales, que
+`enviar()` es un no-op, y que ni siquiera intenta llamar a `httpx.post`.
+
+## Pendiente de operación — el scheduler no recarga el calendario
+
+- [ ] **Reiniciar `scheduler` después de tocar `ofelia/config.ini`.** Descubierto el 2026-07-27: el
+  job `mlb-leaders-hourly` se agregó al archivo a las 18:58 del 26, y el scheduler llevaba corriendo
+  desde las 15:39. Ofelia lee el calendario **solo al arrancar**, así que el proceso tenía cargados 2
+  jobs —`Starting scheduler with 2 jobs` en su log— y el horario nunca se registró: `build_mlb_leaders`
+  no corrió sola ni una vez.
+  El archivo montado sí tenía el job; el proceso no. Es la misma familia de fallo que el incidente de
+  Ofelia y vuelve por una puerta nueva: no por etiquetas robadas, sino por cambiar el calendario sin
+  reiniciar. **Se arregla con `docker compose restart scheduler`**, y conviene dejarlo escrito en el
+  propio `config.ini` para el próximo cambio.

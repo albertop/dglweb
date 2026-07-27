@@ -342,3 +342,63 @@ def test_leaders_page_renders_and_links_to_the_profile() -> None:
     assert b"Albert Pujols" in response.content
     assert b"703" in response.content
     assert f"/jugador/{pujols.slug}/".encode() in response.content
+
+
+# ── Con qué se abre la página ───────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_the_page_opens_on_home_runs_and_not_on_the_first_column() -> None:
+    """Nadie llega a Líderes preguntándose quién jugó más partidos.
+
+    El catálogo está ordenado para leer una tabla completa —G, PA, AB, R…— y la página abría con su
+    primera columna. HR es la portada natural de la sección.
+    """
+    g = _metric("batting", "g", "G", name_es="Juegos")
+    hr = _metric("batting", "hr", "HR", name_es="Jonrones")
+    jugador = _player(90, "z01", "Un Jugador")
+    _leader(g, jugador, 1, 3080.0)
+    _leader(hr, jugador, 1, 703.0)
+
+    contexto = leaders_context(group="batting", tab="", scope="carrera", metric_col="", season="")
+
+    assert contexto["board"]["abbr"] == "HR"
+
+
+@pytest.mark.django_db
+def test_asking_for_another_metric_still_wins() -> None:
+    """El default es solo para cuando nadie pidió nada: cada tablero sigue siendo su propia URL."""
+    g = _metric("batting", "g", "G", name_es="Juegos")
+    hr = _metric("batting", "hr", "HR", name_es="Jonrones")
+    jugador = _player(91, "z02", "Un Jugador")
+    _leader(g, jugador, 1, 3080.0)
+    _leader(hr, jugador, 1, 703.0)
+
+    contexto = leaders_context(group="batting", tab="", scope="carrera", metric_col="g", season="")
+
+    assert contexto["board"]["abbr"] == "G"
+
+
+@pytest.mark.django_db
+def test_a_group_without_a_chosen_default_opens_on_its_first_metric() -> None:
+    """Pitcheo y fildeo no están en el mapa: mantienen el comportamiento de siempre."""
+    w = _metric("pitching", "w", "W", name_es="Victorias")
+    so = _metric("pitching", "so", "SO", name_es="Ponches")
+    jugador = _player(92, "z03", "Un Lanzador")
+    _leader(w, jugador, 1, 219.0)
+    _leader(so, jugador, 1, 3154.0)
+
+    contexto = leaders_context(group="pitching", tab="", scope="carrera", metric_col="", season="")
+
+    assert contexto["board"]["abbr"] == "W"
+
+
+@pytest.mark.django_db
+def test_if_home_runs_is_switched_off_the_page_still_opens() -> None:
+    """El default no puede ser un punto de fallo: desactivar HR en el Backoffice no rompe la página."""
+    g = _metric("batting", "g", "G", name_es="Juegos")
+    _leader(g, _player(93, "z04", "Un Jugador"), 1, 3080.0)
+
+    contexto = leaders_context(group="batting", tab="", scope="carrera", metric_col="", season="")
+
+    assert contexto["board"]["abbr"] == "G"

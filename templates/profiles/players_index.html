@@ -16,8 +16,13 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
   <h1 class="dgl-page-title">Jugadores</h1>
   <div class="dgl-lede mb-4">
     <p>
-      Todos los dominicanos que han llegado a Grandes Ligas, desde 1956. Escribe un nombre en el
-      buscador y elige de la lista para abrir su perfil.
+      {% comment %}
+        Sin fecha de inicio: el maestro incluye a los siete dominicanos de las Ligas Negras, que son
+        anteriores a 1956 — poner ese año dejaría fuera, por escrito, a gente que sí está adentro.
+      {% endcomment %}
+      Busca aquí a cualquiera de los {{ total_jugadores }} dominicanos que han jugado en Grandes
+      Ligas. Escribe un nombre o un apellido y elige de la lista para abrir su perfil, con sus
+      números por temporada y de por vida.
     </p>
   </div>
 

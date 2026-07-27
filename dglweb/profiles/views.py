@@ -168,6 +168,10 @@ def players_index(request: HttpRequest) -> HttpResponse:
             "min_caracteres": search.MIN_CARACTERES,
             "temporada": temporada,
             "activos": activos,
+            # Cuántos hay que buscar. `Player.objects` ya excluye a los deshabilitados, así que el
+            # número que se anuncia es exactamente el que el buscador puede encontrar — prometer más
+            # de lo que se entrega es peor que no prometer nada.
+            "total_jugadores": Player.objects.count(),
         },
     )
 

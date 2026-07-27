@@ -405,6 +405,23 @@ def _empty_context(group: str, scope: str, pos: str | None) -> dict[str, Any]:
     }
 
 
+# Con qué métrica se abre cada oficio cuando nadie pidió una. Sin esto se abría con la primera del
+# catálogo —Juegos en bateo, Victorias en pitcheo— que está ordenada para leer una tabla completa, no
+# para ser la portada de la sección: nadie llega a Líderes preguntándose quién jugó más partidos.
+#
+# Es una decisión editorial y por eso vive acá, escrita, y no en el `sort_order` del catálogo: mover
+# HR al principio del orden cambiaría también todas las tablas donde ese orden sí importa.
+#
+# Un oficio que no esté acá abre con la primera de su división, que es el comportamiento de siempre.
+METRICA_INICIAL: dict[str, str] = {"batting": "hr"}
+
+
+def _por_defecto(group: str, metricas: list[Metric]) -> Metric:
+    """La métrica con la que abre el oficio, o la primera si no hay una elegida (o si se desactivó)."""
+    preferida = METRICA_INICIAL.get(group)
+    return next((m for m in metricas if m.column == preferida), metricas[0])
+
+
 def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season: str, pos: str = "") -> dict[str, Any]:
     """Everything the leaders page needs, with every selection validated and a sensible fallback."""
     if group not in dict(_GROUPS):
@@ -429,7 +446,7 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
         tab = division_labels[0]
     tab_metrics = next(metrics for label, metrics in divisions if label == tab)
 
-    metric = next((m for m in tab_metrics if m.column == metric_col), tab_metrics[0])
+    metric = next((m for m in tab_metrics if m.column == metric_col), _por_defecto(group, tab_metrics))
     october = tab == _POSTSEASON_DIVISION
 
     # Seasons this metric was ranked in (some start in 1989), newest first; the picked one is validated.

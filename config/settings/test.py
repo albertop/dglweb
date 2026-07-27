@@ -23,3 +23,17 @@ DATABASES = {
         "PORT": "5432",
     }
 }
+
+# La suite NO habla con Telegram. Vaciar las credenciales basta: `notify.configurado()` da falso y
+# `notify.enviar()` se vuelve un no-op sin tocar la red — que es el comportamiento que el módulo ya
+# tiene previsto para «no configurado».
+#
+# Hacía falta porque `.env` es real y `settings.test` lo heredaba. Los tests del orquestador hacen
+# fallar pasos a propósito para comprobar que el fallo se avisa, así que cada corrida de la suite
+# mandaba mensajes de verdad al grupo del dueño — indistinguibles de una alerta real, que es
+# exactamente lo que vuelve inútil un canal de alertas.
+#
+# No se resuelve con un prefijo «TEST» en el texto: eso seguiría mandando mensajes y seguiría
+# metiendo la red en la suite. Para probar el canal a mano está `manage.py telegram_check --probar`.
+TELEGRAM_BOT_TOKEN = ""
+TELEGRAM_CHAT_ID = ""
