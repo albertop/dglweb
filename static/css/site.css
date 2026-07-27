@@ -1161,10 +1161,19 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   .dgl-cintillo-marco { overflow-x: auto; }
 }
 
-/* La caja de búsqueda del índice de artículos. En su propia fila y no dentro de las pestañas: son
-   dos maneras distintas de llegar —filtrar por sección y buscar por palabra— y apretarlas en la
-   misma línea deja el campo minúsculo justo en el móvil, que es donde más se usa. */
-.dgl-buscar-articulos { display: flex; gap: .5rem; max-width: 32rem; }
+/* La cabecera del índice: la entradilla a la izquierda y el buscador a la derecha, en la MISMA línea.
+   Antes el buscador tenía su propia fila y empujaba las pestañas y la primera tarjeta un renglón
+   entero hacia abajo sin decir nada nuevo.
+
+   `flex-wrap` para que en móvil se apilen solos: en 375px no caben lado a lado sin dejar la caja tan
+   estrecha que no se lea lo que se escribe. Y `margin-left: auto` en el formulario en vez de
+   `justify-content: space-between`, porque el día que un índice no tenga entradilla la caja tiene
+   que seguir pegada a la derecha y no saltar a la izquierda. */
+.dgl-cabecera-articulos {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.5rem;
+}
+.dgl-cabecera-articulos .dgl-lede { flex: 1 1 20rem; }
+.dgl-buscar-articulos { display: flex; gap: .5rem; flex: 0 1 24rem; margin-left: auto; }
 .dgl-buscar-articulos input { flex: 1 1 auto; }
 .dgl-buscar-articulos button { flex: 0 0 auto; }
 

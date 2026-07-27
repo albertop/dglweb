@@ -16,35 +16,39 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
   <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
 
   <h1 class="dgl-page-title">{{ page.title }}</h1>
-  {% if page.entradilla %}
-    <div class="dgl-lede mb-3"><p class="mb-0">{{ page.entradilla }}</p></div>
-  {% endif %}
-
   {% comment %}
-    Van por querystring y no por una ruta propia por categoría: son excluyentes y se navegan como
-    pestañas, así que `?categoria=defensa` dice exactamente lo que pasa sin obligar a inventar una
-    ruta por cada categoría que el editor cree mañana. En móvil la fila se desliza.
-  {% endcomment %}
-  {% comment %}
-    El buscador y las pestañas comparten fila: son las dos maneras de llegar a un artículo y se leen
-    como una sola barra de navegación. Es un formulario GET de verdad, así que la búsqueda queda en la
-    URL —se puede compartir, marcar y volver atrás— y funciona sin JavaScript.
+    La entradilla y el buscador comparten línea: la entradilla a la izquierda y la caja a la derecha,
+    alineada con el borde del contenido. Estaba debajo, en su propia fila, y empujaba las pestañas y
+    la primera tarjeta un renglón entero hacia abajo para no decir nada nuevo — la cabecera de la
+    página ocupaba el doble de lo que necesitaba.
 
-    NO es el buscador del encabezado: ese busca JUGADORES, y mezclarlos haría que escribir «Soto»
-    devolviera una ficha y un artículo en la misma lista sin decir cuál es cuál.
+    En móvil se apilan solos (`flex-wrap`): en 375px no caben una al lado de la otra sin que la caja
+    quede tan estrecha que no se lea lo que se escribe.
   {% endcomment %}
-  <form class="dgl-buscar-articulos mb-4" method="get" action="{{ page.url }}" role="search"
-        aria-label="Buscar artículos">
-    <label class="visually-hidden" for="buscar-articulos">Buscar artículos</label>
-    <input class="form-control form-control-sm" id="buscar-articulos" type="search" name="q"
-           value="{{ consulta }}" placeholder="🔎 Buscar en los artículos…">
+  <div class="dgl-cabecera-articulos mb-4">
+    {% if page.entradilla %}
+      <div class="dgl-lede mb-0"><p class="mb-0">{{ page.entradilla }}</p></div>
+    {% endif %}
     {% comment %}
-      La categoría elegida viaja con la búsqueda: buscar dentro de «Defensa» sin perder el filtro es
-      lo que uno espera, y sin este campo el formulario lo borraría al enviarse.
+      Es un formulario GET de verdad, así que la búsqueda queda en la URL —se puede compartir, marcar
+      y volver atrás— y funciona sin JavaScript.
+
+      NO es el buscador del encabezado: ese busca JUGADORES, y mezclarlos haría que escribir «Soto»
+      devolviera una ficha y un artículo en la misma lista sin decir cuál es cuál.
     {% endcomment %}
-    {% if elegida %}<input type="hidden" name="categoria" value="{{ elegida }}">{% endif %}
-    <button class="btn btn-sm btn-outline-primary" type="submit">Buscar</button>
-  </form>
+    <form class="dgl-buscar-articulos" method="get" action="{{ page.url }}" role="search"
+          aria-label="Buscar artículos">
+      <label class="visually-hidden" for="buscar-articulos">Buscar artículos</label>
+      <input class="form-control form-control-sm" id="buscar-articulos" type="search" name="q"
+             value="{{ consulta }}" placeholder="🔎 Buscar en los artículos…">
+      {% comment %}
+        La categoría elegida viaja con la búsqueda: buscar dentro de «Defensa» sin perder el filtro es
+        lo que uno espera, y sin este campo el formulario lo borraría al enviarse.
+      {% endcomment %}
+      {% if elegida %}<input type="hidden" name="categoria" value="{{ elegida }}">{% endif %}
+      <button class="btn btn-sm btn-outline-primary" type="submit">Buscar</button>
+    </form>
+  </div>
 
   <nav class="dgl-cats mb-4" aria-label="Categorías">
     {% comment %}
