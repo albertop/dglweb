@@ -1078,7 +1078,10 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
 
 ### Preguntas abiertas del dueño (salidas de este review)
 
-- [ ] ¿La categoría del artículo es obligatoria? Hoy no lo es, y un artículo sin ella no sale bajo
-      ningún filtro del índice.
-- [ ] ¿La fuente del gráfico es obligatoria? Recomiendo que sí (SAB-02).
-- [ ] ¿Los documentos del CMS se quitan o se declaran públicos? (SEC-02)
+- [x] **¿La categoría del artículo es obligatoria?** **Sí** — decisión del dueño (2026-07-27). Pasa
+      a ser obligatoria en el modelo. Ojo al implementarlo: hay artículos publicados sin ella, así
+      que la migración tiene que decidir qué hacer con esos y no fallar a mitad.
+- [x] **¿La fuente del gráfico es obligatoria?** **Sí** — decisión del dueño (2026-07-27). Con un
+      valor sugerido para cuando el dato salga de nuestras tablas, para que la regla no obligue a
+      inventar una fuente externa que no existe.
+- [ ] ¿Los documentos del CMS se quitan o se declaran públicos? (SEC-02) — pendiente del dueño.
