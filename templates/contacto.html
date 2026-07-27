@@ -4,9 +4,10 @@ Contacto. Reutiliza el marco de las páginas legales —columna estrecha, serif,
 porque es el mismo tipo de página: texto que se lee una vez y del que hay que salir sabiendo qué
 hacer.
 
-Los bloques están ordenados por lo que de verdad va a llegar a ese buzón, no por lo que queda bonito:
-lo primero es una corrección a un dato, que es lo que más escribe la gente en un sitio de
-estadísticas, y lo último la publicidad, que llega poco pero importa.
+Los bloques están ordenados por lo que de verdad va a llegar a ese buzón, no por lo que queda bonito.
+Primero la consulta de otro cronista —el único bloque que OFRECE algo en vez de pedirlo, y lo que más
+nos diferencia—, después la corrección a un dato, que es lo que más escribe la gente en un sitio de
+estadísticas, y al final la publicidad, que llega poco pero importa.
 {% endcomment %}
 {% block title %}Contáctanos · Dominicanos en Grandes Ligas{% endblock %}
 {% block meta %}<meta name="description" content="Escríbenos: correcciones de datos, sugerencias de temas, publicidad y prensa.">{% endblock %}
@@ -21,6 +22,31 @@ estadísticas, y lo último la publicidad, que llega poco pero importa.
     <p class="dgl-legal-resumen">
       Escríbenos a <a href="mailto:{{ legal.CONTACTO }}">{{ legal.CONTACTO }}</a>. Lo leemos todo y
       respondemos lo que pide respuesta.
+    </p>
+
+    {% comment %}
+      Va PRIMERO, por encima incluso de las correcciones. Es el único bloque de esta página que
+      ofrece algo en vez de pedirlo, es lo que más nos diferencia, y quien llega buscando esa ayuda
+      —un colega con un cierre encima— no va a bajar tres secciones para encontrarla.
+    {% endcomment %}
+    <h2>Eres cronista y necesitas confirmar un dato</h2>
+    <p>
+      Con gusto. Consultar el archivo histórico de <b>Retrosheet</b> —el registro jugada por jugada de
+      las Grandes Ligas— requiere herramientas que no todo el mundo tiene a mano, y llevamos años
+      respondiendo a colegas que necesitan <b>confirmar un evento, una racha o una marca</b> antes de
+      publicar. Es un servicio gratuito y no pedimos nada a cambio.
+    </p>
+    <p>Para que la respuesta sea rápida, dinos:</p>
+    <ul>
+      <li><b>Qué quieres confirmar</b>, en una frase. «¿Es el primer dominicano en…?», «¿cuántos
+        juegos seguidos llegó a…?», «¿cuándo fue la última vez que…?».</li>
+      <li><b>Jugador, equipo o ambos</b>, y el <b>rango de fechas o temporadas</b> donde buscar.</li>
+      <li><b>Para cuándo lo necesitas.</b> Si vas contra el cierre, dilo en el asunto.</li>
+    </ul>
+    <p>
+      Te decimos qué encontramos <b>y qué tan firme es</b>: el archivo no cubre todas las épocas por
+      igual, y un dato que no se pueda sostener te lo vamos a decir antes que dejarte publicarlo. Si
+      te sirve, cítanos — pero no es condición.
     </p>
 
     <h2>Encontraste un dato mal</h2>
