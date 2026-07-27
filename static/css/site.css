@@ -569,6 +569,11 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 
 /* ---------- Widget: dominicanos en el top de las mayores ---------- */
+/* El lado de las cuatro piezas de una fila —la sigla, la foto y los dos discos— en un solo lugar:
+   son un cuarteto y tienen que medir igual. A dos columnas se achican, porque lo que sobra después
+   de ellas es lo que le queda al nombre del pelotero, y «Junior Caminero» necesita ese espacio. */
+.dgl-lideres { --pieza: 40px; }
+@media (min-width: 992px) { .dgl-lideres { --pieza: 34px; } }
 /* Las pestañas son `.dgl-pill`, el mismo control redondeado del perfil y de Líderes. Acá solo se
    ajusta la separación; el aspecto viene de allá para que un pill se vea igual en todo el sitio. */
 .dgl-lideres-tabs { display: flex; gap: .4rem; }
@@ -582,19 +587,28 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   border: 1px solid #dfe3e9; border-radius: .5rem; padding: .55rem .7rem;
   background: var(--dgl-bg);
 }
-.dgl-lider-caja + .dgl-lider-caja { margin-top: .5rem; }
+/* Dos columnas cuando hay ancho, una sola cuando no. `auto-fill` con un mínimo y no un número fijo
+   de columnas: el widget vive en media pantalla en escritorio y en el ancho completo en móvil, y así
+   el corte lo decide el espacio real y no un breakpoint adivinado.
+   El mínimo son 250px porque por debajo el nombre del pelotero queda en dos o tres letras y puntos
+   suspensivos, que es peor que una sola columna. */
+.dgl-lideres-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: .5rem; }
+/* Una lista oculta no debe ocupar sitio: `d-none` es `display:none !important`, pero el grid de la
+   regla de arriba tiene la misma especificidad y sin el !important de Bootstrap ganaría el último.
+   Se deja explícito para no depender del orden. */
+.dgl-lideres-lista.d-none { display: none; }
 /* Abierta se marca con el filo, no con un fondo: el fondo competiría con las fotos, que son lo que
    la caja quiere que se mire. */
 .dgl-lider-caja.is-abierta { border-color: var(--dgl-blue); }
 
 
-.dgl-lider { display: flex; align-items: center; gap: .55rem; padding: .3rem 0; }
+.dgl-lider { display: flex; align-items: center; gap: .45rem; padding: .3rem 0; }
 /* El separador entre jugadores de una misma caja, un punto más oscuro que el borde general: sobre el
    gris de la caja, `--dgl-line` casi no se veía. */
 .dgl-lider + .dgl-lider { border-top: 1px solid #dfe3e9; }
 /* Blanco bajo el recorte transparente: le da al retrato su propio disco, que es lo que lo separa del
    gris de la caja. Sin fondo, un pelo oscuro se derretiría contra el fondo. */
-.dgl-lider-foto { flex: 0 0 auto; border-radius: 50%; background: var(--dgl-card); }
+.dgl-lider-foto { flex: 0 0 var(--pieza); width: var(--pieza); height: var(--pieza); border-radius: 50%; background: var(--dgl-card); }
 .dgl-lider-quien { flex: 1 1 auto; min-width: 0; }
 .dgl-lider-quien .nombre {
   display: block; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
@@ -604,7 +618,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* La sigla en un cuadrado del alto de la foto, abriendo la fila. Cuadrado y no redondo a propósito:
    es la única pieza que no es una persona ni una cifra, y la forma distinta lo dice sin leerla. */
 .dgl-lider-sigla {
-  flex: 0 0 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  flex: 0 0 var(--pieza); height: var(--pieza); display: flex; align-items: center; justify-content: center;
   border-radius: .35rem; background: var(--dgl-navy); color: #fff;
   font-size: .78rem; font-weight: 800; letter-spacing: .02em; cursor: help;
 }
@@ -621,7 +635,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* El puesto y la cifra en discos del tamaño de la foto: los cuatro elementos de la fila quedan a la
    misma altura, y bajando la vista por las cajas se forma una retícula de columnas. */
 .dgl-lider-disco {
-  flex: 0 0 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  flex: 0 0 var(--pieza); height: var(--pieza); display: flex; align-items: center; justify-content: center;
   border-radius: 50%; font-variant-numeric: tabular-nums; line-height: 1; cursor: help;
 }
 .dgl-lider-disco.puesto { background: var(--dgl-card); border: 1px solid #dfe3e9; font-size: .7rem; }
