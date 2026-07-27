@@ -157,7 +157,7 @@ contra el código antes de aceptarlos.
 
 ### P1 — integridad del dato
 
-- [ ] **Una sola temporada activa, garantizada por la base** *(DEV-01 + ARCH-01 + QA-01)*.
+- [x] **Una sola temporada activa, garantizada por la base** *(DEV-01 + ARCH-01 + QA-01)*. **Corregido.**
   Verificado: `seasons_dates` solo tiene unicidad por `(season, sports_id)`, `clean()` no menciona
   `is_active` ni una vez, y el loader compara las activas *dentro del CSV* pero no contra las que ya
   están guardadas. Como el dataset es **upsert**, un CSV que no incluya la temporada vieja la deja
@@ -166,9 +166,21 @@ contra el código antes de aceptarlos.
   que el sistema **no se rompe, se equivoca en silencio** — el scheduler corre o salta según una
   temporada que nadie eligió. Es el mismo patrón del incidente de Ofelia: lo que no avisa es peor que
   lo que falla.
-  Arreglo: `UniqueConstraint` parcial con `condition=Q(is_active=True)` por `sports_id`, `clean()`
-  consultando la base y excluyendo `self.pk`, y un test con 2025 activa persistida + CSV que solo
-  trae 2026 activa.
+  **Arreglado en tres capas**, porque hay tres caminos que escriben esta tabla:
+  1. **La base** — `UniqueConstraint` parcial con `condition=Q(is_active=True)` por `sports_id`
+     (migración `0025`). Es la única que nadie puede saltarse.
+  2. **`clean()`** — repite la regla consultando la base y excluyendo `self.pk`, para que el
+     Backoffice diga *cuál* es la temporada que estorba. La constraint dice que la regla se rompió;
+     no dice qué fila hay que apagar.
+  3. **El loader** — compara la activa entrante contra las activas ya guardadas que el CSV **no
+     trae**. Era la mitad que faltaba: el export normal del año siguiente trae 2026 y no vuelve a
+     mencionar 2025, así que el archivo está perfecto y aun así la tabla acaba con dos.
+
+  Verificado contra la base real: rechaza la segunda activa con `IntegrityError`, `clean()` nombra
+  a 2026 como la culpable, y editar la que ya es la activa sigue funcionando.
+  Seis tests nuevos, incluido el que el review pedía (2025 activa persistida + CSV que solo trae
+  2026) y su contrario, el camino bueno — un validador que no deja hacer lo correcto se termina
+  desactivando.
 
 - [ ] **cERA de carrera se pondera por juegos, no por entradas** *(SAB-01)*.
   Verificado: `career_rate.WEIGHT["fielding"] = "gp"` y `catcher_era` no está en `_FIELDING`, así que

@@ -36,7 +36,9 @@ def icono(lado: int) -> Image.Image:
         [p(0.234, 0.219), p(0.766, 0.219), p(0.766, 0.563), p(0.5, 0.813), p(0.234, 0.563)],
         fill=BLANCO,
     )
-    return lienzo.resize((lado, lado), Image.LANCZOS)
+    # `Image.Resampling.LANCZOS` y no el alias `Image.LANCZOS`: el alias sigue funcionando pero no
+    # está en los tipos de Pillow, y el gate corre mypy.
+    return lienzo.resize((lado, lado), Image.Resampling.LANCZOS)
 
 
 # El .ico lleva los tres tamaños que Windows y los navegadores viejos piden; los modernos usan el SVG.

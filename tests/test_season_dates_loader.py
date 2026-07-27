@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db.utils import IntegrityError
 
 from dglweb.stats.models import SeasonDates, StaticDataset
 from dglweb.stats.staticdata import engine
@@ -105,6 +106,109 @@ def test_two_seasons_marked_as_current_block_the_load() -> None:
 
     assert len(problemas) == 1
     assert "solo puede haber una" in problemas[0].message
+
+
+@pytest.mark.django_db
+def test_an_incoming_current_season_clashes_with_the_one_already_stored() -> None:
+    """El caso real, y el que faltaba: el CSV está bien y aun así la tabla acaba mal.
+
+    Mirar solo el archivo alcanza con truncate, donde la carga reemplaza la tabla entera. Con upsert
+    la activa vieja **sobrevive si el CSV no la trae**, que es justo lo que hace el export normal del
+    año siguiente: trae 2026 y no vuelve a mencionar 2025.
+    """
+    SeasonDates.objects.create(
+        season=2025, sports_id=1, season_start_date=date(2025, 3, 27), season_end_date=date(2025, 11, 1), is_active=True
+    )
+
+    _, problemas = _validar(_fila(season="2026", is_active="True"))
+
+    assert len(problemas) == 1
+    assert "ya hay otra" in problemas[0].message
+    assert problemas[0].rows == ["2025 (deporte 1)"]
+
+
+@pytest.mark.django_db
+def test_replacing_the_current_season_in_the_same_file_is_fine() -> None:
+    """La forma correcta de pasar de año: el CSV trae las dos, la vieja apagada.
+
+    Sin esta prueba, el aviso de arriba podría estar bloqueando también la carga buena — y un
+    validador que no deja hacer lo correcto se termina desactivando.
+    """
+    SeasonDates.objects.create(
+        season=2025, sports_id=1, season_start_date=date(2025, 3, 27), season_end_date=date(2025, 11, 1), is_active=True
+    )
+
+    _, problemas = _validar(_fila(season="2025", is_active="False"), _fila(season="2026", is_active="True"))
+
+    assert problemas == []
+
+
+@pytest.mark.django_db
+def test_the_database_refuses_two_current_seasons() -> None:
+    """La última red, por debajo del CSV y del Backoffice.
+
+    Es una regla del dominio y no una validación de formulario: `season_window` la consulta para
+    decidir si el pipeline corre hoy, y con dos activas elegía por `order_by("-season")` — o sea que
+    no se rompía, hacía algo peor, que es correr según una temporada que nadie eligió.
+    """
+    SeasonDates.objects.create(
+        season=2025, sports_id=1, season_start_date=date(2025, 3, 27), season_end_date=date(2025, 11, 1), is_active=True
+    )
+
+    with pytest.raises(IntegrityError):
+        SeasonDates.objects.create(
+            season=2026,
+            sports_id=1,
+            season_start_date=date(2026, 3, 26),
+            season_end_date=date(2026, 11, 1),
+            is_active=True,
+        )
+
+
+@pytest.mark.django_db
+def test_two_sports_may_each_have_their_own_current_season() -> None:
+    """La constraint es por deporte, no global: si mañana entra otra liga, tiene su propia vigente."""
+    SeasonDates.objects.create(
+        season=2026, sports_id=1, season_start_date=date(2026, 3, 26), season_end_date=date(2026, 11, 1), is_active=True
+    )
+    SeasonDates.objects.create(
+        season=2026, sports_id=11, season_start_date=date(2026, 4, 1), season_end_date=date(2026, 9, 1), is_active=True
+    )
+
+    assert SeasonDates.objects.filter(is_active=True).count() == 2
+
+
+@pytest.mark.django_db
+def test_the_form_says_which_season_is_in_the_way() -> None:
+    """`clean()` repite la regla para que el Backoffice dé un mensaje y no un `IntegrityError`.
+
+    La base dice que la restricción se violó; no dice cuál es la fila que hay que apagar.
+    """
+    SeasonDates.objects.create(
+        season=2025, sports_id=1, season_start_date=date(2025, 3, 27), season_end_date=date(2025, 11, 1), is_active=True
+    )
+    nueva = SeasonDates(
+        season=2026, sports_id=1, season_start_date=date(2026, 3, 26), season_end_date=date(2026, 11, 1), is_active=True
+    )
+
+    with pytest.raises(ValidationError) as fallo:
+        nueva.full_clean()
+
+    assert "2025" in str(fallo.value)
+
+
+@pytest.mark.django_db
+def test_editing_the_current_season_does_not_clash_with_itself() -> None:
+    """`exclude(pk=...)`: guardar la fila que YA es la activa no puede chocar consigo misma."""
+    activa = SeasonDates.objects.create(
+        season=2026, sports_id=1, season_start_date=date(2026, 3, 26), season_end_date=date(2026, 11, 1), is_active=True
+    )
+
+    activa.all_star_game_date = date(2026, 7, 14)
+    activa.full_clean()  # no debe levantar
+    activa.save()
+
+    assert SeasonDates.objects.get(pk=activa.pk).all_star_game_date == date(2026, 7, 14)
 
 
 @pytest.mark.django_db

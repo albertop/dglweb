@@ -491,4 +491,37 @@ class SeasonDatesLoader(Loader):
                     activas,
                 )
             )
+        elif activas:
+            problems.extend(self._choca_con_la_activa_guardada(rows, activas[0]))
         return problems
+
+    def _choca_con_la_activa_guardada(self, rows: list[dict[str, Any]], entrante: str) -> list[Problem]:
+        """La activa del CSV contra la que YA está en la base.
+
+        Es la mitad que faltaba. Mirar solo el CSV alcanza con truncate, donde la carga reemplaza la
+        tabla entera; con upsert la activa vieja **sobrevive si el CSV no la trae**, y entonces
+        quedan dos encendidas: la que estaba y la que llega.
+
+        No es hipotético — es lo que pasa con el export normal del año siguiente, que trae la
+        temporada nueva y no vuelve a mencionar la anterior.
+
+        Se avisa acá, en la pantalla de comparación, y no se deja para el `IntegrityError` de la
+        constraint: la base diría que la regla se rompió, no cuál es la fila que hay que apagar.
+        """
+        llaves = {(row["season"], row["sports_id"]) for row in rows}
+        chocan = [
+            f"{fila.season} (deporte {fila.sports_id})"
+            for fila in SeasonDates.objects.filter(is_active=True)
+            # Las que el CSV sí trae no cuentan: esta carga las va a pisar con el valor que traiga.
+            if (fila.season, fila.sports_id) not in llaves
+        ]
+        if not chocan:
+            return []
+        return [
+            Problem(
+                f"La temporada {entrante} llega marcada como en curso, pero en la base ya hay otra "
+                "encendida que este CSV no incluye. Con upsert nadie la apaga y quedarían dos. "
+                "Añádela al CSV con is_active en falso, o desmárcala en el Backoffice antes de cargar.",
+                chocan,
+            )
+        ]

@@ -1596,19 +1596,38 @@ class SeasonDates(models.Model):
         ordering = ["-season", "sports_id"]
         verbose_name = "calendario de temporada"
         verbose_name_plural = "calendarios de temporada"
-        # Obligatoria, no opcional: el modo upsert hace `update_or_create` por esta clave, y sin la
-        # restricción que la respalde dos filas iguales podrían convivir y reventar la carga
-        # siguiente. `StaticDataset.clean()` lo exige (ARCH-04).
-        constraints = [models.UniqueConstraint(fields=["season", "sports_id"], name="unique_season_dates")]
+        constraints = [
+            # Obligatoria, no opcional: el modo upsert hace `update_or_create` por esta clave, y sin
+            # la restricción que la respalde dos filas iguales podrían convivir y reventar la carga
+            # siguiente. `StaticDataset.clean()` lo exige (ARCH-04).
+            models.UniqueConstraint(fields=["season", "sports_id"], name="unique_season_dates"),
+            # UNA temporada en curso por deporte, garantizada por la base y no por quien escriba.
+            #
+            # Es una regla del dominio, no una validación de formulario: `season_window` la consulta
+            # para decidir si el pipeline corre hoy, y con dos activas resolvía el empate con
+            # `order_by("-season").first()`. Eso no rompe nada — hace algo peor, que es correr o
+            # saltar según una temporada que nadie eligió, sin que nada lo diga.
+            #
+            # Parcial (`condition`) porque las inactivas son muchas y ahí no hay nada que restringir.
+            models.UniqueConstraint(
+                fields=["sports_id"],
+                condition=models.Q(is_active=True),
+                name="unique_temporada_activa_por_deporte",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.season}" if self.sports_id == self.MLB else f"{self.season} (deporte {self.sports_id})"
 
     def clean(self) -> None:
-        """Las fechas tienen que ir en orden. Vale igual para el CSV y para la edición a mano.
+        """Las fechas en orden, y una sola temporada en curso. Vale para el CSV y para el Backoffice.
 
         Una fecha traspuesta no se ve mirando la fila —todas son plausibles— pero rompe en silencio a
         cualquiera que después pregunte "¿esta fecha cae en serie regular o en postemporada?".
+
+        Lo de la temporada activa lo garantiza además una constraint de la base. Se comprueba también
+        acá para que el error salga como un mensaje del formulario y no como un `IntegrityError`
+        crudo: la base dice qué regla se rompió, no cuál es la fila que ya la ocupaba.
         """
         from django.core.exceptions import ValidationError
 
@@ -1623,6 +1642,24 @@ class SeasonDates(models.Model):
         )
         if problema:
             raise ValidationError({problema[0]: problema[1]})
+
+        if self.is_active:
+            # `exclude(pk=...)` para que editar la fila que YA es la activa no choque consigo misma.
+            otra = (
+                SeasonDates.objects.filter(sports_id=self.sports_id, is_active=True)
+                .exclude(pk=self.pk)
+                .values_list("season", flat=True)
+                .first()
+            )
+            if otra is not None:
+                raise ValidationError(
+                    {
+                        "is_active": (
+                            f"La temporada {otra} ya está marcada como en curso para este deporte. "
+                            "Solo puede haber una: desmárcala antes de marcar esta."
+                        )
+                    }
+                )
 
 
 # El orden en que las fechas de una temporada tienen que ocurrir. El Juego de Estrellas va en medio
