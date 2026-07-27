@@ -27,13 +27,29 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
     ruta por cada categoría que el editor cree mañana. En móvil la fila se desliza.
   {% endcomment %}
   <nav class="dgl-cats mb-4" aria-label="Categorías">
-    <a class="dgl-pill{% if not elegida %} active{% endif %}" href="{{ page.url }}"
-       {% if not elegida %}aria-current="page"{% endif %}>Todos</a>
-    {% for categoria in categorias %}
-      <a class="dgl-pill{% if elegida == categoria.slug %} active{% endif %}"
-         href="{{ page.url }}?categoria={{ categoria.slug }}"
-         {% if elegida == categoria.slug %}aria-current="page"{% endif %}>{{ categoria.nombre }}</a>
-    {% endfor %}
+    {% comment %}
+      `nav nav-pills` de Bootstrap, exactamente el mismo control que elige el grupo de estadísticas en
+      Líderes y en la ficha del jugador — y restyleado una sola vez en `site.css`. Estuvo un rato con
+      `.dgl-pill`, que es otra cosa: el botoncito redondeado de los widgets de la portada. Se veían
+      distintos porque SON distintos, y dos navegaciones que hacen lo mismo en tres páginas tienen
+      que verse iguales.
+
+      Son `<a>` y no `<button>` como en el perfil: cada categoría es su propia URL, así que se puede
+      enlazar, compartir e indexar.
+    {% endcomment %}
+    <ul class="nav nav-pills flex-nowrap mb-0">
+      <li class="nav-item">
+        <a class="nav-link{% if not elegida %} active{% endif %}" href="{{ page.url }}"
+           {% if not elegida %}aria-current="page"{% endif %}>Todos</a>
+      </li>
+      {% for categoria in categorias %}
+        <li class="nav-item">
+          <a class="nav-link{% if elegida == categoria.slug %} active{% endif %}"
+             href="{{ page.url }}?categoria={{ categoria.slug }}"
+             {% if elegida == categoria.slug %}aria-current="page"{% endif %}>{{ categoria.nombre }}</a>
+        </li>
+      {% endfor %}
+    </ul>
   </nav>
 
   {% comment %}
