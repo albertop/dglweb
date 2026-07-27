@@ -11,6 +11,7 @@ nuestras regex se entienden a sí mismas.
 from datetime import date
 
 import pytest
+from django.test import Client
 
 from dglweb.players.models import Player
 from dglweb.stats import roster_moves
@@ -182,9 +183,8 @@ def test_saving_twice_does_not_duplicate() -> None:
 def test_a_player_without_a_profile_is_still_saved() -> None:
     """Hay dominicanos en `dom_players` que aún no llegaron a las mayores y no tienen ficha.
 
-    Perder esas filas por no tener a quién apuntar sería tirar noticias —firmas de ligas menores—
-    que a un lector dominicano le importan. La FK queda en nulo y el cintillo muestra el nombre sin
-    enlace.
+    Se guardan igual —el dato es bueno y algún día puede servir— aunque al cintillo NO vayan: eso lo
+    filtra `portada()`. Guardar y mostrar son decisiones distintas.
     """
     movimiento = roster_moves.Movimiento(
         transaction_id=900002,
@@ -212,10 +212,12 @@ def test_the_ticker_leaves_out_what_could_not_be_translated() -> None:
     from django.utils import timezone
 
     hoy = timezone.localdate()
+    Player.objects.create(**_other_player(player_id=665742, dgl_id="s01", full_name="Juan Soto", pos="LF"))
     for numero, texto in enumerate(["Algo pasó en español", ""]):
         RosterMove.objects.create(
             transaction_id=900010 + numero,
             mlb_id=665742,
+            player_id=665742,
             nombre="Juan Soto",
             fecha=hoy,
             type_code="SC",
@@ -235,9 +237,11 @@ def test_the_ticker_does_not_show_stale_moves() -> None:
 
     from django.utils import timezone
 
+    Player.objects.create(**_other_player(player_id=665742, dgl_id="s01", full_name="Juan Soto", pos="LF"))
     RosterMove.objects.create(
         transaction_id=900020,
         mlb_id=665742,
+        player_id=665742,
         nombre="Juan Soto",
         fecha=timezone.localdate() - timedelta(days=roster_moves.VENTANA_CINTILLO + 1),
         type_code="SC",
@@ -247,3 +251,47 @@ def test_the_ticker_does_not_show_stale_moves() -> None:
     )
 
     assert roster_moves.portada() == []
+
+
+@pytest.mark.django_db
+def test_the_ticker_leaves_out_the_minor_leaguers() -> None:
+    """Decisión del dueño: al cintillo solo van los que tienen ficha en `dgl_master`.
+
+    Este sitio es de dominicanos en GRANDES LIGAS. Con los de `dom_players` dentro, la cintilla se
+    llenaba de «firmó a X a contrato de ligas menores» — muchachos que todavía no llegaron y que no
+    son lo que viene a leer quien entra. Se siguen GUARDANDO; simplemente no se muestran.
+    """
+    from django.utils import timezone
+
+    hoy = timezone.localdate()
+    Player.objects.create(**_other_player(player_id=665742, dgl_id="s01", full_name="Juan Soto", pos="LF"))
+    for numero, (mlb_id, quien) in enumerate([(665742, "Juan Soto"), (999888, "Un Prospecto")]):
+        RosterMove.objects.create(
+            transaction_id=900030 + numero,
+            mlb_id=mlb_id,
+            player_id=665742 if mlb_id == 665742 else None,
+            nombre=quien,
+            fecha=hoy,
+            type_code="SC",
+            type_desc="Status Change",
+            descripcion="algo",
+            texto=f"{quien} se movió",
+        )
+
+    assert [m.nombre for m in roster_moves.portada()] == ["Juan Soto"]
+
+
+@pytest.mark.django_db
+def test_with_nothing_to_show_the_ticker_is_not_drawn(client: Client) -> None:
+    """Sin movimientos no hay cintilla: una franja vacía ocupa sitio para no decir nada.
+
+    Se comprueba en la página y no en la consulta, porque el que decide es el `{% if %}` de
+    `base.html` — y ahí es donde alguien podría quitarlo sin darse cuenta.
+    """
+    from django.core.cache import cache
+
+    cache.clear()
+    contenido = client.get("/").content
+
+    assert RosterMove.objects.count() == 0
+    assert b"dgl-cintillo" not in contenido

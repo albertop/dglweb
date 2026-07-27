@@ -237,16 +237,22 @@ VENTANA_CINTILLO = 3
 
 
 def portada() -> list[RosterMove]:
-    """Los movimientos para el cintillo: los más recientes, y solo los que se pudieron traducir.
+    """Los movimientos para el cintillo. Dos filtros, y los dos son reglas del sitio.
 
-    El filtro por `texto` no vacío es la regla del módulo llevada a la pantalla: lo que ningún patrón
-    reconoció no sale. El sitio no enseña inglés.
+    **Solo los que tienen ficha en `dgl_master`** — decisión del dueño (2026-07-27). Se guardan
+    igual los de `dom_players` que aún no llegaron a las mayores, porque el dato es bueno y algún día
+    puede servir, pero al cintillo no van: este sitio es de dominicanos en GRANDES LIGAS, y una firma
+    de ligas menores de un muchacho de 17 años no es lo que viene a leer quien entra. Antes salían y
+    se notaba — la cintilla se llenaba de «firmó a X a contrato de ligas menores».
+
+    **Solo los que se pudieron traducir.** Lo que ningún patrón reconoció no sale: el sitio no enseña
+    inglés.
     """
     from django.utils import timezone
 
     desde = timezone.localdate() - timedelta(days=VENTANA_CINTILLO)
     return list(
-        RosterMove.objects.filter(fecha__gte=desde)
+        RosterMove.objects.filter(fecha__gte=desde, player__isnull=False)
         .exclude(texto="")
         .select_related("player")
         .order_by("-fecha", "-transaction_id")[:EN_CINTILLO]

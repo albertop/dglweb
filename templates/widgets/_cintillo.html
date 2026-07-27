@@ -9,9 +9,9 @@ Se detiene al pasar el ratón por encima y también para quien pidió menos movi
 (`prefers-reduced-motion`): un texto que se desplaza sin parar es de lo que peor le sienta a quien
 tiene vértigo o problemas de atención, y aquí encima hay que poder leerlo.
 
-Cada entrada enlaza a la ficha del jugador CUANDO la hay. No siempre: el universo dominicano incluye
-gente de `dom_players` que todavía no llegó a las mayores y por lo tanto no tiene página. Ahí sale el
-nombre sin enlace, que es mejor que dejar la noticia fuera.
+Cada entrada enlaza a la ficha del jugador, y siempre la hay: `portada()` deja fuera a quien no está
+en `dgl_master`. El `{% if %}` que sigue es un cinturón, no una rama viva — si algún día ese filtro
+cambia, el cintillo muestra el nombre sin enlace en vez de reventar con una URL vacía.
 {% endcomment %}
 {% comment %}
   Dentro de un `.container` para que quede al ancho del bloque central, alineado con el menú de

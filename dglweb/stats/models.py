@@ -1859,9 +1859,14 @@ class RosterMove(models.Model):
     Medido sobre un mes: 117 movimientos de jugadores del maestro y 16 de los que solo están en
     `dom_players`, casi todos «Signed as Free Agent» a contrato de ligas menores.
 
-    Por eso `player` admite nulo y siempre se guardan `mlb_id` y `nombre`. Con ficha, el cintillo
-    enlaza; sin ficha, muestra el nombre y ya. Perder esas filas por no tener a quién apuntar sería
-    tirar noticias que a un lector dominicano le importan.
+    Por eso `player` admite nulo y siempre se guardan `mlb_id` y `nombre`: la fila se guarda aunque
+    no haya a quién apuntar.
+
+    **Al cintillo NO van los que no tienen ficha** — decisión del dueño (2026-07-27). Se guardan
+    igual porque el dato es bueno y algún día puede servir, pero este sitio es de dominicanos en
+    GRANDES LIGAS y una firma de ligas menores no es lo que viene a leer quien entra. El filtro está
+    en `roster_moves.portada()`, no acá: guardar y mostrar son decisiones distintas y conviene que se
+    puedan cambiar por separado.
 
     EL INGLÉS SE GUARDA, PERO NO SE MUESTRA
     ---------------------------------------
