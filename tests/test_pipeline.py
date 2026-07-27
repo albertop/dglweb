@@ -10,6 +10,7 @@ importa, que es qué DECIDE el orquestador ante un fallo.
 """
 
 from datetime import date
+from io import StringIO
 from typing import Any
 
 import pytest
@@ -164,6 +165,25 @@ def test_out_of_season_the_whole_pipeline_skips_with_a_single_row(
 
 
 @pytest.mark.django_db
+def test_out_of_season_run_daily_runs_nothing_and_says_why(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """El corte está en `run_daily`, no solo en el envoltorio que registra.
+
+    Importa porque `run_daily` también se llama directo —desde un shell, o desde otro comando— y ahí
+    no hay `run_and_record` que lo frene antes. Sin el corte propio, correría los once pasos en
+    enero.
+    """
+    SeasonDates.objects.update(is_active=False)
+
+    resultado = pipeline.run_daily()
+
+    assert resultado.motivo_salto
+    assert resultado.pasos == []
+    assert falso_call_command["corridos"] == []
+
+
+@pytest.mark.django_db
 def test_the_october_steps_wait_for_october(temporada: SeasonDates, falso_call_command: dict[str, Any]) -> None:
     """Regular abierta y postemporada todavía no: los tres `*_post` no se corren."""
     SeasonDates.objects.update(post_season_start_date=date(2026, 12, 15))
@@ -247,3 +267,112 @@ def test_the_aggregate_row_opens_before_the_work_not_after(
 
     # Mientras corría el primer paso, la fila del día ya existía y estaba en curso.
     assert marcas[0] == f"{pipeline.ENTRADAS[0]}:{IngestRun.Status.RUNNING}"
+
+
+# ── El paso que revienta ────────────────────────────────────────────────────────────────────────
+#
+# Distinto del paso que falla ordenadamente: acá el comando lanza una excepción y nunca vuelve. Si
+# `_correr` la dejara propagar, el primer error abortaría el refresco entero y los seis pasos que
+# vienen detrás no se intentarían — que es justo lo contrario de la regla de este módulo.
+
+
+@pytest.mark.django_db
+def test_a_step_that_explodes_does_not_take_the_refresh_down_with_it(
+    temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """La excepción de un paso es un dato del refresco, no una interrupción.
+
+    Y el mensaje de la excepción tiene que sobrevivir al reporte: sin él, el paso queda como «no dejó
+    fila en el log», que manda a buscar un problema de registro cuando lo que hubo fue un error.
+    """
+    revienta = pipeline.ENTRADAS[1]
+
+    def falso(comando: str, *args: Any, **kwargs: Any) -> None:
+        if comando == revienta:
+            raise RuntimeError("el proxy contestó 500")
+
+    monkeypatch.setattr(pipeline, "call_command", falso)
+    lineas: list[str] = []
+
+    resultado = pipeline.run_daily(note=lineas.append)
+
+    reventado = next(p for p in resultado.pasos if p.comando == revienta)
+    assert reventado.estado == IngestRun.Status.FAILED
+    assert "RuntimeError: el proxy contestó 500" in reventado.error
+    # Y sale marcado en el log del scheduler mientras pasa, no solo en el resumen del final.
+    assert any(f"✗ {revienta}" in linea for linea in lineas)
+    # Y lo que importa de verdad: los pasos posteriores igual se intentaron.
+    assert [p.comando for p in resultado.pasos] == [
+        *pipeline.ENTRADAS,
+        *pipeline.ENTRADAS_POST,
+        *pipeline.PORTADA,
+        *pipeline.AVISOS,
+    ]
+
+
+@pytest.mark.django_db
+def test_when_the_step_logged_its_own_error_the_exception_does_not_overwrite_it(
+    temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """El comando sabe mejor que nosotros por qué falló.
+
+    Si alcanzó a escribir su fila con el detalle —«el equipo BOS no existe en 1899»— ese texto es más
+    útil que el `RuntimeError` genérico con el que terminó reventando, así que se respeta.
+    """
+    revienta = pipeline.ENTRADAS[0]
+
+    def falso(comando: str, *args: Any, **kwargs: Any) -> None:
+        if comando != revienta:
+            return
+        ahora = timezone.now()
+        IngestRun.objects.create(
+            command=comando,
+            scope="test",
+            status=IngestRun.Status.PARTIAL,
+            started_at=ahora,
+            finished_at=ahora,
+            detail="el equipo BOS no existe en 1899",
+        )
+        raise RuntimeError("y después reventó")
+
+    monkeypatch.setattr(pipeline, "call_command", falso)
+
+    paso = next(p for p in pipeline.run_daily().pasos if p.comando == revienta)
+
+    assert paso.error == "el equipo BOS no existe en 1899"
+    assert paso.estado == IngestRun.Status.FAILED  # el estado sí lo pisa: reventar es fallar
+
+
+# ── Lo que el scheduler ve por consola ──────────────────────────────────────────────────────────
+#
+# El comando manda esto al log del contenedor. Es lo único que queda de un refresco que salió mal a
+# las 4:30 de la mañana si nadie abre el Backoffice, así que el fallo tiene que verse ahí.
+
+
+@pytest.mark.django_db
+def test_the_command_prints_the_failed_steps_to_stderr(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """Por `stderr` y no por `stdout`: un log que mezcla el resumen bueno con el malo se lee igual."""
+    falso_call_command["estados"]["update_fielding"] = IngestRun.Status.FAILED
+    salida, errores = StringIO(), StringIO()
+
+    call_command("refresh_daily", stdout=salida, stderr=errores)
+
+    assert "Refresco con fallos" in errores.getvalue()
+    assert "update_fielding" in errores.getvalue()  # cuál falló, no solo que hubo fallos
+    assert "Refresco completo" not in salida.getvalue()
+
+
+@pytest.mark.django_db
+def test_the_command_says_it_did_not_run_instead_of_reporting_zero_steps(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """Fuera de temporada, «0/0 pasos · 0 filas» se lee como un refresco que corrió y no encontró nada."""
+    SeasonDates.objects.update(is_active=False)
+    salida = StringIO()
+
+    call_command("refresh_daily", stdout=salida)
+
+    assert "Sin correr" in salida.getvalue()
+    assert "pasos" not in salida.getvalue()

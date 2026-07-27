@@ -565,6 +565,16 @@ Lo que sigue está ordenado por lo que duele si se rompe, no por porcentaje.
   y commiteados. Escribirle tests es cubrir código que no va a volver a correr.
 * `models.py`, 24 líneas de 1.081. Son `__str__` y ramas de propiedades sueltas.
 
+**Hecho el 2026-07-27 (puntos 1, 2 y 3).** Los cuatro módulos quedaron al 100%: `refresh_daily`
+71→100, `pipeline` 90→100, `rebuilds` 83→100, `telegram_check` 68→100. 21 tests nuevos.
+
+Y no fue solo tapar líneas: escribir el del paso que revienta **destapó un bug**. Cuando un comando
+explotaba ANTES de registrarse, `_correr` descartaba el mensaje de la excepción porque `_estado_de`
+ya había puesto «no dejó fila en el log» —que es truthy— y ese texto ganaba. O sea que el caso más
+común de fallo reportaba un problema de registro en vez del error real. Es el mismo mensaje que
+confundió una mañana entera (ver el incidente de Telegram). Arreglado: `SIN_FILA` es ahora una
+constante y `_correr` la trata como «no sabemos nada», no como una explicación del comando.
+
 ### 1. `refresh_daily` y `pipeline` — el trabajo de las 4:30 AM
 
 Lo más caro de la lista. `refresh_daily.py` está al **71%** y lo que falta (líneas 42–43 y 50–53) es
@@ -576,7 +586,7 @@ En `pipeline.py` (90%) faltan las 108–115: el `except` que convierte el fallo 
 vez de dejarlo reventar, incluido el caso de que el paso no haya dejado fila en el log. Ese camino ya
 nos confundió una vez (ver el incidente de Telegram más abajo, «no dejó fila en el log»).
 
-- [ ] Cubrir la salida con fallos de `refresh_daily` y el `except` de `_correr` en `pipeline`.
+- [x] Cubrir la salida con fallos de `refresh_daily` y el `except` de `_correr` en `pipeline`.
 
 ### 2. `rebuilds.py` (83%) — el hilo del Backoffice
 
@@ -585,7 +595,7 @@ lanzamiento del hilo. Es el código que ya tiene un finding abierto (QA-02 / ARC
 puede no dejar rastro»), y una conexión de Postgres que se queda colgada por carga no se nota hasta
 que se acaban.
 
-- [ ] Un test que compruebe que el hilo cierra sus conexiones y que el hilo principal NO cierra las
+- [x] Un test que compruebe que el hilo cierra sus conexiones y que el hilo principal NO cierra las
       que no abrió.
 
 ### 3. `telegram_check` (68%) — el canal de avisos
@@ -595,7 +605,7 @@ el comando exista: token que no sirve, Telegram que no contesta, y `--buscar` si
 recibido. Prioridad media: es una herramienta de mano, no algo que corra solo. Pero es el comando al
 que uno acude **cuando los avisos ya fallaron**, y ahí no es momento de descubrir que tiene un bug.
 
-- [ ] Cubrir los tres caminos de error con `httpx` simulado (nunca red real — ver el marcador
+- [x] Cubrir los tres caminos de error con `httpx` simulado (nunca red real — ver el marcador
       `telegram` en `pyproject.toml`).
 
 ### 4. Los motores de datos, si sobra tiempo

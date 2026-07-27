@@ -49,6 +49,10 @@ AVISOS = ("detect_debuts",)
 # Mantenimiento del propio log. Corre siempre, incluso fuera de temporada — ver el comando.
 MANTENIMIENTO = ("prune_ingest_log",)
 
+# Lo que se pone cuando el paso no dejó rastro. NO es una explicación del comando: es el marcador de
+# que no sabemos nada de él. La diferencia importa en `_correr` — ver ahí.
+SIN_FILA = "no dejó fila en el log"
+
 
 @dataclass
 class Paso:
@@ -96,7 +100,7 @@ def _estado_de(comando: str, desde: datetime) -> Paso:
     if fila is None:
         # No dejó rastro: o reventó antes de registrarse, o no es un comando que registre. Se cuenta
         # como fallo — un paso del que no sabemos nada no puede tratarse como exitoso.
-        return Paso(comando=comando, estado=IngestRun.Status.FAILED, error="no dejó fila en el log")
+        return Paso(comando=comando, estado=IngestRun.Status.FAILED, error=SIN_FILA)
     return Paso(comando=comando, estado=fila.status, filas=fila.rows_affected, error=(fila.detail or "")[:200])
 
 
@@ -107,7 +111,13 @@ def _correr(comando: str, desde: datetime, note: object) -> Paso:
         call_command(comando, force=True)
     except Exception as error:  # cualquier fallo de un paso es dato del pipeline, no una interrupción
         paso = _estado_de(comando, desde)
-        if not paso.error:
+        # El detalle que el propio comando dejó en su fila gana: sabe mejor que nosotros por qué
+        # falló, y «el equipo BOS no existe en 1899» es más útil que el `RuntimeError` con el que
+        # terminó reventando. Pero `SIN_FILA` NO es una explicación suya —es nuestro marcador de que
+        # no sabemos nada— y acá sí sabemos: la excepción es justamente por qué no hay fila. Dejarlo
+        # en «no dejó fila en el log» manda a buscar un problema de registro donde hubo un error, y
+        # ese mensaje ya confundió una mañana entera.
+        if paso.error in ("", SIN_FILA):
             paso.error = f"{type(error).__name__}: {error}"
         paso.estado = IngestRun.Status.FAILED
         if callable(note):
