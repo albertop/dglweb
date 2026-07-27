@@ -1167,3 +1167,8 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 .dgl-buscar-articulos { display: flex; gap: .5rem; max-width: 32rem; }
 .dgl-buscar-articulos input { flex: 1 1 auto; }
 .dgl-buscar-articulos button { flex: 0 0 auto; }
+
+/* La paginación del índice. Enlaces de verdad, no un botón de JavaScript: ver el comentario de la
+   plantilla. El contador va en medio para que se lea «‹ Anteriores · Página 2 de 4 · Siguientes ›»
+   como una frase, y para que los dos botones no se peguen cuando falta uno de los dos. */
+.dgl-paginacion { display: flex; align-items: center; justify-content: center; gap: 1rem; }

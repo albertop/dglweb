@@ -385,45 +385,9 @@ def test_the_index_fills_its_nine_slots_in_order_without_repeating(indice: Artic
 
     # En orden, sin huecos y sin repetir: es exactamente la lista, troceada.
     assert colocados == [f"Articulo {numero:02d}" for numero in range(models.INICIALES)]
-    assert contexto["mas"] == []
-
-
-@pytest.mark.django_db
-def test_beyond_the_nine_the_rest_is_drawn_hidden(indice: ArticleIndexPage) -> None:
-    """Vienen en el HTML pero con `hidden`: el botón los descubre sin ir al servidor."""
-    from dglweb.articles import models
-
-    for numero in range(models.INICIALES + 3):
-        _articulo(indice, f"Articulo {numero:02d}", fecha=datetime.date(2026, 7, 27) - datetime.timedelta(days=numero))
-
-    contenido = Client().get(indice.url).content.decode()
-
-    assert len(indice.get_context(RequestFactory().get(indice.url))["mas"]) == 3
-    assert contenido.count('dgl-oculto" hidden') == 3
-    assert "Articulo 07" in contenido  # está dibujado, aunque escondido
-
-
-@pytest.mark.django_db
-def test_the_index_stops_drawing_at_the_cap(indice: ArticleIndexPage) -> None:
-    """El tope existe para que el día que haya trescientos artículos la página no pese trescientos."""
-    from dglweb.articles import models
-
-    tope = models.INICIALES + models.POR_TANDA * models.TANDAS
-    for numero in range(tope + 5):
-        _articulo(indice, f"Articulo {numero:03d}", fecha=datetime.date(2026, 7, 27) - datetime.timedelta(days=numero))
-
-    contexto = indice.get_context(RequestFactory().get(indice.url))
-
-    assert len(contexto["mas"]) == tope - models.INICIALES
-    assert f"Articulo {tope:03d}" not in Client().get(indice.url).content.decode()
-
-
-@pytest.mark.django_db
-def test_the_button_is_left_out_when_there_is_nothing_to_reveal(indice: ArticleIndexPage) -> None:
-    """Un botón que promete más artículos y no los tiene es peor que no tenerlo."""
-    _articulo(indice, "El unico")
-
-    assert 'id="dgl-ver-mas"' not in Client().get(indice.url).content.decode()
+    # Con seis artículos justos, la retícula de abajo queda vacía y no hay segunda página.
+    assert contexto["resto"] == []
+    assert contexto["pagina"].has_other_pages() is False
 
 
 # ── SAB-01: métricas negativas ──────────────────────────────────────────────────────────────────
@@ -780,3 +744,124 @@ def test_a_draft_never_shows_up_in_a_search(indice: ArticleIndexPage) -> None:
     borrador.save()
 
     assert "Borrador buscable" not in Client().get(f"{indice.url}?q=buscable").content.decode()
+
+
+# ── La paginación ───────────────────────────────────────────────────────────────────────────────
+#
+# Sustituye al botón que destapaba con JavaScript artículos ya dibujados y escondidos. Aquello traía
+# hasta 24 aunque se leyeran seis, y quedaba muerto sin JavaScript.
+
+
+def _muchos(indice: ArticleIndexPage, cuantos: int) -> None:
+    for numero in range(cuantos):
+        _articulo(
+            indice,
+            f"Articulo {numero:02d} de prueba",
+            fecha=datetime.date(2026, 7, 27) - datetime.timedelta(days=numero),
+        )
+
+
+@pytest.mark.django_db
+def test_each_page_brings_only_its_own_articles(indice: ArticleIndexPage) -> None:
+    """Lo que arregla de raíz: la página trae doce, no la colección entera escondida."""
+    from dglweb.articles import models
+
+    _muchos(indice, models.POR_PAGINA * 2 + 3)
+
+    contexto = indice.get_context(RequestFactory().get(indice.url))
+
+    assert len(contexto["pagina"].object_list) == models.POR_PAGINA
+    assert contexto["pagina"].paginator.num_pages == 3
+
+
+@pytest.mark.django_db
+def test_the_named_slots_only_exist_on_the_first_page(indice: ArticleIndexPage) -> None:
+    """En la dos, un «destacado» sería el séptimo más reciente puesto en grande — no significa nada.
+
+    Y el panel de recientes repetiría lo que la persona acaba de dejar atrás.
+    """
+    from dglweb.articles import models
+
+    _muchos(indice, models.POR_PAGINA * 2)
+
+    primera = indice.get_context(RequestFactory().get(indice.url))
+    segunda = indice.get_context(RequestFactory().get(f"{indice.url}?pagina=2"))
+
+    assert primera["destacado"] is not None
+    assert "recientes" in primera
+    assert segunda["destacado"] is None
+    assert "recientes" not in segunda
+    assert len(segunda["resto"]) == models.POR_PAGINA
+
+
+@pytest.mark.django_db
+def test_no_article_appears_on_two_pages(indice: ArticleIndexPage) -> None:
+    """El fallo silencioso de una paginación mal cortada: repetir uno y perder otro."""
+    from dglweb.articles import models
+
+    _muchos(indice, models.POR_PAGINA * 2)
+
+    primera = indice.get_context(RequestFactory().get(indice.url))
+    segunda = indice.get_context(RequestFactory().get(f"{indice.url}?pagina=2"))
+
+    en_primera = [primera["destacado"], *primera["reticula"], *primera["lateral"], *primera["resto"]]
+    titulos = [a.title for a in en_primera] + [a.title for a in segunda["resto"]]
+
+    assert len(titulos) == len(set(titulos)), "un artículo aparece en dos páginas"
+    assert len(titulos) == models.POR_PAGINA * 2, "se perdió algún artículo entre páginas"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("pedida", ["abc", "0", "-1", "999", ""])
+def test_a_nonsense_page_number_falls_back_instead_of_exploding(
+    indice: ArticleIndexPage, pedida: str
+) -> None:
+    """El número viene de la URL, así que lo escribe cualquiera. Una página que no existe no es un
+    error del sitio: se cae a la primera."""
+    _muchos(indice, 4)
+
+    respuesta = Client().get(f"{indice.url}?pagina={pedida}")
+
+    assert respuesta.status_code == 200
+    assert indice.get_context(RequestFactory().get(f"{indice.url}?pagina={pedida}"))["pagina"].number == 1
+
+
+@pytest.mark.django_db
+def test_the_page_links_carry_the_search_and_the_category(indice: ArticleIndexPage) -> None:
+    """Sin esto, pasar a la página dos devolvería el índice entero y la persona perdería lo que
+    estaba mirando — que es el fallo clásico de una paginación pegada encima de un filtro."""
+    from dglweb.articles import models
+
+    defensa = Categoria.objects.get(slug="defensa")
+    for numero in range(models.POR_PAGINA + 2):
+        _articulo(
+            indice,
+            f"Articulo {numero:02d} de prueba",
+            categoria=defensa,
+            fecha=datetime.date(2026, 7, 27) - datetime.timedelta(days=numero),
+        )
+
+    contenido = Client().get(f"{indice.url}?q=prueba&categoria=defensa").content.decode()
+
+    assert "pagina=2&amp;q=prueba&amp;categoria=defensa" in contenido
+
+
+@pytest.mark.django_db
+def test_the_search_says_the_total_and_not_just_this_page(indice: ArticleIndexPage) -> None:
+    """Quien busca quiere saber cuántos hay, no cuántos le cupieron en la primera página."""
+    from dglweb.articles import models
+
+    _muchos(indice, models.POR_PAGINA + 5)
+
+    contexto = indice.get_context(RequestFactory().get(f"{indice.url}?q=prueba"))
+
+    assert contexto["cuantos"] == models.POR_PAGINA + 5
+    assert len(contexto["resultados"]) == models.POR_PAGINA
+
+
+@pytest.mark.django_db
+def test_with_one_page_there_is_no_navigation(indice: ArticleIndexPage) -> None:
+    """Un «Página 1 de 1» con dos botones apagados es ruido."""
+    _muchos(indice, 3)
+
+    assert "dgl-paginacion" not in Client().get(indice.url).content.decode()

@@ -26,7 +26,9 @@ dato que se queda viejo en cuanto se edita un párrafo.
 
 from typing import Any
 
+from django.core.paginator import Page as Page_
 from django.db import models
+from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.utils.html import strip_tags
 from modelcluster.contrib.taggit import ClusterTaggableManager
@@ -58,17 +60,14 @@ RETICULA = 4  # las dos filas de dos que van debajo del destacado
 LATERAL = 1  # el que va bajo el panel de «Lo más reciente», en la columna estrecha
 INICIALES = DESTACADO + RETICULA + LATERAL
 
-# Lo que descubre cada clic en «Ver más artículos»: dos filas de tres.
-POR_TANDA = 6
-
-# Cuántos resultados devuelve una búsqueda. Un tope y no paginación: con este volumen, quien no
-# encuentra lo suyo en treinta resultados no lo va a encontrar en la página dos — afina la consulta.
-RESULTADOS = 30
-
-# Cuántas tandas se dibujan escondidas. Tres son 18 artículos además de los seis visibles, de sobra
-# para un sitio que arranca; pasado eso hace falta paginación de verdad y está anotada en el TODO.
-# El tope existe para que el día que haya trescientos artículos la página no pese trescientos.
-TANDAS = 3
+# Cuántos artículos por página. Doce: en la primera son los seis huecos con nombre de arriba más una
+# fila de seis; en las demás, doce en retícula.
+#
+# ESTO SUSTITUYE AL BOTÓN «Ver más artículos», que destapaba con JavaScript artículos ya dibujados y
+# escondidos. Aquello tenía dos problemas que la paginación resuelve de una vez: la página traía
+# hasta 24 artículos aunque se leyeran seis —y con cientos publicados habría traído cientos— y el
+# botón quedaba muerto sin JavaScript. Ahora cada página trae lo suyo y los enlaces son enlaces.
+POR_PAGINA = 12
 
 
 @register_snippet
@@ -122,6 +121,35 @@ class HashtagDeArticulo(ItemBase):
     content_object = ParentalKey(
         "articles.ArticlePage", related_name="hashtags_relacion", on_delete=models.CASCADE
     )
+
+
+def _paginar(articulos: QuerySet["ArticlePage"] | Any, pedida: str | None) -> "Page_[Any]":  # noqa: ANN401
+    # El `Any` es porque la búsqueda de Wagtail NO devuelve un queryset sino un `SearchResults`, y
+    # los dos sirven para paginar. Escribir solo uno de los dos tipos sería mentir sobre lo que entra.
+    """La página pedida, o la primera si el número no vale.
+
+    Un `?pagina=abc` o un `?pagina=999` vienen de la URL, así que los escribe cualquiera: se cae a la
+    primera en vez de reventar con un 500. Una página que no existe no es un error del sitio.
+    """
+    from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+
+    paginador = Paginator(articulos, POR_PAGINA)
+    try:
+        return paginador.page(pedida or 1)
+    except (PageNotAnInteger, EmptyPage):
+        return paginador.page(1)
+
+
+def _arrastre(consulta: str, categoria: str) -> str:
+    """Lo que los enlaces de paginación tienen que llevarse consigo, ya como `&clave=valor`.
+
+    Sin esto, pasar a la página dos devolvería el índice entero: la búsqueda y la categoría se
+    perderían y la persona acabaría en un sitio que no pidió.
+    """
+    from urllib.parse import urlencode
+
+    partes = {clave: valor for clave, valor in (("q", consulta), ("categoria", categoria)) if valor}
+    return f"&{urlencode(partes)}" if partes else ""
 
 
 class ArticleIndexPage(Page):
@@ -188,24 +216,38 @@ class ArticleIndexPage(Page):
             # `0005_busqueda_en_espanol`.
             # El `ignore` es de tipos, no de lógica: `search()` lo añade Wagtail al queryset de
             # `Page` y django-stubs no lo ve porque Wagtail no publica tipos.
-            resultados = list(articulos.search(consulta)[:RESULTADOS])  # type: ignore[attr-defined]
-            contexto["resultados"] = resultados
-            contexto["cuantos"] = len(resultados)
+            articulos = articulos.search(consulta)  # type: ignore[attr-defined]
+
+        pagina = _paginar(articulos, request.GET.get("pagina"))
+        contexto["pagina"] = pagina
+        # El enlace de la página siguiente tiene que llevarse la búsqueda y la categoría, o pasar a la
+        # dos devolvería el índice entero y la persona perdería lo que estaba mirando.
+        contexto["arrastre"] = _arrastre(consulta, elegida)
+
+        if consulta:
+            # Los resultados también van paginados: una búsqueda amplia sobre cien artículos no puede
+            # devolverlos todos de golpe. `cuantos` es el TOTAL y no lo de esta página — quien busca
+            # quiere saber cuántos hay, no cuántos le cupieron.
+            contexto["resultados"] = list(pagina.object_list)
+            contexto["cuantos"] = pagina.paginator.count
             contexto["destacado"] = None
             return contexto
 
-        # Un solo corte y luego se reparte en memoria: son 24 filas como mucho y hacer una consulta
-        # por hueco sería pagar cinco viajes a la base para trocear una lista que ya está acá.
-        tanda = list(articulos[: INICIALES + POR_TANDA * TANDAS])
-        contexto["destacado"] = tanda[0] if tanda else None
-        contexto["reticula"] = tanda[DESTACADO : DESTACADO + RETICULA]
-        contexto["lateral"] = tanda[DESTACADO + RETICULA : INICIALES]
-        contexto["mas"] = tanda[INICIALES:]
-        contexto["por_tanda"] = POR_TANDA
-
-        # Para el panel de la derecha. Sale de lo publicado sin filtrar: si filtrara con la retícula
-        # repetiría exactamente lo mismo dos veces en la misma pantalla.
-        contexto["recientes"] = self.articulos()[:10]
+        # Los seis huecos con nombre SOLO en la primera página. En la dos, un «destacado» sería el
+        # séptimo artículo más reciente puesto en grande, que no significa nada; y el panel de
+        # recientes repetiría lo que la persona acaba de dejar atrás.
+        en_pagina = list(pagina.object_list)
+        if pagina.number == 1:
+            contexto["destacado"] = en_pagina[0] if en_pagina else None
+            contexto["reticula"] = en_pagina[DESTACADO : DESTACADO + RETICULA]
+            contexto["lateral"] = en_pagina[DESTACADO + RETICULA : INICIALES]
+            contexto["resto"] = en_pagina[INICIALES:]
+            # Para el panel de la derecha. Sale de lo publicado sin filtrar: si filtrara con la
+            # retícula repetiría exactamente lo mismo dos veces en la misma pantalla.
+            contexto["recientes"] = self.articulos()[:10]
+        else:
+            contexto["destacado"] = None
+            contexto["resto"] = en_pagina
         return contexto
 
 

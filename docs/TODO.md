@@ -86,7 +86,12 @@ muestra escritas a mano.
       jugadores del header o va aparte, dentro de `/articulos/`.~~ (resuelto: aparte, dentro del
       índice; el del header sigue siendo solo de jugadores para que buscar «Soto» no mezcle una ficha
       con un artículo sin decir cuál es cuál.)
-- [ ] **Paginación del índice.** Hoy se dibujan hasta 24 artículos y el botón los descubre de seis en
+- [x] **Paginación del índice.** **Hecha el 2026-07-27**: doce por página, con enlaces de verdad que
+      arrastran la búsqueda y la categoría. Sustituye al botón de JavaScript, así que se fueron con
+      él `articulos.js`, el `<noscript>` y el tope de 24 — y con eso queda cerrado también el
+      QA-03/FE-03 del v8, que era el control muerto sin JavaScript.
+
+      ~~Hoy se dibujan hasta 24 artículos y el botón los descubre de seis en
       seis sin ir al servidor (ver `TANDAS` en el modelo). Con cientos publicados eso es una página
       de cientos: ahí hace falta paginación de verdad. Es además la salida buena para el botón que
       queda muerto sin JavaScript — ver el rechazo razonado de QA-03/FE-03 en el review v8.
