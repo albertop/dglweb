@@ -21,16 +21,22 @@ from datetime import date
 
 # Quién responde. Es la agencia que gestiona el sitio, no la persona que escribe el código: quien
 # responde ante un reclamo de datos personales tiene que ser quien decide qué se publica y para qué.
-RESPONSABLE = "Adcio Media"  # ← confirmar: razón social exacta y RNC, si está constituida
+# Si Adcio Media está constituida, acá va su razón social registrada. Si es un nombre comercial y no
+# una sociedad, «Adcio Media» está bien tal cual: lo que la ley pide es que se pueda identificar a
+# quien responde, y con el nombre más el buzón de contacto se puede.
+RESPONSABLE = "Adcio Media"
 DOMINIO = "dominicanosengrandesligas.com"
 # El buzón único del sitio. Uno solo y no tres alias por tema: un buzón que nadie lee es peor que no
 # publicar ninguno, y tres multiplican por tres la posibilidad de que eso pase.
 CONTACTO = "alberto@dominicanosengrandesligas.com"
 PAIS = "República Dominicana"
 
-# El alojamiento importa porque una transferencia internacional de datos hay que declararla. El VPS
-# está fuera del país, así que se dice; si algún día se muda, se cambia acá.
-ALOJAMIENTO = "un proveedor de servidores en la nube fuera de la República Dominicana"  # ← confirmar
+# El alojamiento se nombra porque el proveedor procesa los registros del servidor por cuenta nuestra,
+# y eso hay que declararlo. Deliberadamente NO dice en qué país: el VPS de producción todavía no
+# existe —ver `docs/CONCEPT.md`, no se instala nada ahí hasta el big-bang— y afirmar hoy que está
+# fuera del país sería inventarse un hecho. Cuando se contrate, acá se pone el proveedor y, si está
+# en el extranjero, la frase de transferencia internacional. Es una línea.
+ALOJAMIENTO = "un proveedor de infraestructura en la nube"
 
 # Cuánto viven los registros del servidor. No es un número decorativo: es el compromiso que se
 # adquiere con quien visita, y el proxy tiene que estar configurado para cumplirlo.
