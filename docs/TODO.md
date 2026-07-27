@@ -470,7 +470,12 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   ⚠️ Los precios de estas plataformas son conocidos hasta mayo de 2026 y cambian; verificar antes de
   contratar. Del lado del código no urge: los huecos ya están en las plantillas, con alto fijo y
   agnósticos de proveedor. Elegir es pegar una etiqueta en un sitio.
-- [ ] Listado exacto de métricas sabermétricas por página de jugador.
+- [x] ~~Listado exacto de métricas sabermétricas por página de jugador.~~ **Cerrado por decisión del
+  dueño (2026-07-27).** Venía de la sesión de concepto, cuando no existía ni una tabla: se había
+  decidido el NIVEL (sabermétrico, no básico) y se dejó abierto cuáles. Las Fases 3 y 4 lo
+  contestaron construyendo — hoy son **146 métricas activas** (bateo 42+21, pitcheo 38+25, fildeo
+  16+4) más los tabs de Postemporada, Totales y Puestos, con el vocabulario compartido con Líderes en
+  `profiles/metric_layout.py`. Ya no es una pregunta abierta.
 - [x] **Redactar legal: privacidad + cookies + ToS.** (2026-07-27) Los tres documentos están escritos
   y publicados en `/legal/privacidad/`, `/legal/terminos/` y `/legal/cookies/`, enlazados desde el
   pie de todas las páginas. Son plantillas del repositorio y no páginas del CMS: un aviso legal no
