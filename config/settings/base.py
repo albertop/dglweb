@@ -54,6 +54,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # La CSP va ARRIBA del todo, junto a la otra de seguridad: así la cabecera sale también en las
+    # respuestas que se cortan antes de llegar a una vista —un 404, un redirect de Wagtail—, que son
+    # HTML igual y por lo tanto se pueden atacar igual. Ver `core/csp.py`.
+    "dglweb.core.csp.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -170,6 +174,17 @@ TELEGRAM_CHAT_ID = env.str("TELEGRAM_CHAT_ID", default="")
 
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"
+
+# El panel del CMS llama a `releases.wagtail.org` en cada carga para avisar si hay versión nueva. Se
+# apaga por tres razones, y la CSP fue solo la que lo destapó:
+#
+# 1. La CSP lo bloquea (`connect-src 'self'`), y dejaba un error rojo permanente en la consola del
+#    CMS. Un error que siempre está es un error que nadie mira, y entierra a los de verdad.
+# 2. Le anuncia a un tercero que esta instalación existe y qué versión corre — justo lo que dice la
+#    política de privacidad que no hacemos.
+# 3. No aporta nada: de subir Wagtail se entera quien lea el `requirements`, no quien publique un
+#    artículo, y este es un LTS elegido a propósito.
+WAGTAIL_ENABLE_UPDATE_CHECK = False
 WAGTAILSEARCH_BACKENDS = {
     "default": {
         "BACKEND": "wagtail.search.backends.database",

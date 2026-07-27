@@ -17,7 +17,7 @@ la sigla pintada y el enlace para abrir la caja.
     lo diga dos veces. `onerror` quita la foto que falte —un debutante que MLB todavía no retrató— en
     vez de dejar el icono de imagen rota.
   {% endcomment %}
-  <img class="dgl-lider-foto" src="{{ puesto.foto }}" alt="" loading="lazy" onerror="this.remove()">
+  <img class="dgl-lider-foto" src="{{ puesto.foto }}" alt="" loading="lazy" data-quitar-si-falta>
   <div class="dgl-lider-quien">
     {% comment %}
       El nombre puede venir abreviado si no cabía; el `title` lleva siempre el completo, para que

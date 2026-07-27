@@ -206,14 +206,12 @@
   igual — solo que más rápido o más lento según el mes.
 {% endcomment %}
 <script src="{% static 'js/cintillo.js' %}?v=1" defer></script>
-<script>
-  // El enlace "desglose" de una fila de totales salta al pill Totales: clicquea su botón de nav,
-  // así Bootstrap hace todo (activa la pestaña y su panel) y no queda un estado a medias.
-  function dglShowPill(target) {
-    var btn = document.querySelector('[data-bs-toggle="pill"][data-bs-target="#' + target + '"]');
-    if (btn) { btn.click(); btn.scrollIntoView({ block: "nearest" }); }
-  }
-</script>
+{% comment %}
+  Los «desglose» del perfil y las fotos que faltan. Estaba escrito acá dentro, en un `<script>` sin
+  `src`, y salió por la CSP: con `script-src 'self'` el navegador no ejecuta scripts inline. Ver
+  `core/csp.py` y la prueba que impide que vuelvan.
+{% endcomment %}
+<script src="{% static 'js/site.js' %}?v=1" defer></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

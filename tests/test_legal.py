@@ -118,6 +118,40 @@ def test_el_aviso_de_retrosheet_esta_palabra_por_palabra() -> None:
     )
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize("ruta", PUBLICAS)
+def test_el_sitio_publico_no_lleva_javascript_en_el_html(client: Client, ruta: str) -> None:
+    """Lo que hace que la CSP estricta se cumpla en vez de romper la página.
+
+    Con `script-src 'self'` el navegador NO ejecuta un `<script>` sin `src` ni un `onclick="..."`.
+    El sitio tenía doce de esos, y todos se mudaron a archivos bajo `static/js/`. Esta prueba es lo
+    que impide que vuelva a colarse uno: escribir `onclick=` es más rápido que abrir el `.js`, y el
+    fallo no se ve al mirar la página —solo deja de funcionar el botón, en silencio.
+    """
+    sopa = BeautifulSoup(client.get(ruta).content.decode(), "html.parser")
+    inline = [e for e in sopa.find_all("script") if not e.get("src")]
+    assert not inline, f"{ruta} lleva un <script> sin src"
+    for etiqueta in sopa.find_all(True):
+        manejadores = [a for a in etiqueta.attrs if a.startswith("on")]
+        assert not manejadores, f"{ruta} lleva {manejadores} en <{etiqueta.name}>"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ruta", PUBLICAS)
+def test_la_csp_va_en_las_paginas_publicas(client: Client, ruta: str) -> None:
+    politica = client.get(ruta).headers.get("Content-Security-Policy", "")
+    assert "script-src 'self';" in politica, "el sitio público no admite scripts inline"
+    assert "object-src 'none'" in politica
+
+
+@pytest.mark.django_db
+def test_el_cms_recibe_la_politica_floja(client: Client) -> None:
+    """El admin de Wagtail usa inline por todos lados y no es código nuestro; apretarlo sería
+    romperlo en cada actualización. Lo que se comprueba es que igual RECIBE una política."""
+    politica = client.get("/cms/").headers.get("Content-Security-Policy", "")
+    assert "'unsafe-inline'" in politica and "object-src 'none'" in politica
+
+
 def test_la_fecha_de_actualizacion_no_se_mueve_sola() -> None:
     """`ACTUALIZADO` tiene que ser una constante escrita a mano.
 

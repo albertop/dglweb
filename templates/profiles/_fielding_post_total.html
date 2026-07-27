@@ -2,6 +2,6 @@
 tasas ya vienen en "—" si mezcla posiciones; con el enlace "desglose" al pill Totales igual que las
 demás tablas.{% endcomment %}
 <tr style="border-top:2px solid var(--dgl-navy); font-weight:700">
-  <td class="ps-3 dgl-mid"><b>{{ count }} temporada{{ count|pluralize:"s" }}</b>{% if totals_target %}<br><button type="button" class="dgl-meta small dgl-linkbtn" onclick="dglShowPill('{{ totals_target }}')">desglose ▸</button>{% endif %}</td><td class="dgl-mid"></td><td class="dgl-mid"></td>
+  <td class="ps-3 dgl-mid"><b>{{ count }} temporada{{ count|pluralize:"s" }}</b>{% if totals_target %}<br><button type="button" class="dgl-meta small dgl-linkbtn" data-pill="{{ totals_target }}">desglose ▸</button>{% endif %}</td><td class="dgl-mid"></td><td class="dgl-mid"></td>
   {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}">{{ cell.text }}</td>{% endfor %}
 </tr>

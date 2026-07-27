@@ -68,7 +68,7 @@ mejor que no esté a que esté hueco.
               todavía no retrató— en vez de dejar el icono de imagen rota.
             {% endcomment %}
             <img class="dgl-destacado-foto" src="{{ actuacion.foto }}" alt="" loading="lazy"
-                 onerror="this.remove()">
+                 data-quitar-si-falta>
             <div class="dgl-destacado-quien">
               {% comment %}
                 El video va pegado al nombre y no al final de la línea de estadísticas: ahí quedaba

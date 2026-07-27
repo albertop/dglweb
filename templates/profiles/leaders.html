@@ -91,14 +91,14 @@ muda y el usuario vuelve a hacer clic.
   <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
     <div>
       <label class="form-label dgl-control-label" for="scope">Alcance</label>
-      <select class="form-select form-select-sm dgl-control" id="scope" onchange="dglGo(this.value)">
+      <select class="form-select form-select-sm dgl-control" id="scope" data-ir>
         {% for s in scopes %}<option value="{{ s.url }}"{% if s.active %} selected{% endif %}>{{ s.label }}</option>{% endfor %}
       </select>
     </div>
     {% if scope_key == "temporada" and seasons %}
     <div>
       <label class="form-label dgl-control-label" for="season">Temporada</label>
-      <select class="form-select form-select-sm dgl-control" id="season" onchange="dglGo(this.value)">
+      <select class="form-select form-select-sm dgl-control" id="season" data-ir>
         {% for y in seasons %}<option value="{{ y.url }}"{% if y.active %} selected{% endif %}>{{ y.year }}</option>{% endfor %}
       </select>
     </div>
@@ -107,14 +107,14 @@ muda y el usuario vuelve a hacer clic.
     {# Solo fildeo: cada posición es su propio ranking, un jardinero no compite con un antesalista. #}
     <div>
       <label class="form-label dgl-control-label" for="pos">Posición</label>
-      <select class="form-select form-select-sm dgl-control" id="pos" onchange="dglGo(this.value)">
+      <select class="form-select form-select-sm dgl-control" id="pos" data-ir>
         {% for p in positions %}<option value="{{ p.url }}"{% if p.active %} selected{% endif %}>{{ p.label }}</option>{% endfor %}
       </select>
     </div>
     {% endif %}
     <div>
       <label class="form-label dgl-control-label" for="metric">Métrica</label>
-      <select class="form-select form-select-sm dgl-control" id="metric" onchange="dglGo(this.value)" style="min-width:15rem">
+      <select class="form-select form-select-sm dgl-control" id="metric" data-ir style="min-width:15rem">
         {% for m in metrics %}<option value="{{ m.url }}"{% if m.active %} selected{% endif %}>[{{ m.abbr }}] {{ m.name }}</option>{% endfor %}
       </select>
     </div>
@@ -189,22 +189,6 @@ muda y el usuario vuelve a hacer clic.
   {% endif %}
 </div>
 
-<script>
-(function () {
-  var box = document.getElementById('dgl-loading');
-  function show() { box.classList.add('is-on'); }
-  // Los dropdowns navegan por acá en vez de `location.href` a secas, para encender la señal antes.
-  window.dglGo = function (url) { show(); location.href = url; };
-  // Los tabs y pills de esta página son <a> (cada tablero es su propia URL, indexable), no <button>
-  // como en el perfil, así que también disparan un viaje al servidor.
-  document.querySelectorAll('.nav-tabs .nav-link, .nav-pills .nav-link').forEach(function (a) {
-    a.addEventListener('click', show);
-  });
-  // Al volver con el botón atrás la página se restaura del bfcache tal como quedó — con el overlay
-  // puesto. `pageshow` corre también en esa restauración; `load` no.
-  window.addEventListener('pageshow', function () { box.classList.remove('is-on'); });
-})();
-</script>
 {% endblock %}
 
 {% block anuncio_pie %}
@@ -224,4 +208,6 @@ muda y el usuario vuelve a hacer clic.
 {% endcomment %}
 <script src="{% static 'js/pestanas.js' %}?v=1" defer></script>
 <script src="{% static 'js/lideres.js' %}?v=7" defer></script>
+{# La señal de «cargando» del tablero. Estuvo inline acá y salió por la CSP — ver `core/csp.py`. #}
+<script src="{% static 'js/tablero.js' %}?v=1" defer></script>
 {% endblock %}
