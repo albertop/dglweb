@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- Dominicanos en Grandes Ligas — MARCA (opción C: monograma + nombre con jerarquía).
+     Este mockup existe para decidir, no para copiarse tal cual: si se aprueba, lo que se muda a
+     site.css son las reglas `.dgl-marca*` de abajo. -->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>La marca — Dominicanos en Grandes Ligas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/mockup.css?v=2" rel="stylesheet">
+  <style>
+    /* ── LA MARCA ─────────────────────────────────────────────────────────────────────────────
+       Dos piezas que funcionan juntas y por separado: el monograma es la marca corta (favicon,
+       móvil, avatar) y el nombre es la marca larga. */
+
+    .dgl-marca { display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; }
+    .dgl-marca:hover { text-decoration: none; }
+
+    /* El monograma. En el rojo de la bandera y no en el azul: la barra ya es azul marino, así que un
+       monograma azul desaparecería dentro de ella. Rojo es el otro color de la bandera y el acento
+       que el sitio ya usa.
+       «DGL» no se inventa acá — es como se llama el proyecto por dentro desde el primer día
+       (dgl_master, dgl_leader, dglweb). */
+    .dgl-marca-mono {
+      flex: 0 0 auto; display: grid; place-items: center;
+      width: 38px; height: 38px; border-radius: .45rem;
+      background: var(--dgl-red); color: #fff;
+      font-weight: 800; font-size: .78rem; letter-spacing: -.02em;
+    }
+
+    /* El nombre, en dos renglones y con la jerarquía que el nombre pide: lo que define al sitio es
+       «dominicanos», no «en Grandes Ligas». En una sola línea las cuatro palabras pesaban igual y
+       ninguna lideraba. */
+    .dgl-marca-nombre { display: block; line-height: 1.05; }
+    .dgl-marca-nombre b {
+      display: block; color: #fff; font-weight: 800; font-size: 1.15rem; letter-spacing: -.02em;
+    }
+    .dgl-marca-nombre span {
+      display: block; color: #9db4d6; font-weight: 500; font-size: .58rem;
+      letter-spacing: .17em; text-transform: uppercase; margin-top: .12rem;
+    }
+
+    /* Sobre fondo claro —el pie de página no, pero sí una factura, un correo o una portada de
+       compartir— el nombre invierte. El monograma no cambia: es el mismo rojo en los dos sitios. */
+    .dgl-marca-clara .dgl-marca-nombre b { color: var(--dgl-ink); }
+    .dgl-marca-clara .dgl-marca-nombre span { color: var(--dgl-muted); }
+
+    /* Tamaños. El monograma sobrevive solo hasta 16px, que es el favicon. */
+    .m-64 .dgl-marca-mono { width: 64px; height: 64px; border-radius: .7rem; font-size: 1.3rem; }
+    .m-32 .dgl-marca-mono { width: 32px; height: 32px; border-radius: .38rem; font-size: .66rem; }
+    .m-16 .dgl-marca-mono { width: 16px; height: 16px; border-radius: .2rem; font-size: .34rem; }
+
+    /* ── Andamiaje del mockup, no de la marca ───────────────────────────────────────────────── */
+    .prueba { background: var(--dgl-card); border: 1px solid var(--dgl-line); border-radius: .5rem; padding: 1.2rem; }
+    .prueba-oscura { background: var(--dgl-navy); border-color: #1c3a5e; }
+    .etiqueta {
+      color: var(--dgl-muted); font-size: .66rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; margin-bottom: .8rem;
+    }
+    .antes {
+      color: #fff; font-weight: 800; font-size: 1.35rem; letter-spacing: -.02em;
+    }
+    .regla { color: var(--dgl-muted); font-size: .72rem; margin-top: .5rem; }
+  </style>
+</head>
+<body>
+
+<!-- ============ 1. EN LA BARRA REAL ============ -->
+<header class="dgl-topbar">
+  <nav class="navbar navbar-expand-lg py-2">
+    <div class="container">
+      <a class="dgl-marca me-3" href="index.html">
+        <span class="dgl-marca-mono">DGL</span>
+        <span class="dgl-marca-nombre">
+          <b>Dominicanos</b>
+          <span>en Grandes Ligas</span>
+        </span>
+      </a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+        <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="nav">
+        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" onsubmit="return false">
+          <input class="form-control form-control-sm" type="search" placeholder="🔎 Buscar jugador…">
+        </form>
+        <ul class="navbar-nav ms-auto align-items-lg-center">
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="index.html" title="Inicio">
+            <svg viewBox="0 0 16 16" width="17" height="17" fill="currentColor" aria-hidden="true">
+              <path d="M2.4 1.9h11.2v6.9L8 14.3 2.4 8.8z"/>
+            </svg>
+          </a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="leaders.html">Líderes</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="player.html">Jugadores</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="articles.html">Artículos</a></li>
+          <li class="nav-item ms-lg-2"><a class="btn btn-sm btn-outline-light" href="#">Entrar</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<main class="container my-4">
+
+  <h1 class="dgl-page-title">La marca</h1>
+  <p class="dgl-lede mb-4" style="font-family:'Source Serif 4',Georgia,serif;font-size:1.02rem;max-width:62ch">
+    Monograma más nombre con jerarquía. Arriba está en la barra real del sitio; abajo, las piezas
+    sueltas y la comparación con lo que hay hoy.
+  </p>
+
+  <!-- ============ 2. ANTES Y DESPUÉS ============ -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="prueba prueba-oscura h-100">
+        <div class="etiqueta" style="color:#8ea6c8">Hoy</div>
+        <div class="antes">Dominicanos en Grandes Ligas</div>
+        <div class="regla" style="color:#8ea6c8">
+          28 caracteres en monoespaciada. Cuatro palabras del mismo peso: ninguna lidera. Ya hay dos
+          media queries en el CSS achicándolo porque no cabe.
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="prueba prueba-oscura h-100">
+        <div class="etiqueta" style="color:#8ea6c8">Propuesta</div>
+        <a class="dgl-marca" href="#">
+          <span class="dgl-marca-mono">DGL</span>
+          <span class="dgl-marca-nombre">
+            <b>Dominicanos</b>
+            <span>en Grandes Ligas</span>
+          </span>
+        </a>
+        <div class="regla" style="color:#8ea6c8">
+          Ocupa menos ancho, libera sitio para el buscador, y lo primero que se lee es la palabra que
+          define el sitio.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. EL MONOGRAMA A SUS TAMAÑOS ============ -->
+  <div class="prueba mb-4">
+    <div class="etiqueta">El monograma solo — favicon, móvil, avatar</div>
+    <div class="d-flex align-items-end gap-4 flex-wrap">
+      <div class="m-64"><span class="dgl-marca-mono">DGL</span></div>
+      <div><span class="dgl-marca-mono">DGL</span></div>
+      <div class="m-32"><span class="dgl-marca-mono">DGL</span></div>
+      <div class="m-16"><span class="dgl-marca-mono">DGL</span></div>
+    </div>
+    <div class="regla">
+      64 · 38 · 32 · 16 px. A 16px las letras ya no se leen, pero la mancha roja sí se reconoce —
+      que es todo lo que un favicon necesita hacer.
+    </div>
+  </div>
+
+  <!-- ============ 4. SOBRE FONDO CLARO ============ -->
+  <div class="prueba">
+    <div class="etiqueta">Sobre fondo claro</div>
+    <a class="dgl-marca dgl-marca-clara" href="#">
+      <span class="dgl-marca-mono">DGL</span>
+      <span class="dgl-marca-nombre">
+        <b>Dominicanos</b>
+        <span>en Grandes Ligas</span>
+      </span>
+    </a>
+    <div class="regla">
+      El nombre invierte; el monograma no cambia. Es el mismo rojo en los dos sitios, que es lo que
+      lo hace reconocible fuera del sitio.
+    </div>
+  </div>
+</main>
+
+<footer class="dgl-footer pt-4 pb-3 mt-5">
+  <div class="container">
+    <a class="dgl-marca mb-2" href="#">
+      <span class="dgl-marca-mono">DGL</span>
+      <span class="dgl-marca-nombre">
+        <b>Dominicanos</b>
+        <span>en Grandes Ligas</span>
+      </span>
+    </a>
+    <p class="small mb-0" style="max-width:32ch">Béisbol de las Grandes Ligas, visto a través del
+      lente dominicano.</p>
+    <hr style="border-color:#25406b">
+    <div class="small text-center" style="color:#8ea6c8">© 2026 dominicanosengrandesligas.com</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
