@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 from django.core.management import call_command
+from django.utils import timezone
 
 from dglweb.players.models import Player
 from dglweb.stats import daily
@@ -244,6 +245,37 @@ def test_the_command_stores_the_day_and_records_it(temporada: SeasonDates, monke
     fila = IngestRun.objects.get(command="build_daily_standouts")
     assert fila.status == IngestRun.Status.SUCCESS
     assert "1 bateadores, 1 lanzadores" in fila.detail
+
+
+@pytest.mark.django_db
+def test_a_day_still_being_played_is_not_stored(temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch) -> None:
+    """El widget presenta lo guardado como la actuación del día, y con juegos a medias eso es falso.
+
+    Quien va de 0-2 a las nueve de la noche puede terminar de 2-4, y nada en la portada diría que la
+    cifra todavía va a cambiar. Se anota como salto y no como fallo: el comando hizo lo correcto.
+    """
+    _jugador(1)
+    monkeypatch.setattr(
+        "dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso()
+    )
+
+    call_command("build_daily_standouts", "--fecha", timezone.localdate().isoformat())
+
+    assert not DailyStandout.objects.exists()
+    assert IngestRun.objects.get(command="build_daily_standouts").status == IngestRun.Status.SKIPPED
+
+
+@pytest.mark.django_db
+def test_forcing_stores_an_unfinished_day_anyway(temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch) -> None:
+    """La puerta se abre a mano cuando alguien sabe lo que hace; sola, nunca."""
+    _jugador(1)
+    monkeypatch.setattr(
+        "dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso()
+    )
+
+    call_command("build_daily_standouts", "--fecha", timezone.localdate().isoformat(), "--force")
+
+    assert DailyStandout.objects.exists()
 
 
 @pytest.mark.django_db

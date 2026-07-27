@@ -21,7 +21,7 @@ from django.utils import timezone
 from dglweb.mlb.client import build_client
 from dglweb.players import universe
 from dglweb.stats import daily, season_window
-from dglweb.stats.runlog import record_run
+from dglweb.stats.runlog import record_run, record_skip
 
 
 class Command(BaseCommand):
@@ -32,7 +32,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--force",
             action="store_true",
-            help="Corre aunque estemos fuera de temporada. Para reprocesar en invierno tras un arreglo.",
+            help=(
+                "Corre aunque estemos fuera de temporada, y guarda una jornada que no ha terminado. "
+                "Para reprocesar en invierno tras un arreglo."
+            ),
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
@@ -42,6 +45,18 @@ class Command(BaseCommand):
         # Ayer y no hoy: los juegos terminan de noche, y el refresco corre a las 6 de la mañana. Pedir
         # «hoy» a esa hora devolvería una jornada que todavía no empezó.
         dia = options["fecha"] or timezone.localdate() - timedelta(days=1)
+
+        if dia >= timezone.localdate() and not options["force"]:
+            # Una jornada en curso no se guarda. El widget presenta lo guardado como la actuación del
+            # día, y con juegos a medias eso es sencillamente falso: quien va de 0-2 a las nueve de la
+            # noche puede terminar de 2-4. Guardarla haría que la portada anunciara una cifra que aún
+            # va a cambiar, y nada en la pantalla diría que está a medias.
+            #
+            # Se anota como salto, no como fallo: el comando hizo lo correcto al no correr, y una fila
+            # roja en el Backoffice mandaría a buscar una avería que no existe.
+            record_skip("build_daily_standouts", dia.isoformat(), "la jornada todavía no ha terminado")
+            self.stdout.write(self.style.WARNING(f"{dia} no ha terminado; use --force para guardarla igual."))
+            return
 
         with record_run("build_daily_standouts", dia.isoformat()) as run:
             listas = daily.destacados(build_client(), dia, universe.debuted())
