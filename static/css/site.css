@@ -572,8 +572,11 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* El lado de las cuatro piezas de una fila —la sigla, la foto y los dos discos— en un solo lugar:
    son un cuarteto y tienen que medir igual. A dos columnas se achican, porque lo que sobra después
    de ellas es lo que le queda al nombre del pelotero, y «Junior Caminero» necesita ese espacio. */
-.dgl-lideres { --pieza: 40px; }
-@media (min-width: 992px) { .dgl-lideres { --pieza: 34px; } }
+/* `--caja` es el alto de UNA caja y `--hueco` la separación entre ellas. De esos dos números sale el
+   alto del widget entero —tres filas y el enlace— y por eso están juntos: cambiar el tamaño de las
+   piezas sin ajustar `--caja` dejaría la última fila cortada. */
+.dgl-lideres { --pieza: 40px; --caja: 4.3rem; --hueco: .5rem; }
+@media (min-width: 992px) { .dgl-lideres { --pieza: 34px; --caja: 3.9rem; } }
 /* Las pestañas son `.dgl-pill`, el mismo control redondeado del perfil y de Líderes. Acá solo se
    ajusta la separación; el aspecto viene de allá para que un pill se vea igual en todo el sitio. */
 .dgl-lideres-tabs { display: flex; gap: .4rem; }
@@ -592,7 +595,13 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    el corte lo decide el espacio real y no un breakpoint adivinado.
    El mínimo son 250px porque por debajo el nombre del pelotero queda en dos o tres letras y puntos
    suspensivos, que es peor que una sola columna. */
-.dgl-lideres-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: .5rem; }
+/* Filas de alto fijo: una caja con enlace de «ver más» tiene más contenido que una sin él, y dejadas
+   a su aire hacían que cada fila midiera distinto y que el widget entero cambiara de alto según la
+   pestaña. `align-content: start` para que las filas no se estiren a repartirse el marco. */
+.dgl-lideres-lista {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: var(--caja); align-content: start; gap: var(--hueco);
+}
 /* Una lista oculta no debe ocupar sitio: `d-none` es `display:none !important`, pero el grid de la
    regla de arriba tiene la misma especificidad y sin el !important de Bootstrap ganaría el último.
    Se deja explícito para no depender del orden. */
@@ -677,9 +686,15 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   box-shadow: 0 14px 28px rgba(11, 31, 58, .22);
 }
 
-/* El marco guarda el alto de las tres filas que se ven cerradas. Cuando la lista se despliega pasa a
-   flotar dentro de él, y como el marco no cambia de alto, los artículos de abajo no se mueven. */
-.dgl-lideres-marco { position: relative; }
+/* El marco mide exactamente tres filas, siempre. Es un alto fijo y no el de su contenido para que el
+   widget no cambie de tamaño entre pestañas: bateo tiene catorce categorías y pitcheo cinco, y a lo
+   que dé el contenido, saltarían de sitio los artículos de abajo al cambiar de pestaña.
+   Sin `overflow: hidden` a propósito: recortaría las capas flotantes de las cajas de la última fila.
+   Lo que sobra lo esconde `.dgl-fila-de-mas`. */
+.dgl-lideres-marco {
+  position: relative;
+  height: calc(3 * var(--caja) + 2 * var(--hueco));
+}
 .dgl-fila-de-mas { display: none; }
 .dgl-lideres-lista.is-flotante {
   position: absolute; top: 0; left: 0; right: 0; z-index: 30;
@@ -690,9 +705,12 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   max-height: 70vh; overflow-y: auto;
 }
 
+/* Siempre ocupa su sitio, aunque no haya nada más que enseñar: si desapareciera, el widget mediría
+   distinto en la pestaña que lo lleva y en la que no. Se apaga con `visibility` y no con `d-none`. */
 .dgl-lideres-mas {
   display: block; width: 100%; margin-top: .5rem; padding: .3rem; background: none;
   border: 0; border-top: 1px solid var(--dgl-line); font: inherit; font-size: .72rem;
   color: var(--dgl-blue); cursor: pointer;
 }
 .dgl-lideres-mas:hover { text-decoration: underline; }
+.dgl-lideres-mas.esta-de-mas { visibility: hidden; }

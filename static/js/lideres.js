@@ -34,12 +34,17 @@
 
   function mostrar(i, mover) {
     pestanas.forEach(function (pestana, j) {
-      var activa = i === j;
-      pestana.classList.toggle('active', activa);
-      pestana.setAttribute('aria-selected', activa ? 'true' : 'false');
-      pestana.tabIndex = activa ? 0 : -1;
-      listas[j].classList.toggle('d-none', !activa);
+      var esta = i === j;
+      pestana.classList.toggle('active', esta);
+      pestana.setAttribute('aria-selected', esta ? 'true' : 'false');
+      pestana.tabIndex = esta ? 0 : -1;
+      listas[j].classList.toggle('d-none', !esta);
     });
+    // Cambiar de oficio devuelve el widget a como se ve al llegar: tres filas y ninguna capa abierta.
+    // Heredar lo abierto de la otra pestaña dejaría una capa flotando sobre un contenido que ya no
+    // es el suyo, y con un «ver menos» que habla de una lista que el lector ya no está mirando.
+    cerrarCajas(null);
+    cerrar();
     if (mover) pestanas[i].focus();
   }
 
@@ -85,7 +90,9 @@
   }
 
   function recortar() {
-    if (desplegado) return;
+    // El guardia no es de adorno: `mostrar()` llama a esto en cada cambio de pestaña, y sin el
+    // botón —una lista corta que cabe entera— no habría nada que actualizar.
+    if (desplegado || !verTodas || !marco) return;
     var enLaActiva = 0;
 
     listas.forEach(function (lista) {
@@ -103,23 +110,25 @@
 
     // El botón habla de la pestaña que se está viendo: bateo tiene catorce categorías y pitcheo
     // cinco, así que «ver 8 más» sería falso en una de las dos si se contaran juntas.
-    verTodas.classList.toggle('d-none', enLaActiva === 0);
-    verTodas.textContent = 'ver ' + enLaActiva + ' más';
+    //
+    // Cuando no hay nada más se apaga pero NO se quita: sigue ocupando su renglón, para que el widget
+    // mida igual en la pestaña que lo lleva y en la que no.
+    verTodas.classList.toggle('esta-de-mas', enLaActiva === 0);
+    verTodas.textContent = enLaActiva ? 'ver ' + enLaActiva + ' más' : '';
   }
 
   function cerrar() {
+    if (!verTodas || !marco) return;
     desplegado = false;
     caja.classList.remove('is-desplegado');
     listas.forEach(function (l) { l.classList.remove('is-flotante'); });
-    marco.style.height = '';
     verTodas.setAttribute('aria-expanded', 'false');
     recortar();
   }
 
   function abrir() {
-    // El alto de lo que se ve cerrado se congela ANTES de soltar la lista: es lo que impide que los
-    // artículos de abajo salten cuando el panel pasa a flotar.
-    marco.style.height = marco.offsetHeight + 'px';
+    // No hace falta congelar el alto del marco: lo fija el CSS en tres filas exactas, así que al
+    // soltar la lista a flotar el hueco se queda igual y nada de abajo se mueve.
     desplegado = true;
     caja.classList.add('is-desplegado');
     cajasDe(activa()).forEach(function (c) { c.classList.remove('dgl-fila-de-mas'); });
@@ -132,13 +141,6 @@
     recortar();
     verTodas.addEventListener('click', function () {
       if (desplegado) { cerrar(); } else { abrir(); }
-    });
-    // Cambiar de pestaña con el panel abierto lo deja abierto en la otra lista, que es lo que espera
-    // quien estaba explorando; solo hay que mover el flotante de sitio.
-    pestanas.forEach(function (pestana) {
-      pestana.addEventListener('click', function () {
-        if (desplegado) { cerrar(); abrir(); } else { recortar(); }
-      });
     });
     // Un clic fuera y Escape lo cierran: es una capa que tapa contenido, y quedarse sin salida
     // evidente es lo que hace que una capa moleste.

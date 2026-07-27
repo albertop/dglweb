@@ -26,7 +26,7 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
     {% endcomment %}
     <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="lideres-titulo">
-        En el top de las mayores
+        En el top 10 de las mayores
       </h2>
       <div class="dgl-lideres-tabs">
         {% for oficio, etiqueta, grupos in lideres.oficios %}
@@ -74,7 +74,7 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
       Lo agrega y lo esconde lideres.js según cuántas filas queden fuera, que es un número que solo
       se sabe después de que el navegador arme la retícula.
     {% endcomment %}
-    <button type="button" class="dgl-lideres-mas d-none" aria-expanded="false">ver todas</button>
+    <button type="button" class="dgl-lideres-mas esta-de-mas" aria-expanded="false"></button>
   </div>
 </section>
 {% endif %}
