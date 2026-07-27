@@ -148,6 +148,77 @@ montado, o sea donde menos conviene una actualización sorpresa (parte de SEC-01
   alerta barata: si `IngestRun` no tiene ninguna corrida de `update_batting` en las últimas 48 horas
   dentro de temporada, algo está roto. Encaja natural en el orquestador de QA-01+ARCH-01.
 
+## Code review v7 — findings (2026-07-26)
+
+Ver `docs/reviews/code_review_v7.md`. Doce hallazgos que son **seis problemas**: el review los reporta
+desde varias personas y se solapan (DEV-01 = ARCH-01 = QA-01, DEV-02 = ARCH-02, DEV-03 = SAB-02,
+QA-02 = FE-01). Acá van agrupados por problema, que es como se arreglan. Verificados uno por uno
+contra el código antes de aceptarlos.
+
+### P1 — integridad del dato
+
+- [ ] **Una sola temporada activa, garantizada por la base** *(DEV-01 + ARCH-01 + QA-01)*.
+  Verificado: `seasons_dates` solo tiene unicidad por `(season, sports_id)`, `clean()` no menciona
+  `is_active` ni una vez, y el loader compara las activas *dentro del CSV* pero no contra las que ya
+  están guardadas. Como el dataset es **upsert**, un CSV que no incluya la temporada vieja la deja
+  activa junto a la nueva.
+  Lo grave es cómo falla: `season_window` resuelve el empate con `order_by("-season").first()`, así
+  que el sistema **no se rompe, se equivoca en silencio** — el scheduler corre o salta según una
+  temporada que nadie eligió. Es el mismo patrón del incidente de Ofelia: lo que no avisa es peor que
+  lo que falla.
+  Arreglo: `UniqueConstraint` parcial con `condition=Q(is_active=True)` por `sports_id`, `clean()`
+  consultando la base y excluyendo `self.pk`, y un test con 2025 activa persistida + CSV que solo
+  trae 2026 activa.
+
+- [ ] **cERA de carrera se pondera por juegos, no por entradas** *(SAB-01)*.
+  Verificado: `career_rate.WEIGHT["fielding"] = "gp"` y `catcher_era` no está en `_FIELDING`, así que
+  el motor lo prorratea por juegos. Dos temporadas de 50 juegos pesan igual aunque una sean 900
+  entradas detrás del plato y la otra 90 — que es la diferencia entre un receptor titular y un
+  cambio defensivo.
+  **El review se queda corto en la solución**: ponderar por `innings_outs` no es solo *mejor*, es
+  **exacto**. Como cERA = 9·ER/IP, la media ponderada por entradas Σ(cERA·IP)/ΣIP colapsa a
+  9·ΣER/ΣIP, que es la cERA de carrera de verdad. Pasa de aproximación a fórmula cerrada.
+  El dato existe: `rf_per9` ya usa `innings_outs` en el mismo diccionario. Falta que el peso pueda
+  ser por columna y no solo por oficio.
+
+### P2 — concurrencia y acceso
+
+- [ ] **`build_career_totals` no tiene candado** *(DEV-02 + ARCH-02)*.
+  Verificado: `build_leaders` toma `pg_advisory_xact_lock` antes de reconstruir; `career_totals` no
+  tiene nada, y borra e inserta las tres tablas de carrera. Son una cadena (`rebuilds.py`) con solo
+  la segunda mitad protegida.
+  Dejó de ser teórico cuando se implementó que cargar datos de apoyo dispare los rebuilds: ahora el
+  Backoffice y el orquestador pueden reconstruir a la vez, cada uno sobre una foto distinta, y el que
+  termine último publica. Mismo lock para toda la cadena, o dos locks tomados siempre en el mismo
+  orden.
+
+- [ ] **El detalle de la pizarra solo se abre con el mouse** *(QA-02 + FE-01)*.
+  Verificado: `pizarra.js` solo escucha `mouseenter`/`mouseleave`, y la tarjeta no tiene `tabindex`
+  ni `role`. **En un teléfono no hay hover**: se ve la banderita que promete dominicanos y no hay
+  forma de llegar al detalle ni a los videos.
+  Pesa más ahora que antes, porque este panel creció: enseña la línea de los juegos en curso y el
+  abridor probable de los que no han empezado. Hay que convertir la tarjeta detallable en un control
+  con `aria-expanded` que abra con clic, Enter y Espacio, y dejar el hover como comodidad del ratón.
+
+### P3 — higiene
+
+- [ ] **`/health/pipeline` entrega el detalle de los fallos a cualquiera** *(SEC-01, aceptado a medias)*.
+  **No estoy de acuerdo con cerrar el endpoint.** Que responda 200/503 sin autenticación fue una
+  decisión deliberada del dueño: el que tiene que leerlo es un monitor de uptime externo, y pedirle
+  credenciales a un servicio gratuito es cambiar una fuga menor por un monitor que nadie configura.
+  **Sí estoy de acuerdo con la parte concreta**: en el fallo, la respuesta incluye `pasos` con el
+  `detail` completo del `IngestRun` —nombres de comandos y el texto del error—, que es lo único con
+  valor de reconocimiento. Eso se recorta para el visitante anónimo y se conserva tras un
+  encabezado secreto o en el Backoffice. El semáforo sigue público.
+
+- [ ] **Siglas españolas en los `verbose_name` de los modelos de stats** *(DEV-03 + SAB-02)*.
+  Verificado: quedan `J`, `AP`, `C`, `BR`, `AR`, `P`, `GP`, `TS`, `ES`. `docs/AUTORIDAD.md` manda
+  siglas inglesas y las columnas que ve el lector ya las usan (`profiles/columns.py`), así que esto
+  es metadata desalineada, no un error visible.
+  No urge —esas tablas no tienen CRUD— pero es exactamente por donde vuelve: cualquier admin
+  genérico, export o formulario futuro las reintroduce sin que nadie lo decida. Un pase de labels.
+
+
 ## Code review v6 — findings (2026-07-26)
 
 Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación completa. Acá va solo lo
