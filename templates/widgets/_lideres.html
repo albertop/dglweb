@@ -26,12 +26,14 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="lideres-titulo">
         En el top 10
       </h2>
-      <div class="dgl-pestanas">
-        {% for oficio, etiqueta, grupos in lideres.oficios %}
-          <button type="button" class="dgl-pill{% if forloop.first %} active{% endif %}"
-                  data-oficio="{{ oficio }}">{{ etiqueta }}</button>
-        {% endfor %}
-      </div>
+      {% if lideres.con_pestanas %}
+        <div class="dgl-pestanas">
+          {% for oficio, etiqueta, grupos in lideres.oficios %}
+            <button type="button" class="dgl-pill{% if forloop.first %} active{% endif %}"
+                    data-oficio="{{ oficio }}">{{ etiqueta }}</button>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
 
     {% comment %}

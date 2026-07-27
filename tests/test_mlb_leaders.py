@@ -71,6 +71,11 @@ def _traer(proxy: _Proxy, universo: set[int]) -> list[mlb_leaders.Puesto]:
     return mlb_leaders.traer(proxy, 2026, universo)  # type: ignore[arg-type]
 
 
+def _cajas(datos: dict[str, Any]) -> list[dict[str, Any]]:
+    """Las cajas que muestra el widget, vengan en una lista o repartidas en dos pestañas."""
+    return [caja for _, _, grupo in datos["oficios"] for caja in grupo]
+
+
 # ── Quién entra ─────────────────────────────────────────────────────────────────────────────────
 
 
@@ -275,7 +280,7 @@ def test_the_widget_groups_by_metric_with_the_best_first(temporada: SeasonDates,
     datos = mlb_leaders.portada()
 
     assert datos is not None
-    (_, _, bateo), _ = datos["oficios"]
+    bateo = _cajas(datos)
     assert len(bateo) == 1
     assert [p.player_id for p in bateo[0]["puestos"]] == [222, 111]
 
@@ -291,8 +296,23 @@ def test_a_metric_turned_off_disappears_from_the_widget(temporada: SeasonDates, 
     datos = mlb_leaders.portada()
 
     assert datos is not None
-    (_, _, bateo), _ = datos["oficios"]
+    bateo = _cajas(datos)
     assert [g["metrica"].abbrev for g in bateo] == ["HR"]
+
+
+@pytest.mark.django_db
+def test_a_short_widget_drops_the_tabs(temporada: SeasonDates, hr: Metric, sb: Metric) -> None:
+    """Si todo cabe en las filas que se ven, las pestañas no esconden nada: solo agregan un clic."""
+    _jugador(111, "Uno")
+    proxy = _Proxy(("homeRuns", [(1, 111, "40")]), ("stolenBases", [(1, 111, "37")]))
+    mlb_leaders.guardar(2026, _traer(proxy, {111}), {})
+
+    datos = mlb_leaders.portada()
+
+    assert datos is not None
+    assert datos["con_pestanas"] is False
+    assert [clave for clave, _, _ in datos["oficios"]] == ["todos"]
+    assert len(datos["oficios"][0][2]) == 2
 
 
 @pytest.mark.django_db
@@ -311,7 +331,7 @@ def test_the_photo_path_is_literal_and_not_hashed(temporada: SeasonDates, hr: Me
     datos = mlb_leaders.portada()
 
     assert datos is not None
-    (_, _, bateo), _ = datos["oficios"]
+    bateo = _cajas(datos)
     assert bateo[0]["puestos"][0].foto.endswith("/img/mugshots/120/111.png")
 
 

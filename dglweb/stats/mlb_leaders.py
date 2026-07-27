@@ -179,6 +179,11 @@ def guardar(temporada: int, puestos: list[Puesto], codigos: dict[int, str]) -> i
     return len(filas)
 
 
+# Las cajas que caben sin desplegar: tres filas de dos columnas. Con esas o menos, separar los
+# oficios en pestañas no ahorra espacio —ya estaban todas a la vista— y solo agrega un clic.
+SIN_PESTANAS = 6
+
+
 def nombre_corto(nombre: str) -> str:
     """«Fernando Tatis Jr.» → «F. Tatis Jr.», «Juan Soto» → «J. Soto».
 
@@ -239,8 +244,20 @@ def portada(metricas: int = 5) -> dict[str, Any] | None:
 
     if temporada is None:
         return None
+
+    # Si todo cabe en las filas que se ven, las pestañas no esconden nada: son un clic para llegar a
+    # algo que ya estaba a la vista. Solo aparecen cuando de verdad hay que repartir el espacio.
+    total = sum(len(grupo) for grupo in oficios.values())
+    grupos = (
+        (("bateo", "Bateo", oficios["batting"]), ("pitcheo", "Pitcheo", oficios["pitching"]))
+        if total > SIN_PESTANAS
+        # Bateo primero y pitcheo después, sin entremezclar las categorías: el orden dentro de cada
+        # oficio lo pone el catálogo, y alternarlos rompería esa secuencia sin ganar nada.
+        else (("todos", "", [*oficios["batting"], *oficios["pitching"]]),)
+    )
     return {
-        "oficios": (("bateo", "Bateo", oficios["batting"]), ("pitcheo", "Pitcheo", oficios["pitching"])),
+        "oficios": grupos,
+        "con_pestanas": len(grupos) > 1,
         "visibles": metricas,
         "temporada": temporada,
     }

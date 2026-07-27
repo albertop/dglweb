@@ -745,7 +745,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    distinto en la pestaña que lo lleva y en la que no. Se apaga con `visibility` y no con `d-none`. */
 .dgl-lideres-mas {
   display: block; width: 100%; margin-top: .5rem; padding: .3rem; background: none;
-  border: 0; border-top: 1px solid var(--dgl-line); font: inherit; font-size: .72rem;
+  border: 0; font: inherit; font-size: .72rem;
   color: var(--dgl-blue); cursor: pointer;
 }
 .dgl-lideres-mas:hover { text-decoration: underline; }
