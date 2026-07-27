@@ -61,8 +61,9 @@ muestra escritas a mano.
 
 **Lo que falta de la fase**, y no es poco:
 
-- [ ] **Workflow de aprobación** (borrador → revisión → publicado) y **roles/grupos** de Wagtail.
-      Estaba en el plan de la fase y quedó fuera de este primer corte.
+- [x] **Workflow de aprobación y roles/grupos.** Hecho el 2026-07-27: tres roles montados por
+      migración (Redactores / Editores / Administradores), permisos colgados de la sección Artículos
+      y no de la raíz, y 9 tests que cubren el flujo entero. Ver `dglweb/core/roles.py`.
 - [ ] **Buscador de artículos.** Pedido del dueño el 2026-07-27. Hoy solo se navega por categoría y
       por la lista; con cincuenta artículos publicados eso deja de alcanzar, y los hashtags no sirven
       de índice si no hay dónde escribirlos. Wagtail ya indexa `title`, `entradilla` y `cuerpo` —
@@ -72,8 +73,9 @@ muestra escritas a mano.
 - [ ] **Paginación del índice.** Hoy se dibujan hasta 45 artículos y el botón los descubre de doce en
       doce sin ir al servidor (ver `TANDAS` en el modelo). Con cientos publicados eso es una página
       de cientos: ahí hace falta paginación de verdad.
-- [ ] **Restringir el Backoffice al rol *administrators*** (hoy es solo `staff`). Ya estaba anotado
-      como pendiente de esta fase en el BUILD_PLAN.
+- [x] **Restringir el Backoffice al rol *Administradores*.** Hecho el 2026-07-27. A un redactor no
+      le aparece el menú siquiera, y no por una regla suelta sino porque no tiene permisos sobre esos
+      modelos — Wagtail esconde lo que no se puede tocar.
 - [ ] **«Lo más leído» de verdad.** El panel dice «Lo más reciente» porque no hay analítica; el
       dueño lo prefirió así antes que inventar un ranking. Cuando haya cuentas de lectura, volver.
 

@@ -90,8 +90,8 @@
     Ambas versiones viejas estaban **fuera de soporte** (Django 5.1 EOL dic-2025, Wagtail 6.4 EOL
     ago-2025). Se hizo ahora, con la superficie Wagtail mínima (un modelo + un viewset), y no
     después de la Fase 5. Cero migraciones propias; gate verde. Ver `library-guidelines.md`.
-  - **Pendiente de Fase 5:** restringir el Backoffice al rol *administrators* (hoy es solo
-    superusuario, que es el default seguro).
+  - **Resuelto en la Fase 5 (2026-07-27):** el Backoffice ya está restringido al rol
+    *Administradores*. A un redactor no le aparece el menú siquiera.
 
 ## Fase 3 — Pipeline de datos: scrapers en marcha (ANTES del backfill) — ✅ COMPLETADA (2026-07-22)
 
@@ -239,12 +239,14 @@
   irreversible y silencioso, que es justo cómo un CSV corto pasa desapercibido.
   Ver `docs/DATOS_DE_APOYO.md`.
 
-## Fase 5 — Editorial: Wagtail (artículos + workflow + roles) — 🟡 EN CURSO (2026-07-27)
+## Fase 5 — Editorial: Wagtail (artículos + workflow + roles) — ✅ COMPLETADA (2026-07-27)
 
 - **Meta:** que **writers/editors** puedan producir contenido.
 - **Entrega:** `Article` Page con **StreamField** (bloques: párrafo, **tabla**, **gráfico**,
   **embed de jugador**); **workflow de aprobación**; **roles/grupos**; hashtags; links por mención.
-- **Done when:** flujo borrador → aprobación → publicación funciona en staging (con tests).
+- **Done when:** ✅ el flujo **borrador → revisión → publicado** funciona, con **9 tests** que lo
+  cubren: un redactor puede editar y **no** publicar, la tarea de aprobación llega a los editores,
+  enviar a revisión NO publica, y un editor aprobando sí. Falta probarlo en staging cuando exista.
 - **⏩ En paralelo desde aquí:** arranca la escritura de los **8–12 artículos semilla** — el CMS ya
   está utilizable, así que **este cuello de botella ya no está bloqueado**.
 
@@ -266,11 +268,20 @@
 - **Portada e índice** listan lo publicado; se fueron las tarjetas de muestra escritas a mano. Toda
   tarjeta mide 300px de alto para que la retícula no se desarme con un titular largo.
 
-### Lo que falta para cerrar la fase
+- **Los tres roles, montados por migración** (`core/roles.py` + `core/migrations/0001`):
+  **Redactores** escriben y no publican, **Editores** aprueban y publican, **Administradores** suman
+  el Backoffice y las cargas de datos de apoyo. Los permisos cuelgan de la sección **Artículos**, no
+  de la raíz del árbol. Los nombres de Wagtail (`Editors`/`Moderators`) quedaron traducidos: su
+  «Editors» es nuestro *Redactores* y su «Moderators» es nuestro *Editores*, porque en una redacción
+  el editor es el que aprueba.
+- **Dos fallos de permisos encontrados y arreglados** por los tests, los dos del tipo que no se ve:
+  la guarda de datos de apoyo buscaba un grupo `Administrators` que **no existía** —solo pasaban los
+  superusuarios, o sea funcionaba por accidente—; y la migración repartía permisos que **todavía no
+  existían** en una base nueva, porque Django los crea en una señal posterior a las migraciones. En
+  desarrollo no se notaba; en un despliegue desde cero, el grupo de administradores habría nacido
+  sin un solo permiso.
 
-- [ ] **Workflow de aprobación** (borrador → revisión → publicado) y **roles/grupos** de Wagtail.
-      Es el «Done when» y es lo único grande que queda.
-- [ ] **Restringir el Backoffice al rol *administrators*** (hoy es solo `staff`).
+### Lo que falta para cerrar la fase
 - [ ] **Buscador de artículos** (pedido del dueño). Wagtail ya indexa título, entradilla y cuerpo.
 - [ ] **Paginación del índice** — hoy se dibujan hasta 24 y el botón los descubre de seis en seis.
 - [ ] **Servir `/media/` desde el proxy en producción.** WhiteNoise no sirve medios. Y respaldar el

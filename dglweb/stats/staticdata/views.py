@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from dglweb.core import roles
 from dglweb.stats.models import StaticDataset
 from dglweb.stats.staticdata import engine
 
@@ -34,11 +35,17 @@ def _blocked(problems: list[engine.Problem], *, truncating: bool) -> engine.Comp
 
 
 def _is_admin(user: AbstractBaseUser | AnonymousUser) -> bool:
-    """Solo administradores. El Backoffice es de staff, pero esto reemplaza tablas enteras."""
+    """Solo administradores. El resto del CMS es para escribir; esto reemplaza tablas enteras.
+
+    El nombre del grupo sale de `core.roles` y no escrito acá. Estaba escrito acá —«Administrators»,
+    en inglés— y ese grupo NO EXISTÍA: la comprobación no fallaba, simplemente no dejaba pasar a
+    nadie salvo a los superusuarios. Es el peor tipo de error de permisos, el que se ve igual que
+    funcionar.
+    """
     if not user.is_authenticated:
         return False
     grupos = getattr(user, "groups", None)
-    es_grupo = bool(grupos and grupos.filter(name="Administrators").exists())
+    es_grupo = bool(grupos and grupos.filter(name__in=roles.MANDAN).exists())
     return bool(getattr(user, "is_superuser", False) or es_grupo)
 
 
