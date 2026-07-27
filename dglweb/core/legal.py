@@ -19,9 +19,9 @@ habilitado antes de que el sitio reciba anuncios o abra cuentas de usuario.
 
 from datetime import date
 
-# Quién responde. Mientras el sitio sea de una persona y no de una sociedad, va el nombre de la
-# persona: inventar una razón social que no existe en el registro mercantil sería peor que esto.
-RESPONSABLE = "Alberto Perdomo"  # ← confirmar: ¿persona física o una sociedad con RNC?
+# Quién responde. Es la agencia que gestiona el sitio, no la persona que escribe el código: quien
+# responde ante un reclamo de datos personales tiene que ser quien decide qué se publica y para qué.
+RESPONSABLE = "Adcio Media"  # ← confirmar: razón social exacta y RNC, si está constituida
 DOMINIO = "dominicanosengrandesligas.com"
 CONTACTO = "privacidad@dominicanosengrandesligas.com"  # ← confirmar: que el buzón exista y se lea
 PAIS = "República Dominicana"
@@ -38,6 +38,22 @@ DIAS_DE_REGISTROS = 30  # ← confirmar contra la configuración real del proxy
 # una constante y no `date.today()`: una fecha que se mueve sola diría que el aviso se revisó hoy
 # cuando lleva meses igual, que es exactamente la mentira que la fecha existe para evitar.
 ACTUALIZADO = date(2026, 7, 27)
+
+# EL AVISO DE RETROSHEET. Esto no es cortesía: es la ÚNICA condición que pone Retrosheet a cambio de
+# dejar usar sus datos para lo que sea, incluso vendiéndolos. Su licencia dice, literalmente, que la
+# declaración «must appear prominently» — y de ahí salen dos decisiones:
+#
+# 1. Va **al pie de todas las páginas**, no escondida en la página legal. «Prominently» no se cumple
+#    con un enlace a tres clics de distancia.
+# 2. Va **en inglés y palabra por palabra**. Lo que la licencia autoriza es ESTE texto; una versión
+#    traducida o resumida es un texto distinto, y quien concede el permiso es quien decide su forma.
+#    La traducción al español se pone al lado, marcada como tal, para quien la necesite.
+#
+# `tests/test_legal.py` comprueba que aparece en todas las páginas y que nadie lo ha reescrito.
+RETROSHEET = (
+    "The information used here was obtained free of charge from and is copyrighted by Retrosheet. "
+    'Interested parties may contact Retrosheet at "www.retrosheet.org".'
+)
 
 # Las tres páginas, en el orden en que se enlazan en el pie. La vista y las pruebas salen de acá:
 # añadir una cuarta es añadir una línea y su plantilla, sin tocar `urls.py` ni la vista.

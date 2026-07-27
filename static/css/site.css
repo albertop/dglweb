@@ -1251,3 +1251,16 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   font-size: 1.02rem; margin-bottom: 1.5rem;
 }
 .dgl-legal-hermanas { border-top: 1px solid #dde3ea; display: flex; gap: 1.5rem; font-size: .9rem; }
+
+/* El aviso de Retrosheet, al pie de todas las páginas. Su licencia pide que aparezca «prominently»,
+   así que está en el pie y no escondido en los términos — pero es letra de crédito, no de lectura:
+   va en el tamaño más pequeño del sitio y en el gris apagado del pie, debajo del copyright.
+
+   Dos párrafos, inglés y español. El inglés es el que cumple la licencia; el español es cortesía
+   para el lector, y por eso el segundo va todavía un punto más apagado. */
+.dgl-retrosheet {
+  margin-top: .9rem; text-align: center; font-size: .7rem; line-height: 1.5; color: #6f88ab;
+  max-width: 62rem; margin-left: auto; margin-right: auto;
+}
+.dgl-retrosheet p:last-child { color: #5c7398; }
+.dgl-retrosheet a { color: #8ea6c8; }

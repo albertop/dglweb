@@ -12,8 +12,10 @@ relajarla: es actualizar `templates/legal/cookies.html` y montar el consentimien
 """
 
 import pytest
+from bs4 import BeautifulSoup
 from django.test import Client
 from django.urls import reverse
+from django.utils.html import escape
 
 from dglweb.core import legal
 
@@ -61,16 +63,46 @@ def test_el_sitio_publico_no_pone_cookies(client: Client, ruta: str) -> None:
 def test_el_sitio_publico_no_pide_nada_a_terceros(client: Client, ruta: str) -> None:
     """La otra afirmación del documento: que la visita no se le anuncia a nadie más.
 
-    Se comprueba sobre el HTML servido, que es donde viviría la etiqueta —un `<script>` de analítica,
-    una fuente de Google, un anuncio—. El único dominio externo permitido es el enlace al Instagram
-    de la agencia, que es un enlace: no dispara ninguna petición hasta que alguien lo pulsa.
+    Lo que se prohíbe es CARGAR de un tercero —un `<script>` de analítica, una fuente de Google, una
+    etiqueta de anuncios—, no ENLAZAR a uno. La diferencia es exactamente la que importa acá: un
+    `<a href>` a Retrosheet no le cuenta nada a Retrosheet hasta que alguien lo pulsa, mientras que
+    un `<script src>` dispara la petición sola, con la IP del visitante, en cada visita.
+
+    Por eso mira `src` de cualquier etiqueta y `href` SOLO de `<link>` —que es una carga— y deja en
+    paz los `href` de los enlaces. Así no hay lista blanca que actualizar cada vez que el sitio
+    enlace a algún sitio nuevo.
     """
-    html = client.get(ruta).content.decode()
-    for atributo in ("src=", "href="):
-        for trozo in html.split(atributo)[1:]:
-            url = trozo[1:].split(trozo[0])[0] if trozo[:1] in ("'", '"') else trozo.split()[0]
-            if url.startswith(("http://", "https://")):
-                assert url.startswith("https://www.instagram.com/"), f"{ruta} carga {url}"
+    sopa = BeautifulSoup(client.get(ruta).content.decode(), "html.parser")
+    cargas = [etiqueta.get("src") for etiqueta in sopa.find_all(src=True)]
+    cargas += [etiqueta.get("href") for etiqueta in sopa.find_all("link", href=True)]
+    for url in cargas:
+        assert not str(url).startswith(("http://", "https://")), f"{ruta} carga {url}"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ruta", PUBLICAS)
+def test_el_aviso_de_retrosheet_sale_en_todas_las_paginas(client: Client, ruta: str) -> None:
+    """La única condición que pone Retrosheet a cambio de sus datos.
+
+    Su licencia pide que la declaración aparezca «prominently», y de ahí que vaya en el pie y no
+    escondida en los términos. Esta prueba es la que impide que se caiga sin que nadie lo note: un
+    pie es justo el sitio del que se borran cosas al rediseñar.
+    """
+    # `escape()` y no la cadena cruda: el aviso lleva comillas alrededor de «www.retrosheet.org» y
+    # Django las escribe como `&quot;`. En pantalla se leen igual; en el HTML no coinciden.
+    assert escape(legal.RETROSHEET) in client.get(ruta).content.decode(), ruta
+
+
+def test_el_aviso_de_retrosheet_esta_palabra_por_palabra() -> None:
+    """Lo que la licencia autoriza es ESE texto, no un resumen ni una traducción.
+
+    Se comprueban las piezas que no se pueden perder al «mejorar la redacción»: que fue gratis, que
+    los derechos son de ellos y la vía de contacto. Reescribirlo es publicar sin permiso.
+    """
+    assert legal.RETROSHEET == (
+        "The information used here was obtained free of charge from and is copyrighted by "
+        'Retrosheet. Interested parties may contact Retrosheet at "www.retrosheet.org".'
+    )
 
 
 def test_la_fecha_de_actualizacion_no_se_mueve_sola() -> None:

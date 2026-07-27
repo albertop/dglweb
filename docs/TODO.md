@@ -494,6 +494,17 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   días de retención de los registros del proxy— y que un abogado revise la calificación jurídica.
   El texto describe los hechos con exactitud; que esa descripción cumpla la Ley 172-13 y el RGPD lo
   tiene que decir alguien habilitado, sobre todo antes de que entren anuncios o cuentas de usuario.
+
+  **El responsable declarado es Adcio Media**, la agencia que gestiona el sitio — no quien escribe
+  el código. Quien responde ante un reclamo de datos personales tiene que ser quien decide qué se
+  publica y para qué.
+
+  **El aviso de Retrosheet va en el pie de todas las páginas**, en inglés y palabra por palabra.
+  Es la única condición que ponen a cambio de dejar usar sus datos para lo que sea, y su licencia
+  pide que aparezca «prominently»: un enlace a tres clics de distancia no cumple eso. La
+  traducción al español va al lado, marcada como tal, porque lo que la licencia autoriza es el
+  texto en inglés y no una versión nuestra. Dos pruebas lo vigilan: que salga en todas las
+  páginas y que nadie lo haya reescrito.
 - [ ] Dónde/ cuándo se activa el muro de registro (post-launch).
 
 ## Code review v4 — findings (2026-07-24)

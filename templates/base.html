@@ -36,7 +36,7 @@
   <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   <link href="{% static 'vendor/bootstrap.min.css' %}" rel="stylesheet">
-  <link href="{% static 'css/site.css' %}?v=108" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=109" rel="stylesheet">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -186,6 +186,21 @@
         </span>
       </a>
       <div class="small dgl-copyright">© 2026 dominicanosengrandesligas.com</div>
+    </div>
+    {% comment %}
+      EL AVISO DE RETROSHEET. Es la única condición que ponen a cambio de dejar usar sus datos, y su
+      licencia pide que aparezca «prominently» — por eso va en el pie de TODAS las páginas y no
+      enterrado en la página de términos, a tres clics de distancia.
+
+      Va en inglés y palabra por palabra porque lo que la licencia autoriza es ESE texto; la versión
+      en español se pone debajo, marcada como traducción, para quien la necesite. Ver
+      `core/legal.py` y la prueba que lo vigila.
+    {% endcomment %}
+    <div class="dgl-retrosheet">
+      <p lang="en" class="mb-1">{{ aviso_retrosheet }}</p>
+      <p class="mb-0">La información aquí usada se obtuvo gratuitamente de Retrosheet, que ostenta
+        sus derechos de autor. Puede contactarlos en
+        <a href="https://www.retrosheet.org" target="_blank" rel="noopener">www.retrosheet.org</a>.</p>
     </div>
   </div>
 </footer>

@@ -27,12 +27,42 @@ eso, el propio nombre de los equipos en las tablas se puede leer como una afilia
   son marcas de sus respectivos titulares.
 </p>
 
-<h2>De dónde salen los datos y qué garantía tienen</h2>
+<h2>De dónde salen los datos</h2>
+<p>Las estadísticas y los registros históricos que publicamos proceden de tres sitios:</p>
+<ul>
+  <li><b>Retrosheet</b> (<a href="https://www.retrosheet.org" target="_blank" rel="noopener">www.retrosheet.org</a>),
+    de donde viene buena parte del registro histórico —incluidos los tipos de batazo de temporadas
+    que ninguna otra fuente cubre bien.</li>
+  <li>La <b>API oficial de estadísticas de las Grandes Ligas</b>, para la temporada en curso y el
+    grueso de las líneas de bateo, pitcheo y fildeo.</li>
+  <li>El <b>maestro de peloteros dominicanos</b> que mantenemos nosotros, que es lo que define quién
+    entra en este sitio.</li>
+</ul>
+
+<h2>Aviso de Retrosheet</h2>
+{% comment %}
+  Palabra por palabra y en inglés: es la condición que pone su licencia, y lo que autoriza es ESE
+  texto. Ver `core/legal.py`. El mismo aviso va en el pie de todas las páginas, que es donde la
+  licencia pide que esté — «prominently».
+{% endcomment %}
+<p lang="en"><b>{{ legal.RETROSHEET }}</b></p>
 <p>
-  Las estadísticas provienen de fuentes públicas —principalmente la API oficial de estadísticas de
-  las Grandes Ligas— y de registros históricos propios. Trabajamos para que sean correctas, pero
-  <b>se ofrecen tal cual, sin garantía de exactitud, integridad ni actualización</b>: una fuente
-  puede corregir un dato, un proceso puede fallar y una cifra puede quedarse atrás.
+  <i>Traducción, sin valor legal:</i> la información aquí usada se obtuvo gratuitamente de
+  Retrosheet, que ostenta sus derechos de autor. Puede contactarlos en
+  <a href="https://www.retrosheet.org" target="_blank" rel="noopener">www.retrosheet.org</a>.
+</p>
+<p>
+  Retrosheet no garantiza la exactitud de la información que suministra. Dedican mucho esfuerzo a
+  que su sitio sea lo más correcto posible, pero no se les puede responsabilizar por las
+  consecuencias del uso de ese material, y toda la información está sujeta a correcciones a medida
+  que reciben datos nuevos. Agradecen que se les avise de cualquier discrepancia.
+</p>
+
+<h2>Qué garantía tienen los datos</h2>
+<p>
+  Trabajamos para que sean correctos, pero <b>se ofrecen tal cual, sin garantía de exactitud,
+  integridad ni actualización</b>: una fuente puede corregir un dato, un proceso puede fallar y una
+  cifra puede quedarse atrás.
 </p>
 <p>
   <b>No uses este sitio como base para apuestas, decisiones económicas ni nada que dependa de que un
