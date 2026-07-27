@@ -23,6 +23,13 @@ RUN pip install --upgrade pip && pip install -r requirements-dev.txt
 # es código y esto es dato de operación.
 RUN mkdir -p /app/uploads
 
+# Lo que sube el editor desde el CMS (`MEDIA_ROOT`). La carpeta tiene que existir EN LA IMAGEN aunque
+# encima vaya un volumen: Docker copia el contenido y los permisos de la carpeta de la imagen al
+# crear un volumen vacío, así que si acá no existe, el volumen nace de root y el proceso —que corre
+# como `appuser`— no puede escribir. Se ve como un «Permission denied» al guardar la primera imagen,
+# lejísimos de su causa.
+RUN mkdir -p /app/media
+
 # App code
 COPY . .
 

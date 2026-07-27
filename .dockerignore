@@ -20,3 +20,4 @@ static_data/
 # cambia el roster, y hornearlas obligaría a reconstruir la imagen por cada foto nueva. En el VPS
 # se montan desde la carpeta local del proyecto (ver docker-compose.yml).
 static/img/mugshots/
+media/

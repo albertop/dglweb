@@ -32,3 +32,8 @@ static_data/csv/
 # static_data/scripts/download_mugshots.ps1. La carpeta se monta en el contenedor tal cual.
 static/img/mugshots/**/*.png
 static/img/mugshots/**/*.jpg
+
+# Lo que sube el editor desde el CMS. La CARPETA se versiona (con su .gitkeep) para que el volumen
+# tenga dónde montarse; los archivos NO: son contenido del sitio, no código, y viven en el volumen.
+media/*
+!media/.gitkeep

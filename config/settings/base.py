@@ -104,6 +104,17 @@ TIME_ZONE = "America/Santo_Domingo"
 USE_I18N = True
 USE_TZ = True
 
+# --- Medios: lo que sube el editor desde el CMS ---
+# Distinto de los estáticos y por eso va aparte. Los estáticos los escribe un programador, entran a
+# la imagen de Docker y se recogen con `collectstatic`; esto lo escribe una PERSONA desde el
+# navegador mientras el sitio corre, así que vive en un volumen y sobrevive a un despliegue.
+#
+# Sin esto, Wagtail no puede aceptar una imagen: `MEDIA_ROOT` vacío deja los archivos tirados en la
+# raíz del proyecto y `MEDIA_URL` vacío hace que ninguna se pueda pedir. En dev las sirve Django (ver
+# `config/urls.py`); en producción tiene que servirlas el proxy — anotado en el TODO.
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+
 # --- Static files (served by WhiteNoise in prod) ---
 # Leading slash so assets resolve from the site root on nested paths (e.g. /cms/login/).
 STATIC_URL = "/static/"

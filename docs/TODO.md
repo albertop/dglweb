@@ -773,3 +773,17 @@ el derecho y no en el izquierdo, Polanco en segunda.
     fallaría al buscarlos.
   * `alt` vacío: el nombre está al lado en un `<h1>` y repetirlo hace que un lector de pantalla lo
     diga dos veces.
+
+## Servir los medios en producción (2026-07-27)
+
+`MEDIA_ROOT` y `MEDIA_URL` quedaron configurados con la Fase 5: sin ellos Wagtail no podía aceptar
+una imagen, porque los archivos caían en la raíz del proyecto y ninguna URL los alcanzaba. En
+desarrollo las sirve Django (`static()` en `config/urls.py`, que se anula solo cuando `DEBUG` es
+falso). Los archivos viven en el volumen `dglweb_media`.
+
+- [ ] **En producción los tiene que servir el proxy** desde `MEDIA_ROOT`. WhiteNoise NO sirve medios:
+      está para los estáticos, que son los que entran a la imagen. Sin esta regla, en el VPS el CMS
+      acepta la imagen y después la muestra rota.
+- [ ] **Respaldar `dglweb_media`.** Es contenido del sitio escrito por una persona, igual que la base:
+      si se pierde el volumen, las fotos de todos los artículos se van con él y no hay de dónde
+      recuperarlas.

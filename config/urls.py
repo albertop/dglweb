@@ -5,6 +5,8 @@
 - `/django-admin/` -> Django admin.
 """
 
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import URLPattern, URLResolver, include, path
 from wagtail import urls as wagtail_urls
@@ -36,3 +38,9 @@ urlpatterns: list[URLPattern | URLResolver] = [
     # es el punto de tener un CMS: el editor mueve o renombra la página sin tocar este archivo.
     path("", include(wagtail_urls)),
 ]
+
+# Las imágenes que sube el editor, servidas por Django SOLO en desarrollo. `static()` se anula solo
+# cuando `DEBUG` es falso, así que en producción esto no sirve nada: ahí las tiene que servir el
+# proxy desde `MEDIA_ROOT`. Sin este par de líneas, en dev el CMS acepta la imagen y después la
+# muestra rota, que es de los errores que más tiempo hacen perder porque parece un fallo de Wagtail.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

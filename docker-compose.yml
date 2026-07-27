@@ -50,6 +50,10 @@ services:
       # Explícito aunque `.:/app` ya las traiga: así la ruta sigue montada si mañana el compose de
       # producción no monta el árbol de código entero.
       - ./static/img/mugshots:/app/static/img/mugshots
+      # Lo que sube el editor desde el CMS. Va en un volumen con nombre y no en una carpeta del
+      # proyecto: es contenido del sitio, lo escribe una persona mientras el sitio corre, y tiene que
+      # sobrevivir a que se reconstruya la imagen. Mismo trato que los CSV de datos de apoyo.
+      - dglweb_media:/app/media
     ports:
       - "8000:8000"
     depends_on:
@@ -91,4 +95,5 @@ services:
 
 volumes:
   dglweb_uploads:
+  dglweb_media:
   dglweb_pgdata:
