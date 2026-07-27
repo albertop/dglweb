@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% comment %}
+El marco de las tres páginas legales. Reutiliza `.dgl-articulo` —la columna estrecha del artículo—
+porque el problema es el mismo: son textos largos y una línea de más de unos 75 caracteres se lee
+peor, y esto ya es de por sí lo menos apetecible de leer del sitio.
+
+No lleva hueco publicitario. Un aviso de privacidad rodeado de anuncios se lee como lo que no debe
+ser: un trámite. Y cuando los anuncios lleguen de verdad, esta es justo la página donde el visitante
+viene a entender qué hacen — ponerles uno al lado sería de mal gusto.
+{% endcomment %}
+{% block title %}{{ titulo }} · Dominicanos en Grandes Ligas{% endblock %}
+{% comment %}
+  `noindex` no: estas páginas SÍ deben ser indexables. Que se encuentren desde fuera es parte de que
+  sirvan para algo, y los anunciantes las van a mirar antes de firmar.
+{% endcomment %}
+{% block meta %}<meta name="description" content="{{ titulo }} de {{ legal.DOMINIO }}.">{% endblock %}
+
+{% block content %}
+<main class="container my-4">
+  <article class="dgl-articulo dgl-legal">
+    <header class="mb-4">
+      <h1 class="dgl-page-title">{{ titulo }}</h1>
+      {% comment %}
+        La fecha se toca a mano al cambiar el texto (ver `core/legal.py`). Sale arriba y no enterrada
+        al final porque es lo primero que mira quien vuelve: qué cambió desde la última vez.
+      {% endcomment %}
+      <div class="dgl-meta">Última actualización: {{ legal.ACTUALIZADO|date:"j \d\e F \d\e Y" }}</div>
+    </header>
+
+    {% block documento %}{% endblock %}
+
+    {% comment %}
+      Las otras dos, al pie de cada una. Los tres textos se solapan —el de cookies remite al de
+      privacidad, el de términos a los dos— y obligar a volver al pie de página para saltar entre
+      ellos es fricción tonta.
+    {% endcomment %}
+    <nav class="dgl-legal-hermanas mt-5 pt-3" aria-label="Otros documentos">
+      {% for slug, nombre in legal.PAGINAS.items %}
+        {% if slug != documento %}
+          <a href="{% url 'legal' slug %}">{{ nombre }}</a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  </article>
+</main>
+{% endblock %}

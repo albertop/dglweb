@@ -27,3 +27,15 @@ def cintillo(request: HttpRequest) -> dict[str, Any]:
         movimientos = roster_moves.portada()
         cache.set(CLAVE, movimientos, SEGUNDOS)
     return {"movimientos": movimientos}
+
+
+def paginas_legales(request: HttpRequest) -> dict[str, Any]:
+    """`legal_paginas` — los tres documentos legales, para la columna del pie.
+
+    Es una constante del código, así que no toca la base ni la caché: sale del mismo diccionario que
+    usan la vista y las pruebas. Ese es todo el punto — el pie no puede enlazar a un documento que
+    no existe, ni dejar uno sin enlazar, porque las dos listas son la misma lista.
+    """
+    from dglweb.core import legal
+
+    return {"legal_paginas": legal.PAGINAS}

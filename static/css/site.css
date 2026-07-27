@@ -1220,3 +1220,34 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 @media (max-width: 767.98px) {
   .dgl-pie-firma { grid-template-columns: 1fr; justify-items: center; text-align: center; }
 }
+
+/* Las páginas legales. Reutilizan `.dgl-articulo` para el ancho de columna —el mismo problema de
+   legibilidad— y esto solo añade lo que el texto largo de un documento necesita y un artículo no.
+
+   El interlineado sube a 1.7: son párrafos densos, sin fotos ni gráficos que den respiro, y con el
+   1.5 del cuerpo normal quedaban como un muro. */
+/* En serif y no en la monoespaciada del sitio, por lo mismo que el cuerpo de un artículo: son
+   párrafos para leer seguido, no rótulos. En mono, un documento de mil palabras se lee como un
+   volcado de terminal — y estas páginas ya parten con toda la desventaja del mundo. */
+.dgl-legal {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 1.05rem; line-height: 1.7; color: var(--dgl-ink);
+}
+/* Los titulillos SÍ vuelven a la mono, igual que los subtítulos de un artículo: lo que corta el
+   texto se distingue mejor con la letra de los rótulos. */
+.dgl-legal h2 {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 1.1rem; font-weight: 800; letter-spacing: -.02em;
+  margin-top: 2.2rem; margin-bottom: .6rem;
+}
+.dgl-legal p { margin-bottom: 1rem; }
+.dgl-legal a { color: var(--dgl-blue); text-decoration: underline; }
+.dgl-legal ul { margin-bottom: 1rem; }
+.dgl-legal li { margin-bottom: .4rem; }
+/* El resumen de arriba: lo que se lleva quien no va a leer el resto, que son casi todos. Con el
+   filete rojo del sitio, como los titulillos de los widgets. */
+.dgl-legal-resumen {
+  border-left: 3px solid var(--dgl-red); padding: .1rem 0 .1rem .9rem;
+  font-size: 1.02rem; margin-bottom: 1.5rem;
+}
+.dgl-legal-hermanas { border-top: 1px solid #dde3ea; display: flex; gap: 1.5rem; font-size: .9rem; }

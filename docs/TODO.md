@@ -471,7 +471,29 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   contratar. Del lado del código no urge: los huecos ya están en las plantillas, con alto fijo y
   agnósticos de proveedor. Elegir es pegar una etiqueta en un sitio.
 - [ ] Listado exacto de métricas sabermétricas por página de jugador.
-- [ ] Redactar legal: privacidad + consentimiento de cookies + ToS.
+- [x] **Redactar legal: privacidad + cookies + ToS.** (2026-07-27) Los tres documentos están escritos
+  y publicados en `/legal/privacidad/`, `/legal/terminos/` y `/legal/cookies/`, enlazados desde el
+  pie de todas las páginas. Son plantillas del repositorio y no páginas del CMS: un aviso legal no
+  se puede despublicar con un clic, y el historial que importa ante un reclamo es un `git log` con
+  fecha y autor, no las revisiones de Wagtail.
+
+  Describen lo que el sitio hace HOY, medido: quien solo navega **no recibe ninguna cookie** ni deja
+  nada en el almacenamiento del navegador, y las páginas públicas **no piden nada a terceros** desde
+  que se vendorizaron las fuentes. Las dos afirmaciones están sostenidas por pruebas
+  (`tests/test_legal.py`), así que el día que entre una etiqueta de analítica o de anuncios el gate
+  se cae y obliga a actualizar el texto — que es el fallo clásico: la política que se queda atrás
+  del código sin que nadie lo note, porque una cookie no se ve.
+
+  **NO hay cartel de consentimiento, a propósito.** No hay ninguna cookie no esencial que consentir,
+  y un cartel que pide permiso para nada enseña a pulsar «aceptar» sin leer. Se construye cuando
+  entre la primera, o sea con la publicidad — y la página de cookies ya declara por escrito el
+  compromiso de cómo será (rechazar tan fácil como aceptar, nada se instala antes de elegir).
+
+  Pendiente y **es del dueño**: confirmar los cuatro datos marcados con `# ← confirmar` en
+  `dglweb/core/legal.py` —identidad del responsable, buzón de contacto, proveedor de alojamiento y
+  días de retención de los registros del proxy— y que un abogado revise la calificación jurídica.
+  El texto describe los hechos con exactitud; que esa descripción cumpla la Ley 172-13 y el RGPD lo
+  tiene que decir alguien habilitado, sobre todo antes de que entren anuncios o cuentas de usuario.
 - [ ] Dónde/ cuándo se activa el muro de registro (post-launch).
 
 ## Code review v4 — findings (2026-07-24)

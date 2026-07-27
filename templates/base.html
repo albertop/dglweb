@@ -36,7 +36,7 @@
   <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   <link href="{% static 'vendor/bootstrap.min.css' %}" rel="stylesheet">
-  <link href="{% static 'css/site.css' %}?v=106" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=108" rel="stylesheet">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -153,8 +153,16 @@
           <li><a href="{% url 'players_index' %}">Jugadores</a></li></ul>
       </div>
       <div class="col-6 col-md-4"><h6 id="pie-legal">Legal</h6>
-        <ul class="list-unstyled small" aria-labelledby="pie-legal"><li><a href="#">Política de privacidad</a></li>
-          <li><a href="#">Términos de servicio</a></li><li><a href="#">Cookies</a></li></ul></div>
+        {% comment %}
+          Salen del diccionario de `core/legal.py` y no escritos a mano: es la misma lista que usan
+          la vista y las pruebas, así que no puede haber un enlace en el pie a un documento que no
+          existe, ni un documento sin enlace.
+        {% endcomment %}
+        <ul class="list-unstyled small" aria-labelledby="pie-legal">
+          {% for slug, nombre in legal_paginas.items %}
+            <li><a href="{% url 'legal' slug %}">{{ nombre }}</a></li>
+          {% endfor %}
+        </ul></div>
     </div>
     <hr style="border-color:#25406b">
     {% comment %}

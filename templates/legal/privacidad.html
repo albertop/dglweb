@@ -1,0 +1,112 @@
+{% extends "legal/_base.html" %}
+{% comment %}
+Este texto describe lo que el sitio hace HOY, no lo que suele hacer un sitio. Cada afirmación de
+abajo es comprobable y varias están sostenidas por pruebas en `tests/test_legal.py` — en particular
+la de que quien solo navega no recibe ninguna cookie.
+
+Si mañana se añade analítica, publicidad o cuentas de usuario, este archivo cambia EN EL MISMO
+commit que el cambio. Un aviso de privacidad que va por detrás del código es papel mojado.
+{% endcomment %}
+
+{% block documento %}
+<p class="dgl-legal-resumen">
+  En corto: si solo lees el sitio, no te pedimos nada, no te seguimos y no te ponemos ninguna cookie.
+  Lo único que queda de tu visita es el registro técnico del servidor, y se borra a los
+  {{ legal.DIAS_DE_REGISTROS }} días.
+</p>
+
+<h2>Quién es responsable</h2>
+<p>
+  {{ legal.RESPONSABLE }}, responsable del sitio <b>{{ legal.DOMINIO }}</b>, con domicilio en
+  {{ legal.PAIS }}. Para cualquier asunto relacionado con este aviso:
+  <a href="mailto:{{ legal.CONTACTO }}">{{ legal.CONTACTO }}</a>.
+</p>
+
+<h2>Qué datos recogemos</h2>
+<p>
+  <b>De quien solo navega, prácticamente nada.</b> El sitio no tiene formularios de registro, no pide
+  correo, no pide nombre y no usa analítica de terceros. Las fuentes tipográficas y las librerías de
+  diseño se sirven desde nuestro propio servidor, así que tu visita tampoco se le anuncia a Google ni
+  a ninguna red de distribución de contenidos.
+</p>
+<p>Lo que sí queda registrado, por el simple hecho de que un servidor atienda una petición:</p>
+<ul>
+  <li><b>Dirección IP</b> desde la que se conecta el navegador.</li>
+  <li><b>Fecha y hora</b> de la petición.</li>
+  <li><b>Página pedida</b>, incluido —si usaste el buscador— el texto que escribiste en él.</li>
+  <li><b>Tipo de navegador y sistema operativo</b>, y la página desde la que llegaste, si la hay.</li>
+</ul>
+<p>
+  Esos registros los usamos para que el sitio funcione y para detectar abusos o fallos, y se borran a
+  los <b>{{ legal.DIAS_DE_REGISTROS }} días</b>. No se cruzan con ninguna otra información ni se usan
+  para construir un perfil tuyo.
+</p>
+
+<h2>Cookies</h2>
+<p>
+  <b>Ahora mismo el sitio público no instala ninguna cookie</b> ni guarda nada en el almacenamiento
+  local de tu navegador. Los detalles, y qué pasaría si eso cambia, están en la
+  <a href="{% url 'legal' 'cookies' %}">política de cookies</a>.
+</p>
+
+<h2>Los datos de los peloteros</h2>
+{% comment %}
+  Esta sección es la que un aviso genérico se salta y es, con diferencia, el tratamiento de datos
+  personales más grande que hace el sitio: nombres, fechas de nacimiento y lugar de origen de miles
+  de personas reales. Callarlo sería describir mal lo que el sitio hace.
+{% endcomment %}
+<p>
+  El sitio publica información sobre jugadores profesionales de béisbol: nombre, fecha y lugar de
+  nacimiento, posición, equipos y estadísticas de juego. Son <b>datos de figuras públicas en el
+  ejercicio de su actividad profesional</b>, y proceden de fuentes públicas —principalmente la API
+  oficial de estadísticas de las Grandes Ligas— más los registros históricos que mantenemos nosotros.
+</p>
+<p>
+  Los tratamos con fines <b>informativos, periodísticos y de documentación deportiva</b>. No
+  publicamos domicilios, datos de contacto, información de salud ni nada que quede fuera de la
+  carrera deportiva. Si eres uno de esos jugadores —o su representante— y hay algo incorrecto o que
+  entiendes que no debería estar publicado, escríbenos a
+  <a href="mailto:{{ legal.CONTACTO }}">{{ legal.CONTACTO }}</a> y lo revisamos.
+</p>
+
+<h2>Con quién se comparten</h2>
+<p>
+  Con nadie. No vendemos, alquilamos ni cedemos datos. Los registros técnicos descritos arriba viven
+  en el servidor donde está alojado el sitio, que opera {{ legal.ALOJAMIENTO }}; ese proveedor los
+  procesa únicamente para prestarnos el servicio de alojamiento. Solo se entregarían datos a una
+  autoridad si una orden legal válida lo exigiera.
+</p>
+
+<h2>Tus derechos</h2>
+<p>
+  Puedes pedirnos acceder a los datos que tengamos sobre ti, corregirlos, eliminarlos u oponerte a su
+  tratamiento, según reconoce la <b>Ley 172-13 de Protección de Datos Personales</b> de
+  {{ legal.PAIS }}. Si escribes desde la Unión Europea, el <b>RGPD</b> te reconoce además el derecho
+  a la portabilidad y a presentar una reclamación ante tu autoridad de control.
+</p>
+<p>
+  La vía es la misma: <a href="mailto:{{ legal.CONTACTO }}">{{ legal.CONTACTO }}</a>. Respondemos en
+  un plazo máximo de 30 días. Ten en cuenta que, si solo has navegado por el sitio, lo único que
+  podríamos localizar es un registro técnico asociado a una dirección IP.
+</p>
+
+<h2>Menores</h2>
+<p>
+  El sitio no está dirigido a menores de 13 años y no recoge datos de forma consciente de nadie de
+  esa edad. Como no hay registro de usuarios, tampoco hay forma de que un menor nos entregue datos
+  personales por su cuenta.
+</p>
+
+<h2>Seguridad</h2>
+<p>
+  El sitio se sirve cifrado (HTTPS) y el acceso al sistema de publicación está restringido a las
+  personas del equipo editorial, cada una con su propia cuenta.
+</p>
+
+<h2>Cambios en este aviso</h2>
+<p>
+  Si el sitio empieza a hacer algo distinto —anuncios, cuentas de usuario, medición de audiencia—
+  este texto se actualiza <b>antes</b> de que ese cambio llegue a producción, y la fecha de arriba lo
+  refleja. Los cambios importantes se anuncian en la portada.
+</p>
+{% endblock %}

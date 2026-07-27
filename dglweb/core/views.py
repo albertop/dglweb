@@ -1,9 +1,11 @@
 import secrets
 from datetime import timedelta
 
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
+
+from dglweb.core import legal
 
 # Cuántos artículos entran en la portada: uno grande arriba y tres en la fila de abajo, que es la
 # retícula que ya estaba dibujada. El corte vive acá y no en la plantilla para que el HTML no tenga
@@ -72,6 +74,29 @@ def pizarra(request: HttpRequest) -> HttpResponse:
     from dglweb.stats import scoreboard
 
     return render(request, "widgets/_pizarra.html", {"pizarra": scoreboard.del_dia()})
+
+
+def documento_legal(request: HttpRequest, documento: str) -> HttpResponse:
+    """Las tres páginas legales: privacidad, términos y cookies.
+
+    Son plantillas del repositorio y no páginas del CMS, a diferencia de los artículos, y la razón
+    no es pereza:
+
+    - **No pueden desaparecer.** Una página del CMS se despublica con un clic, y quedarse sin aviso
+      de privacidad publicado es un incumplimiento, no un fallo de maquetación.
+    - **El historial tiene que ser un diff.** Ante un reclamo, lo que importa es qué decía el texto
+      tal día. `git log` responde eso mejor que las revisiones del CMS, y con quién lo cambió.
+    - **La URL es una promesa.** Se enlaza desde el pie de todas las páginas y —cuando lleguen— en
+      el alta de los anunciantes. Que un editor pueda moverla sin querer es un riesgo sin ninguna
+      ventaja a cambio.
+    """
+    if documento not in legal.PAGINAS:
+        raise Http404(documento)
+    return render(
+        request,
+        f"legal/{documento}.html",
+        {"titulo": legal.PAGINAS[documento], "legal": legal, "documento": documento},
+    )
 
 
 def health(request: HttpRequest) -> JsonResponse:

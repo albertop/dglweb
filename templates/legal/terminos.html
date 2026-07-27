@@ -1,0 +1,104 @@
+{% extends "legal/_base.html" %}
+{% comment %}
+Los términos. La sección que NO puede faltar es la de marcas: el sitio usa nombres y datos de las
+Grandes Ligas, y hay que dejar dicho en letra clara que no somos ellos ni tenemos su respaldo. Sin
+eso, el propio nombre de los equipos en las tablas se puede leer como una afiliación que no existe.
+{% endcomment %}
+
+{% block documento %}
+<p class="dgl-legal-resumen">
+  En corto: esto es un sitio informativo independiente sobre peloteros dominicanos. No estamos
+  afiliados a las Grandes Ligas, los datos pueden tener errores, y el contenido que escribimos es
+  nuestro.
+</p>
+
+<h2>Qué es este sitio</h2>
+<p>
+  <b>{{ legal.DOMINIO }}</b> es un medio informativo independiente dedicado a la trayectoria de los
+  peloteros dominicanos en las Grandes Ligas. Lo opera {{ legal.RESPONSABLE }} desde
+  {{ legal.PAIS }}. Usarlo implica aceptar estos términos.
+</p>
+
+<h2>Independencia y marcas de terceros</h2>
+<p>
+  Este sitio <b>no está afiliado, asociado, autorizado ni respaldado por</b> Major League Baseball,
+  la Asociación de Jugadores, sus equipos ni ninguna otra organización deportiva. Los nombres de
+  equipos, ligas y competiciones se usan únicamente para identificar los hechos que se informan, y
+  son marcas de sus respectivos titulares.
+</p>
+
+<h2>De dónde salen los datos y qué garantía tienen</h2>
+<p>
+  Las estadísticas provienen de fuentes públicas —principalmente la API oficial de estadísticas de
+  las Grandes Ligas— y de registros históricos propios. Trabajamos para que sean correctas, pero
+  <b>se ofrecen tal cual, sin garantía de exactitud, integridad ni actualización</b>: una fuente
+  puede corregir un dato, un proceso puede fallar y una cifra puede quedarse atrás.
+</p>
+<p>
+  <b>No uses este sitio como base para apuestas, decisiones económicas ni nada que dependa de que un
+  número sea exacto.</b> Si encuentras un error, escríbenos a
+  <a href="mailto:{{ legal.CONTACTO }}">{{ legal.CONTACTO }}</a>: agradecemos las correcciones.
+</p>
+
+<h2>Contenido del sitio</h2>
+<p>
+  Los artículos, análisis, gráficos y el diseño son obra del equipo del sitio y están protegidos por
+  derechos de autor. Puedes <b>citarlos y enlazarlos</b> —con atribución y enlace a la fuente— como
+  es costumbre entre medios. Reproducirlos íntegros, o usarlos con fines comerciales o para entrenar
+  sistemas automáticos, requiere permiso previo por escrito.
+</p>
+<p>
+  Los <b>datos deportivos en bruto</b> son hechos y no son nuestros; el trabajo protegido es cómo los
+  organizamos, calculamos y contamos.
+</p>
+
+<h2>Uso aceptable</h2>
+<p>Al usar el sitio, te comprometes a no:</p>
+<ul>
+  <li>Extraer contenido de forma masiva y automatizada, ni cargar el servidor de manera que degrade
+    el servicio para los demás.</li>
+  <li>Intentar acceder a zonas restringidas, al sistema de publicación o a datos de otras personas.</li>
+  <li>Republicar el sitio, entero o en parte, haciéndolo pasar por propio.</li>
+</ul>
+<p>
+  Un uso normal desde un navegador nunca va a chocar con nada de esto.
+</p>
+
+<h2>Publicidad</h2>
+<p>
+  El sitio muestra o mostrará espacios publicitarios. Los anuncios son responsabilidad de quien los
+  contrata; que aparezcan aquí no implica que respaldemos el producto o servicio anunciado. El
+  contenido editorial se decide con independencia de quién anuncie.
+</p>
+
+<h2>Enlaces a otros sitios</h2>
+<p>
+  Cuando enlazamos a un sitio ajeno, lo hacemos porque aporta contexto. No controlamos su contenido
+  ni sus prácticas de privacidad, y no respondemos por ellos.
+</p>
+
+<h2>Disponibilidad y responsabilidad</h2>
+<p>
+  El sitio se ofrece <b>tal cual y según disponibilidad</b>. Podemos cambiarlo, interrumpirlo o
+  retirarlo en cualquier momento, sin previo aviso. En la medida que permita la ley, no respondemos
+  por daños derivados del uso del sitio o de la imposibilidad de usarlo, incluidos los que surjan de
+  un dato incorrecto o de una interrupción del servicio.
+</p>
+
+<h2>Cambios en estos términos</h2>
+<p>
+  Podemos actualizarlos. La versión vigente es siempre la publicada en esta página, con la fecha de
+  arriba; seguir usando el sitio después de un cambio implica aceptar la versión nueva.
+</p>
+
+<h2>Ley aplicable</h2>
+<p>
+  Estos términos se rigen por las leyes de {{ legal.PAIS }}, y cualquier controversia se someterá a
+  sus tribunales competentes.
+</p>
+
+<h2>Contacto</h2>
+<p>
+  <a href="mailto:{{ legal.CONTACTO }}">{{ legal.CONTACTO }}</a>.
+</p>
+{% endblock %}

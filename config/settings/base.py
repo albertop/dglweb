@@ -83,6 +83,9 @@ TEMPLATES = [
                 # `movimientos`, el cintillo de la cabecera. También en todas las páginas, así que
                 # tampoco puede depender de que cada vista se acuerde de ponerlo.
                 "dglweb.core.context_processors.cintillo",
+                # `legal_paginas`, la columna «Legal» del pie. Constante del código: ni consulta ni
+                # caché, solo evita que el pie y la vista lleven dos listas que se van separando.
+                "dglweb.core.context_processors.paginas_legales",
             ],
         },
     },

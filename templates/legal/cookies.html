@@ -1,0 +1,81 @@
+{% extends "legal/_base.html" %}
+{% comment %}
+La página más corta de las tres, y a propósito: hoy no hay nada que consentir.
+
+Aquí NO hay banner de cookies, y no es un descuido. Un aviso que pide permiso para cookies que no
+existen es teatro, y además enseña a la gente a pulsar «aceptar» sin leer, que es justo lo que hace
+inútil el mecanismo el día que sí haga falta. El banner se construye cuando entre la primera cookie
+no esencial —publicidad o medición— y no antes.
+
+Lo que sostiene esta página es `tests/test_legal.py::test_el_sitio_publico_no_pone_cookies`: si
+alguien añade analítica o una etiqueta de anuncios, esa prueba se cae y obliga a pasar por acá.
+{% endcomment %}
+
+{% block documento %}
+<p class="dgl-legal-resumen">
+  En corto: navegando por este sitio <b>no recibes ninguna cookie</b>. Por eso no verás un cartel
+  pidiéndote que aceptes nada.
+</p>
+
+<h2>Qué es una cookie</h2>
+<p>
+  Un archivo diminuto que una web guarda en tu navegador para reconocerlo en visitas siguientes. Se
+  usan para cosas necesarias —mantener una sesión iniciada— y para cosas que no lo son: medir
+  audiencia, o seguirte de sitio en sitio para elegir qué anuncios enseñarte.
+</p>
+
+<h2>Qué usa este sitio</h2>
+<p>
+  <b>Ninguna cookie y ningún almacenamiento en tu navegador</b> mientras solo leas el sitio: ni de
+  medición, ni de publicidad, ni de preferencias. Tampoco cargamos nada desde servidores de terceros
+  —las tipografías y las librerías de diseño están copiadas en nuestro propio servidor— así que tu
+  visita no le llega a nadie más.
+</p>
+<p>La única excepción no te afecta si eres visitante:</p>
+<ul>
+  <li>
+    <b>Sesión del equipo editorial.</b> Quien entra al sistema de publicación con su cuenta recibe
+    dos cookies técnicas —una de sesión y una de seguridad contra falsificación de peticiones— que
+    son imprescindibles para que el acceso funcione y desaparecen al cerrar sesión. Son
+    <b>estrictamente necesarias</b>, así que no requieren consentimiento en ninguna de las dos
+    normativas que nos aplican.
+  </li>
+</ul>
+
+<h2>Por qué no hay un cartel de cookies</h2>
+<p>
+  Porque no habría nada que aceptar. Tanto la normativa dominicana como la europea exigen
+  consentimiento para las cookies que <i>no</i> son estrictamente necesarias, y este sitio no usa
+  ninguna. Preferimos no ponerte un cartel de trámite antes que pedirte permiso para algo que no
+  hacemos.
+</p>
+
+<h2>Qué pasará cuando haya publicidad</h2>
+<p>
+  El sitio va a mostrar anuncios. Según cómo se sirvan, pueden implicar cookies de terceros. Cuando
+  ese día llegue:
+</p>
+<ul>
+  <li>Esta página listará <b>cada cookie</b>, quién la pone, para qué sirve y cuánto dura.</li>
+  <li>
+    Aparecerá un aviso para <b>aceptarlas o rechazarlas</b>, con las dos opciones igual de accesibles
+    —rechazar no será más difícil que aceptar— y ninguna cookie no esencial se instalará antes de que
+    elijas.
+  </li>
+  <li>Podrás cambiar de opinión después, desde esta misma página.</li>
+</ul>
+<p>
+  Nada de eso está activo hoy. Cuando lo esté, la fecha de arriba habrá cambiado.
+</p>
+
+<h2>Cómo borrarlas de todos modos</h2>
+<p>
+  Cualquier navegador permite ver y borrar las cookies guardadas, y bloquearlas por completo, desde
+  sus opciones de privacidad. Como este sitio no depende de ninguna, bloquearlas no te va a romper
+  nada de lo que ves acá.
+</p>
+<p>
+  El resto de lo que registramos —los datos técnicos del servidor, que no son cookies— está explicado
+  en la <a href="{% url 'legal' 'privacidad' %}">política de privacidad</a>.
+</p>
+{% endblock %}
