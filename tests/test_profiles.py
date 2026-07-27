@@ -7,10 +7,11 @@ from typing import Any
 
 import pytest
 from django.db import connection
-from django.test import Client
+from django.test import Client, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from dglweb.players import mugshots
 from dglweb.players.models import Player
 from dglweb.profiles.metric_layout import qualifier_lookups
 from dglweb.profiles.tabs import (
@@ -40,6 +41,20 @@ from tests.test_players import _other_player
 
 def _player(pid: int, dgl: str, name: str, pos: str) -> Player:
     return Player.objects.create(**_other_player(player_id=pid, dgl_id=dgl, full_name=name, pos=pos))
+
+
+@contextmanager
+def _con_retrato(raiz: Any, player_id: int, tamano: int) -> Iterator[None]:
+    """Deja el archivo del retrato donde `mugshots.existe` lo va a buscar, en una carpeta temporal.
+
+    Los retratos no están en el repositorio —se bajan aparte y la carpeta se monta— así que un test
+    que dependa de que el PNG de alguien esté ahí pasaría en esta máquina y fallaría en CI.
+    """
+    carpeta = raiz / "img" / "mugshots" / str(tamano)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    (carpeta / f"{player_id}.png").write_bytes(b"")
+    with override_settings(STATICFILES_DIRS=[raiz]):
+        yield
 
 
 @contextmanager
@@ -99,6 +114,42 @@ def test_player_page_renders_the_name_and_a_stat() -> None:
     assert b"229" in response.content  # career HR statbox
     # `{# ... #}` es de UNA línea: partido en dos deja de ser comentario y se imprime en la página.
     assert b"{#" not in response.content
+
+
+@pytest.mark.django_db
+def test_the_profile_asks_for_the_big_portrait_and_the_widgets_for_the_small_one(tmp_path: Any) -> None:
+    """Dos tamaños y cada sitio pide el suyo.
+
+    El de la ficha se ve a 96px y el de 120 se vería lavado en pantalla de retina; el de los widgets
+    se ve a 34px y bajar 360 ahí es cargar diez veces el peso para nada. Se confunden con solo
+    cambiar un número, y la ruta la arma `mugshots` para los tres sitios a la vez.
+    """
+    player = _player(15, "o01", "Un Jugador", "LF")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+
+    with _con_retrato(tmp_path, 15, mugshots.GRANDE):
+        response = Client().get(reverse("player_detail", args=[player.slug]))
+
+    assert b"/img/mugshots/360/15.png" in response.content
+    assert mugshots.url(15) == mugshots.url(15, mugshots.CHICO)  # el chico es el de por defecto
+    assert mugshots.url(15, mugshots.CHICO).endswith("/img/mugshots/120/15.png")
+
+
+@pytest.mark.django_db
+def test_the_profile_of_someone_without_a_portrait_draws_no_portrait_at_all() -> None:
+    """No es el caso raro: se bajan los de las dos últimas temporadas —637 de 981—, así que un tercio
+    de las fichas no tiene retrato y los siete de las Ligas Negras no lo van a tener nunca.
+
+    Y no se dibuja una etiqueta rota que el navegador quite después: el nombre nacería corrido 120px
+    a la derecha y saltaría a su sitio al volver el 404, en un tercio de las fichas.
+    """
+    player = _player(16, "p01", "Sin Retrato", "LF")
+    BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+
+    response = Client().get(reverse("player_detail", args=[player.slug]))
+
+    assert response.status_code == 200
+    assert b"dgl-retrato" not in response.content
 
 
 @pytest.mark.django_db

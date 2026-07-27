@@ -17,10 +17,19 @@
   <div class="dgl-player-hero p-4 mb-4">
     <div class="d-flex flex-wrap align-items-center gap-4">
       {% comment %}
-      La foto del jugador va a la izquierda del nombre, en el lugar que ocupaba el cuadro de
-      iniciales. Aún no tenemos las fotos, así que por ahora no se reserva el espacio.
+      El retrato a la izquierda del nombre, donde estaba el cuadro de iniciales.
+
+      Falta a menudo y no es un error: se bajan los de las dos últimas temporadas —637 de 981— así
+      que un tercio de las fichas no lo tiene y los siete de las Ligas Negras no lo van a tener
+      nunca. La vista ya miró el disco y manda `foto` vacía; acá no se dibuja nada y el hero queda
+      exactamente como estaba antes de esta pieza. No se reserva el hueco: un disco vacío al lado del
+      nombre se lee como una foto que no cargó, y son 350 fichas.
+
+      `alt` vacío y no el nombre: está en el <h1> que sigue, y un lector de pantalla lo diría dos
+      veces. Sin `loading="lazy"` —al revés que en los widgets— porque esto se ve al abrir la página.
       {% endcomment %}
-      <div class="flex-grow-1">
+      {% if foto %}<img class="dgl-retrato" src="{{ foto }}" alt="" width="96" height="96">{% endif %}
+      <div class="dgl-hero-quien">
         <h1 class="dgl-page-title mb-1" style="color:#fff">{{ player.full_name }}</h1>
         {% comment %}
         Dos líneas, armadas en la vista (`bio_lines`): una sola corría tan ancha que empujaba los

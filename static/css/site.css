@@ -418,7 +418,11 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* El encabezado de Puestos se repite en cada división, así que va dentro del <tbody> y hay que
    devolverle a mano lo que Bootstrap le da al <thead>: sin fondo propio se lo comía el rayado, y sin
    el color apagado competía con los datos en vez de rotularlos. */
-.dgl-stats-table tr.dgl-puestos-head > th { box-shadow: none; }
+/* Y al pie de su celda, no al tope: «De por vida» no cabe en una línea y parte en dos, así que la
+   fila mide el doble de lo que miden los años. Arriba, los años quedaban flotando sobre un hueco y
+   despegados de la columna que rotulan; abajo se apoyan en la primera fila de datos, que es contra
+   la que se leen. */
+.dgl-stats-table tr.dgl-puestos-head > th { box-shadow: none; vertical-align: bottom; }
 .dgl-stats-table td.dgl-div-band {
   background: var(--dgl-navy); color: #fff; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; font-size: .74rem; box-shadow: none; border-right: 0; text-align: left;
@@ -432,16 +436,38 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   background: linear-gradient(135deg, var(--dgl-navy), var(--dgl-navy-2));
   color: #fff; border-radius: .6rem;
 }
-.dgl-avatar {
-  width: 96px; height: 96px; border-radius: .5rem; background: #1c3a5e; color: #9db4d6;
-  display: flex; align-items: center; justify-content: center; font-size: 1.7rem; font-weight: 800;
+/* El retrato, a la izquierda del nombre. Redondo y sobre un disco del azul del hero, igual que en el
+   widget de líderes: los PNG de MLB vienen recortados con fondo transparente, así que sin disco el
+   pelotero quedaría flotando sobre el degradado. `flex: 0 0 auto` para que no lo achique el nombre
+   largo que tiene al lado. Ocupaba este sitio el cuadro de iniciales, que ya no existe. */
+.dgl-retrato {
+  flex: 0 0 auto; width: 96px; height: 96px; border-radius: 50%; background: #1c3a5e;
 }
+@media (max-width: 575px) { .dgl-retrato { width: 72px; height: 72px; } }
+/* El bloque del nombre y la bio, entre el retrato y los statboxes.
+   `flex-basis: 0` y no el `auto` que traía —era un `.flex-grow-1` de Bootstrap— porque la fila
+   envuelve: con base automática el navegador reparte en líneas usando el ANCHO NATURAL de cada
+   pieza, y el de este bloque es 511px. Retrato + bloque + statboxes daban 1.107 contra 1.068 de
+   ancho útil, así que los statboxes caían a una segunda línea y el hero crecía de 135px a 217px.
+   Con base 0 el bloque no pide nada al repartir, todo entra en una línea, y después se estira con
+   el espacio que sobra. `min-width: 0` para que la bio pueda partirse en vez de desbordar. */
+.dgl-hero-quien { flex: 1 1 0; min-width: 0; }
 .dgl-badge-rd {
   background: var(--dgl-red); color: #fff; font-size: .66rem; font-weight: 700;
   letter-spacing: .08em; padding: .14rem .45rem; border-radius: 3px;
 }
 .dgl-player-hero .k { font-size: .68rem; color: #9db4d6; text-transform: uppercase; letter-spacing: .08em; }
 .dgl-statbox .v { font-size: 1.35rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+/* La sigla de cada cifra en un cuadrito rojo. El hero es un bloque azul con cifras blancas y todo lo
+   demás en el mismo gris azulado; el rojo de la bandera es lo único que lo despierta. Va en la SIGLA
+   y no en la cifra a propósito: marca sin quitarle la lectura al número, que es el dato.
+   `inline-block` para que el cuadro mida lo que mide la sigla —«H» y «WHIP» no ocupan igual— y no
+   todo el ancho de la columna. Gana al `.dgl-player-hero .k` de arriba por venir después: misma
+   especificidad, y de ahí conserva el tamaño, las mayúsculas y el espaciado. */
+.dgl-statbox .k {
+  display: inline-block; background: var(--dgl-red); color: #fff; font-weight: 700;
+  padding: .08rem .4rem; border-radius: 3px; margin-top: .2rem;
+}
 
 /* ---------- Leaders / leaderboards ---------- */
 /* El puesto en la tabla de líderes. Va sobre un <td>, así que NO lleva `display:inline-block` ni un

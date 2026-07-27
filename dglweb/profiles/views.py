@@ -7,7 +7,7 @@ from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.defaultfilters import date as format_date
 
-from dglweb.players import search
+from dglweb.players import mugshots, search
 from dglweb.players.models import Player
 from dglweb.profiles.tabs import tabs_for
 from dglweb.stats.models import BattingCareer, CareerLevel, PitchingCareer
@@ -93,6 +93,13 @@ def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
     ]
     context = {
         "player": player,
+        # El retrato grande, no el de los widgets: acá se ve a 96px y en pantalla de retina el de
+        # 120 se vería lavado. Vacío si no lo hay —un tercio de las fichas, ver `mugshots`— y ahí la
+        # plantilla no dibuja nada: se pregunta acá y no con `onerror` para que el nombre nazca en su
+        # sitio en vez de saltar 120px cuando vuelva el 404.
+        "foto": mugshots.url(player.player_id, mugshots.GRANDE)
+        if mugshots.existe(player.player_id, mugshots.GRANDE)
+        else "",
         "bio": bio_lines(player),
         "tabs": tabs,
         "is_pitcher": player.pos in {"P", "RP", "SP"},

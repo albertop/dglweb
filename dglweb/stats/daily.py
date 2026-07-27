@@ -256,14 +256,10 @@ class Destacado:
 
     @property
     def foto(self) -> str:
-        """La ruta del retrato, armada acá y no con `{% static %}` en la plantilla.
+        """La ruta del retrato, armada acá y no con `{% static %}` en la plantilla. Ver `mugshots`."""
+        from dglweb.players import mugshots
 
-        Los retratos NO entran a la imagen de Docker ni los recoge `collectstatic`, así que nunca
-        están en el manifiesto y esa etiqueta fallaría al buscarlos. Se sirven por su ruta literal.
-        """
-        from django.conf import settings
-
-        return f"{settings.STATIC_URL}img/mugshots/120/{self.player.player_id}.png"
+        return mugshots.url(self.player.player_id, mugshots.CHICO)
 
     @property
     def logo(self) -> str:

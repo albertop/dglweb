@@ -640,23 +640,30 @@ el derecho y no en el izquierdo, Polanco en segunda.
 
 ## La ficha del jugador debe llevar su foto
 
-- [ ] **Poner el retrato en el biobox del perfil**, a la izquierda del nombre.
+- [x] **Poner el retrato en el biobox del perfil**, a la izquierda del nombre. **Hecho el
+  2026-07-27.** La ruta la arma ahora `players/mugshots.py` para los tres sitios (ficha, líderes,
+  destacados) en vez de tres f-strings sueltas.
+
+  **Se resolvió distinto en un punto**: acá abajo pedía *reservar el espacio aunque falte la foto*, y
+  lo que se hizo es preguntarle al disco (`mugshots.existe`) y no dibujar nada cuando no está. El
+  `onerror` que sugería el resto de la nota borra la foto DESPUÉS del viaje del navegador — el nombre
+  nace corrido 120px y salta al volver el 404, en un tercio de las fichas — y reservar un disco vacío
+  se lee como una foto que no cargó, 350 veces. Un `stat()` por visita en una página que ya hace
+  varias consultas lo evita todo. Los widgets sí siguen con `onerror`: ahí son veinte por página y
+  casi todos tienen foto.
+
+  **De paso**: el hero pasó de `.flex-grow-1` a `.dgl-hero-quien` con `flex-basis: 0`. Con base
+  automática la fila repartía por ancho natural, los 120px del retrato desbordaban y los statboxes
+  caían a una segunda línea (hero de 135px a 217px).
+
   **Los activos ya están**: `static/img/mugshots/360/<player_id>.png`, 637 retratos con fondo
   transparente, bajados en su día justamente para esto (el tamaño 360 se eligió para mostrarse a
   ~180px en el perfil, el doble de lo que se ve, que es lo que evita que se vean borrosos en un
   monitor denso). Los de 120 son para los widgets.
 
-  Lo que hace falta, todo con patrón ya establecido en el sitio:
+  Lo que quedó, todo con patrón ya establecido en el sitio:
   * La ruta se arma en Python y **no con `{% static %}`**: los retratos no entran a la imagen de
     Docker ni los recoge `collectstatic`, así que nunca están en el manifiesto y esa etiqueta
-    fallaría al buscarlos. Ver `daily.Destacado.foto` y `mlb_leaders.portada`.
-  * `onerror="this.remove()"` para el que falte — un debutante que MLB todavía no retrató, o
-    cualquiera de los ~350 históricos que no están en la descarga (solo se bajaron los que vieron
-    acción en las últimas dos temporadas).
+    fallaría al buscarlos.
   * `alt` vacío: el nombre está al lado en un `<h1>` y repetirlo hace que un lector de pantalla lo
     diga dos veces.
-  * **Reservar el espacio aunque falte la foto**, para que el nombre no salte cuando cargue.
-
-  **Ojo con el comentario del template**: `templates/profiles/player_detail.html` dice todavía «aún
-  no tenemos las fotos, así que por ahora no se reserva el espacio». Quedó viejo el día que se bajaron
-  los retratos y hay que corregirlo al implementar — un comentario que miente guía decisiones.
