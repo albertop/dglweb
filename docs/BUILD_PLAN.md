@@ -208,12 +208,16 @@
   age/stolen_bases/caught_stealing/uzr), agrega `innings_outs`. **Paridad 2013: 39/39 filas, 0
   discrepancias** (huecos = stats de catcher en no-catchers). `update_fielding_post` al scheduler.
 
-## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador
+## Fase 4 — Backfill histórico + LÍDERES + páginas de jugador — ✅ COMPLETADA (2026-07-26)
 
 - **Meta:** el **diferenciador estrella** vivo con datos reales.
 - **Entrega:** command de **backfill** (una vez); **agregados de Líderes** (carrera + temporada)
   precalculados; **páginas de jugador (~970)** con stats **sabermétricas**; páginas de **Líderes**.
-- **Done when:** páginas de jugador y Líderes navegables en staging con histórico real.
+- **Done when:** ✅ **984 jugadores** con ficha navegable, **407.003 filas** en `dgl_leader` y
+  **4.306 carreras** de bateo; paridad comprobada contra la fuente. La ficha lleva sus pestañas
+  (Bateo / Pitcheo / Fildeo / Puestos) y el retrato del pelotero; `/lideres/` abre en Bateo →
+  Estándar → De por vida → HRs. Quedan dos cosas fuera del camino crítico: **4d v2**
+  (postemporada y fildeo en la página de Líderes) y **4e** (datos de apoyo, ver abajo).
 - **📌 Aparcado para esta fase (hallazgos de la Fase 3, NO implementar antes):**
   - **Hace falta un mínimo de apariciones.** Sin él, los líderes de por vida en promedio los
     encabezan relevistas de 2-de-2 (Gregory Soto y Esteban Yan en 1.000). Con un mínimo, la
@@ -235,13 +239,42 @@
   irreversible y silencioso, que es justo cómo un CSV corto pasa desapercibido.
   Ver `docs/DATOS_DE_APOYO.md`.
 
-## Fase 5 — Editorial: Wagtail (artículos + workflow + roles)
+## Fase 5 — Editorial: Wagtail (artículos + workflow + roles) — 🟡 EN CURSO (2026-07-27)
 
 - **Meta:** que **writers/editors** puedan producir contenido.
 - **Entrega:** `Article` Page con **StreamField** (bloques: párrafo, **tabla**, **gráfico**,
   **embed de jugador**); **workflow de aprobación**; **roles/grupos**; hashtags; links por mención.
 - **Done when:** flujo borrador → aprobación → publicación funciona en staging (con tests).
-- **⏩ En paralelo desde aquí:** arranca la escritura de los **8–12 artículos semilla**.
+- **⏩ En paralelo desde aquí:** arranca la escritura de los **8–12 artículos semilla** — el CMS ya
+  está utilizable, así que **este cuello de botella ya no está bloqueado**.
+
+### Entregado el 2026-07-27
+
+- **`ArticleIndexPage` + `ArticlePage`** en `dglweb/articles/`. El CMS sirve `/articulos/` y
+  `/articulos/<slug>/` desde el árbol de Wagtail: el editor mueve o renombra la página sin que nadie
+  toque `urls.py`. Una migración de datos crea el índice y siembra las siete categorías, para que
+  `docker compose up` deje el CMS con dónde publicar.
+- **Los siete bloques del cuerpo:** párrafo, subtítulo, imagen, cita, **tabla**, **mención de
+  jugador** (elige de `dgl_master`, así que el enlace no se rompe y la foto sale sola) y **gráfico**.
+- **El gráfico se dibuja en el servidor, en SVG, sin librería.** Decisión con peso: un CDN iba en
+  contra de la deuda que la Fase 8 viene a pagar, y una imagen subida no se corrige sin rehacer el
+  archivo ni la lee un lector de pantalla. Barras siempre desde cero —lo que compara una barra es su
+  largo— y líneas con la escala ajustada al rango, porque ahí el dato es la pendiente.
+- **Categoría única (snippet) + hashtags libres**, como pidió el dueño.
+- **Medios.** `MEDIA_ROOT`/`MEDIA_URL` no existían, así que el CMS no podía aceptar una imagen. Van a
+  un volumen (`dglweb_media`) porque es contenido escrito por una persona mientras el sitio corre.
+- **Portada e índice** listan lo publicado; se fueron las tarjetas de muestra escritas a mano. Toda
+  tarjeta mide 300px de alto para que la retícula no se desarme con un titular largo.
+
+### Lo que falta para cerrar la fase
+
+- [ ] **Workflow de aprobación** (borrador → revisión → publicado) y **roles/grupos** de Wagtail.
+      Es el «Done when» y es lo único grande que queda.
+- [ ] **Restringir el Backoffice al rol *administrators*** (hoy es solo `staff`).
+- [ ] **Buscador de artículos** (pedido del dueño). Wagtail ya indexa título, entradilla y cuerpo.
+- [ ] **Paginación del índice** — hoy se dibujan hasta 24 y el botón los descubre de seis en seis.
+- [ ] **Servir `/media/` desde el proxy en producción.** WhiteNoise no sirve medios. Y respaldar el
+      volumen: si se pierde, se van las fotos de todos los artículos.
 
 ## Fase 6 — Módulos vivos: pizarra MLB + resumen jornada + ticker (season-aware)
 
