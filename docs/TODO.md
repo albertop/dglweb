@@ -499,12 +499,24 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   el código. Quien responde ante un reclamo de datos personales tiene que ser quien decide qué se
   publica y para qué.
 
-  **El aviso de Retrosheet va en el pie de todas las páginas**, en inglés y palabra por palabra.
-  Es la única condición que ponen a cambio de dejar usar sus datos para lo que sea, y su licencia
-  pide que aparezca «prominently»: un enlace a tres clics de distancia no cumple eso. La
-  traducción al español va al lado, marcada como tal, porque lo que la licencia autoriza es el
-  texto en inglés y no una versión nuestra. Dos pruebas lo vigilan: que salga en todas las
-  páginas y que nadie lo haya reescrito.
+  **El aviso de Retrosheet**, en inglés y palabra por palabra, con la traducción al lado marcada
+  como tal — lo que la licencia autoriza es el texto en inglés y no una versión nuestra. Es la única
+  condición que ponen a cambio de dejar usar sus datos. Estuvo en el pie de todas las páginas y hoy
+  vive solo en los términos, por decisión del dueño al considerarlo redundante; queda apuntado en
+  `core/legal.py` que es la lectura menos conservadora de «prominently», y la vuelta atrás es
+  descomentar el bloque de `base.html`. Dos pruebas lo vigilan: que siga publicado y que nadie lo
+  haya reescrito.
+
+  **Página de contacto** en `/contacto/`, enlazada desde el pie. Es una dirección de correo y no un
+  formulario, y es una decisión: un formulario exige servidor de salida, defensa contra robots y
+  dónde guardar lo que llega, y mientras alguna de las tres falle acepta el mensaje, dice «gracias»
+  y lo tira. Un `mailto` no puede fallar en silencio. El buzón es
+  `alberto@dominicanosengrandesligas.com` — uno solo y no tres alias por tema, porque un buzón que
+  nadie lee es peor que no publicar ninguno. Con eso **quedan tres** de los cuatro `# ← confirmar`.
+
+  **El pie pasó a cuatro columnas** (marca · agencia · secciones · legal). La ficha de Adcio Media
+  tenía su propia franja bajo el filete y costaba unos 60px de alto en todas las páginas para decir
+  tres líneas: 270px → 207px.
 - [ ] Dónde/ cuándo se activa el muro de registro (post-launch).
 
 ## Code review v4 — findings (2026-07-24)

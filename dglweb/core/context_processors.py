@@ -30,7 +30,7 @@ def cintillo(request: HttpRequest) -> dict[str, Any]:
 
 
 def paginas_legales(request: HttpRequest) -> dict[str, Any]:
-    """`legal_paginas` y `aviso_retrosheet` — lo que el pie necesita en todas las páginas.
+    """`legal_paginas` — los tres documentos legales, para la columna del pie.
 
     Es una constante del código, así que no toca la base ni la caché: sale del mismo diccionario que
     usan la vista y las pruebas. Ese es todo el punto — el pie no puede enlazar a un documento que
@@ -38,4 +38,4 @@ def paginas_legales(request: HttpRequest) -> dict[str, Any]:
     """
     from dglweb.core import legal
 
-    return {"legal_paginas": legal.PAGINAS, "aviso_retrosheet": legal.RETROSHEET}
+    return {"legal_paginas": legal.PAGINAS}

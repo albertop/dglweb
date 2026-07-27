@@ -1190,7 +1190,7 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
    Sin subrayado y con el nombre en blanco para que no compita con los enlaces de las columnas de al
    lado, que sí son navegación. Esto es una firma, no un menú. */
 .dgl-agencia {
-  display: inline-flex; align-items: center; gap: .6rem; text-decoration: none; color: inherit;
+  display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; color: inherit;
 }
 .dgl-agencia:hover { text-decoration: none; }
 .dgl-agencia-logo {
@@ -1198,28 +1198,13 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   background: #0f2447 url("../img/adcio-media.png") center/contain no-repeat;
 }
 .dgl-agencia-txt { display: flex; flex-direction: column; line-height: 1.2; }
-.dgl-agencia-rol { font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: #8ea6c8; }
 .dgl-agencia b { font-size: .9rem; color: #fff; }
 .dgl-agencia-ig { font-size: .74rem; color: #8ea6c8; }
 .dgl-agencia:hover .dgl-agencia-ig { color: #e8edf5; }
 
-/* La firma del pie: la agencia a la izquierda y el copyright centrado EN LA PÁGINA, no en el hueco
-   que sobra. Por eso es una rejilla de tres columnas `1fr auto 1fr` y no un flex con
-   `space-between`: con flex, el copyright se centraría entre la agencia y el borde derecho, o sea
-   descentrado respecto al resto del pie. Las dos columnas de 1fr son iguales por definición, así
-   que lo del medio cae en el eje exacto de la página.
-
-   `align-items: center` deja el copyright a la altura de «Adcio Media» —la línea del medio del
-   bloque de la agencia— y no de su primera o última línea. */
-.dgl-pie-firma {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem;
-}
+/* El copyright, solo en su renglón bajo el filete. Tuvo al lado la ficha de la agencia y esa franja
+   costaba unos 60px de pie en todas las páginas; la ficha subió a ser la cuarta columna. */
 .dgl-copyright { color: #8ea6c8; }
-/* En móvil se apilan y todo va centrado: la rejilla de tres columnas en 375px deja la agencia
-   pegada al borde y el copyright partido en dos líneas. */
-@media (max-width: 767.98px) {
-  .dgl-pie-firma { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-}
 
 /* Las páginas legales. Reutilizan `.dgl-articulo` para el ancho de columna —el mismo problema de
    legibilidad— y esto solo añade lo que el texto largo de un documento necesita y un artículo no.
@@ -1251,16 +1236,3 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   font-size: 1.02rem; margin-bottom: 1.5rem;
 }
 .dgl-legal-hermanas { border-top: 1px solid #dde3ea; display: flex; gap: 1.5rem; font-size: .9rem; }
-
-/* El aviso de Retrosheet, al pie de todas las páginas. Su licencia pide que aparezca «prominently»,
-   así que está en el pie y no escondido en los términos — pero es letra de crédito, no de lectura:
-   va en el tamaño más pequeño del sitio y en el gris apagado del pie, debajo del copyright.
-
-   Dos párrafos, inglés y español. El inglés es el que cumple la licencia; el español es cortesía
-   para el lector, y por eso el segundo va todavía un punto más apagado. */
-.dgl-retrosheet {
-  margin-top: .9rem; text-align: center; font-size: .7rem; line-height: 1.5; color: #6f88ab;
-  max-width: 62rem; margin-left: auto; margin-right: auto;
-}
-.dgl-retrosheet p:last-child { color: #5c7398; }
-.dgl-retrosheet a { color: #8ea6c8; }

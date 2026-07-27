@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% comment %}
+Contacto. Reutiliza el marco de las páginas legales —columna estrecha, serif, titulillos en mono—
+porque es el mismo tipo de página: texto que se lee una vez y del que hay que salir sabiendo qué
+hacer.
+
+Los bloques están ordenados por lo que de verdad va a llegar a ese buzón, no por lo que queda bonito:
+lo primero es una corrección a un dato, que es lo que más escribe la gente en un sitio de
+estadísticas, y lo último la publicidad, que llega poco pero importa.
+{% endcomment %}
+{% block title %}Contáctanos · Dominicanos en Grandes Ligas{% endblock %}
+{% block meta %}<meta name="description" content="Escríbenos: correcciones de datos, sugerencias de temas, publicidad y prensa.">{% endblock %}
+
+{% block content %}
+<main class="container my-4">
+  <article class="dgl-articulo dgl-legal">
+    <header class="mb-4">
+      <h1 class="dgl-page-title">Contáctanos</h1>
+    </header>
+
+    <p class="dgl-legal-resumen">
+      Escríbenos a <a href="mailto:{{ legal.CONTACTO }}">{{ legal.CONTACTO }}</a>. Lo leemos todo y
+      respondemos lo que pide respuesta.
+    </p>
+
+    <h2>Encontraste un dato mal</h2>
+    <p>
+      Es lo que más agradecemos. Cuéntanos <b>de qué jugador</b>, <b>qué temporada</b> y <b>qué
+      número</b> no cuadra, y si puedes, con qué lo comparaste. Con eso podemos rastrear si el fallo
+      es nuestro o viene de la fuente — y las dos cosas se arreglan, pero por caminos distintos.
+    </p>
+
+    <h2>Eres jugador o lo representas</h2>
+    <p>
+      Si hay algo incorrecto en tu ficha, o algo publicado que entiendes que no debería estar,
+      escríbenos y lo revisamos. Lo que publicamos y por qué está explicado en la
+      <a href="{% url 'legal' 'privacidad' %}">política de privacidad</a>.
+    </p>
+
+    <h2>Tienes un tema, un dato o una historia</h2>
+    <p>
+      Ideas de artículos, series históricas que nadie ha contado, rarezas de una temporada vieja. Este
+      sitio existe por ese tipo de cosas.
+    </p>
+
+    <h2>Publicidad</h2>
+    <p>
+      El sitio lo gestiona <b>Adcio Media</b>. Para espacios publicitarios, escribe al mismo correo o
+      por Instagram a
+      <a href="https://www.instagram.com/adciomediard/" target="_blank" rel="noopener">@adciomediard</a>.
+    </p>
+
+    <h2>Prensa y uso de contenido</h2>
+    <p>
+      Puedes citarnos y enlazarnos con atribución. Para reproducir un artículo completo o usar
+      nuestros gráficos, pídenos permiso primero — las condiciones están en los
+      <a href="{% url 'legal' 'terminos' %}">términos de servicio</a>.
+    </p>
+
+    <nav class="dgl-legal-hermanas mt-5 pt-3" aria-label="Otros documentos">
+      {% for slug, nombre in legal_paginas.items %}
+        <a href="{% url 'legal' slug %}">{{ nombre }}</a>
+      {% endfor %}
+    </nav>
+  </article>
+</main>
+{% endblock %}

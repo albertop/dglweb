@@ -36,7 +36,7 @@
   <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   <link href="{% static 'vendor/bootstrap.min.css' %}" rel="stylesheet">
-  <link href="{% static 'css/site.css' %}?v=109" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=111" rel="stylesheet">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -133,8 +133,18 @@
 
 <footer class="dgl-footer pt-4 pb-3 mt-5">
   <div class="container">
+    {% comment %}
+      Cuatro columnas y no tres. La agencia tenía su propia franja debajo del filete, y esa franja
+      costaba unos 60px de pie en TODAS las páginas para decir tres líneas que caben de sobra al lado
+      de las otras. Puesta como columna, el pie encoge y además queda leído como lo que es: una ficha
+      más —quién lo hace— junto a qué hay y qué reglas lo rigen.
+
+      El reparto 4-3-2-3 no es simétrico a propósito: la marca necesita ancho para su párrafo, Legal
+      para «Política de privacidad» sin partirla, y Secciones se apaña con dos porque sus tres
+      entradas son palabras sueltas.
+    {% endcomment %}
     <div class="row g-4">
-      <div class="col-md-5">
+      <div class="col-md-4">
         {# El pie es azul marino como la barra, así que la marca va igual que arriba, sin invertir. #}
         <div class="dgl-marca mb-2">
           <span class="dgl-marca-mono" aria-hidden="true">DGL</span>
@@ -146,13 +156,30 @@
         <p class="small mb-0" style="max-width:32ch">Béisbol de las Grandes Ligas, visto a través
           del lente dominicano.</p>
       </div>
-      <div class="col-6 col-md-3"><h6 id="pie-secciones">Secciones</h6>
+      {% comment %}
+        La agencia que gestiona el sitio. El logo va de fondo en CSS y no en un `<img>` a propósito:
+        si el archivo falta —o todavía no se ha subido— un fondo ausente no dibuja nada, mientras que
+        un `<img>` roto pone el icono de imagen partida en el pie de TODAS las páginas. El nombre y
+        el usuario van en texto de verdad, así que la ficha se entiende igual sin el logo.
+      {% endcomment %}
+      <div class="col-6 col-md-3"><h6 id="pie-agencia">Gestionado por</h6>
+        <a class="dgl-agencia" href="https://www.instagram.com/adciomediard/"
+           target="_blank" rel="noopener" aria-label="Adcio Media en Instagram (@adciomediard)">
+          <span class="dgl-agencia-logo" aria-hidden="true"></span>
+          <span class="dgl-agencia-txt">
+            <b>Adcio Media</b>
+            <span class="dgl-agencia-ig">@adciomediard</span>
+          </span>
+        </a>
+      </div>
+      <div class="col-6 col-md-2"><h6 id="pie-secciones">Secciones</h6>
         <ul class="list-unstyled small" aria-labelledby="pie-secciones">
           {% if indice_articulos %}<li><a href="{{ indice_articulos }}">Artículos</a></li>{% endif %}
           <li><a href="{% url 'leaders' %}">Líderes</a></li>
-          <li><a href="{% url 'players_index' %}">Jugadores</a></li></ul>
+          <li><a href="{% url 'players_index' %}">Jugadores</a></li>
+          <li><a href="{% url 'contacto' %}">Contáctanos</a></li></ul>
       </div>
-      <div class="col-6 col-md-4"><h6 id="pie-legal">Legal</h6>
+      <div class="col-6 col-md-3"><h6 id="pie-legal">Legal</h6>
         {% comment %}
           Salen del diccionario de `core/legal.py` y no escritos a mano: es la misma lista que usan
           la vista y las pruebas, así que no puede haber un enlace en el pie a un documento que no
@@ -165,43 +192,8 @@
         </ul></div>
     </div>
     <hr style="border-color:#25406b">
-    {% comment %}
-      La última línea del pie: quién gestiona el sitio a la izquierda y el copyright en el centro.
-      Van JUNTAS y no en dos renglones porque dicen lo mismo —de quién es esto— y separarlas gastaba
-      una línea entera del pie para repetir el tema.
-
-      La agencia: el logo va de fondo en CSS y no en un `<img>` a propósito. Si el archivo falta —o
-      todavía no se ha subido— un fondo ausente no dibuja nada, mientras que un `<img>` roto pone el
-      icono de imagen partida en el pie de TODAS las páginas. El nombre y el usuario van en texto de
-      verdad, así que la línea se entiende igual sin el logo.
-    {% endcomment %}
-    <div class="dgl-pie-firma">
-      <a class="dgl-agencia" href="https://www.instagram.com/adciomediard/"
-         target="_blank" rel="noopener" aria-label="Adcio Media en Instagram (@adciomediard)">
-        <span class="dgl-agencia-logo" aria-hidden="true"></span>
-        <span class="dgl-agencia-txt">
-          <span class="dgl-agencia-rol">Gestionado por</span>
-          <b>Adcio Media</b>
-          <span class="dgl-agencia-ig">@adciomediard</span>
-        </span>
-      </a>
-      <div class="small dgl-copyright">© 2026 dominicanosengrandesligas.com</div>
-    </div>
-    {% comment %}
-      EL AVISO DE RETROSHEET. Es la única condición que ponen a cambio de dejar usar sus datos, y su
-      licencia pide que aparezca «prominently» — por eso va en el pie de TODAS las páginas y no
-      enterrado en la página de términos, a tres clics de distancia.
-
-      Va en inglés y palabra por palabra porque lo que la licencia autoriza es ESE texto; la versión
-      en español se pone debajo, marcada como traducción, para quien la necesite. Ver
-      `core/legal.py` y la prueba que lo vigila.
-    {% endcomment %}
-    <div class="dgl-retrosheet">
-      <p lang="en" class="mb-1">{{ aviso_retrosheet }}</p>
-      <p class="mb-0">La información aquí usada se obtuvo gratuitamente de Retrosheet, que ostenta
-        sus derechos de autor. Puede contactarlos en
-        <a href="https://www.retrosheet.org" target="_blank" rel="noopener">www.retrosheet.org</a>.</p>
-    </div>
+    {# El aviso de Retrosheet estuvo acá y vive ahora solo en los términos. Ver `core/legal.py`. #}
+    <div class="small text-center dgl-copyright">© 2026 dominicanosengrandesligas.com</div>
   </div>
 </footer>
 

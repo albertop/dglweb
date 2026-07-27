@@ -23,7 +23,9 @@ from datetime import date
 # responde ante un reclamo de datos personales tiene que ser quien decide qué se publica y para qué.
 RESPONSABLE = "Adcio Media"  # ← confirmar: razón social exacta y RNC, si está constituida
 DOMINIO = "dominicanosengrandesligas.com"
-CONTACTO = "privacidad@dominicanosengrandesligas.com"  # ← confirmar: que el buzón exista y se lea
+# El buzón único del sitio. Uno solo y no tres alias por tema: un buzón que nadie lee es peor que no
+# publicar ninguno, y tres multiplican por tres la posibilidad de que eso pase.
+CONTACTO = "alberto@dominicanosengrandesligas.com"
 PAIS = "República Dominicana"
 
 # El alojamiento importa porque una transferencia internacional de datos hay que declararla. El VPS
@@ -41,15 +43,18 @@ ACTUALIZADO = date(2026, 7, 27)
 
 # EL AVISO DE RETROSHEET. Esto no es cortesía: es la ÚNICA condición que pone Retrosheet a cambio de
 # dejar usar sus datos para lo que sea, incluso vendiéndolos. Su licencia dice, literalmente, que la
-# declaración «must appear prominently» — y de ahí salen dos decisiones:
+# declaración «must appear prominently».
 #
-# 1. Va **al pie de todas las páginas**, no escondida en la página legal. «Prominently» no se cumple
-#    con un enlace a tres clics de distancia.
-# 2. Va **en inglés y palabra por palabra**. Lo que la licencia autoriza es ESTE texto; una versión
-#    traducida o resumida es un texto distinto, y quien concede el permiso es quien decide su forma.
-#    La traducción al español se pone al lado, marcada como tal, para quien la necesite.
+# Va **en inglés y palabra por palabra**: lo que la licencia autoriza es ESTE texto, y una versión
+# traducida o resumida es un texto distinto — quien concede el permiso es quien decide su forma. La
+# traducción al español se pone al lado, marcada como tal, para quien la necesite.
 #
-# `tests/test_legal.py` comprueba que aparece en todas las páginas y que nadie lo ha reescrito.
+# DÓNDE VA. Estuvo en el pie de todas las páginas y ahora está solo en los términos, por decisión del
+# dueño (27-07-2026) al considerarlo redundante. Queda dicho que es la lectura menos conservadora de
+# «prominently»: el aviso sigue publicado y enlazado desde el pie, pero a un clic de distancia. Si
+# algún día Retrosheet objeta, la vuelta atrás es descomentar el bloque de `base.html`.
+#
+# `tests/test_legal.py` comprueba que sigue publicado y que nadie lo ha reescrito.
 RETROSHEET = (
     "The information used here was obtained free of charge from and is copyrighted by Retrosheet. "
     'Interested parties may contact Retrosheet at "www.retrosheet.org".'

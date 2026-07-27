@@ -80,17 +80,30 @@ def test_el_sitio_publico_no_pide_nada_a_terceros(client: Client, ruta: str) -> 
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("ruta", PUBLICAS)
-def test_el_aviso_de_retrosheet_sale_en_todas_las_paginas(client: Client, ruta: str) -> None:
-    """La única condición que pone Retrosheet a cambio de sus datos.
+def test_la_pagina_de_contacto_publica_el_buzon(client: Client) -> None:
+    """Una página de contacto sin dirección visible es una página de contacto rota.
 
-    Su licencia pide que la declaración aparezca «prominently», y de ahí que vaya en el pie y no
-    escondida en los términos. Esta prueba es la que impide que se caiga sin que nadie lo note: un
-    pie es justo el sitio del que se borran cosas al rediseñar.
+    El correo sale de `legal.CONTACTO`, el mismo que citan los tres documentos: una dirección que
+    cambia en un sitio y se queda vieja en otros tres es exactamente el fallo que esa constante
+    existe para evitar.
     """
+    html = client.get(reverse("contacto")).content.decode()
+    assert f"mailto:{legal.CONTACTO}" in html
+    assert reverse("contacto") in client.get("/").content.decode()
+
+
+@pytest.mark.django_db
+def test_el_aviso_de_retrosheet_sigue_publicado(client: Client) -> None:
+    """La única condición que pone Retrosheet a cambio de sus datos: que la declaración se publique.
+
+    Estuvo en el pie de todas las páginas y hoy vive solo en los términos —decisión del dueño, ver
+    `core/legal.py`—, así que esta prueba se mudó con ella. Lo que protege es lo mismo: que no
+    desaparezca sin que nadie lo note, porque publicar sin ese aviso es publicar sin permiso.
+    """
+    html = client.get(reverse("legal", args=["terminos"])).content.decode()
     # `escape()` y no la cadena cruda: el aviso lleva comillas alrededor de «www.retrosheet.org» y
     # Django las escribe como `&quot;`. En pantalla se leen igual; en el HTML no coinciden.
-    assert escape(legal.RETROSHEET) in client.get(ruta).content.decode(), ruta
+    assert escape(legal.RETROSHEET) in html
 
 
 def test_el_aviso_de_retrosheet_esta_palabra_por_palabra() -> None:

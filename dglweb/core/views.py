@@ -99,6 +99,21 @@ def documento_legal(request: HttpRequest, documento: str) -> HttpResponse:
     )
 
 
+def contacto(request: HttpRequest) -> HttpResponse:
+    """La página de contacto.
+
+    Es una dirección de correo y no un formulario, y es una decisión, no una etapa intermedia. Un
+    formulario exige un servidor de salida configurado, defensa contra robots y un sitio donde
+    guardar lo que llega; mientras alguna de las tres cosas falle, el formulario acepta el mensaje,
+    dice «gracias» y lo tira — que es el peor fallo posible en una página de contacto, porque quien
+    escribe se queda esperando una respuesta que nunca se pidió.
+
+    Un `mailto` no puede fallar en silencio: o se abre el correo del visitante, o ve la dirección y
+    la copia.
+    """
+    return render(request, "contacto.html", {"legal": legal})
+
+
 def health(request: HttpRequest) -> JsonResponse:
     """Liveness probe: is this process up? Does NOT touch the DB (used by the container
     healthcheck, so an upstream/DB blip can't mark a healthy web process as unhealthy)."""

@@ -13,7 +13,7 @@ from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
 
-from dglweb.core.views import documento_legal, health, home, pipeline_health, pizarra
+from dglweb.core.views import contacto, documento_legal, health, home, pipeline_health, pizarra
 from dglweb.stats.staticdata import views as staticdata_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
@@ -32,6 +32,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     # Las tres páginas legales. Rutas fijas y no páginas del CMS a propósito — el porqué está en la
     # vista. Van ANTES del catch-all de Wagtail, que si no se queda con ellas.
     path("legal/<slug:documento>/", documento_legal, name="legal"),
+    path("contacto/", contacto, name="contacto"),
     # El fragmento de la pizarra, que el navegador vuelve a pedir mientras haya juegos vivos.
     path("pizarra/", pizarra, name="pizarra"),
     path("", include("dglweb.profiles.urls")),  # /jugador/<slug>/ — before Wagtail's catch-all
