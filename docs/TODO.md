@@ -931,3 +931,30 @@ módulos vivos de esa fase— están hechos y funcionando.
 **La página aparte de la pizarra NO se va a hacer** — decisión del dueño (2026-07-27). La Fase 0 la
 mencionaba («pizarra completa → página aparte») y queda descartada: la pizarra vive en la portada y
 ya está. Se escribe acá para que nadie la vuelva a proponer leyendo aquel plan viejo.
+
+## El ruido de `treebeard.E001` en los logs (2026-07-27)
+
+Cada corrida de CADA job del scheduler escribe cuatro líneas de aviso por `stderr`:
+
+```
+(treebeard.E001) django.db.models.manager.BasePageManagerFromPageQuerySet does not subclass
+treebeard.mp_tree.MP_NodeManager. This will cause an error in Treebeard 6.
+```
+
+**No es nuestro código.** Es Wagtail 7.4.2 contra django-treebeard 5.3.0: los managers de `Page` y
+`Collection` los define Wagtail y no heredan de `MP_NodeManager`, que es lo que treebeard 6 va a
+exigir. Hoy es solo un aviso y nada se rompe.
+
+**Por qué molesta igual.** Sale en el `stderr` de las cinco corridas, o sea decenas de veces al día,
+y **entierra el `stderr` de verdad**. El día que `refresh_daily` escriba un error real —que es
+justamente el canal por el que avisa— va a estar mezclado con ese ruido en el mismo bloque del log. Un
+canal de errores donde casi todo es ruido deja de leerse, que es el mismo problema que tuvimos con
+las alertas de Telegram.
+
+- [ ] **Silenciarlo con `SILENCED_SYSTEM_CHECKS = ["treebeard.E001"]`** en `config/settings/base.py`.
+      Es una línea, y hay que escribir al lado POR QUÉ se silencia y qué se está aplazando — un
+      `SILENCED_SYSTEM_CHECKS` sin explicación es una trampa para el que venga.
+- [ ] **Antes de subir a treebeard 6, quitar ese silencio y ver qué queda.** El aviso dice que
+      entonces será un error, y ahí ya no es cosmético: no arranca. Como la política del proyecto es
+      quedarse en versiones LTS, esto no urge — pero cuando toque el salto, es lo primero que hay que
+      mirar. La decisión no es nuestra: la tiene que resolver Wagtail en su código.
