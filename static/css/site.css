@@ -670,7 +670,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* En las filas que se ven al desplegar, el cuadrado se reserva pero no se pinta: la categoría ya la
    dijo la fila de arriba, y repetirla cuatro veces dentro de la misma caja es ruido. El hueco se
    queda para que las fotos sigan alineadas en la misma vertical. */
-.dgl-de-mas .dgl-lider-sigla { visibility: hidden; }
+.dgl-lider-extra .dgl-lider-sigla { visibility: hidden; }
 
 /* El equipo y el «ver más» en una línea propia bajo el nombre, para que el nombre pueda usar todo el
    ancho antes de recortarse con puntos suspensivos. */
