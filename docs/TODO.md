@@ -552,6 +552,60 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   BIP). Temporada intacta (400/1000). BD actualizada y `dgl_leader` reconstruido (GB% carrera bateo pasó
   de 203 a 85 calificados).
 
+## Mejorar la cobertura de ciertos tests (2026-07-27)
+
+Pedido del dueño mirando el reporte de `pytest --cov`. El total es 96% (5.734 sentencias, 246 sin
+cubrir) y **el número global no es la meta**: subirlo a 98% persiguiendo migraciones no protege nada.
+Lo que sigue está ordenado por lo que duele si se rompe, no por porcentaje.
+
+**Lo que NO hay que perseguir**, para que nadie gaste el día ahí:
+* Las migraciones al 89–92% (`0016`, `0017`, `0018`, `0023`). Lo que falta es la función de reversa,
+  que solo corre si alguien deshace la migración a mano.
+* `download_team_logos.py` al **0%**. Es un script de una sola vez: los treinta SVG ya están bajados
+  y commiteados. Escribirle tests es cubrir código que no va a volver a correr.
+* `models.py`, 24 líneas de 1.081. Son `__str__` y ramas de propiedades sueltas.
+
+### 1. `refresh_daily` y `pipeline` — el trabajo de las 4:30 AM
+
+Lo más caro de la lista. `refresh_daily.py` está al **71%** y lo que falta (líneas 42–43 y 50–53) es
+justo **la salida con fallos**: el `stderr` ruidoso, el listado de los pasos que fallaron y el corte
+por ventana de temporada. O sea, el camino que solo se recorre la mañana que algo se rompe — el único
+que nadie va a ver hasta que pase de verdad.
+
+En `pipeline.py` (90%) faltan las 108–115: el `except` que convierte el fallo de un paso en dato en
+vez de dejarlo reventar, incluido el caso de que el paso no haya dejado fila en el log. Ese camino ya
+nos confundió una vez (ver el incidente de Telegram más abajo, «no dejó fila en el log»).
+
+- [ ] Cubrir la salida con fallos de `refresh_daily` y el `except` de `_correr` en `pipeline`.
+
+### 2. `rebuilds.py` (83%) — el hilo del Backoffice
+
+Faltan la 50 y las 67–68: el `close_all()` de las conexiones cuando corre en su propio hilo, y el
+lanzamiento del hilo. Es el código que ya tiene un finding abierto (QA-02 / ARCH-02: «el rebuild
+puede no dejar rastro»), y una conexión de Postgres que se queda colgada por carga no se nota hasta
+que se acaban.
+
+- [ ] Un test que compruebe que el hilo cierra sus conexiones y que el hilo principal NO cierra las
+      que no abrió.
+
+### 3. `telegram_check` (68%) — el canal de avisos
+
+Es el más bajo de todo el código real. Lo que falta son los tres caminos de error que justifican que
+el comando exista: token que no sirve, Telegram que no contesta, y `--buscar` sin ningún mensaje
+recibido. Prioridad media: es una herramienta de mano, no algo que corra solo. Pero es el comando al
+que uno acude **cuando los avisos ya fallaron**, y ahí no es momento de descubrir que tiene un bug.
+
+- [ ] Cubrir los tres caminos de error con `httpx` simulado (nunca red real — ver el marcador
+      `telegram` en `pyproject.toml`).
+
+### 4. Los motores de datos, si sobra tiempo
+
+`leaders.py` (94%, 14 líneas), `leaderboards.py` (92%, 15), `tabs.py` (95%, 17) y `qualifier.py`
+(91%, 4). Son ramas de borde de mucho código que ya tiene paridad comprobada contra la base real, así
+que el riesgo está más cubierto de lo que dice el porcentaje. Último de la lista a propósito.
+
+- [ ] Revisar caso por caso si cada línea suelta es una rama real o código muerto que conviene borrar.
+
 ## Incidente — el CI llevaba doce pushes en rojo y nadie lo vio (2026-07-27)
 
 **Qué pasó.** Desde `508635e` (run #141, 26 de julio) hasta `24e359b` (#152) TODAS las corridas de
