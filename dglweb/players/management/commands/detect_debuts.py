@@ -40,8 +40,6 @@ class Command(BaseCommand):
             return
 
         season = options["season"] or timezone.now().year
-        # ANTES de abrir la corrida: en cuanto `record_run` crea su fila, la «última» pasa a ser esta.
-        previos = debuts.ya_avisados()
 
         with record_run("detect_debuts", str(season)) as run:
             encontrados = debuts.detect(build_client(), season)
@@ -49,7 +47,7 @@ class Command(BaseCommand):
             for debut in encontrados:
                 run.note(str(debut))
 
-        self._avisar(season, [d for d in encontrados if d.player_id not in previos])
+        self._avisar(season, encontrados)
 
         if not encontrados:
             self.stdout.write(f"{season}: sin debuts pendientes de cargar.")
@@ -61,13 +59,22 @@ class Command(BaseCommand):
         for debut in encontrados:
             self.stdout.write(f"  {debut}")
 
-    def _avisar(self, season: int, nuevos: list[debuts.Debut]) -> None:
-        """Telegram solo para los que no salieron ayer. Ver `debuts.ya_avisados`."""
-        if not nuevos:
+    def _avisar(self, season: int, pendientes: list[debuts.Debut]) -> None:
+        """Avisa de TODOS los que faltan por cargar, todos los días, hasta que dejen de faltar.
+
+        Hubo una versión que avisaba una sola vez por debutante, para no repetirse. **El dueño pidió
+        lo contrario, y tiene razón**: si el aviso sale un martes y ese día no lo ve, el pelotero se
+        queda fuera del sitio sin que nada vuelva a recordarlo. La repetición no es ruido acá — es
+        justamente el mecanismo, y para en cuanto carga al jugador, que es el acuse de recibo.
+
+        Por eso son pocos y raros —un puñado al año— y por eso no hace falta protegerse de la
+        insistencia: el canal no se satura con esto.
+        """
+        if not pendientes:
             return
-        # `debut.aviso` y no `str(debut)`: el del log empieza por el id porque `ya_avisados()` lo
-        # parsea, y en el teléfono ese número se lee como parte de la viñeta. Ver `debuts.Debut`.
+        # `debut.aviso` y no `str(debut)`: el del log empieza por el id, y en el teléfono ese número
+        # se leería como parte de la viñeta en vez de como un dato. Ver `debuts.Debut`.
         lineas = [f"⚾ Debut dominicano en Grandes Ligas ({season})", ""]
-        lineas += [debut.aviso for debut in nuevos]
+        lineas += [debut.aviso for debut in pendientes]
         lineas += ["", "Cargalo en el Backoffice para que aparezca en el sitio."]
         notify.enviar("\n".join(lineas))

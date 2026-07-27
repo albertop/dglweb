@@ -14,7 +14,6 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from dglweb.core import notify
-from dglweb.players import debuts
 from dglweb.players.models import Player
 from dglweb.stats import pipeline
 from dglweb.stats.models import DomPlayer, IngestRun, SeasonDates
@@ -200,11 +199,14 @@ def test_a_new_debut_reaches_telegram(temporada: SeasonDates, monkeypatch: pytes
 
 
 @pytest.mark.django_db
-def test_the_same_debut_is_not_announced_twice(temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch) -> None:
-    """El worklist insiste todos los días a propósito; el bolsillo no.
+def test_a_pending_debut_is_announced_every_single_day(temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch) -> None:
+    """La repetición es el mecanismo, no un efecto secundario.
 
-    El mismo aviso cada mañana durante dos semanas —lo que tarda el dueño en cargar al jugador—
-    enseñaría a silenciar el canal, y entonces el debut siguiente pasaría desapercibido.
+    Hubo una versión que avisaba una sola vez por debutante, para no cansar. **El dueño pidió lo
+    contrario**: si el aviso sale un martes y ese día no lo ve, el pelotero se queda fuera del sitio
+    sin que nada vuelva a recordarlo. Insiste hasta que lo carga, que es el acuse de recibo.
+
+    Puede insistir sin cansar porque son pocos y raros: un puñado al año.
     """
     DomPlayer.objects.create(player_id=2, full_name="Debutante D")
     enviados: list[str] = []
@@ -219,7 +221,8 @@ def test_the_same_debut_is_not_announced_twice(temporada: SeasonDates, monkeypat
     call_command("detect_debuts", "--season", "2026")
     call_command("detect_debuts", "--season", "2026")  # al día siguiente, sigue pendiente
 
-    assert len(enviados) == 1  # el log lo repite; Telegram no
+    assert len(enviados) == 2  # y vuelve a avisar, que es lo que se quiere
+    assert enviados[0] == enviados[1]
 
 
 @pytest.mark.django_db
@@ -259,20 +262,21 @@ def test_nothing_pending_sends_nothing(temporada: SeasonDates, monkeypatch: pyte
 
 
 @pytest.mark.django_db
-def test_the_previous_run_is_read_before_this_one_overwrites_it(temporada: SeasonDates) -> None:
-    """El detalle a parsear es el de AYER: si se lee después de abrir la corrida, se lee la de hoy vacía."""
-    ahora = timezone.now()
-    IngestRun.objects.create(
-        command="detect_debuts",
-        scope="2026",
-        status=IngestRun.Status.SUCCESS,
-        started_at=ahora,
-        finished_at=ahora,
-        rows_affected=1,
-        detail="2 Debutante D (debut 2026-07-25)",
-    )
+def test_the_alert_carries_the_id_the_backoffice_needs(temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Quien recibe el aviso va a dar de alta al pelotero: necesita el nombre y el `player_id`.
 
-    assert debuts.ya_avisados() == {2}
+    Rotulado y en su propia línea. Como «• 2 Debutante D» el número se leía como parte de la viñeta.
+    """
+    DomPlayer.objects.create(player_id=2, full_name="Debutante D")
+    enviados: list[str] = []
+
+    monkeypatch.setattr("dglweb.core.notify.enviar", lambda t: enviados.append(t) or True)
+    monkeypatch.setattr("dglweb.players.management.commands.detect_debuts.build_client", lambda: _ProxyFalso({2}))
+
+    call_command("detect_debuts", "--season", "2026")
+
+    assert "player_id 2" in enviados[0]
+    assert "Cargalo en el Backoffice" in enviados[0]
 
 
 # ── El comprobador ──────────────────────────────────────────────────────────────────────────────

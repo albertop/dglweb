@@ -29,7 +29,8 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
   cuando se prepare el despliegue**, no antes — sin dominio público no hay nada que vigilar.
 
 - [x] **Avisos por Telegram.** **Funcionando** (`dglweb/core/notify.py`), verificado con un mensaje real el 2026-07-26. El bot es `@dglweb_avisos_bot` y escribe a un **grupo**, no a un chat privado: el id es negativo y eso tiene una ventaja — sumar a otra persona a los avisos es agregarla al grupo, sin tocar configuración. Avisa cuando **un paso del refresco falla** —diciendo cuál, que es lo que el «503» del monitor externo no puede decir— y cuando **aparece un debut nuevo**.
-  Los debuts se avisan **una sola vez**, no cada día: el worklist del log insiste a propósito hasta que cargues al jugador, pero el mismo mensaje cada mañana durante dos semanas enseñaría a silenciar el canal, y entonces el debut siguiente pasaría desapercibido.
+  Los debuts se avisan **todos los días** mientras sigan pendientes. Hubo una versión que avisaba una sola vez por debutante —yo puse esa deduplicación para no cansar— y **el dueño pidió lo contrario, con razón**: si el aviso sale un martes y ese día no lo ve, el pelotero se queda fuera del sitio sin que nada vuelva a recordarlo. La repetición ES el mecanismo, y para en cuanto lo carga, que es el acuse de recibo. Puede insistir sin cansar porque son pocos y raros: un puñado al año.
+  El mensaje lleva el `player_id` rotulado y en su propia línea, que es lo que hace falta para darlo de alta en el Backoffice.
   Un refresco limpio NO avisa: un «todo bien» diario se vuelve ruido en una semana.
   **Para encenderlo** hacen falta dos valores en `.env` — hablar con @BotFather para el token y sacar el chat id; sin ellos no se manda nada y no se protesta, que es lo correcto en desarrollo:
   ```
@@ -590,3 +591,16 @@ Con guardián: `tests/test_no_avisar_en_tests.py` comprueba que la suite no tien
   Ofelia y vuelve por una puerta nueva: no por etiquetas robadas, sino por cambiar el calendario sin
   reiniciar. **Se arregla con `docker compose restart scheduler`**, y conviene dejarlo escrito en el
   propio `config.ini` para el próximo cambio.
+
+## Comprobar el canal de avisos a mano
+
+- [x] **`pytest -m telegram` manda un mensaje real y verifica que la llave funciona.** Existe porque
+  los demás tests de `notify` parchean `httpx.post`: comprueban que el mensaje se arma bien y que un
+  401 no tumba el job, pero **ninguno se enteraría de que el token está vencido, revocado o mal
+  copiado en el `.env`** — y un aviso que no llega no avisa de que no llegó.
+  Está excluido de la suite por defecto (`addopts = -m 'not telegram'`), que es la contrapartida de
+  vaciar las credenciales en `settings.test`: aquello garantiza que los tests normales no manden
+  nada, esto deja una forma de comprobar que el canal sí funciona.
+  El mensaje empieza por «TEST» y dice de dónde salió — es la única vez que el sitio manda algo a
+  propósito desde los tests y tiene que ser imposible confundirlo con una alerta.
+  **Correrlo después de rotar el token**, que es el pendiente de arriba.

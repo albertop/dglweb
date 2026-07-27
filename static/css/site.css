@@ -7,11 +7,12 @@
 :root {
   --dgl-navy: #0b1f3a;      /* top bar / footer */
   --dgl-navy-2: #12294b;
-  --dgl-red: #ce1126;       /* RD flag red — LIVE / hot only */
-  /* El rojo de la bandera oscurecido (L 44% -> 35%), para el tab activo. NO se iguala la luminosidad
-     del navy: el azul sobrevive la oscuridad y el rojo no — a L 13,5% se vuelve marrón y pierde la
-     identidad. Acá sigue leyéndose rojo, pesa menos que la bandera pura y da 7,8:1 con blanco. */
-  --dgl-red-deep: #a50e1e;
+  /* UN solo rojo en todo el sitio, el de la bandera: monograma, tab activo, kickers, disco del valor.
+     Hubo un segundo tono más oscuro (#a50e1e) para el tab y para el disco, elegido por contraste.
+     Convivían a un palmo uno del otro y esa diferencia no se lee como una decisión, se lee como un
+     descuido — que fue exactamente como la vio el dueño, dos veces.
+     El contraste no lo justificaba: #ce1126 con blanco da 5,6:1 y el AA de la WCAG pide 4,5:1. */
+  --dgl-red: #ce1126;
   --dgl-blue: #1f4e9b;      /* accent / links */
   --dgl-ink: #1a1d21;       /* body text */
   --dgl-muted: #6b7280;
@@ -717,7 +718,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    interletraje apretado: el puesto son una o dos cifras y el valor puede ser «.328», cuatro
    caracteres que a igual cuerpo se salían del disco. */
 .dgl-lider-disco.valor {
-  background: var(--dgl-red-deep); color: #fff; font-size: .82rem; font-weight: 800;
+  background: var(--dgl-red); color: #fff; font-size: .82rem; font-weight: 800;
   letter-spacing: -.05em;
 }
 
