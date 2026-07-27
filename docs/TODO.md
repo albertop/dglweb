@@ -604,3 +604,36 @@ Con guardián: `tests/test_no_avisar_en_tests.py` comprueba que la suite no tien
   El mensaje empieza por «TEST» y dice de dónde salió — es la única vez que el sitio manda algo a
   propósito desde los tests y tiene que ser imposible confundirlo con una alerta.
   **Correrlo después de rotar el token**, que es el pendiente de arriba.
+
+## Self-healing de `dgl_master.pos` (2026-07-27)
+
+`pos` es la única columna del maestro que **envejece sola**. La fecha de nacimiento no cambia; la
+posición sí, y varias veces: un campocorto se muda a segunda a los treinta, un jardinero central pasa
+a la esquina, un abridor termina de cerrador. Se llenó una vez y nadie la volvió a mirar.
+
+Medido: **96 de 981 ya no correspondían** — Tatis en el jardín derecho y no en el campocorto, Soto en
+el derecho y no en el izquierdo, Polanco en segunda.
+
+- [x] **`manage.py check_positions`, semanal (domingos 8:30).** Compara y **solo informa**. Con
+  `--aplicar` escribe, a mano y a sabiendas: `dgl_master` es la tabla del dueño y un proceso que
+  sobrescriba por su cuenta puede pisar una corrección hecha a mano sin que nadie se entere.
+
+  El criterio, con el porqué en `players/positions.py`:
+  * **Entradas y no juegos.** Un cambio defensivo de un inning cuenta un juego igual que una novena
+    completa.
+  * **Últimas 3 temporadas**, no la carrera. La pregunta es qué juega HOY. Con el total de carrera,
+    Polanco seguiría diciendo SS durante años. Para quien ya no juega se mira la carrera, que además
+    ya no va a cambiar.
+  * **Si es `P`, decide `GS/G`**: más de la mitad de sus juegos abiertos es `SP`, si no `RP`.
+  * **Sin mínimo de entradas para lanzadores.** Un relevista novato con cinco entradas ES un
+    relevista y su `GS/G` ya lo dice; el umbral lo dejaría en «P» para siempre, que es justo lo que
+    hay que curar — 30 casos.
+  * **Mínimo 20 IP para los de posición.** Elegido midiendo: descarta cuatro casos de ocho y nueve
+    entradas y no toca ninguno legítimo.
+  * **`PH`, `PR`, `DH` y `OF` no se tocan nunca.** Son roles, no posiciones, y alguien los puso a
+    propósito — 71 jugadores. Decisión del dueño.
+
+- [ ] **Aplicar las 96 correcciones en el DGL de SQL Server.** El comando escribe en Postgres, pero
+  la fuente de verdad es `dbo.dglMaster`: si solo se corrige acá, la próxima carga lo revierte.
+  Generado `static_data/csv/posiciones_update.sql` con las 96 sentencias, cada una comentada con el
+  nombre, el cambio, las entradas y —en los lanzadores— las aperturas sobre juegos.

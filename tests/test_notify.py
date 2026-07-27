@@ -270,7 +270,11 @@ def test_the_alert_carries_the_id_the_backoffice_needs(temporada: SeasonDates, m
     DomPlayer.objects.create(player_id=2, full_name="Debutante D")
     enviados: list[str] = []
 
-    monkeypatch.setattr("dglweb.core.notify.enviar", lambda t: enviados.append(t) or True)
+    def espiar(texto: str) -> bool:
+        enviados.append(texto)
+        return True
+
+    monkeypatch.setattr("dglweb.core.notify.enviar", espiar)
     monkeypatch.setattr("dglweb.players.management.commands.detect_debuts.build_client", lambda: _ProxyFalso({2}))
 
     call_command("detect_debuts", "--season", "2026")
