@@ -660,10 +660,25 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [x] **QA-02 — las vistas de carga casi no tienen tests (31%).** **Corregido**: medido hoy, `staticdata/views.py` está en **91%** y `engine.py`/`loaders.py` en 98%. Los tests cubren permisos (anónimo, staff no-admin), los tres portazos (nombre, tamaño, binario), el pk inexistente, confirmar sin borrador, el camino feliz y el disparo de la reconstrucción.
   ~~ De acuerdo: es la pieza que
   reemplaza tablas y no está ejercitada end-to-end. Los tests que escribí cubren motor y loader.
-- [ ] **SAB-02 — no se reconcilia lo cargado contra `H`/`BIP` de la fila.** La validación defensiva es
-  correcta. **Matiz**: el modo de fallo que describe (coeficientes sumando >100%) no se materializó —
-  medido tras la carga real, Sosa 2000 suma .973. La guarda de "solo pisar si tipifica más" ya evita
-  el caso obvio. Vale igual como red de seguridad.
+- [x] **SAB-02 — no se reconcilia lo cargado contra `H`/`BIP` de la fila.** **Hecho (2026-07-27).**
+  La mitad de `H` ya estaba: `BattedBallHitsLoader.checks()` exige que los cuatro tipos sumen
+  `h_typed` fila por fila. Faltaba la de `BIP`, que es la que importa, porque ahí el numerador mezcla
+  fuentes (outs de MLB + hits de Retrosheet) contra un denominador de una tercera cuenta.
+
+  Tres piezas: `derive.batted_ball_excess()` hace la aritmética una sola vez y en batazos enteros —no
+  en proporciones, para no tener que inventar un epsilon que acabaría escondiendo desajustes de una
+  unidad—; `post_apply` aborta la transacción si lo que se carga empeora el desajuste; y
+  `manage.py check_batted_balls` audita lo que ya está guardado.
+
+  **La auditoría encontró una fila real**, y eso cambió el diseño de la guarda: **Rafael Soriano
+  2010 (pitcheo)** tiene 129 outs + 36 hits = **165 batazos contra 164 BIP**, o sea coeficientes
+  sumando 100,61%. Los hits ahí son del propio proxy, no de Retrosheet — **es MLB inconsistente
+  consigo mismo**, y precede a todo esto. La primera versión de la guarda abortaba con cualquier
+  exceso, y eso habría tumbado un import legítimo por una fila rota desde antes, señalando al CSV
+  equivocado. Ahora compara antes/después y solo corta si NOSOTROS lo empeoramos.
+
+  Pendiente menor, no bloqueante: **decidir qué se hace con la fila de Soriano** (1 de 6.896
+  medibles). Es dato de la fuente, así que no se toca sin decisión del dueño.
 - [ ] **DEV-03 / DEV-04 — `compare()` carga todo en memoria; el upsert hace una query por fila.**
   Ciertos. Con 1.500 filas no se nota; el propio review dice que es tolerable. Documentar el límite
   del motor y volver si aparece un dataset grande.

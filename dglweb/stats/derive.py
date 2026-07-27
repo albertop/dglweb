@@ -134,6 +134,38 @@ def derived_rates(c: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def batted_ball_excess(c: dict[str, Any]) -> int | None:
+    """Cuántos batazos se pasan los cuatro tipos por encima de `balls_in_play`. `None` si no se mide.
+
+    LA RECONCILIACIÓN QUE FALTABA (SAB-02 del review v4)
+    ----------------------------------------------------
+    Los coeficientes de abajo mezclan tres procedencias en una sola fracción:
+
+        gb_pct = (ground_outs + ground_hits) / balls_in_play
+                  └ MLB ────┘   └ Retrosheet ┘   └ MLB ────┘
+
+    Nadie comprobaba que el numerador armado quepa en el denominador. Y no es una simetría teórica:
+    a Retrosheet le faltan hits tipificados donde a MLB le sobran, y nuestro maestro de dominicanos
+    es ~10% más amplio que el join de allá. Si los hits de una fuente superan los batazos de la otra,
+    los cuatro porcentajes suman más de 100% — un dato imposible que se publicaría sin chistar,
+    porque a simple vista un GB% de 41 no tiene nada de raro.
+
+    Se cuenta en BATAZOS ENTEROS y no en proporciones a propósito: son enteros exactos, así que
+    `> 0` es una respuesta limpia. Comparar la suma de cuatro flotantes contra 1.0 obligaría a
+    inventar un epsilon, y ese epsilon acabaría escondiendo desajustes de una unidad.
+
+    Devuelve `None` cuando falta alguna pieza —una temporada sin `balls_in_play`, un oficio sin
+    tipificar—, que no es un fallo: es que no hay nada que reconciliar.
+    """
+    bip = c.get("balls_in_play")
+    if not bip:
+        return None
+    tipos = [_sum(c.get(f"{t}_outs"), c.get(f"{t}_hits")) for t in ("ground", "fly", "line", "pop")]
+    if any(valor is None for valor in tipos):
+        return None
+    return sum(valor for valor in tipos if valor is not None) - int(bip)
+
+
 def batted_ball_coefficients(c: dict[str, Any]) -> dict[str, Any]:
     """Group 3 on its own, because pitching needs the very same numbers.
 

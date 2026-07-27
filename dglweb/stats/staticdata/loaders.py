@@ -181,7 +181,7 @@ class BattedBallHitsLoader(Loader):
         de una temporada con traspaso conservan lo que dio el proxy; los líderes y los coeficientes
         del perfil leen el total, que es el que queda corregido.
         """
-        from dglweb.stats.derive import batted_ball_coefficients
+        from dglweb.stats.derive import batted_ball_coefficients, batted_ball_excess
 
         por_oficio: dict[str, dict[tuple[int, int], dict[str, int]]] = {"batting": {}, "pitching": {}}
         for row in rows:
@@ -208,8 +208,31 @@ class BattedBallHitsLoader(Loader):
                 entrante = sum(nuevo[campo] for campo in ("ground_hits", "fly_hits", "line_hits", "pop_hits"))
                 if entrante <= actual:
                     continue
+                # La reconciliación contra `balls_in_play` (SAB-02), medida ANTES y DESPUÉS de poner
+                # los hits nuevos. Si los cuatro tipos no caben en los batazos que reportó el proxy,
+                # las cuatro proporciones suman más de 100%: imposible.
+                #
+                # SE COMPARA, no se mira solo el resultado. La primera versión abortaba con cualquier
+                # exceso, y eso estaba mal: la auditoría destapó que ya hay una fila así en la base
+                # —Soriano 2010, 165 batazos contra 164 BIP— con los hits del propio proxy, o sea una
+                # inconsistencia de MLB consigo mismo que no tiene nada que ver con este CSV. Con la
+                # regla ingenua, un import legítimo se caía entero por una fila que ya estaba rota
+                # desde antes, y el mensaje habría señalado al CSV equivocado.
+                #
+                # La regla correcta es: lo que cargamos no puede EMPEORARLO. El ruido que ya venía de
+                # la fuente se deja pasar y lo reporta `manage.py check_batted_balls`, que es la
+                # herramienta para eso.
+                antes = batted_ball_excess(_as_dict(linea))
                 for campo in ("ground_hits", "fly_hits", "line_hits", "pop_hits"):
                     setattr(linea, campo, nuevo[campo])
+                despues = batted_ball_excess(_as_dict(linea))
+                if despues is not None and despues > 0 and (antes is None or despues > antes):
+                    raise ValueError(
+                        f"jugador {linea.player_id} {linea.season} ({group}): con estos hits, los "
+                        f"cuatro tipos de batazo superan en {despues} a los {linea.balls_in_play} "
+                        f"balls in play (antes: {antes}). Los coeficientes sumarían más de 100%. "
+                        "Ver SAB-02 en docs/TODO.md."
+                    )
                 for campo, valor in batted_ball_coefficients(_as_dict(linea)).items():
                     setattr(linea, campo, valor)
                 actualizadas.append(linea)

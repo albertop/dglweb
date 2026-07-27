@@ -12,6 +12,7 @@ Two families, matching `derive.py`:
 
 import pytest
 
+from dglweb.stats import derive
 from dglweb.stats.derive import derived_rates
 
 # José Ramírez, CLE, 2024 — the exact counting line from dbo.mlbBatting.
@@ -184,3 +185,57 @@ def test_exotic_metrics_null_when_their_denominator_is_zero() -> None:
     assert rates["eq_avg"] is None
     assert rates["rc"] is None
     assert rates["total_avg"] is None
+
+
+# ---------------------------------------------------------------------------------------------
+# SAB-02: la reconciliación de los cuatro tipos de batazo contra `balls_in_play`.
+#
+# Lo que se protege acá no es una fórmula, es una IMPOSIBILIDAD: los cuatro tipos son una partición
+# de los batazos, así que sus proporciones no pueden sumar más de 100%. Que se pueda es consecuencia
+# de que el numerador mezcla dos fuentes (outs de MLB, hits de Retrosheet) y el denominador viene de
+# una tercera cuenta que nadie comparaba.
+# ---------------------------------------------------------------------------------------------
+
+
+def _batazos(**cambios: int | None) -> dict[str, int | None]:
+    base: dict[str, int | None] = {
+        "ground_outs": 40,
+        "fly_outs": 30,
+        "line_outs": 10,
+        "pop_outs": 10,
+        "ground_hits": 5,
+        "fly_hits": 3,
+        "line_hits": 1,
+        "pop_hits": 1,
+        "balls_in_play": 100,
+    }
+    return {**base, **cambios}
+
+
+def test_batted_ball_excess_cero_cuando_cuadra_exacto() -> None:
+    assert derive.batted_ball_excess(_batazos()) == 0
+
+
+def test_batted_ball_excess_negativo_es_lo_normal() -> None:
+    """A Retrosheet le falta la trayectoria en ~2,5% de los hits, así que lo típico es quedarse
+    corto. Un negativo NO es un problema — solo el positivo es imposible."""
+    assert derive.batted_ball_excess(_batazos(line_hits=0)) == -1
+
+
+def test_batted_ball_excess_positivo_es_el_caso_imposible() -> None:
+    exceso = derive.batted_ball_excess(_batazos(line_hits=6))
+    assert exceso == 5
+    coeficientes = derive.batted_ball_coefficients(_batazos(line_hits=6))
+    suma = sum(coeficientes[c] for c in ("gb_pct", "fb_pct", "ld_pct", "pu_pct"))
+    assert suma > 1, "el exceso positivo tiene que traducirse en proporciones que pasan de 100%"
+
+
+def test_batted_ball_excess_sin_bip_no_se_puede_medir() -> None:
+    """`None` no es un fallo: es que no hay denominador con el que reconciliar."""
+    assert derive.batted_ball_excess(_batazos(balls_in_play=None)) is None
+    assert derive.batted_ball_excess(_batazos(balls_in_play=0)) is None
+
+
+def test_batted_ball_excess_sin_tipificar_no_se_puede_medir() -> None:
+    """Una temporada sin outs por tipo tampoco se puede reconciliar: falta media partición."""
+    assert derive.batted_ball_excess(_batazos(ground_outs=None)) is None
