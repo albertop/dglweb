@@ -89,3 +89,12 @@ def test_cms_admin_redirects_to_login_when_anonymous():
 
     assert response.status_code == 302
     assert "/cms/login" in response.headers["Location"]
+
+
+@pytest.mark.django_db
+def test_articles_index_answers():
+    """El enlace del menú ya la promete; un menú que lleva a un 404 es peor que uno que no lleva."""
+    response = Client().get("/articulos/")
+
+    assert response.status_code == 200
+    assert "Artículos".encode() in response.content

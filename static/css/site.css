@@ -806,3 +806,55 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    blanco pintaba los márgenes del contenedor, que son más anchos que el anuncio, y dejaba dos
    franjas blancas a los lados. */
 .dgl-ad-pegajoso { position: sticky; bottom: .75rem; background-color: var(--dgl-card); }
+
+/* ---------- Índice de artículos ---------- */
+/* La tarjeta. Sin sombra y con un filo tenue: son doce en pantalla, y doce sombras convierten la
+   lista en un relieve. El realce llega al pasar el mouse. */
+.dgl-art {
+  display: flex; flex-direction: column; height: 100%;
+  background: var(--dgl-card); border: 1px solid var(--dgl-line); border-radius: .5rem;
+  overflow: hidden; transition: border-color .15s, transform .15s;
+}
+.dgl-art:hover { border-color: var(--dgl-blue); transform: translateY(-2px); }
+.dgl-art .cuerpo { padding: .8rem .9rem 1rem; display: flex; flex-direction: column; flex: 1 0 auto; }
+.dgl-art h3 {
+  font-size: .95rem; font-weight: 750; letter-spacing: -.01em; line-height: 1.3; margin: .35rem 0 .5rem;
+}
+.dgl-art h3 a { color: var(--dgl-ink); }
+.dgl-art h3 a:hover { color: var(--dgl-blue); text-decoration: none; }
+/* La entradilla en serif, como el cuerpo del artículo: adelanta cómo se va a leer adentro. */
+.dgl-art .entradilla {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: .9rem; line-height: 1.5; color: #4b5563; margin-bottom: .6rem;
+}
+/* La meta pegada abajo, para que las tarjetas de una fila la alineen aunque los títulos midan
+   distinto. */
+.dgl-art .pie { margin-top: auto; }
+.dgl-art-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .5rem; }
+
+/* El destacado: la misma tarjeta en horizontal. Se distingue de la retícula sin ser gigante. */
+.dgl-art-destacado { flex-direction: row; }
+.dgl-art-destacado .dgl-thumb { flex: 0 0 45%; height: auto; min-height: 260px; }
+.dgl-art-destacado h3 { font-size: 1.5rem; line-height: 1.2; }
+.dgl-art-destacado .entradilla { font-size: 1rem; }
+@media (max-width: 767px) {
+  .dgl-art-destacado { flex-direction: column; }
+  .dgl-art-destacado .dgl-thumb { flex: 0 0 auto; min-height: 180px; }
+}
+
+/* Las categorías. Se deslizan en móvil en vez de apilarse en tres renglones. */
+.dgl-cats { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .3rem; scrollbar-width: none; }
+.dgl-cats::-webkit-scrollbar { display: none; }
+.dgl-cats .dgl-pill { flex: 0 0 auto; }
+
+/* «Lo más leído»: un ranking numerado y no más tarjetas — repetir el mismo componente a la derecha
+   haría que la página entera se leyera como una sola lista larga. */
+.dgl-top { counter-reset: leidos; }
+.dgl-top li { display: flex; gap: .6rem; padding: .5rem 0; border-bottom: 1px solid var(--dgl-line); }
+.dgl-top li:last-child { border-bottom: 0; }
+.dgl-top li::before {
+  counter-increment: leidos; content: counter(leidos);
+  font-weight: 800; font-size: 1.1rem; color: #cbd2dc; line-height: 1;
+}
+.dgl-top a { color: var(--dgl-ink); font-size: .82rem; font-weight: 650; line-height: 1.35; }
+.dgl-top a:hover { color: var(--dgl-blue); text-decoration: none; }

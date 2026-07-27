@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% comment %}
+Índice de artículos.
+
+La categoría es ÚNICA por artículo —el kicker rojo de cada tarjeta— y se navega con las pills de
+arriba, porque son excluyentes. Los hashtags son libres y viven dentro de la tarjeta: un artículo
+lleva los que haga falta.
+
+Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lector viene a leer.
+
+Las tarjetas son de muestra, igual que las de la portada. El modelo `Article` de Wagtail llega en la
+Fase 5 y entonces esta plantilla recorrerá lo publicado. La página existe desde ahora porque el
+enlace del menú ya la promete.
+{% endcomment %}
+{% block title %}Artículos · Dominicanos en Grandes Ligas{% endblock %}
+
+{% block content %}
+<main class="container my-4">
+
+  {# Alto reservado desde el CSS: el título nace en su sitio y no baja cuando el anuncio carga. #}
+  <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
+
+  <h1 class="dgl-page-title">Artículos</h1>
+  <div class="dgl-lede mb-3">
+    <p class="mb-0">Análisis, datos y contexto del béisbol dominicano en las Grandes Ligas.</p>
+  </div>
+
+  {% comment %}
+    Categoría única, así que se navegan como filtro y no como etiquetas acumulables. En móvil la fila
+    se desliza en vez de apilarse en tres renglones.
+  {% endcomment %}
+  <nav class="dgl-cats mb-4" aria-label="Categorías">
+    <a class="dgl-pill active" href="#" aria-current="page">Todos</a>
+    <a class="dgl-pill" href="#">Sabermetría</a>
+    <a class="dgl-pill" href="#">Statcast</a>
+    <a class="dgl-pill" href="#">Defensa</a>
+    <a class="dgl-pill" href="#">Pitcheo</a>
+    <a class="dgl-pill" href="#">Debutantes</a>
+    <a class="dgl-pill" href="#">Historia</a>
+    <a class="dgl-pill" href="#">Cosas raras</a>
+  </nav>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+
+      {# El destacado va horizontal: se distingue de la retícula sin necesidad de ser gigante. #}
+      <article class="dgl-art dgl-art-destacado mb-4">
+        <div class="dgl-thumb">Gráfico · wOBA por temporada</div>
+        <div class="cuerpo">
+          <div class="dgl-kicker">Sabermetría</div>
+          <h3><a href="#">El salto de Juan Soto: qué dice su wOBA sobre el mejor bateador
+            dominicano de la década</a></h3>
+          <p class="entradilla">Un análisis de plate discipline, xwOBA y contacto de calidad que
+            explica por qué Soto está en camino a números históricos entre los dominicanos.</p>
+          <div class="pie">
+            <div class="dgl-art-tags">
+              <span class="dgl-tag">#JuanSoto</span>
+              <span class="dgl-tag">#wOBA</span>
+              <span class="dgl-tag">#PlateDiscipline</span>
+            </div>
+            <div class="dgl-meta mt-2">Por <b>A. Perdomo</b> · 16 jul 2026 · 8 min</div>
+          </div>
+        </div>
+      </article>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <article class="dgl-art">
+            <div class="dgl-thumb" style="height:130px">Gráfico · K% vs BB%</div>
+            <div class="cuerpo">
+              <div class="dgl-kicker">Cosas raras</div>
+              <h3><a href="#">Los 5 dominicanos con el K-BB% más raro de 2026</a></h3>
+              <p class="entradilla">Ponchan poco y caminan menos. Qué dice eso de su enfoque en el plato.</p>
+              <div class="pie">
+                <div class="dgl-art-tags"><span class="dgl-tag">#K%</span> <span class="dgl-tag">#BB%</span></div>
+                <div class="dgl-meta mt-2">14 jul · 6 min</div>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6">
+          <article class="dgl-art">
+            <div class="dgl-thumb" style="height:130px">Tabla · Defensa (OAA)</div>
+            <div class="cuerpo">
+              <div class="dgl-kicker">Defensa</div>
+              <h3><a href="#">Outs Above Average: los guantes dominicanos que nadie mira</a></h3>
+              <p class="entradilla">La defensa no sale en la caja, pero decide juegos. Quiénes la sostienen.</p>
+              <div class="pie">
+                <div class="dgl-art-tags"><span class="dgl-tag">#OAA</span> <span class="dgl-tag">#Defensa</span></div>
+                <div class="dgl-meta mt-2">12 jul · 7 min</div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        {# El único anuncio que se mete entre el contenido, separando las dos filas de tarjetas. #}
+        <div class="col-12">
+          <div class="dgl-ad dgl-ad-leader my-1">Espacio publicitario · in-feed</div>
+        </div>
+
+        <div class="col-md-6">
+          <article class="dgl-art">
+            <div class="dgl-thumb" style="height:130px">Gráfico · Sprint speed</div>
+            <div class="cuerpo">
+              <div class="dgl-kicker">Statcast</div>
+              <h3><a href="#">Velocidad en las bases: el top dominicano por sprint speed</a></h3>
+              <p class="entradilla">Quién corre de verdad, más allá de las bases robadas.</p>
+              <div class="pie">
+                <div class="dgl-art-tags"><span class="dgl-tag">#Statcast</span> <span class="dgl-tag">#SprintSpeed</span></div>
+                <div class="dgl-meta mt-2">10 jul · 5 min</div>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6">
+          <article class="dgl-art">
+            <div class="dgl-thumb" style="height:130px">Gráfico · FIP vs ERA</div>
+            <div class="cuerpo">
+              <div class="dgl-kicker">Pitcheo</div>
+              <h3><a href="#">FIP vs ERA: qué lanzadores dominicanos han tenido suerte (o no)</a></h3>
+              <p class="entradilla">La diferencia entre las dos métricas cuenta quién viene a corregir.</p>
+              <div class="pie">
+                <div class="dgl-art-tags"><span class="dgl-tag">#FIP</span> <span class="dgl-tag">#ERA</span></div>
+                <div class="dgl-meta mt-2">8 jul · 9 min</div>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6">
+          <article class="dgl-art">
+            <div class="dgl-thumb" style="height:130px">Tabla · Novatos</div>
+            <div class="cuerpo">
+              <div class="dgl-kicker">Debutantes</div>
+              <h3><a href="#">Los dominicanos que debutaron en 2026, uno por uno</a></h3>
+              <p class="entradilla">Diecisiete nombres nuevos. Quiénes son y de dónde salieron.</p>
+              <div class="pie">
+                <div class="dgl-art-tags"><span class="dgl-tag">#Debuts</span></div>
+                <div class="dgl-meta mt-2">6 jul · 4 min</div>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="col-md-6">
+          <article class="dgl-art">
+            <div class="dgl-thumb" style="height:130px">Gráfico · Edad vs OPS</div>
+            <div class="cuerpo">
+              <div class="dgl-kicker">Historia</div>
+              <h3><a href="#">La curva de envejecimiento de los bateadores dominicanos</a></h3>
+              <p class="entradilla">A qué edad rinden más, y cuándo empieza de verdad la caída.</p>
+              <div class="pie">
+                <div class="dgl-art-tags"><span class="dgl-tag">#Envejecimiento</span> <span class="dgl-tag">#OPS</span></div>
+                <div class="dgl-meta mt-2">4 jul · 8 min</div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="text-center my-4">
+        <a href="#" class="btn btn-outline-primary btn-sm px-4">Cargar más artículos</a>
+      </div>
+    </div>
+
+    <aside class="col-lg-4">
+      {# `dgl-ad-pegado` ya existe: es el pegajoso por arriba que usa la página de líderes. #}
+      <div class="dgl-ad-pegado">
+        <div class="dgl-ad dgl-ad-torre mb-4">Espacio publicitario · 300×600</div>
+
+        {% comment %}
+          Un ranking corto y no más tarjetas: repetir el mismo componente a la derecha haría que la
+          página entera se leyera como una sola lista larga.
+        {% endcomment %}
+        <section class="dgl-panel p-3">
+          <h2 class="dgl-section-title mb-2" style="font-size:.95rem" id="mas-leido">Lo más leído</h2>
+          <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-leido">
+            <li><a href="#">El salto de Juan Soto: qué dice su wOBA sobre el mejor bateador dominicano</a></li>
+            <li><a href="#">Outs Above Average: los guantes dominicanos que nadie mira</a></li>
+            <li><a href="#">Los dominicanos que debutaron en 2026, uno por uno</a></li>
+            <li><a href="#">FIP vs ERA: qué lanzadores han tenido suerte (o no)</a></li>
+            <li><a href="#">La curva de envejecimiento de los bateadores dominicanos</a></li>
+          </ol>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <div class="dgl-ad dgl-ad-leader mt-4">Espacio publicitario · 728×90</div>
+</main>
+{% endblock %}

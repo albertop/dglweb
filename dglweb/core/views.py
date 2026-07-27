@@ -20,6 +20,20 @@ def home(request: HttpRequest) -> HttpResponse:
     )
 
 
+def articles_index(request: HttpRequest) -> HttpResponse:
+    """El índice de artículos.
+
+    Categoría única por artículo —el kicker— y hashtags libres. Sin widget de líderes: acá el lector
+    viene a leer, no a consultar.
+
+    Las tarjetas todavía son de muestra, como las de la portada: el modelo `Article` de Wagtail llega
+    en la Fase 5 y esta vista pasará a listar lo publicado. La página existe desde ahora porque el
+    enlace del menú ya la promete, y un menú que lleva a `#` es peor que uno que lleva a una lista
+    provisional.
+    """
+    return render(request, "articles.html", {})
+
+
 def pizarra(request: HttpRequest) -> HttpResponse:
     """Solo el widget de la pizarra, para que el navegador lo refresque sin recargar la página.
 
