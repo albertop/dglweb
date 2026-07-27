@@ -315,6 +315,33 @@ def test_the_photo_path_is_literal_and_not_hashed(temporada: SeasonDates, hr: Me
     assert bateo[0]["puestos"][0].foto.endswith("/img/mugshots/120/111.png")
 
 
+# ── Cómo se escribe el nombre ───────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("entero", "esperado"),
+    [
+        ("Juan Soto", "Juan Soto"),  # 9: cabe
+        ("Junior Caminero", "Junior Caminero"),  # 15 justos: el límite entra
+        ("Fernando Tatis Jr.", "F. Tatis Jr."),  # 18: se abrevia la pila
+        ("Cristopher Sánchez", "C. Sánchez"),
+        ("Vladimir Guerrero Jr.", "V. Guerrero Jr."),
+    ],
+)
+def test_the_first_name_is_the_one_that_gives_way(entero: str, esperado: str) -> None:
+    """Se sacrifica la pila y no el apellido: es el apellido el que identifica al pelotero.
+
+    Y solo cuando hace falta — abreviar a todos por igual haría ilegible una lista donde la mayoría
+    cabe completa.
+    """
+    assert mlb_leaders.nombre_corto(entero) == esperado
+
+
+def test_a_single_word_name_is_never_reduced_to_an_initial() -> None:
+    """No hay pila que quitar, y dejarlo en una letra sería borrarlo."""
+    assert mlb_leaders.nombre_corto("Guillermoprietolargo") == "Guillermoprietolargo"
+
+
 # ── El comando ──────────────────────────────────────────────────────────────────────────────────
 
 

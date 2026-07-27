@@ -179,6 +179,27 @@ def guardar(temporada: int, puestos: list[Puesto], codigos: dict[int, str]) -> i
     return len(filas)
 
 
+# A partir de acá el nombre no cabe en la fila del widget y se recorta con puntos suspensivos, que es
+# peor que abreviarlo: «Fernando Tatis…» pierde justo el apellido, que es por lo que se le reconoce.
+LARGO_MAXIMO = 15
+
+
+def nombre_corto(nombre: str) -> str:
+    """«Fernando Tatis Jr.» → «F. Tatis Jr.», pero «Juan Soto» se queda entero.
+
+    Se sacrifica el nombre de pila y no el apellido porque es el apellido el que identifica al
+    pelotero. Y solo cuando hace falta: abreviar a todos por igual haría ilegible una lista donde la
+    mayoría cabe completa.
+
+    Un nombre de una sola palabra se deja como está: no hay pila que quitar, y dejarlo en una letra
+    sería borrarlo.
+    """
+    if len(nombre) <= LARGO_MAXIMO:
+        return nombre
+    pila, _, resto = nombre.partition(" ")
+    return f"{pila[:1]}. {resto}" if resto else nombre
+
+
 def portada(metricas: int = 5) -> dict[str, Any] | None:
     """Lo que muestra el widget: por oficio, una entrada por métrica con los nuestros que están ahí.
 
@@ -212,6 +233,7 @@ def portada(metricas: int = 5) -> dict[str, Any] | None:
         # imagen. Se arma la ruta completa —y no un prefijo más el código en la plantilla— porque el
         # manifiesto de producción resuelve archivos, no pedazos de ruta.
         fila.logo = f"{_LOGOS}{fila.team}.svg" if fila.team else ""  # type: ignore[attr-defined]
+        fila.nombre = nombre_corto(fila.player.full_name)  # type: ignore[attr-defined]
         # Una entrada por métrica, con todos los nuestros que caen ahí. El primero de la lista es el
         # mejor rankeado, porque así vienen ordenadas.
         if grupo and grupo[-1]["metrica"] == fila.metric:
