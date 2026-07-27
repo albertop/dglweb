@@ -967,7 +967,7 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
 
 ### Aceptados — prioridad alta
 
-- [ ] **SAB-01 — el gráfico de barras se rompe con valores negativos.** Aceptado, y **es peor de lo
+- [x] **SAB-01 — el gráfico de barras se rompe con valores negativos.** **Corregido el 2026-07-27.** Aceptado, y **es peor de lo
       que dice el review**. Comprobado ejecutando `_escala()`: con `[-8, -2]` la escala sale
       `(0, -2)`, o sea rango NEGATIVO, y la proporción da 4 — la barra se dibujaría cuatro veces más
       alta que el lienzo. Con `[5, -3]` el alto sale negativo y el `<rect>` no se dibuja: la barra
@@ -979,7 +979,7 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
       `max(0, máximo)`, la línea de cero dibujada dentro del SVG, y las barras hacia arriba o hacia
       abajo según el signo. Con tests para `[5, -3]` y `[-8, -2]`.
 
-- [ ] **FE-01 — el cintillo deja enlaces enfocables dentro de `aria-hidden`.** Aceptado. La lista va
+- [x] **FE-01 — el cintillo deja enlaces enfocables dentro de `aria-hidden`.** **Corregido el 2026-07-27**: de 18 enlaces, ahora solo 9 alcanzables con Tab. Aceptado. La lista va
       duplicada para que el ciclo empalme, y la copia lleva `aria-hidden="true"` — pero eso **no la
       saca del orden de tabulación**. Quien navega con teclado cae en enlaces que el lector de
       pantalla ignora, dentro de una tira en movimiento, y la animación no se detiene porque solo
@@ -1084,4 +1084,9 @@ visto por dos personas, igual que DEV-02/QA-02 y QA-03/FE-03.
 - [x] **¿La fuente del gráfico es obligatoria?** **Sí** — decisión del dueño (2026-07-27). Con un
       valor sugerido para cuando el dato salga de nuestras tablas, para que la regla no obligue a
       inventar una fuente externa que no existe.
-- [ ] ¿Los documentos del CMS se quitan o se declaran públicos? (SEC-02) — pendiente del dueño.
+- [x] **¿Los documentos del CMS se quitan o se declaran públicos?** **Públicos** — decisión del dueño
+      (2026-07-27). Se quedan, y queda escrito que **todo lo que entre ahí es público**: se sirve en
+      `/documents/<id>/<archivo>` sin pedir permisos. El riesgo no era técnico sino de expectativa —
+      un editor subiendo algo interno creyendo que es privado— así que se resuelve diciéndolo, no
+      borrando una función que probablemente haga falta («descarga los datos de este gráfico»).
+      Falta: escribirlo donde lo lea quien escribe, y un test que congele la decisión.

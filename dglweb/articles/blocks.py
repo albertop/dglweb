@@ -72,7 +72,17 @@ def _escala(valores: list[Decimal], *, es_barra: bool) -> tuple[Decimal, Decimal
     serie no toque los bordes, y las cifras del eje dicen dónde empieza de verdad.
     """
     if es_barra:
-        return Decimal(0), max(valores) if any(valores) else Decimal(1)
+        # De `min(0, …)` a `max(0, …)`, y NO de cero al máximo. En béisbol hay métricas negativas
+        # todos los días —OAA, DRS, run value, WPA, RE24, el WAR en muestras cortas— y con la escala
+        # vieja el gráfico no se equivocaba un poco: se rompía. Comprobado antes de arreglarlo: con
+        # `[-8, -2]` el tope salía -2, o sea RANGO NEGATIVO, y la proporción daba 4 — una barra
+        # cuatro veces más alta que el lienzo. Con `[5, -3]` el alto salía negativo y el `<rect>`
+        # sencillamente no se dibujaba: la barra desaparecía sin avisar.
+        #
+        # El cero sigue dentro del dominio siempre, que es lo que hace honesta la comparación de
+        # largos; lo que cambia es que ahora puede no ser el suelo.
+        piso, techo = min(Decimal(0), min(valores)), max(Decimal(0), max(valores))
+        return (piso, techo) if piso != techo else (piso, techo + 1)
 
     piso, techo = min(valores), max(valores)
     # Una serie plana necesita un margen inventado: sin él el rango sería cero y no habría con qué
@@ -132,11 +142,18 @@ class GraficoBlock(blocks.StructBlock):
         paso = util_ancho / len(puntos)
         rango = techo - piso
 
+        def altura_de(valor: Decimal) -> float:
+            """La coordenada `y` que le toca a un valor. Arriba es menos, como en todo SVG."""
+            return MARGEN_ARRIBA + util_alto * (1 - float((valor - piso) / rango))
+
+        # La barra va DEL CERO AL VALOR, no del suelo al valor. Con todo positivo es lo mismo —el
+        # cero es el suelo— y con negativos es la diferencia entre un gráfico correcto y uno roto.
+        suelo = altura_de(Decimal(0)) if piso <= 0 <= techo else altura_de(piso)
+
         barras = []
         for indice, (punto, valor) in enumerate(zip(puntos, valores, strict=True)):
-            proporcion = float((valor - piso) / rango)
             centro = MARGEN_IZQUIERDA + paso * (indice + 0.5)
-            alto = util_alto * proporcion
+            alto_valor = altura_de(valor)
             barras.append(
                 {
                     "etiqueta": punto["etiqueta"],
@@ -144,8 +161,20 @@ class GraficoBlock(blocks.StructBlock):
                     "centro": round(centro, 2),
                     "x": round(centro - (paso * GROSOR_BARRA) / 2, 2),
                     "ancho": round(paso * GROSOR_BARRA, 2),
-                    "y": round(MARGEN_ARRIBA + util_alto - alto, 2),
-                    "alto": round(alto, 2),
+                    # `y` es siempre el borde de ARRIBA del rectángulo y `alto` nunca es negativo:
+                    # un `<rect>` con alto negativo es inválido y el navegador no lo dibuja ni se
+                    # queja. Para una barra negativa, el borde de arriba es el cero.
+                    "y": round(min(suelo, alto_valor), 2),
+                    "alto": round(abs(alto_valor - suelo), 2),
+                    # `baja` es solo para el color; la cifra va igual en las dos: encima del borde
+                    # SUPERIOR del rectángulo, que en una barra positiva es su punta y en una
+                    # negativa es la línea del cero.
+                    #
+                    # Primero la puse debajo de la barra negativa, que parece lo natural, y la
+                    # barra más profunda —la que toca el suelo del lienzo— dejaba su cifra encima de
+                    # la etiqueta del eje: se leía «-6» pisando «Santander». Encima del borde de
+                    # arriba no choca nunca, porque ahí no hay nada dibujado.
+                    "baja": valor < 0,
                 }
             )
 
@@ -169,6 +198,12 @@ class GraficoBlock(blocks.StructBlock):
             for indice in range(REFERENCIAS)
         ]
         contexto["lienzo"] = {"ancho": ANCHO, "alto": ALTO, "base": MARGEN_ARRIBA + util_alto}
+        # La línea del cero, marcada aparte y solo cuando cae dentro del dibujo. Antes se daba por
+        # supuesto que era la referencia de más abajo —y con barras siempre positivas lo era— pero
+        # con negativos el cero queda a media altura y es justamente la línea contra la que se lee si
+        # un valor está por encima o por debajo. En un gráfico de línea con rango acotado (wOBA entre
+        # .372 y .419) el cero ni siquiera entra en la lámina, y ahí no se dibuja.
+        contexto["cero"] = round(suelo, 2) if piso <= 0 <= techo else None
         # Para quien no ve el dibujo: el gráfico entero en una frase, que es lo que lee el lector de
         # pantalla. Sin esto el SVG es un hueco silencioso en mitad del artículo.
         contexto["resumen"] = "; ".join(f"{b['etiqueta']}: {b['valor']}" for b in barras)

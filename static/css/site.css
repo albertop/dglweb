@@ -1070,6 +1070,10 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   font-size: 13px; font-weight: 700; fill: var(--dgl-ink);
 }
 .dgl-grafico .barra { fill: var(--dgl-blue); }
+/* La barra que baja del cero, en el rojo del sitio. El color no es adorno: en una métrica donde el
+   cero es la media —OAA, DRS, run value— la diferencia entre estar por encima o por debajo es LA
+   noticia, y pedirle al lector que la deduzca de a qué lado de una línea cae es pedirle de más. */
+.dgl-grafico .barra.baja { fill: var(--dgl-red); }
 .dgl-grafico .linea { stroke: var(--dgl-red); stroke-width: 2.5; stroke-linejoin: round; }
 .dgl-grafico .punto { fill: var(--dgl-red); }
 /* La primera columna cuando el editor la marca como encabezado. Va en <th> por accesibilidad —así un
@@ -1133,8 +1137,12 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 }
 .dgl-cintillo-marco { flex: 1 1 auto; overflow: hidden; }
 .dgl-cintillo-tira { display: flex; width: max-content; animation: dgl-cintillo 220s linear infinite; }
-/* Al pasar el ratón se detiene: si no, leer una entrada completa es perseguirla. */
-.dgl-cintillo:hover .dgl-cintillo-tira { animation-play-state: paused; }
+/* Se detiene al pasar el ratón Y al recibir el foco. Lo segundo faltaba: quien navega con teclado
+   llegaba a un enlace que seguía moviéndose bajo el cursor de foco, o sea que para pulsarlo tenía
+   que perseguirlo. `:focus-within` cubre el contenedor entero, así que basta con que el foco esté en
+   cualquiera de los enlaces. */
+.dgl-cintillo:hover .dgl-cintillo-tira,
+.dgl-cintillo:focus-within .dgl-cintillo-tira { animation-play-state: paused; }
 .dgl-cintillo-lista { display: flex; list-style: none; margin: 0; padding: 0; }
 .dgl-cintillo-lista li {
   display: flex; align-items: center; gap: .4rem; white-space: nowrap;

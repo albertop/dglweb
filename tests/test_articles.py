@@ -420,3 +420,95 @@ def test_the_button_is_left_out_when_there_is_nothing_to_reveal(indice: ArticleI
     _articulo(indice, "El unico")
 
     assert 'id="dgl-ver-mas"' not in Client().get(indice.url).content.decode()
+
+
+# ── SAB-01: métricas negativas ──────────────────────────────────────────────────────────────────
+#
+# En béisbol son de todos los días: OAA, DRS, run value, WPA, RE24 y el WAR en muestras cortas. Antes
+# del arreglo el gráfico no se equivocaba un poco, se rompía — y en silencio, que es lo peor: con
+# `[5, -3]` el alto del `<rect>` salía negativo y el navegador no lo dibujaba ni se quejaba, y con
+# `[-8, -2]` el rango salía negativo y la barra medía cuatro veces el lienzo.
+
+
+def _grafico_barras(puntos: list[tuple[str, str]]) -> list[dict[str, object]]:
+    return [
+        {
+            "type": "grafico",
+            "value": {
+                "titulo": "Un gráfico",
+                "tipo": "barras",
+                "puntos": [{"etiqueta": e, "valor": v} for e, v in puntos],
+            },
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("puntos", "descripcion"),
+    [
+        ([("A", "5"), ("B", "-3")], "signos mezclados"),
+        ([("A", "-8"), ("B", "-2")], "todos negativos"),
+        ([("A", "4"), ("B", "7")], "todos positivos"),
+        ([("A", "0"), ("B", "0")], "todos cero"),
+    ],
+)
+@pytest.mark.django_db
+def test_no_bar_is_ever_drawn_outside_the_canvas(
+    indice: ArticleIndexPage, puntos: list[tuple[str, str]], descripcion: str
+) -> None:
+    """Ninguna barra con alto negativo ni más alta que la lámina, pase lo que pase con los signos."""
+    from dglweb.articles.blocks import ALTO
+
+    articulo = _articulo(indice, f"Barras {descripcion}", cuerpo=_grafico_barras(puntos))
+
+    svg = Client().get(articulo.url).content.decode()
+    patron = r'<rect class="barra[^"]*" x="[\d.-]+" y="([\d.-]+)"\s+width="[\d.-]+" height="([\d.-]+)"'
+    rects = re.findall(patron, svg)
+
+    assert len(rects) == len(puntos), f"faltan barras en el caso «{descripcion}»"
+    for y, alto in rects:
+        assert float(alto) >= 0, f"alto negativo: el navegador no dibuja ese rect y no avisa ({descripcion})"
+        assert float(y) >= 0, f"barra por encima del lienzo ({descripcion})"
+        assert float(y) + float(alto) <= ALTO, f"barra por debajo del lienzo ({descripcion})"
+
+
+@pytest.mark.django_db
+def test_a_negative_bar_hangs_from_zero_and_a_positive_one_stands_on_it(indice: ArticleIndexPage) -> None:
+    """Es lo que hace honesta la comparación: las dos se miden contra la MISMA línea."""
+    articulo = _articulo(indice, "Mezcla", cuerpo=_grafico_barras([("A", "5"), ("B", "-5")]))
+
+    svg = Client().get(articulo.url).content.decode()
+    encaje = re.search(r'<line class="ref cero"[^>]*y1="([\d.]+)"', svg)
+    assert encaje is not None, "con signos mezclados, la línea del cero tiene que dibujarse"
+    cero = float(encaje.group(1))
+    patron = r'<rect class="barra[^"]*"[^>]*y="([\d.-]+)"\s+width="[\d.-]+" height="([\d.-]+)"'
+    rects = [(float(y), float(alto)) for y, alto in re.findall(patron, svg)]
+
+    (y_positiva, alto_positiva), (y_negativa, alto_negativa) = rects
+    # La positiva termina en el cero; la negativa empieza ahí.
+    assert y_positiva + alto_positiva == pytest.approx(cero, abs=0.5)
+    assert y_negativa == pytest.approx(cero, abs=0.5)
+    # Y con valores simétricos, miden lo mismo.
+    assert alto_positiva == pytest.approx(alto_negativa, abs=0.5)
+
+
+@pytest.mark.django_db
+def test_the_zero_line_is_not_drawn_when_it_falls_outside_the_chart(indice: ArticleIndexPage) -> None:
+    """En una línea de wOBA entre .372 y .419 el cero ni entra en la lámina; dibujarlo obligaría a
+    aplastar la serie contra el borde, que es justo lo que la escala de líneas evita."""
+    articulo = _articulo(
+        indice,
+        "Linea sin cero",
+        cuerpo=[
+            {
+                "type": "grafico",
+                "value": {
+                    "titulo": "wOBA",
+                    "tipo": "linea",
+                    "puntos": [{"etiqueta": "2024", "valor": "0.372"}, {"etiqueta": "2025", "valor": "0.419"}],
+                },
+            }
+        ],
+    )
+
+    assert 'class="ref cero"' not in Client().get(articulo.url).content.decode()

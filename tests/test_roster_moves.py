@@ -295,3 +295,43 @@ def test_with_nothing_to_show_the_ticker_is_not_drawn(client: Client) -> None:
 
     assert RosterMove.objects.count() == 0
     assert b"dgl-cintillo" not in contenido
+
+
+# ── FE-01: el cintillo y el teclado ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_the_duplicated_strip_is_out_of_the_tab_order(client: Client) -> None:
+    """La copia lleva `aria-hidden` Y `inert`, y lo segundo es lo que faltaba.
+
+    `aria-hidden` saca los enlaces del árbol de accesibilidad pero NO del orden de tabulación: el
+    lector de pantalla los ignora y la tecla Tab los recorre igual. Quien navega con teclado caía en
+    una segunda tanda de enlaces duplicados —invisibles para su lector— dentro de una tira en
+    movimiento. La copia existe solo para que el ciclo de la animación empalme; nadie tiene que poder
+    llegar a ella.
+    """
+    from django.core.cache import cache
+    from django.utils import timezone
+
+    Player.objects.create(**_other_player(player_id=665742, dgl_id="s01", full_name="Juan Soto", pos="LF"))
+    RosterMove.objects.create(
+        transaction_id=900100,
+        mlb_id=665742,
+        player_id=665742,
+        nombre="Juan Soto",
+        fecha=timezone.localdate(),
+        type_code="SC",
+        type_desc="Status Change",
+        descripcion="algo",
+        texto="Juan Soto volvió de la lista de lesionados",
+    )
+    cache.clear()
+
+    contenido = client.get("/").content.decode()
+    copias = contenido.count('aria-hidden="true" inert')
+
+    listas = contenido.count('class="dgl-cintillo-lista"')
+
+    assert listas == 2, "la tira lleva la lista dos veces para que el ciclo empalme"
+    # Exactamente UNA de las dos es inerte: la otra es la que recorre el teclado y lee el lector.
+    assert copias == 1, "la copia del cintillo tiene que ser inerte, no solo aria-hidden"

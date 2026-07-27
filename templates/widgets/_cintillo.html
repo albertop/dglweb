@@ -23,8 +23,15 @@ cambia, el cintillo muestra el nombre sin enlace en vez de reventar con una URL 
   <div class="dgl-cintillo-titulo" aria-hidden="true">Movimientos</div>
   <div class="dgl-cintillo-marco">
     <div class="dgl-cintillo-tira">
+      {% comment %}
+        La copia lleva `aria-hidden` Y `inert`. Con solo `aria-hidden` los enlaces siguen siendo
+        ENFOCABLES: el lector de pantalla los ignora pero la tecla Tab los recorre igual, así que
+        quien navega con teclado caía en una segunda tanda de enlaces duplicados —invisibles para su
+        lector— dentro de una tira en movimiento. `inert` los saca del orden de tabulación además de
+        del árbol de accesibilidad, que es lo que hacía falta.
+      {% endcomment %}
       {% for vuelta in "12" %}
-        <ul class="dgl-cintillo-lista"{% if not forloop.first %} aria-hidden="true"{% endif %}>
+        <ul class="dgl-cintillo-lista"{% if not forloop.first %} aria-hidden="true" inert{% endif %}>
           {% for movimiento in movimientos %}
             <li>
               <span class="cuando">{{ movimiento.fecha|date:"j M" }}</span>

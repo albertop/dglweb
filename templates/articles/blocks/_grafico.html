@@ -31,19 +31,36 @@ proporción, así que las mismas coordenadas sirven en un teléfono y en un moni
 
     {% comment %}
       Las líneas de referencia van DEBAJO del dato: dibujadas encima lo cruzan y le restan lectura.
-      La de abajo es el cero y se pinta más marcada, porque es la base contra la que se compara todo.
     {% endcomment %}
     {% for referencia in referencias %}
-      <line class="ref{% if forloop.first %} cero{% endif %}"
-            x1="52" y1="{{ referencia.y }}" x2="{{ lienzo.ancho }}" y2="{{ referencia.y }}"/>
+      <line class="ref" x1="52" y1="{{ referencia.y }}" x2="{{ lienzo.ancho }}" y2="{{ referencia.y }}"/>
       <text class="eje" x="46" y="{{ referencia.y }}" text-anchor="end" dominant-baseline="middle"
             >{{ referencia.valor }}</text>
     {% endfor %}
+    {% comment %}
+      El cero, aparte y más marcado. Antes se asumía que era la referencia de más abajo, y con barras
+      siempre positivas lo era; con métricas negativas —OAA, DRS, run value— queda a media altura y
+      es justo la línea contra la que se lee si un valor está por encima o por debajo. Cuando no cae
+      dentro del dibujo, el bloque manda `None` y no se pinta.
+    {% endcomment %}
+    {% if cero is not None %}
+      <line class="ref cero" x1="52" y1="{{ cero }}" x2="{{ lienzo.ancho }}" y2="{{ cero }}"/>
+    {% endif %}
 
     {% if value.tipo == "barras" %}
       {% for barra in barras %}
-        <rect class="barra" x="{{ barra.x }}" y="{{ barra.y }}"
+        {% comment %}
+          `y` es siempre el borde de arriba y `alto` nunca es negativo: lo calcula el bloque. Un
+          `<rect>` con alto negativo es inválido y el navegador no lo dibuja NI SE QUEJA — la barra
+          desaparecía en silencio, que fue justo el fallo con valores negativos.
+        {% endcomment %}
+        <rect class="barra{% if barra.baja %} baja{% endif %}" x="{{ barra.x }}" y="{{ barra.y }}"
               width="{{ barra.ancho }}" height="{{ barra.alto }}" rx="2"/>
+        {% comment %}
+          La cifra encima del borde de ARRIBA del rectángulo, suba o baje la barra. Debajo de la
+          negativa parecía lo natural y no lo era: la barra más profunda toca el suelo del lienzo y
+          su cifra caía sobre la etiqueta del eje — «-6» pisando «Santander».
+        {% endcomment %}
         <text class="cifra" x="{{ barra.centro }}" y="{{ barra.y }}" dy="-6"
               text-anchor="middle">{{ barra.valor }}</text>
       {% endfor %}
