@@ -867,10 +867,31 @@ módulos vivos de esa fase— están hechos y funcionando.
 
   ### El costo en llamadas, medido
 
-  El endpoint acepta rangos de fechas: **una sola llamada trajo dos semanas enteras**. Un job diario
-  pidiendo el día anterior es **1 llamada/día** — contra las 30 diarias (una por equipo) del camino
-  de diferencias de roster que se barajó primero. Y de esas 2.139 filas del mes, **165 eran nuestras**
-  (unas 5 por día), así que el ticker tiene material sin quedarse vacío ni desbordarse.
+  El endpoint acepta rangos de fechas: **una sola llamada trajo dos semanas enteras**. Contra las 30
+  diarias (una por equipo) del camino de diferencias de roster que se barajó primero, no hay color. Y
+  de esas 2.139 filas del mes, **165 eran nuestras** (unas 5 por día), así que el ticker tiene
+  material sin quedarse vacío ni desbordarse.
+
+  ### Cada cuánto correrlo
+
+  Un job DIARIO no sirve —lo señaló el dueño— porque un movimiento de las 3pm saldría al día
+  siguiente. **Cada hora, todo el día.** Son 24 llamadas diarias, y el yardstick es que el job de
+  líderes ya corre cada hora haciendo **2 llamadas** (mete las 23 categorías en una sola petición por
+  grupo): 48 al día. Sumar una por hora es ruido.
+
+  Se descartó acotarlo a 8am–6pm, que fue la primera idea: los juegos nocturnos terminan entre las 10
+  y las 11, y ahí caen lesiones y movimientos posteriores. Con corte a las 6pm, una lista de
+  lesionados de las 9pm aparece a las 8 de la mañana siguiente y sale en la cintilla como noticia
+  fresca cuando ya tiene once horas. Como cuesta lo mismo, no hay razón para recortar la ventana.
+
+  **El horario es solo una perilla de latencia, no de correctitud**, y eso es a propósito: cada
+  transacción trae un `id` propio, así que la corrida pide los ÚLTIMOS DOS DÍAS y guarda con upsert
+  por ese id. Una corrida que falle no pierde nada; la siguiente la recupera. Mismo patrón
+  idempotente que el resto del pipeline.
+
+  **Salvedad:** el payload NO trae hora, solo `date`. Así que a qué hora del día caen los movimientos
+  no está medido — lo de los juegos nocturnos es razonamiento sobre el calendario de MLB. Si alguna
+  vez importa afinar la ventana, hay que observarlo unos días primero.
 
 **La página aparte de la pizarra NO se va a hacer** — decisión del dueño (2026-07-27). La Fase 0 la
 mencionaba («pizarra completa → página aparte») y queda descartada: la pizarra vive en la portada y
