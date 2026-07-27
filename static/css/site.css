@@ -768,3 +768,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* El h1 cuando comparte fila con un widget: a 3rem y con su margen de siempre, la columna crecía
    hasta doblar el alto del panel de al lado. */
 .dgl-titulo-junto { font-size: 2.2rem; margin-bottom: .5rem; }
+
+/* El anuncio lateral se queda a la vista mientras se baja por un tablero largo. `top` con aire para
+   que no quede pegado al borde de la ventana. */
+.dgl-ad-pegado { position: sticky; top: 1rem; }

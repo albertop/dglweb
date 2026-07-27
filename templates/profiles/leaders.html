@@ -31,57 +31,61 @@ muda y el usuario vuelve a hacer clic.
       El título más chico que en otras páginas y sin aire debajo: comparte fila con el widget, y a
       3rem con sus márgenes de siempre empujaba la columna hasta doblar el alto del panel de al lado.
     {% endcomment %}
-    <div class="col-lg-6 d-flex flex-column justify-content-center">
+    {% comment %}
+      Los controles viven en esta columna, debajo de la entradilla, y no en una fila propia más
+      abajo: así suben a la altura del widget en vez de esperar a que termine, y el borde inferior de
+      las pestañas no se prolonga en una raya suelta por debajo del panel de al lado.
+    {% endcomment %}
+    <div class="col-lg-6">
       <h1 class="dgl-page-title dgl-titulo-junto">Líderes</h1>
-      <div class="dgl-lede">
-        <p class="mb-0">
+      <div class="dgl-lede mb-3">
+        <p>
           Los rankings se calculan <b>solo entre dominicanos</b>: el puesto 1 es el mejor de entre los
           nuestros, no el de las mayores.
         </p>
+        <p class="mb-0">
+          Elige en las pestañas —bateo, pitcheo o fildeo—, el grupo de estadísticas en los
+          botones de abajo, y luego el alcance y la métrica. Se muestran dos listas: los primeros y los
+          últimos del ranking.
+        </p>
       </div>
+
+      {# Grupo — como los tabs del perfil #}
+      <nav aria-label="Renglón">
+        <ul class="nav nav-tabs mb-3">
+          {% for g in groups %}
+          <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}"
+             {% if g.active %}aria-current="page"{% endif %}>{{ g.label }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+
+      {% if not empty %}
+      {# División — pills #}
+      <nav aria-label="Grupo de estadísticas">
+        <ul class="nav nav-pills mb-0">
+          {% for d in divisions %}
+          <li class="nav-item"><a class="nav-link{% if d.active %} active{% endif %}" href="{{ d.url }}"
+             {% if d.active %}aria-current="page"{% endif %}>{{ d.label }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+      {% endif %}
     </div>
     <div class="col-lg-6">{% include "widgets/_lideres.html" %}</div>
   </div>
 
   {% if empty %}
   {% comment %}
-  Sin métricas activas no hay tablero. Se dibujan igual las pestañas de oficio, que es lo único
+  Sin métricas activas no hay tablero. Las pestañas de oficio ya están arriba y son lo único
   navegable: con una base a medio migrar, Bateo puede estar vacío y Pitcheo no.
   {% endcomment %}
-  <nav aria-label="Renglón">
-    <ul class="nav nav-tabs mb-3">
-      {% for g in groups %}
-      <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}"
-         {% if g.active %}aria-current="page"{% endif %}>{{ g.label }}</a></li>
-      {% endfor %}
-    </ul>
-  </nav>
   <section class="dgl-panel p-4">
     <p class="mb-0">Todavía no hay líderes publicados para <b>{{ group_label }}</b>.</p>
     <p class="dgl-meta mb-0 mt-2">Ocurre mientras se carga el histórico, o si las métricas de este
     renglón están desactivadas en el Backoffice.</p>
   </section>
   {% else %}
-
-  {# Grupo — como los tabs del perfil #}
-  <nav aria-label="Renglón">
-    <ul class="nav nav-tabs mb-3">
-      {% for g in groups %}
-      <li class="nav-item"><a class="nav-link{% if g.active %} active{% endif %}" href="{{ g.url }}"
-         {% if g.active %}aria-current="page"{% endif %}>{{ g.label }}</a></li>
-      {% endfor %}
-    </ul>
-  </nav>
-
-  {# División — pills #}
-  <nav aria-label="Grupo de estadísticas">
-    <ul class="nav nav-pills mb-3">
-      {% for d in divisions %}
-      <li class="nav-item"><a class="nav-link{% if d.active %} active{% endif %}" href="{{ d.url }}"
-         {% if d.active %}aria-current="page"{% endif %}>{{ d.label }}</a></li>
-      {% endfor %}
-    </ul>
-  </nav>
 
   {# Controles: Alcance · Temporada · Métrica #}
   <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
@@ -120,16 +124,18 @@ muda y el usuario vuelve a hacer clic.
   Board — dos tablas en paralelo: los diez mejores y los diez peores. El contexto ya resolvió el
   dedup (quien sale en Mejores no se repite en Peores) y omite Peores si no aplica a la métrica.
   {% endcomment %}
+  {% comment %}
+    El anuncio va en su propia columna y FUERA de `.dgl-leaders-board`, que tiene un ancho máximo de
+    32rem: metido adentro se quedaba pegado a la tabla, a media página, en vez de irse al borde.
+
+    `col-xl-*` y no `col-md-*`: por debajo de eso el anuncio se va abajo y las tablas recuperan el
+    ancho completo, que es lo que necesitan para no partir columnas.
+  {% endcomment %}
   {% with split=board.columns|length %}
+  <div class="row g-4">
+  <div class="col-xl-9">
   <div class="dgl-leaders-board{% if split > 1 %} dgl-leaders-board-split{% endif %}">
-    {% comment %}
-      Las tablas dejan sitio a la derecha para el anuncio. `col-xl-*` y no `col-md-*` en la fila
-      exterior: por debajo de eso el anuncio se va abajo y las tablas recuperan el ancho completo,
-      que es lo que necesitan para no partir columnas.
-    {% endcomment %}
     <div class="row g-3 mb-3">
-      <div class="col-xl-9">
-        <div class="row g-3">
       {% for column in board.columns %}
       <div class="{% if split > 1 %}col-md-6{% else %}col-12{% endif %}">
         <div class="dgl-leaders-caption">{{ column.label }}</div>
@@ -155,16 +161,6 @@ muda y el usuario vuelve a hacer clic.
         </section>
       </div>
       {% endfor %}
-        </div>
-      </div>
-      {% comment %}
-        El anuncio a su tamaño y arriba del todo, no estirado al alto de la tabla: un tablero de
-        quince filas lo convertía en una tira vertical de 150px de ancho por mil de alto, que no es
-        ningún formato publicitario existente.
-      {% endcomment %}
-      <div class="col-xl-3">
-        <div class="dgl-ad dgl-ad-rect">Espacio publicitario · 300×250</div>
-      </div>
     </div>
 
     {# Separado de las tablas: pegado al panel se leía como una fila más del tablero. #}
@@ -179,6 +175,15 @@ muda y el usuario vuelve a hacer clic.
       {% if board.shows_partial %}<span class="d-block"><span class="dgl-partial">*</span> Debutó antes de {{ board.available_from }}: su total no cuenta las temporadas anteriores.</span>{% endif %}
       {% if board.shows_active %}<span class="d-block"><span class="dgl-active-swatch"></span> = jugador activo.</span>{% endif %}
     </p>
+  </div>
+  </div>
+  {% comment %}
+    Pegajoso: el tablero puede tener quince filas y el anuncio se queda a la vista mientras se baja,
+    en vez de desaparecer en la primera pantalla.
+  {% endcomment %}
+  <div class="col-xl-3">
+    <div class="dgl-ad dgl-ad-rect dgl-ad-pegado">Espacio publicitario · 300×250</div>
+  </div>
   </div>
   {% endwith %}
   {% endif %}
