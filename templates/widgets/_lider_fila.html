@@ -42,9 +42,13 @@ la sigla pintada y el enlace para abrir la caja.
     El puesto y la cifra en discos del tamaño del retrato: las cuatro piezas quedan a la misma altura
     y, bajando la vista por las cajas, forman columnas.
 
-    El `title` lleva la frase completa porque «#1» solo no dice contra quién — y contra quién es
-    justamente lo que distingue este widget de la página de Líderes.
+    El puesto lleva `title` porque un «6» suelto dentro de un círculo no dice qué es. Dice «Puesto 6»
+    y no «Puesto 6 de las mayores»: contra quién ya lo dijo el título del widget —«En el top 10 del
+    2026»— y repetirlo en cada una de las diecinueve cajas es ruido.
+
+    El valor NO lleva `title`: diría el nombre de la métrica, que es exactamente lo que ya dice el
+    cuadrado azul al principio de la misma fila.
   {% endcomment %}
-  <span class="dgl-lider-disco puesto" title="Puesto {{ puesto.rank }} de las mayores"><b>{{ puesto.rank }}</b></span>
-  <span class="dgl-lider-disco valor" title="{{ metrica.name_es }}">{{ puesto.valor }}</span>
+  <span class="dgl-lider-disco puesto" title="Puesto {{ puesto.rank }}"><b>{{ puesto.rank }}</b></span>
+  <span class="dgl-lider-disco valor">{{ puesto.valor }}</span>
 </div>
