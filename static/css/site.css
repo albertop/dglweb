@@ -51,38 +51,44 @@ a:hover { text-decoration: underline; }
 /* `flex-shrink: 0` porque ahora el cuerpo es un contenedor flex: sin esto, una página muy larga
    podría comprimir la barra en vez de dejarla a su alto natural. */
 .dgl-topbar { background: var(--dgl-navy); flex-shrink: 0; }
-.dgl-brand { font-weight: 800; letter-spacing: -0.02em; color: #fff; line-height: 1; }
-/* El brand no reacciona al puntero. Dos reglas ajenas lo pintaban: Bootstrap le pone su
-   `--bs-navbar-brand-hover-color` —oscuro, porque asume una barra clara— y la regla global de este
-   archivo le mete subrayado a todo `a:hover`. En una barra azul marino, ese color oscuro deja el
-   nombre del sitio casi ilegible justo cuando el usuario lo está apuntando. `:focus` va en el mismo
-   saco para que llegar por teclado se vea igual que llegar por ratón. */
-.dgl-brand:hover, .dgl-brand:focus { color: #fff; text-decoration: none; }
+/* ---------- La marca ---------- */
+/* Dos piezas que funcionan juntas y por separado: el monograma es la marca corta —favicon, móvil,
+   avatar— y el nombre es la larga.
 
-/* A 375px el nombre completo mide 325px y, con la hamburguesa al lado, la barra ya no da: Bootstrap
-   la manda a una segunda fila y el header pasa de ~54px a 84px, con el botón colgando debajo del
-   nombre en vez de a su derecha. Se lee como un encabezado roto.
-   Achicar el brand lo evita sin partir el nombre ni abreviarlo — «Dominicanos en Grandes Ligas» es
-   la marca y cortarla sería peor que reducirla. El corte va en 400px porque es donde deja de caber,
-   no en un breakpoint redondo. */
-@media (max-width: 400px) {
-  .dgl-brand { font-size: 1.05rem; }
+   Sustituye al nombre en una sola línea, que medía 325px de los 1140 de la barra y obligaba a dos
+   media queries para caber en móvil. Esta mide 164px en cualquier ancho y esas dos reglas ya no
+   existen: el problema que resolvían era el tamaño del texto, y el texto dejó de ser el problema. */
+.dgl-marca { display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; }
+.dgl-marca:hover, .dgl-marca:focus { text-decoration: none; }
+
+/* El monograma. En el rojo de la bandera y no en el azul: la barra ya es azul marino, así que uno
+   azul se perdería dentro de ella.
+   «DGL» no se inventa acá — es como se llama el proyecto por dentro desde el primer día
+   (`dgl_master`, `dgl_leader`, `dglweb`). */
+.dgl-marca-mono {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 46px; height: 46px; border-radius: .5rem;
+  background: var(--dgl-red); color: #fff;
+  font-weight: 800; font-size: .95rem; letter-spacing: -.02em;
 }
-/* Y un escalón más para el móvil más chico que sigue en uso (iPhone SE de primera generación, y
-   cualquier Android de 320px). Ahí ni siquiera 1.05rem alcanza: el nombre pide 273px y solo quedan
-   226 libres una vez descontados la hamburguesa y los márgenes. */
-@media (max-width: 340px) {
-  /* El `!important` no es pereza: `me-3` de Bootstrap ya trae uno, y sin él la regla no gana por
-     mucha especificidad que se le ponga. Se recorta el margen en vez de achicar más la letra —
-     medido, faltaban 2px y bajar de 0.85rem hace ilegible el nombre del sitio. */
-  .dgl-brand { font-size: 0.85rem; letter-spacing: 0; margin-right: 0.25rem !important; }
+
+/* El nombre lleva la jerarquía que el nombre pide: lo que define al sitio es «dominicanos», no «en
+   Grandes Ligas». En una sola línea las cuatro palabras pesaban igual y ninguna lideraba. */
+.dgl-marca-nombre { display: block; line-height: 1.05; }
+.dgl-marca-nombre b {
+  display: block; color: #fff; font-weight: 800; font-size: 1.4rem; letter-spacing: -.02em;
 }
-/* Y de paso la variable en su origen, que es de donde salía el negro. Con esto el brand no depende
-   de que nuestra hoja siga cargando después de la de Bootstrap: si algún día cambia el orden, o se
-   vendoriza el CSS, el hover sigue sin pintar nada. */
-.dgl-topbar { --bs-navbar-brand-hover-color: #fff; }
-.dgl-brand small { display: block; font-weight: 500; font-size: .62rem; letter-spacing: .18em;
-  text-transform: uppercase; color: #9db4d6; }
+/* La bajada también en blanco. La jerarquía la siguen dando el cuerpo, el grosor y el espaciado —no
+   hace falta apagarla de color, y en gris azulado se leía como un texto secundario en vez de como
+   parte del nombre. */
+.dgl-marca-nombre span {
+  display: block; color: #fff; font-weight: 500; font-size: .7rem;
+  letter-spacing: .16em; text-transform: uppercase; margin-top: .18rem;
+}
+/* Sobre fondo claro el nombre invierte; el monograma no cambia, que es lo que lo hace reconocible
+   fuera del sitio. */
+.dgl-marca-clara .dgl-marca-nombre b,
+.dgl-marca-clara .dgl-marca-nombre span { color: var(--dgl-ink); }
 .dgl-topbar .form-control { background: #0e2646; border-color: #23406e; color: #fff; }
 .dgl-topbar .form-control::placeholder { color: #8ea6c8; }
 .dgl-navlink { color: #cdd8ea !important; font-weight: 600; font-size: .9rem; }
@@ -846,7 +852,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    ese 100% lo hacía crecer hasta el alto de la columna entera —1500px de tarjeta— en vez de medir lo
    que mide su contenido. */
 .dgl-art-destacado { flex-direction: row; height: auto; }
-.dgl-art-destacado .dgl-thumb { flex: 0 0 40%; min-height: 240px; }
+/* Un tercio para la imagen y dos para el texto: en el destacado lo que vende es el titular y la
+   entradilla, no un rectángulo azul con una etiqueta. */
+.dgl-art-destacado .dgl-thumb { flex: 0 0 33%; min-height: 220px; }
 .dgl-art-destacado h3 { font-size: 1.5rem; line-height: 1.2; }
 .dgl-art-destacado .entradilla { font-size: 1rem; }
 @media (max-width: 767px) {

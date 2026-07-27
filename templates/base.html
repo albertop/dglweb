@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{% static 'css/site.css' %}?v=77" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=80" rel="stylesheet">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -17,7 +17,18 @@
 <header class="dgl-topbar">
   <nav class="navbar navbar-expand-lg py-2" aria-label="Navegación principal">
     <div class="container">
-      <a class="navbar-brand dgl-brand me-3" href="{% url 'home' %}">Dominicanos en Grandes Ligas</a>
+      {% comment %}
+        Monograma más nombre. No lleva `navbar-brand` de Bootstrap a propósito: esa clase trae su
+        propio color de hover —oscuro, porque asume una barra clara— que sobre azul marino dejaba el
+        nombre casi ilegible justo al apuntarlo.
+      {% endcomment %}
+      <a class="dgl-marca me-3" href="{% url 'home' %}" aria-label="Dominicanos en Grandes Ligas — inicio">
+        <span class="dgl-marca-mono" aria-hidden="true">DGL</span>
+        <span class="dgl-marca-nombre">
+          <b>Dominicanos</b>
+          <span>en Grandes Ligas</span>
+        </span>
+      </a>
       <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#nav"
               aria-controls="nav" aria-expanded="false" aria-label="Abrir el menú">
         <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
@@ -83,7 +94,14 @@
   <div class="container">
     <div class="row g-4">
       <div class="col-md-5">
-        <div class="dgl-brand mb-2">Dominicanos en Grandes Ligas</div>
+        {# El pie es azul marino como la barra, así que la marca va igual que arriba, sin invertir. #}
+        <div class="dgl-marca mb-2">
+          <span class="dgl-marca-mono" aria-hidden="true">DGL</span>
+          <span class="dgl-marca-nombre">
+            <b>Dominicanos</b>
+            <span>en Grandes Ligas</span>
+          </span>
+        </div>
         <p class="small mb-0" style="max-width:32ch">Béisbol de las Grandes Ligas, visto a través
           del lente dominicano.</p>
       </div>
