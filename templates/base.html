@@ -36,7 +36,7 @@
   <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   <link href="{% static 'vendor/bootstrap.min.css' %}" rel="stylesheet">
-  <link href="{% static 'css/site.css' %}?v=104" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=106" rel="stylesheet">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -157,7 +157,28 @@
           <li><a href="#">Términos de servicio</a></li><li><a href="#">Cookies</a></li></ul></div>
     </div>
     <hr style="border-color:#25406b">
-    <div class="small text-center" style="color:#8ea6c8">© 2026 dominicanosengrandesligas.com</div>
+    {% comment %}
+      La última línea del pie: quién gestiona el sitio a la izquierda y el copyright en el centro.
+      Van JUNTAS y no en dos renglones porque dicen lo mismo —de quién es esto— y separarlas gastaba
+      una línea entera del pie para repetir el tema.
+
+      La agencia: el logo va de fondo en CSS y no en un `<img>` a propósito. Si el archivo falta —o
+      todavía no se ha subido— un fondo ausente no dibuja nada, mientras que un `<img>` roto pone el
+      icono de imagen partida en el pie de TODAS las páginas. El nombre y el usuario van en texto de
+      verdad, así que la línea se entiende igual sin el logo.
+    {% endcomment %}
+    <div class="dgl-pie-firma">
+      <a class="dgl-agencia" href="https://www.instagram.com/adciomediard/"
+         target="_blank" rel="noopener" aria-label="Adcio Media en Instagram (@adciomediard)">
+        <span class="dgl-agencia-logo" aria-hidden="true"></span>
+        <span class="dgl-agencia-txt">
+          <span class="dgl-agencia-rol">Gestionado por</span>
+          <b>Adcio Media</b>
+          <span class="dgl-agencia-ig">@adciomediard</span>
+        </span>
+      </a>
+      <div class="small dgl-copyright">© 2026 dominicanosengrandesligas.com</div>
+    </div>
   </div>
 </footer>
 
