@@ -207,12 +207,35 @@ está guardado.
 | **Origen** | **La fuente de MLB, no nosotros.** 2010 no está entre las temporadas que se cargan del CSV de Retrosheet: esos hits los entregó el proxy. Es MLB inconsistente consigo mismo. |
 | **Decisión (2026-07-27)** | **Se deja como está.** Subir su `balls_in_play` a 165 para que cuadre sería corregir a la fuente por nuestra cuenta, y la regla de este proyecto es no inventar datos. Un batazo de diferencia sobre 164 no cambia ninguna lectura. |
 
-Está declarada en `ACEPTADAS`, dentro del comando de auditoría. **Esa lista existe para que la
-auditoría pueda salir en verde**: un comando que siempre termina en rojo es un comando que nadie
-corre, y entonces no habría servido de nada construirlo. Las conocidas se listan aparte y no fallan;
-cualquier fila nueva sí.
+### La tolerancia, y por qué NO va en porcentaje
 
-Se audita así, y no debería reportar nada fuera de lo conocido:
+La auditoría da por ruido de la fuente un exceso de **hasta 1 batazo**, que es exactamente el modo de
+fallo observado: MLB descuadrado por uno consigo mismo.
+
+Se planteó ponerla en porcentaje —«aceptar hasta 101%»— y **medida sale invertida**. Sobre las 6.896
+filas reconciliables de hoy, cuyo `balls_in_play` va de unas decenas a 922, un 1% dejaría pasar:
+
+| `balls_in_play` | Batazos imposibles que pasarían sin avisar |
+|---|---|
+| 20 | 0,2 — **no perdona ni uno**, justo donde una unidad no significa nada |
+| 164 | 1,6 |
+| 300 | 3,0 |
+| 922 | 9,2 — **nueve**, justo donde un fallo sistemático se vería |
+
+O sea: estricta con las muestras chicas y laxa con las grandes, al revés de lo que uno quiere. En
+batazos enteros la regla vale igual para todas las filas.
+
+**Lo tolerado se cuenta aunque no se liste.** Una fila suelta no dice nada, pero que el contador
+salte de 1 a 800 es justo la señal de una carga mal armada — y sin ese renglón la tolerancia sería
+una venda en vez de un umbral.
+
+`--tolerancia 0` vuelve a la regla estricta. Con eso, hoy, sale solo la fila de Soriano.
+
+`ACEPTADAS` —dentro del comando— queda para lo que la tolerancia no puede cubrir: un descuadre grande
+que se investigó y se aceptó. Hoy está **vacía**, porque la única anomalía real cae dentro de la
+tolerancia.
+
+Se audita así, y no debería reportar nada fuera de lo esperado:
 
 ```
 manage.py check_batted_balls

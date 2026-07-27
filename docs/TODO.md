@@ -679,11 +679,15 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 
   **Decisión del dueño (2026-07-27): la fila de Soriano se deja como está y se documenta.**
   Corregirle el `balls_in_play` a 165 sería enmendarle la plana a la fuente por nuestra cuenta, y un
-  batazo sobre 164 no cambia ninguna lectura. Está declarada en `ACEPTADAS`, dentro del comando, con
-  su porqué; el detalle vive en `docs/DATOS_DE_APOYO.md`. Esa lista existe **para que la auditoría
-  pueda salir en verde**: un comando que siempre termina en rojo es un comando que nadie corre. Las
-  conocidas se listan y no fallan, cualquier fila nueva sí, y el comando avisa cuando una excepción
-  deja de disparar para que se borre.
+  batazo sobre 164 no cambia ninguna lectura. El detalle vive en `docs/DATOS_DE_APOYO.md`.
+
+  **Y la auditoría tolera hasta 1 batazo de exceso** (`--tolerancia 0` vuelve a la regla estricta).
+  Se planteó ponerlo en porcentaje —«hasta 101%»— y medido sale invertido: con 20 BIP el 1% no
+  perdona ni un batazo, y con 922 deja pasar nueve. Estricto donde una unidad no significa nada y
+  laxo donde un fallo sistemático se vería. En batazos enteros la regla vale igual para todas las
+  filas y coincide con el modo de fallo real. **Lo tolerado se cuenta aunque no se liste**: que el
+  contador salte de 1 a 800 es la señal de una carga mal armada, y sin ese renglón la tolerancia
+  sería una venda en vez de un umbral.
 - [ ] **DEV-03 / DEV-04 — `compare()` carga todo en memoria; el upsert hace una query por fila.**
   Ciertos. Con 1.500 filas no se nota; el propio review dice que es tolerable. Documentar el límite
   del motor y volver si aparece un dataset grande.
