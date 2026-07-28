@@ -175,6 +175,26 @@ TELEGRAM_CHAT_ID = env.str("TELEGRAM_CHAT_ID", default="")
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"
 
+# treebeard.E001: cuatro líneas de aviso en CADA corrida de CADA job del scheduler.
+#
+# QUÉ DICE. Que los managers de `Page` y `Collection` no heredan de `MP_NodeManager`, y que eso será
+# un error en treebeard 6.
+#
+# POR QUÉ SE SILENCIA Y NO SE ARREGLA. **No es código nuestro.** Esos managers los define Wagtail
+# 7.4.2, y la incompatibilidad es suya con django-treebeard 5.3.0. No hay nada que podamos cambiar de
+# este lado; lo tiene que resolver Wagtail en su código.
+#
+# POR QUÉ MOLESTA LO SUFICIENTE. Sale por `stderr` decenas de veces al día y **entierra el `stderr`
+# de verdad**, que es justamente el canal por el que `refresh_daily` avisa cuando algo falla. Un canal
+# de errores donde casi todo es ruido deja de leerse — el mismo problema que ya tuvimos con las
+# alertas de Telegram.
+#
+# ⚠️ QUÉ SE ESTÁ APLAZANDO. Nada se rompe hoy, pero en treebeard 6 esto pasa de aviso a ERROR, y ahí
+# la aplicación no arranca. **Al subir de versión, lo primero es quitar esta línea y ver qué queda.**
+# La política del proyecto es quedarse en LTS, así que no urge — pero un `SILENCED_SYSTEM_CHECKS` sin
+# fecha de revisión es una trampa para quien venga después.
+SILENCED_SYSTEM_CHECKS = ["treebeard.E001"]
+
 # El panel del CMS llama a `releases.wagtail.org` en cada carga para avisar si hay versión nueva. Se
 # apaga por tres razones, y la CSP fue solo la que lo destapó:
 #

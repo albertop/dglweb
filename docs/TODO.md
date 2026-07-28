@@ -1103,9 +1103,14 @@ justamente el canal por el que avisa— va a estar mezclado con ese ruido en el 
 canal de errores donde casi todo es ruido deja de leerse, que es el mismo problema que tuvimos con
 las alertas de Telegram.
 
-- [ ] **Silenciarlo con `SILENCED_SYSTEM_CHECKS = ["treebeard.E001"]`** en `config/settings/base.py`.
-      Es una línea, y hay que escribir al lado POR QUÉ se silencia y qué se está aplazando — un
+- [x] **Silenciado con `SILENCED_SYSTEM_CHECKS = ["treebeard.E001"]`** en
+      `config/settings/base.py` (2026-07-27), con el porqué y lo que se aplaza escrito al lado — un
       `SILENCED_SYSTEM_CHECKS` sin explicación es una trampa para el que venga.
+
+      Va acompañado de `tests/test_system_checks.py`, que es la otra mitad: exige que los chequeos no
+      escriban NINGÚN aviso. Silenciar sin esa prueba solo cambia un ruido conocido por un ruido
+      futuro que tampoco va a leer nadie; con ella, el canal se queda limpio y la suite avisa el día
+      que aparezca un aviso nuevo, que es cuando alguien tiene que decidir.
 - [ ] **Antes de subir a treebeard 6, quitar ese silencio y ver qué queda.** El aviso dice que
       entonces será un error, y ahí ya no es cosmético: no arranca. Como la política del proyecto es
       quedarse en versiones LTS, esto no urge — pero cuando toque el salto, es lo primero que hay que
