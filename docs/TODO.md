@@ -1357,9 +1357,70 @@ falso). Los archivos viven en el volumen `dglweb_media`.
       - El límite de subida por defecto de nginx es **1 MB**, y una foto de artículo lo pasa sin
         esfuerzo. Sale como un 413 seco en mitad del formulario de Wagtail y **no deja rastro en los
         logs de Django**, porque el que corta es nginx.
-- [ ] **Respaldar `dglweb_media`.** Es contenido del sitio escrito por una persona, igual que la base:
-      si se pierde el volumen, las fotos de todos los artículos se van con él y no hay de dónde
-      recuperarlas.
+- [ ] **Respaldar los datos de producción.** Sigue pendiente, y es lo más urgente del sitio ya
+      publicado: **si se pierde el VPS hoy, los artículos y sus fotos no se recuperan de ningún
+      sitio.** La base de estadísticas sí —se puede reconstruir desde 10.0.0.39 o desde el proxy—
+      pero lo que escribió una persona en el CMS solo existe allá.
+
+      **Ya no es «respaldar un volumen de Docker»**: con el despliegue del 2026-07-28 los medios
+      viven en `/srv/dglweb-datos/`, una ruta normal del anfitrión. Son dos cosas:
+
+      - `pg_dump` de la base `dglweb` (8 MB comprimidos, medido).
+      - `rsync` o `tar` de `/srv/dglweb-datos/` (58 imágenes de artículos + 1.970 retratos).
+
+      Los retratos son reproducibles con el script de descarga del dueño, así que lo irremplazable
+      son la base y `media/`. Con retención y, sobre todo, **una restauración probada**: un respaldo
+      que nunca se restauró no se sabe si sirve.
+
+## Despliegue a producción — ✅ HECHO (2026-07-28)
+
+**https://dominicanosengrandesligas.com está en vivo.** Lo que sigue es el registro de cómo quedó,
+porque cada decisión de acá se va a volver a necesitar el día que haya que rehacerlo o mudarlo.
+
+**La forma.** Postgres es **una sola instancia compartida** del VPS —decisión del dueño: no quiere
+una por proyecto— sin puerto publicado, alcanzable solo por la red `backend` de Docker. El sitio se
+conecta con un rol propio (`dglweb`) y no como superusuario: si se conectara como `postgres`, un
+fallo suyo podría tumbar las bases de los otros dos sitios del servidor.
+
+**La imagen.** `Dockerfile.prod`, dos etapas, 298 MB contra 626 de la de desarrollo. Gunicorn con
+`--preload`, que es lo que más memoria ahorra y es gratis: carga la aplicación una vez antes de
+bifurcar, así el código de Django y Wagtail queda compartido entre los tres workers en vez de
+duplicado.
+
+**Los datos.** Volcado y restauración, no recarga desde el proxy. Recargar habría tardado horas y
+—sobre todo— los artículos del CMS no se pueden reconstruir: solo existen en la base.
+
+⚠️ **Casi se restaura la base equivocada.** El sitio de desarrollo NO usa el Postgres del compose
+local: apunta a `10.0.0.39`. El contenedor local tiene 2.880 filas de prueba y el servidor real
+409.220. Se cazó contando las filas ANTES de mandar el archivo, no después. Si algún día se repite
+esto, contar primero.
+
+**Lo que nginx sirve directo**, sin pasar por Django: `/media/` (las fotos del CMS, que no viajan en
+la imagen porque se suben en caliente) y `/static/img/mugshots/` (1.970 retratos excluidos de git a
+propósito — los baja un script del dueño). Los dos desde `/srv/dglweb-datos/`, FUERA de
+`/var/lib/docker`: ese directorio es `0710 root:root` y nginx, que corre como `www-data`, no puede
+atravesarlo. Habría dado 403 en cada foto.
+
+**Dos fallos que solo aparecieron al construir la imagen de producción**, no en ninguna prueba:
+
+1. Los archivos vendorizados de Bootstrap referencian un `.map` que no bajamos, y
+   `CompressedManifestStaticFilesStorage` aborta si falta algo referenciado. Habría reventado el
+   primer despliegue.
+2. `node_modules` entraba al contexto de build y `.bin/esbuild` es un enlace simbólico que Docker no
+   sabe empaquetar.
+
+**Una trampa de Portainer que costó un despliegue fallido:** sus «Environment variables» sirven para
+sustituir `${VAR}` DENTRO del compose — **no se inyectan en el contenedor**. Hay que nombrarlas
+explícitamente en un bloque `environment:`. Y `env_file` con ruta del anfitrión no funciona: Portainer
+corre en un contenedor y no ve ese sistema de archivos.
+
+**El scheduler** exige que el contenedor se llame igual que en `ofelia/config.ini` —que lo nombra seis
+veces— así que en producción también es `dglweb-web-live`. Ofelia registra los seis trabajos al
+arrancar **sin comprobar que el objetivo exista**: con el nombre mal, todo habría fallado en silencio
+hasta la hora siguiente. Renombrar exige borrar el contenedor primero; Portainer no lo hace solo.
+
+**Verificado de punta a punta**: `update_roster_moves` trajo 2 movimientos, o sea sitio → proxy →
+MLB → base.
 
 ## El cintillo de movimientos de roster — ✅ CONSTRUIDO (2026-07-27)
 
