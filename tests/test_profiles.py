@@ -13,6 +13,7 @@ from django.urls import reverse
 
 from dglweb.players import mugshots
 from dglweb.players.models import Player
+from dglweb.profiles import columns
 from dglweb.profiles.metric_layout import qualifier_lookups
 from dglweb.profiles.tabs import (
     BattingTab,
@@ -881,3 +882,76 @@ def test_marcar_no_toca_el_diccionario_original() -> None:
     _marcar_sin_tipificar(1990, original)
 
     assert original == {"gb_pct": "lead-season"}
+
+
+# ── Cobertura punto 4: los subtotales de fildeo en POSTEMPORADA ─────────────────────────────────
+#
+# Todo este bloque de `_fielding_context` estaba sin una sola prueba. No es código de borde: es la
+# tabla que ve cualquiera que abra el tab de Fildeo de un pelotero con octubres, y su regla más
+# delicada —borrar los promedios cuando el total suma posiciones— es justo del tipo que se rompe sin
+# que nadie lo note, porque un número equivocado ahí sigue pareciendo un número.
+
+
+def _fildeo_octubre(player: Player, pos: str, season: int, ronda: str, **extra: object) -> None:
+    from dglweb.stats.models import FieldingPost
+
+    FieldingPost.objects.create(player=player, season=season, round=ronda, team="BOS", league="AL", pos=pos, **extra)
+
+
+@pytest.mark.django_db
+def test_el_fildeo_de_octubre_se_subtotaliza_por_posicion() -> None:
+    """Un pelotero que jugó dos posiciones en octubre lleva una fila de subtotal por cada una.
+
+    Ordenadas por juegos, de más a menos: la posición donde de verdad jugó va primero, no la que
+    salga antes en el alfabeto.
+    """
+    from dglweb.profiles.tabs import FieldingTab
+
+    jugador = Player.objects.create(**_other_player(player_id=900, dgl_id="f01", full_name="Un Fildeador"))
+    _fildeo_octubre(jugador, "2B", 2013, "WS", gp=2, po=4)
+    _fildeo_octubre(jugador, "SS", 2013, "LCS", gp=6, po=10)
+
+    datos = FieldingTab().context(jugador)
+
+    etiquetas = [t["label"] for t in datos["post_totals"]]
+    assert etiquetas == ["SS", "2B", "Total"], "por juegos de más a menos, y el Total al cierre"
+    assert datos["post_totals"][0]["seasons"] == 1
+
+
+@pytest.mark.django_db
+def test_el_total_de_octubre_borra_los_promedios_cuando_suma_posiciones() -> None:
+    """La regla que hace honesta la fila de Total.
+
+    Un fildeo promedio que mezcla campocorto con segunda base no significa nada: son dificultades
+    distintas. Sumar los CONTEOS sí vale —los outs son outs— pero publicar el promedio resultante
+    sería inventar una métrica. Se borra en vez de calcularse.
+    """
+    from dglweb.profiles.tabs import FieldingTab
+
+    jugador = Player.objects.create(**_other_player(player_id=901, dgl_id="f02", full_name="Otro Fildeador"))
+    _fildeo_octubre(jugador, "2B", 2013, "WS", gp=2, po=4, a=2, e=0)
+    _fildeo_octubre(jugador, "SS", 2013, "LCS", gp=6, po=10, a=8, e=1)
+
+    total = FieldingTab().context(jugador)["post_total_cells"]["standard"]
+    columnas = {c.attr: celda["text"] for c, celda in zip(columns.FIELDING_STANDARD, total, strict=True)}
+
+    assert columnas["po"] == "14", "los conteos SÍ se suman"
+    assert columnas["fld_pct"] == "—", "el promedio de dos posiciones distintas no se publica"
+
+
+@pytest.mark.django_db
+def test_con_una_sola_posicion_el_promedio_de_octubre_si_se_publica() -> None:
+    """El reverso: si no hay mezcla, no hay nada que borrar y esconderlo sería perder un dato."""
+    from dglweb.profiles.tabs import FieldingTab
+
+    jugador = Player.objects.create(**_other_player(player_id=902, dgl_id="f03", full_name="Un Campocorto"))
+    _fildeo_octubre(jugador, "SS", 2013, "WS", gp=4, po=10, a=8, e=0)
+    _fildeo_octubre(jugador, "SS", 2018, "WS", gp=5, po=12, a=9, e=0)
+
+    datos = FieldingTab().context(jugador)
+    total = datos["post_total_cells"]["standard"]
+    columnas = {c.attr: celda["text"] for c, celda in zip(columns.FIELDING_STANDARD, total, strict=True)}
+
+    assert columnas["fld_pct"] != "—"
+    assert [t["label"] for t in datos["post_totals"]] == ["SS", "Total"]
+    assert datos["post_totals"][-1]["seasons"] == 2, "dos octubres, aunque sean cuatro rondas"

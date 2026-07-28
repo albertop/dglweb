@@ -265,8 +265,13 @@ def test_turning_a_metric_off_does_not_require_refetching(temporada: SeasonDates
 @pytest.fixture
 def sb(db: None) -> Metric:
     return Metric.objects.create(
-        stat_group="batting", column="sb", abbrev="SB", name_es="Bases robadas", kind="ACU",
-        sort_order=2, visible_en_widget_lideres=True,
+        stat_group="batting",
+        column="sb",
+        abbrev="SB",
+        name_es="Bases robadas",
+        kind="ACU",
+        sort_order=2,
+        visible_en_widget_lideres=True,
     )
 
 

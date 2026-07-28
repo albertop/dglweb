@@ -286,7 +286,6 @@ def _bateo(**stat: Any) -> dict[str, Any]:
     return {"batting": stat}
 
 
-
 @pytest.mark.django_db
 def test_a_game_in_progress_gets_its_lines_from_the_boxscore(monkeypatch: pytest.MonkeyPatch) -> None:
     """`byDateRange` no publica nada de un juego hasta que termina — está medido contra el proxy.
@@ -435,9 +434,7 @@ def test_the_starter_label_belongs_to_the_starter_and_to_nobody_else(monkeypatch
     """El resto de la alineación anunciada sale sin etiqueta: no van a abrir, van a batear."""
     _jugador(1, "Cristopher", "Sánchez")
     _jugador(2, "Juan", "Soto")
-    proxy = _Proxy(
-        [_juego(estado="Preview", detallado="Scheduled", alineacion={"home": [2]}, abridores={"home": 1})]
-    )
+    proxy = _Proxy([_juego(estado="Preview", detallado="Scheduled", alineacion={"home": [2]}, abridores={"home": 1})])
     _instalar(monkeypatch, proxy)
 
     juego = _hoy(_armada()).juegos[0]

@@ -194,8 +194,7 @@ def test_la_fecha_de_actualizacion_no_se_mueve_sola() -> None:
     asignaciones = [
         nodo.value
         for nodo in ast.walk(arbol)
-        if isinstance(nodo, ast.Assign)
-        and any(getattr(destino, "id", "") == "ACTUALIZADO" for destino in nodo.targets)
+        if isinstance(nodo, ast.Assign) and any(getattr(destino, "id", "") == "ACTUALIZADO" for destino in nodo.targets)
     ]
     assert len(asignaciones) == 1
     valor = asignaciones[0]

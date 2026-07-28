@@ -43,7 +43,9 @@ def _item(
         "duration": duracion,
         "keywordsAll": llaves,
         "playbacks": playbacks,
-        "image": {"cuts": [{"width": 1920, "src": "https://img/grande.jpg"}, {"width": 640, "src": "https://img/x.jpg"}]},
+        "image": {
+            "cuts": [{"width": 1920, "src": "https://img/grande.jpg"}, {"width": 640, "src": "https://img/x.jpg"}]
+        },
     }
 
 

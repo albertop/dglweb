@@ -590,9 +590,7 @@ def test_an_article_cannot_be_saved_without_a_category(indice: ArticleIndexPage)
     """
     from django.core.exceptions import ValidationError
 
-    articulo = ArticlePage(
-        title="Sin categoria", slug="sin-categoria", entradilla="Algo.", fecha=HOY, categoria=None
-    )
+    articulo = ArticlePage(title="Sin categoria", slug="sin-categoria", entradilla="Algo.", fecha=HOY, categoria=None)
 
     with pytest.raises(ValidationError) as fallo:
         articulo.full_clean()
@@ -817,9 +815,7 @@ def test_no_article_appears_on_two_pages(indice: ArticleIndexPage) -> None:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("pedida", ["abc", "0", "-1", "999", ""])
-def test_a_nonsense_page_number_falls_back_instead_of_exploding(
-    indice: ArticleIndexPage, pedida: str
-) -> None:
+def test_a_nonsense_page_number_falls_back_instead_of_exploding(indice: ArticleIndexPage, pedida: str) -> None:
     """El número viene de la URL, así que lo escribe cualquiera. Una página que no existe no es un
     error del sitio: se cae a la primera."""
     _muchos(indice, 4)

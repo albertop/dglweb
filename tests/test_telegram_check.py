@@ -82,9 +82,7 @@ def test_a_telegram_that_does_not_answer_is_a_message_not_a_traceback(monkeypatc
 def test_a_token_that_does_not_work_is_told_apart_from_a_network_problem(monkeypatch: pytest.MonkeyPatch) -> None:
     """Telegram contesta, pero dice que no. Son dos problemas distintos y se arreglan distinto:
     uno es rotar el token y el otro es mirar la red."""
-    salida, errores = _correr(
-        monkeypatch, {"getMe": {"ok": False, "description": "Unauthorized"}}
-    )
+    salida, errores = _correr(monkeypatch, {"getMe": {"ok": False, "description": "Unauthorized"}})
 
     assert "El token no sirve" in errores
     assert "Unauthorized" in errores

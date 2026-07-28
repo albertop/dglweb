@@ -830,7 +830,34 @@ que uno acude **cuando los avisos ya fallaron**, y ahí no es momento de descubr
 (91%, 4). Son ramas de borde de mucho código que ya tiene paridad comprobada contra la base real, así
 que el riesgo está más cubierto de lo que dice el porcentaje. Último de la lista a propósito.
 
-- [ ] Revisar caso por caso si cada línea suelta es una rama real o código muerto que conviene borrar.
+- [x] **Revisado caso por caso (2026-07-27). Conclusión: NO hay código muerto.** Las 47 líneas sin
+      cubrir son ramas reales; ninguna sobra. Lo que sí había eran tres huecos que valían la pena, y
+      quedan cerrados:
+
+      - **La cascada de umbrales** (`qualifier.py`, 91% → **100%**). Es la regla de quién califica
+        para un tablero de tasas, con tres niveles —override de temporada, el de la métrica, el del
+        oficio— y solo uno estaba ejercitado. La paridad contra la base real no lo tapaba: la
+        paridad demuestra que el resultado CUADRA, no que se resuelva por el camino correcto. Hoy
+        los tres niveles dan casi siempre lo mismo, y el día que alguien ponga un override en el
+        Backoffice el nivel equivocado devolvería un número igual de plausible. 14 pruebas.
+      - **Los subtotales de fildeo en postemporada** (`tabs.py`, 95% → **98%**). Un bloque entero sin
+        una sola prueba, y no es código de borde: es la tabla que ve cualquiera que abra el tab de
+        Fildeo de un pelotero con octubres. Su regla más delicada —borrar los promedios cuando el
+        total suma posiciones, porque un fildeo que mezcla SS con 2B no significa nada— es del tipo
+        que se rompe sin que nadie lo note, porque un número equivocado ahí sigue pareciendo un
+        número.
+      - **La nota del umbral y el formato de entradas** (`leaderboards.py`, 94% → **97%**). Texto
+        visible en la página de Líderes que nadie comprobaba, incluido que diga «calificar» en un
+        tablero de mejores y «entrar en Últimos» en el otro.
+
+      **Lo que queda sin cubrir, y por qué se deja:** los `raise NotImplementedError` y el `return {}`
+      de la clase base de los tabs (son el contrato, no código); los `continue` que saltan valores
+      nulos dentro de los motores de líderes (cubiertos en sustancia por la paridad contra la base
+      real, y probarlos uno a uno mide el lenguaje, no la regla); el vaciado del lote de
+      `bulk_create` (pide un fixture de miles de filas para ejercitar un `if`); y un puñado de
+      guardas defensivas que el propio código documenta como tales. Marcarlas con `# pragma: no
+      cover` se descartó: taparía el número sin cambiar el riesgo, y el día que una de ellas sea
+      código muerto de verdad ya no habría forma de notarlo.
 
 ## Incidente — el CI llevaba doce pushes en rojo y nadie lo vio (2026-07-27)
 

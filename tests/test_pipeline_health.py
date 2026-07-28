@@ -243,9 +243,7 @@ def test_a_stale_hourly_job_turns_the_light_red(temporada: SeasonDates, comando:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("comando", HORARIOS)
-def test_an_hourly_job_that_only_fails_is_as_bad_as_one_that_does_not_run(
-    temporada: SeasonDates, comando: str
-) -> None:
+def test_an_hourly_job_that_only_fails_is_as_bad_as_one_that_does_not_run(temporada: SeasonDates, comando: str) -> None:
     """Se exige una corrida BUENA, no una corrida cualquiera.
 
     Un job que arranca cada hora y revienta cada hora deja filas recientes en el log; si el semáforo

@@ -167,9 +167,7 @@ def test_career_cera_is_weighted_by_innings_and_not_by_games() -> None:
     a 9·ΣER/ΣIP, que es la cERA de carrera de verdad.
     """
     player = Player.objects.create(**_other_player(player_id=770001, dgl_id="cera01"))
-    Fielding.objects.create(
-        player=player, season=1998, team="BOS", pos="C", gp=11, innings_outs=248, catcher_era=6.31
-    )
+    Fielding.objects.create(player=player, season=1998, team="BOS", pos="C", gp=11, innings_outs=248, catcher_era=6.31)
     Fielding.objects.create(player=player, season=1999, team="BOS", pos="C", gp=3, innings_outs=13, catcher_era=0.0)
 
     build_career_totals()

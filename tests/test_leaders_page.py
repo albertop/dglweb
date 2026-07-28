@@ -402,3 +402,69 @@ def test_if_home_runs_is_switched_off_the_page_still_opens() -> None:
     contexto = leaders_context(group="batting", tab="", scope="carrera", metric_col="", season="")
 
     assert contexto["board"]["abbr"] == "G"
+
+
+# ── Cobertura punto 4: ramas reales de `leaderboards.py` que nadie ejercitaba ────────────────────
+
+
+@pytest.mark.django_db
+def test_las_entradas_se_escriben_en_notacion_de_beisbol() -> None:
+    """`Leader.value` guarda entradas decimales (203.667) y el béisbol las escribe 203.2.
+
+    No es redondeo: el tercio decimal son OUTS, así que .667 son dos outs y se escribe «.2». Un
+    tablero de líderes de IP con «203.7» lo ve mal cualquiera que siga el juego, y es de esos errores
+    que desacreditan la página entera aunque el orden sea correcto.
+    """
+    from dglweb.profiles.leaderboards import _format
+
+    # La columna se llama `outs` y no `ip`: el dato canónico son outs, y las entradas se derivan.
+    # Ese detalle lo destapó esta misma prueba —con «ip» caía en el formato de conteo y devolvía
+    # «204»— y es justo la clase de cosa que la cobertura estaba tapando.
+    assert _format("pitching", "outs", 203 + 2 / 3) == "203.2"
+    assert _format("pitching", "outs", 1000.0) == "1,000.0"
+
+
+@pytest.mark.django_db
+def test_los_conteos_se_escriben_como_enteros() -> None:
+    """`Leader.value` es float por diseño —una sola columna para conteos y tasas—, así que 703
+    jonrones llegan como 703.0 y hay que devolverlos a entero antes de publicarlos."""
+    from dglweb.profiles.leaderboards import _format
+
+    assert _format("batting", "hr", 703.0) == "703"
+
+
+@pytest.mark.django_db
+def test_la_nota_del_umbral_dice_de_que_tablero_habla() -> None:
+    """El pie que explica por qué falta gente en un tablero de tasas.
+
+    Sin él, un lector que no encuentra a su pelotero en el top de AVG concluye que el dato está mal.
+    Y el texto cambia según el tablero: en uno de «mejores» el umbral es para CALIFICAR, y en uno de
+    «Últimos» es para ENTRAR — decir «calificar» ahí sugeriría que a los demás les fue mejor.
+    """
+    from dglweb.profiles.leaderboards import _qualifier_note
+
+    tasa = _metric("batting", "avg", "AVG")
+    tasa.kind = Metric.Kind.RATE
+    tasa.qualifier_career = "PA>=3000"
+    tasa.save()
+
+    nota = _qualifier_note(tasa, "carrera", has_worst=False)
+
+    assert nota.startswith("Mínimo para calificar:"), nota
+
+
+@pytest.mark.django_db
+def test_un_conteo_solo_lleva_nota_si_tiene_tablero_de_ultimos() -> None:
+    """Un conteo no necesita umbral para el tablero de «más»: nadie lidera jonrones por accidente.
+
+    Solo lo necesita cuando hay tablero de «Últimos», donde sin mínimo ganaría siempre quien jugó un
+    solo partido — y eso no es una marca, es una anécdota.
+    """
+    from dglweb.profiles.leaderboards import _qualifier_note
+
+    conteo = _metric("batting", "hr", "HR")
+    conteo.qualifier_career = "PA>=3000"
+    conteo.save()
+
+    assert _qualifier_note(conteo, "carrera", has_worst=False) == ""
+    assert _qualifier_note(conteo, "carrera", has_worst=True).startswith("Mínimo para entrar en Últimos:")
