@@ -43,6 +43,15 @@ class Command(BaseCommand):
         parser.add_argument(
             "--desde", type=int, default=None, help=f"Relleno desde este año hasta hoy (mín. {PRIMERA})."
         )
+        # `--force` no cambia NADA acá, y aun así tiene que existir: el pipeline llama a todos sus
+        # pasos con esa bandera porque la ventana de temporada ya la evaluó él (ver
+        # `stats/pipeline.py`). Este comando no mira esa ventana —los juegos de un equipo se pueden
+        # traer en enero igual que en julio— pero un `call_command` con una opción que el comando no
+        # declara revienta con `TypeError`.
+        #
+        # Y ese fallo NO se queda en el paso: `build_team_games` es una ENTRADA, así que al caerse
+        # deja sin reconstruir los liderazgos y el sitio publica los de ayer. Pasó el 2026-07-28.
+        parser.add_argument("--force", action="store_true", help="Aceptada por compatibilidad con el pipeline.")
 
     def handle(self, *args: Any, **options: Any) -> None:
         temporadas = self._elegir(options)

@@ -376,3 +376,43 @@ def test_the_command_says_it_did_not_run_instead_of_reporting_zero_steps(
 
     assert "Sin correr" in salida.getvalue()
     assert "pasos" not in salida.getvalue()
+
+
+def test_todos_los_pasos_del_refresco_aceptan_lo_que_el_pipeline_les_pasa() -> None:
+    """El fallo del 2026-07-28, convertido en prueba.
+
+    `build_team_games` se sumó a las ENTRADAS sin declarar `--force`, y el pipeline llama a TODOS sus
+    pasos con esa bandera. El `call_command` reventó con `TypeError` antes de ejecutar nada.
+
+    Y el daño no se quedó en ese paso: al ser una entrada, su fallo dejó los derivados sin
+    reconstruir y el sitio publicó los liderazgos de ayer. O sea que un argumento que falta en un
+    comando nuevo apaga la actualización del sitio entero.
+
+    Esta prueba recorre los pasos de verdad —no una lista copiada— y comprueba que cada uno declara
+    lo que se le va a pasar. Es barata y cierra la clase entera de fallo, no solo este caso.
+    """
+    from django.core.management import get_commands, load_command_class
+
+    from dglweb.stats import pipeline
+
+    # Los que pasan por `_correr`, que es quien añade `--force`. `MANTENIMIENTO` queda FUERA a
+    # propósito: se invoca con `call_command(comando)` a secas porque corre también fuera de
+    # temporada, así que no necesita la bandera ni debe exigirla. Lo descubrió esta misma prueba, que
+    # en su primera versión lo incluía y señalaba a `prune_ingest_log` como roto sin estarlo.
+    pasos = [
+        *pipeline.ENTRADAS,
+        *pipeline.ENTRADAS_POST,
+        *pipeline.DERIVADOS,
+        *pipeline.PORTADA,
+        *pipeline.AVISOS,
+    ]
+    comandos = get_commands()
+    sin_force = []
+    for nombre in pasos:
+        assert nombre in comandos, f"{nombre} no existe como comando"
+        parser = load_command_class(comandos[nombre], nombre).create_parser("manage.py", nombre)
+        opciones = {accion.dest for accion in parser._actions}
+        if "force" not in opciones:
+            sin_force.append(nombre)
+
+    assert not sin_force, f"el pipeline los llama con --force y no lo declaran: {sin_force}"
