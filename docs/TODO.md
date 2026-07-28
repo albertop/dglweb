@@ -1404,6 +1404,42 @@ falso). Los archivos viven en el volumen `dglweb_media`.
       son la base y `media/`. Con retención y, sobre todo, **una restauración probada**: un respaldo
       que nunca se restauró no se sabe si sirve.
 
+## Límites de peticiones en nginx — DESPUÉS DEL LANZAMIENTO
+
+**Decisión del dueño (2026-07-28): se hace cuando el sitio ya esté anunciado**, no antes. Hoy no hay
+tráfico que medir, y poner números inventados es la forma de romper el sitio en su primera semana.
+
+- [ ] **Montar los límites con `limit_req_dry_run on` y ajustarlos con tráfico real.**
+
+      **POR QUÉ ESTE SITIO NO PUEDE COPIAR LOS NÚMEROS DE LOS OTROS.** El dueño usa
+      `general: 100r/m` en sabertables y sixdegrees. Acá eso dejaría fuera a un visitante **antes de
+      terminar de cargar la primera página**: medido el 2026-07-28, **una carga de la portada dispara
+      ~194 peticiones a `/static/`** —fuentes, logos de los 30 equipos, CSS, JS—.
+
+      **La pieza que hace viable el límite es separar los estáticos**: `/static/` en su propia
+      `location` SIN límite. Los sirve WhiteNoise con nombres versionados y caché de un año, así que
+      solo pesan en la primera visita, y son justo las que no hay que contar.
+
+      Punto de partida propuesto, a validar en seco:
+
+      | Zona | Ritmo | Dónde |
+      |---|---|---|
+      | `dglweb_general` | 120r/m, `burst=30` | `location /` |
+      | `dglweb_buscar` | 60r/m, `burst=20` | `/jugadores/buscar/` — el JS pide **por cada tecla** |
+      | — | sin límite | `/static/`, `/media/`, `/health/pipeline`, `/ready` |
+
+      **`/health/pipeline` y `/ready` sin límite, y no es un descuido:** el monitor los consulta cada
+      minuto, y un 503 por saturación lo leería como que el sitio está caído. El vigilante no puede
+      ser la causa de la alarma.
+
+      **Cómo se valida sin arriesgar nada.** `limit_req_dry_run on` (nginx ≥1.17.6; el VPS tiene
+      1.24) evalúa el límite y **anota a quién habría cortado sin cortar a nadie**. Una semana de
+      tráfico real, mirar `grep "limiting requests" /var/log/nginx/error.log`, ajustar, y apagarlo.
+
+      **Lo que urge de esto**, y es la razón de no dejarlo indefinidamente: un perfil de jugador
+      tarda **1,6 s**. Alguien recorriendo las ~970 páginas tiene el servidor ocupado un buen rato, y
+      hoy no hay nada que lo frene. El modo seco además dice si eso YA está pasando.
+
 ## pgAdmin detrás de nginx — ✅ HECHO (2026-07-28)
 
 En `pgadmin.prdm0.com`, con el mismo esquema que Portainer: escucha solo en `127.0.0.1:5050`, nginx
