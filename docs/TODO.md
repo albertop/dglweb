@@ -962,6 +962,23 @@ falso). Los archivos viven en el volumen `dglweb_media`.
 - [ ] **En producción los tiene que servir el proxy** desde `MEDIA_ROOT`. WhiteNoise NO sirve medios:
       está para los estáticos, que son los que entran a la imagen. Sin esta regla, en el VPS el CMS
       acepta la imagen y después la muestra rota.
+
+      **El VPS ya tiene nginx corriendo** (sirve otros dos sitios del dueño), así que esto no es
+      montar nada: es añadirle un `location /media/` a un nginx que ya existe. **Se configura cuando
+      llegue el pase a producción**, no antes.
+
+      Dos cosas medidas el 27-07 que conviene tener a mano ese día, para no descubrirlas en caliente:
+
+      - Hoy los medios viven en el volumen `dglweb_dglweb_media`, que en el anfitrión cae bajo
+        `/var/lib/docker/volumes/`. Los archivos son legibles por todos, pero **`/var/lib/docker` es
+        0710 root:root** en Debian y Ubuntu: nginx corre como `www-data` y no puede atravesarlo. Da
+        403 y despista, porque el archivo existe y se lee sin problema con `sudo`. La salida no es
+        aflojar permisos ahí, es que en producción `MEDIA_ROOT` sea un bind mount a una ruta normal
+        —`/srv/dglweb/media`, por ejemplo—, **que además vuelve trivial el respaldo del punto de
+        abajo**: pasa de exportar un volumen a copiar una carpeta.
+      - El límite de subida por defecto de nginx es **1 MB**, y una foto de artículo lo pasa sin
+        esfuerzo. Sale como un 413 seco en mitad del formulario de Wagtail y **no deja rastro en los
+        logs de Django**, porque el que corta es nginx.
 - [ ] **Respaldar `dglweb_media`.** Es contenido del sitio escrito por una persona, igual que la base:
       si se pierde el volumen, las fotos de todos los artículos se van con él y no hay de dónde
       recuperarlas.
