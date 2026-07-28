@@ -98,8 +98,16 @@ muestra escritas a mano.
 - [x] **Restringir el Backoffice al rol *Administradores*.** Hecho el 2026-07-27. A un redactor no
       le aparece el menú siquiera, y no por una regla suelta sino porque no tiene permisos sobre esos
       modelos — Wagtail esconde lo que no se puede tocar.
-- [ ] **«Lo más leído» de verdad.** El panel dice «Lo más reciente» porque no hay analítica; el
-      dueño lo prefirió así antes que inventar un ranking. Cuando haya cuentas de lectura, volver.
+- [x] ~~«Lo más leído» de verdad.~~ **Retirado por decisión del dueño (2026-07-28): el panel es «Lo
+      más reciente» y se queda así.**
+
+      Nunca fue un pendiente de verdad: era la aspiración de convertirlo en un ranking de lecturas
+      cuando hubiera analítica. Y «lo más reciente» no es un sustituto provisional de nada — es una
+      lista que se ordena sola, con dato que ya tenemos y que no puede equivocarse. «Lo más leído»
+      exigiría contar visitas, o sea analítica, o sea justo lo que la política de privacidad presume
+      de no hacer.
+
+      Dejarlo en la lista hacía que un dato correcto pareciera un apaño a medias.
 
 ## Contenido
 
