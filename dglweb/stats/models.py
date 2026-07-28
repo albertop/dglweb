@@ -1703,9 +1703,25 @@ class DailyStandout(models.Model):
     widget sigue teniendo de dónde sacar la última jornada— que un tope de «los últimos N días»
     dejaría en blanco si N fuera corto.
 
-    `valor` es lo que ordena y su escala depende del oficio: en bateo son carreras por pesos lineales
-    (donde 0 es una jornada del montón) y en pitcheo es Game Score, que ronda 40-60. **No se comparan
-    entre sí**, y por eso el widget muestra dos listas y no una. Ver `stats/daily.py`.
+    `valor` GUARDA LA UNIDAD DE SU OFICIO, Y HAY QUE MIRAR `grupo` PARA LEERLO
+    --------------------------------------------------------------------------
+    En bateo son carreras por pesos lineales, donde 0 es una jornada del montón. En pitcheo es Game
+    Score, que ronda 40-60. Un 2.1 de bateo y un 48 de pitcheo no se comparan crudos: ordenar la
+    tabla por `valor` a secas pondría a todos los lanzadores por encima de todos los bateadores.
+
+    Se guarda crudo a propósito, y no ya convertido: es el número que salió del cálculo, y la
+    conversión es una decisión de presentación que puede cambiar sin que haya que reescribir la
+    tabla.
+
+    QUIEN SÍ LOS MEZCLA ES EL WIDGET, y lo hace bien
+    -------------------------------------------------
+    `daily.en_carreras()` traduce el Game Score a carreras sobre el promedio, y con las dos cifras en
+    la misma unidad el widget ordena UNA sola lista con los dos oficios. Acá decía que no se podían
+    comparar «y por eso el widget muestra dos listas y no una» — se quedó viejo cuando el widget pasó
+    a mezclarlos, y el review v10 (SAB-02) lo encontró argumentando en contra de lo que hace el
+    código. Un comentario así no es ruido: es el que hace que alguien «arregle» lo que funciona.
+
+    Ver `stats/daily.py`.
     """
 
     class Grupo(models.TextChoices):

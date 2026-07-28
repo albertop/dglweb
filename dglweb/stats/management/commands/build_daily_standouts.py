@@ -15,12 +15,12 @@ que dejó de correr.
 from datetime import date, timedelta
 from typing import Any
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
 from dglweb.mlb.client import build_client
 from dglweb.players import universe
-from dglweb.stats import daily, season_window
+from dglweb.stats import daily, jobs, season_window
 from dglweb.stats.runlog import record_run, record_skip
 
 
@@ -55,6 +55,10 @@ class Command(BaseCommand):
         # creyendo que es la de hoy, una hora al día, sin que nada lo dijera.
         dia = options["fecha"] or timezone.localdate() - (timedelta(0) if options["fecha_hoy"] else timedelta(days=1))
 
+        if options["fecha_hoy"] and not options["force"]:
+            self._al_dia()
+            return
+
         # LOS EQUIPOS QUE YA TERMINARON, cuando la jornada es la de hoy.
         #
         # Antes una jornada en curso sencillamente no se guardaba, y por eso el widget era una foto de
@@ -67,9 +71,7 @@ class Command(BaseCommand):
         # juego en marcha. Con `--force` no se filtra, que es lo que hace falta para reprocesar.
         terminados: set[str] | None = None
         if dia >= timezone.localdate() and not options["force"]:
-            from dglweb.stats import scoreboard
-
-            terminados = daily.equipos_terminados(scoreboard.del_dia(), dia)
+            terminados = daily.equipos_terminados(self._pizarra(), dia)
             if not terminados:
                 # Ni un juego cerrado todavía. No es un fallo —a media mañana es lo normal— y anotarlo
                 # como salto evita una fila roja en el Backoffice buscando una avería que no existe.
@@ -77,7 +79,72 @@ class Command(BaseCommand):
                 self.stdout.write(f"{dia}: ningún juego ha terminado todavía.")
                 return
 
-        with record_run("build_daily_standouts", dia.isoformat()) as run:
+        self._guardar(dia, terminados)
+
+    # ── El modo del job horario ─────────────────────────────────────────────────────────────────
+
+    def _al_dia(self) -> None:
+        """Lo que corre cada hora: las jornadas VIVAS, según lo que diga la pizarra.
+
+        DOS JORNADAS Y NO UNA, y esa es la corrección del review v10 (QA-02/SAB-01). La fecha civil
+        del servidor no es la jornada de MLB: un juego del Pacífico empieza el 28 y termina a la 1:15
+        de la madrugada dominicana del 29, pero sigue siendo del 28. Con `localdate()` a secas, a esa
+        hora el job ya estaba preguntando por el 29 —donde todavía no ha empezado nada— y esa
+        actuación no aparecía hasta el refresco de las 4:30.
+
+        Ayer se deja de mirar en cuanto el refresco diario lo toma, no a una hora fija. Así el corte
+        no es un número inventado: es el momento exacto en que otro proceso se hace cargo. En la
+        práctica son cuatro corridas de más al día, entre las 00:50 y las 4:50.
+
+        La pizarra ya trae ayer y hoy, así que las dos jornadas salen de la misma consulta.
+        """
+        hoy = timezone.localdate()
+        pizarra = self._pizarra()
+        jornadas = [d for d in (hoy - timedelta(days=1), hoy) if d == hoy or not _ya_la_tomo_el_refresco(d)]
+
+        hubo = False
+        for dia in jornadas:
+            terminados = daily.equipos_terminados(pizarra, dia)
+            if terminados:
+                self._guardar(dia, terminados, alcance=jobs.ALCANCE_EN_CURSO)
+                hubo = True
+
+        if not hubo:
+            # Ni un juego cerrado todavía. No es un fallo —a media mañana es lo normal— y anotarlo
+            # como salto evita una fila roja en el Backoffice buscando una avería que no existe. El
+            # semáforo sabe que en ESTE job un salto cuenta como sano; ver `stats/jobs.py`.
+            record_skip(
+                "build_daily_standouts",
+                f"{hoy.isoformat()} {jobs.ALCANCE_EN_CURSO}",
+                "ningún juego ha terminado todavía",
+            )
+            self.stdout.write(f"{hoy}: ningún juego ha terminado todavía.")
+
+    def _pizarra(self) -> Any:  # `scoreboard.Pizarra`, sin importarlo acá arriba
+        """La pizarra, y un fallo de verdad si no se pudo armar.
+
+        NO PUEDE SALIR VACÍA Y SEGUIR: sin esto, un proxy caído devolvía `None`, de ahí salía un
+        conjunto vacío de equipos terminados, y el comando lo anotaba como «ningún juego ha terminado
+        todavía» — el mismo salto sano que a las diez de la mañana. Con el semáforo aceptando ese
+        salto como bueno, el monitor se quedaba en verde mientras el widget se congelaba.
+
+        Es la línea que hace honesto el `SKIPPED` de este job: «nadie ha terminado» tiene que
+        significar eso y no «no pude preguntar».
+        """
+        from dglweb.stats import scoreboard
+
+        pizarra = scoreboard.del_dia()
+        if pizarra is None:
+            raise CommandError("No se pudo armar la pizarra: sin ella no se sabe qué juegos terminaron.")
+        return pizarra
+
+    def _guardar(self, dia: date, terminados: set[str] | None, alcance: str = "") -> None:
+        """Una jornada, con su fila en el log de ingesta.
+
+        `alcance` marca en el `scope` que la corrida es del job horario. Lo necesita el semáforo para
+        no confundir los dos modos de este mismo comando — ver `stats/jobs.py`.
+        """
+        with record_run("build_daily_standouts", f"{dia.isoformat()} {alcance}".strip()) as run:
             listas = daily.destacados(build_client(), dia, universe.debuted())
             if terminados is not None:
                 listas = {oficio: [a for a in lista if a.equipo in terminados] for oficio, lista in listas.items()}
@@ -99,6 +166,20 @@ class Command(BaseCommand):
             self.stdout.write(f"  🏏 {actuacion.nombre} ({actuacion.equipo}): {actuacion.linea}")
         for actuacion in listas["pitcheo"][:2]:
             self.stdout.write(f"  ⚾ {actuacion.nombre} ({actuacion.equipo}): {actuacion.linea}")
+
+
+def _ya_la_tomo_el_refresco(dia: date) -> bool:
+    """¿El refresco diario ya guardó esa jornada como cerrada?
+
+    Se mira por el `scope` SIN el sufijo de «en curso»: eso es exactamente lo que escribe el refresco
+    de las 4:30 (y una corrida manual con `--fecha`), y nunca el job horario. Es lo que le permite al
+    horario soltar la jornada de ayer sin que nadie le diga a qué hora.
+    """
+    from dglweb.stats.models import IngestRun
+
+    return IngestRun.objects.filter(
+        command="build_daily_standouts", scope=dia.isoformat(), status=IngestRun.Status.SUCCESS
+    ).exists()
 
 
 def _temporada_activa() -> int | None:

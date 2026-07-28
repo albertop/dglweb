@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from dglweb.core import legal
+from dglweb.stats import jobs  # no importa modelos: se puede traer acá arriba sin cargar la app
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,10 @@ PORTADA_RESTO = 3
 # Los jobs que corren cada hora y alimentan módulos que el visitante VE. Se vigilan aparte del
 # refresco diario porque fallan distinto: el diario se nota al día siguiente, y estos dejan la
 # portada enseñando dato viejo con cara de fresco. Ver `_horarios_atrasados()`.
-HORARIOS = ("build_mlb_leaders", "update_roster_moves")
+#
+# La lista se mudó a `stats/jobs.py` porque el comando horario también necesita parte de ella, y
+# porque cada job trae ahora su propio contrato de qué cuenta como sano. El porqué está allá.
+HORARIOS = jobs.HORARIOS
 
 # Cuánto se cachea la respuesta ANÓNIMA de `/health/pipeline`. Medio minuto: un monitor externo que
 # pregunta cada minuto sigue detectando un fallo en el siguiente sondeo, y mientras tanto ninguna
@@ -69,7 +73,10 @@ def _url_del_indice() -> str:
     """
     from dglweb.articles.models import ArticleIndexPage
 
-    indice = ArticleIndexPage.objects.live().first()
+    # `public()` y no solo `live()`: si el índice mismo quedara restringido, este enlace mandaría a
+    # una pantalla de contraseña desde la portada pública. Ver `para_tarjetas`, que lleva la misma
+    # política para los listados.
+    indice = ArticleIndexPage.objects.live().public().first()
     return indice.url if indice else ""
 
 
@@ -333,14 +340,14 @@ def _horarios_atrasados() -> list[str]:
 
     desde = timezone.now() - timedelta(hours=settings.PIPELINE_HOURLY_STALE_HOURS)
     atrasados = []
-    for comando in HORARIOS:
-        ultima = (
-            IngestRun.objects.filter(command=comando, started_at__gte=desde, status=IngestRun.Status.SUCCESS)
-            .order_by("-started_at")
-            .first()
-        )
-        if ultima is None:
-            atrasados.append(f"{comando} sin corrida buena en {settings.PIPELINE_HOURLY_STALE_HOURS}h")
+    for job in HORARIOS:
+        corridas = IngestRun.objects.filter(command=job.comando, started_at__gte=desde, status__in=job.sanos)
+        # El `alcance` separa dos modos que comparten nombre de comando: sin él, el éxito del refresco
+        # diario de las 4:30 haría pasar por fresco al job horario durante tres horas cada mañana.
+        if job.alcance:
+            corridas = corridas.filter(scope__endswith=job.alcance)
+        if not corridas.exists():
+            atrasados.append(f"{job.comando} sin corrida buena en {settings.PIPELINE_HOURLY_STALE_HOURS}h")
     return atrasados
 
 

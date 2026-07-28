@@ -18,6 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from dglweb.core.views import HORARIOS
+from dglweb.stats.jobs import SIN_VIGILAR, Vigilado
 from dglweb.stats.models import IngestRun, SeasonDates
 from dglweb.stats.season_window import MLB
 
@@ -46,12 +47,22 @@ def _refresco(estado: str, hace_horas: float = 1, detalle: str = "") -> IngestRu
     )
 
 
-def _horario(comando: str, hace_horas: float = 1, estado: str = IngestRun.Status.SUCCESS) -> IngestRun:
+def _horario(job: Vigilado, hace_horas: float = 1, estado: str = IngestRun.Status.SUCCESS) -> IngestRun:
     """Una corrida de un job HORARIO. Los alimenta la portada, así que el semáforo los vigila con su
-    propio umbral — tres horas, no las treinta del refresco diario."""
+    propio umbral — tres horas, no las treinta del refresco diario.
+
+    El `scope` lleva el alcance del job, y no es adorno: `build_daily_standouts` corre en dos modos
+    con el mismo nombre de comando, y lo único que los distingue es ese sufijo. Un ayudante que lo
+    escribiera fijo haría pasar las corridas del refresco diario por corridas del job horario — que
+    es exactamente el fallo que el alcance viene a cerrar.
+    """
     momento = timezone.now() - timedelta(hours=hace_horas)
     return IngestRun.objects.create(
-        command=comando, scope="2026-07-27", status=estado, started_at=momento, finished_at=momento
+        command=job.comando,
+        scope=f"2026-07-27 {job.alcance}".strip(),
+        status=estado,
+        started_at=momento,
+        finished_at=momento,
     )
 
 
@@ -63,8 +74,8 @@ def _todo_sano(estado: str = IngestRun.Status.SUCCESS) -> None:
     encenderse igual.
     """
     _refresco(estado)
-    for comando in HORARIOS:
-        _horario(comando)
+    for job in HORARIOS:
+        _horario(job)
 
 
 TOKEN = "el-token-del-monitor"
@@ -229,22 +240,24 @@ def test_the_liveness_probe_stays_independent(temporada: SeasonDates) -> None:
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("comando", HORARIOS)
-def test_a_stale_hourly_job_turns_the_light_red(temporada: SeasonDates, comando: str) -> None:
+@pytest.mark.parametrize("job", HORARIOS, ids=lambda j: j.comando)
+def test_a_stale_hourly_job_turns_the_light_red(temporada: SeasonDates, job: Vigilado) -> None:
     """Aunque el refresco diario esté impecable."""
     _refresco(IngestRun.Status.SUCCESS)
     for otro in HORARIOS:
         # Todos al día menos el que se prueba, que lleva un día entero sin correr.
-        _horario(otro, hace_horas=24 if otro == comando else 1)
+        _horario(otro, hace_horas=24 if otro == job else 1)
 
     respuesta = _pedir()
 
-    assert respuesta.status_code == 503, f"{comando} atrasado tiene que encender el semáforo"
+    assert respuesta.status_code == 503, f"{job.comando} atrasado tiene que encender el semáforo"
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("comando", HORARIOS)
-def test_an_hourly_job_that_only_fails_is_as_bad_as_one_that_does_not_run(temporada: SeasonDates, comando: str) -> None:
+@pytest.mark.parametrize("job", HORARIOS, ids=lambda j: j.comando)
+def test_an_hourly_job_that_only_fails_is_as_bad_as_one_that_does_not_run(
+    temporada: SeasonDates, job: Vigilado
+) -> None:
     """Se exige una corrida BUENA, no una corrida cualquiera.
 
     Un job que arranca cada hora y revienta cada hora deja filas recientes en el log; si el semáforo
@@ -252,7 +265,7 @@ def test_an_hourly_job_that_only_fails_is_as_bad_as_one_that_does_not_run(tempor
     """
     _refresco(IngestRun.Status.SUCCESS)
     for otro in HORARIOS:
-        _horario(otro, estado=IngestRun.Status.FAILED if otro == comando else IngestRun.Status.SUCCESS)
+        _horario(otro, estado=IngestRun.Status.FAILED if otro == job else IngestRun.Status.SUCCESS)
 
     assert _pedir().status_code == 503
 
@@ -267,9 +280,9 @@ def test_the_hourly_threshold_is_shorter_than_the_daily_one(temporada: SeasonDat
     assert settings.PIPELINE_HOURLY_STALE_HOURS < settings.PIPELINE_STALE_HOURS
 
     _refresco(IngestRun.Status.SUCCESS)
-    for comando in HORARIOS:
+    for job in HORARIOS:
         # Cuatro horas: dentro del margen del diario, fuera del margen horario.
-        _horario(comando, hace_horas=4)
+        _horario(job, hace_horas=4)
 
     assert _pedir().status_code == 503
 
@@ -444,3 +457,87 @@ def test_ready_si_le_cuenta_al_que_trae_el_token(client: Client, monkeypatch: py
 
     assert respuesta.status_code == 503
     assert "no se pudo conectar" in respuesta.json()["detalle"]
+
+
+# ── El calendario y la lista vigilada, atados (DEV-01 del review v10) ───────────────────────────
+
+
+def _jobs_del_calendario() -> dict[str, str]:
+    """Los jobs HORARIOS que hay en `ofelia/config.ini`, leídos del archivo de verdad.
+
+    Se lee el archivo que usa producción y no una copia: una copia sería una tercera lista que
+    también se puede quedar vieja, y el problema que esto resuelve es justamente ese.
+
+    El horario de Ofelia trae SEIS campos —el primero son segundos— así que la hora es el tercero.
+    «Cada hora» es tenerlo en `*`.
+    """
+    import configparser
+    from pathlib import Path
+
+    config = configparser.ConfigParser()
+    # `read` no falla si el archivo no está, y un test que pasa porque no leyó nada es peor que uno
+    # que falla; de ahí el `read_text` explícito.
+    ruta = Path(settings.BASE_DIR) / "ofelia" / "config.ini"
+    config.read_string(ruta.read_text(encoding="utf-8"))
+
+    horarios = {}
+    for seccion in config.sections():
+        if not seccion.startswith("job-exec"):
+            continue
+        campos = config[seccion]["schedule"].split()
+        if len(campos) == 6 and campos[2] == "*":
+            # `python manage.py build_daily_standouts --fecha-hoy` -> `build_daily_standouts`
+            horarios[seccion] = config[seccion]["command"].split()[2]
+    return horarios
+
+
+def test_todo_job_horario_del_calendario_esta_vigilado() -> None:
+    """La prueba que convierte dos listas en una sola.
+
+    El fallo real: entró `daily-standouts-hourly` al calendario y `HORARIOS` se quedó con dos
+    comandos. Ninguna prueba lo vio porque todas se parametrizaban desde `HORARIOS` — o sea, desde la
+    misma lista incompleta que usaba producción. Verde para siempre, vigilando de menos.
+
+    Por eso ESTA no sale de `HORARIOS`: sale del calendario, que es el que manda.
+    """
+    del_calendario = set(_jobs_del_calendario().values())
+    vigilados = {job.comando for job in HORARIOS} | set(SIN_VIGILAR)
+
+    assert del_calendario, "no se leyó ningún job horario del calendario; la prueba no está probando nada"
+    assert del_calendario <= vigilados, (
+        f"jobs horarios sin vigilar: {sorted(del_calendario - vigilados)}. "
+        "Agrégalos a HORARIOS en stats/jobs.py, o a SIN_VIGILAR con el motivo."
+    )
+
+
+def test_no_se_vigila_un_job_que_ya_no_corre() -> None:
+    """El descuadre contrario, que no rompe nada pero avisa de un rojo permanente.
+
+    Un comando vigilado que ya nadie ejecuta no tiene corridas buenas nunca, así que el semáforo se
+    queda en 503 para siempre y la alerta se vuelve ruido.
+    """
+    sobran = ({job.comando for job in HORARIOS} | set(SIN_VIGILAR)) - set(_jobs_del_calendario().values())
+
+    assert not sobran, f"vigilados pero fuera del calendario: {sorted(sobran)}"
+
+
+def test_los_estados_sanos_existen_de_verdad() -> None:
+    """`stats/jobs.py` no importa los modelos —a propósito, para poder leerse desde donde sea— así
+    que los estados van como texto. Esto es lo que impide que un typo pase por «sano»: un estado que
+    no existe no lo tiene ninguna fila, y el job quedaría en rojo permanente."""
+    validos = set(IngestRun.Status.values)
+
+    for job in HORARIOS:
+        assert set(job.sanos) <= validos, f"{job.comando} declara estados que no existen: {job.sanos}"
+
+
+def test_solo_los_destacados_aceptan_un_salto_como_sano() -> None:
+    """El permiso es de UNO, y conviene que ampliarlo cueste tocar este test.
+
+    `SKIPPED` cuenta como sano en `build_daily_standouts` porque «ningún juego ha terminado todavía»
+    es la respuesta correcta a media mañana. En los otros dos un salto significa que el job decidió
+    no trabajar, y eso sí hay que mirarlo.
+    """
+    con_permiso = {job.comando for job in HORARIOS if IngestRun.Status.SKIPPED in job.sanos}
+
+    assert con_permiso == {"build_daily_standouts"}

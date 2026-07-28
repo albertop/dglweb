@@ -165,6 +165,82 @@ Lo que queda:
       alto fijo y agnósticos de proveedor. Falta pegar la etiqueta, que depende de elegir el ad
       server — y de añadir su dominio a la CSP, o no cargará y fallará en silencio.
 
+## Code review v10 — findings (2026-07-28)
+
+Ver `docs/reviews/code_review_v10.md`. Sin P1, y **los seis hallazgos se aceptan**, dos con la letra
+chica cambiada. Los seis están **corregidos (2026-07-28)**.
+
+Las seis personas reportan cuatro problemas, no ocho: DEV-01, QA-01 y ARCH-01 son el mismo agujero de
+observabilidad visto desde tres ángulos, y QA-02 y SAB-01 son el mismo hallazgo contado dos veces.
+
+- [x] **SEC-01 [P2] — la portada, el índice y la búsqueda enseñaban páginas restringidas.**
+      **Reproducido antes de tocar nada**, con una `PageViewRestriction` de verdad: el detalle sí
+      estaba protegido —Wagtail pide la clave— y el mapa del sitio también, pero los tres listados
+      propios enseñaban titular, entradilla, imagen, categoría y etiquetas. La primicia entera menos
+      el cuerpo. En Wagtail `live()` es «publicado en el árbol», no «visible para cualquiera».
+
+      El `public()` se puso en `para_tarjetas()`, que es la puerta única por la que ya pasaban los
+      cuatro listados. **Y apareció un cuarto sitio que el review no vio**: el procesador de contexto
+      que arma el menú y el pie de TODAS las páginas. Ese además cachea la URL un día, y restringir
+      una página no dispara `page_published` — así que se enganchó la invalidación a las señales del
+      propio modelo de restricción. Coste medido: cero consultas de más.
+
+- [x] **DEV-01 + QA-01 + ARCH-01 [P2] — el job horario de destacados no lo vigilaba nadie.** El
+      calendario tenía tres jobs por hora y la lista vigilada dos, y ninguna prueba lo veía porque
+      todas se parametrizaban desde la misma lista incompleta que usaba producción.
+
+      **Añadirlo sin más habría sido peor que no añadirlo**: ese job anota `SKIPPED` legítimo mientras
+      no cierre ningún juego, así que el semáforo se habría puesto rojo de las 4 de la mañana a las 5
+      de la tarde, todos los días. Un monitor que grita a diario es un monitor que se apaga.
+
+      La lista se mudó a `stats/jobs.py` con un contrato por job —qué corridas cuentan y qué estados
+      son sanos— y ahora hay una prueba que **lee `ofelia/config.ini` de verdad** y exige que todo job
+      horario esté vigilado o excluido con su motivo. Esa prueba es la mitad importante: sin ella no
+      es una fuente única de verdad, es una segunda lista.
+
+      Se rechazó la parte grande de ARCH-01 —guardar `job_id`, `season_window` y `healthy_statuses`
+      dentro de `IngestRun`—: son tres jobs, y eso es infraestructura con migración incluida para un
+      problema que no existe todavía. Se hace el día que la portada tenga ocho módulos vivos.
+
+- [x] **Un agujero que el review NO vio, y que aparecía justo al aceptar QA-01.** Con el proxy caído,
+      `del_dia()` devuelve `None`, de ahí salía un conjunto vacío de equipos terminados, y el comando
+      lo anotaba como «ningún juego ha terminado todavía» — el MISMO salto sano que a las diez de la
+      mañana. Aceptar ese salto como bueno habría dejado el monitor en verde con el widget congelado:
+      exactamente lo contrario de lo que se pedía.
+
+      Ahora una pizarra que no responde es un fallo. Lo confirma que **dos pruebas existentes se
+      cayeron al arreglarlo**: pasaban porque en los tests no se sale a la red, o sea por el motivo
+      equivocado.
+
+- [x] **QA-02 + SAB-01 [P3] — «hoy» del servidor no es la jornada de MLB.** Un juego del Pacífico
+      empieza el 28 y termina a la 1:15 de la madrugada dominicana del 29, pero sigue siendo del 28.
+      Con `localdate()` a secas el job horario ya miraba el 29 —donde no ha empezado nada— y esa
+      actuación no aparecía hasta el refresco de las 4:30.
+
+      **El impacto que describía el review estaba sobredimensionado**: no se perdía nada, llegaba
+      tarde. El hueco real era de la 1:15 a las 4:30 de la madrugada. Se aceptó igual porque el
+      arreglo es barato: el job horario cubre también la jornada de ayer **hasta que el refresco
+      diario la toma**, y no hasta una hora fija. Así el corte no es un número que mantener, es el
+      momento exacto en que otro proceso se hace cargo. Cuesta cuatro corridas de más al día.
+
+- [x] **FE-01 [P3] — el modal de video no atrapaba el foco.** `aria-modal="true"` promete que el
+      resto de la página queda fuera de alcance, y con el video abierto un par de Tab llevaban el foco
+      a los enlaces de detrás del overlay: invisibles, pero enfocables y activables con Enter.
+
+      Se apaga el fondo con `inert` en vez de escribir un ciclo de Tab a mano: es la misma garantía en
+      una línea y además lo esconde del lector de pantalla, que un ciclo de Tab no hace.
+
+      **Dicho de más al revisar**: se afirmó que el proyecto no tenía pruebas de JavaScript. Sí las
+      tiene —`tests/js/`, vitest y jsdom, corriendo en CI— así que la prueba se escribió. Comprueba la
+      decisión (qué se apaga, qué se enciende, qué no se resucita) y no el recorrido del foco, porque
+      jsdom refleja `inert` pero no lo implementa.
+
+- [x] **SAB-02 [P3] — el docstring de `DailyStandout` contradecía al código.** Decía que bateo y
+      pitcheo «no se comparan entre sí, y por eso el widget muestra dos listas y no una», cuando el
+      widget hace rato que ordena UNA lista mezclada traduciendo Game Score a carreras. El código
+      estaba bien; el comentario argumentaba en contra de lo que hace. Es el tipo de comentario que
+      hace que alguien «arregle» lo que funciona.
+
 ## Code review v9 — findings (2026-07-28)
 
 Ver `docs/reviews/code_review_v9.md`. Cuatro hallazgos nuevos, y **los cuatro se aceptan** — algo que

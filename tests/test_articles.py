@@ -15,7 +15,7 @@ import re
 
 import pytest
 from django.test import Client, RequestFactory
-from wagtail.models import Page, Site
+from wagtail.models import Page, PageViewRestriction, Site
 
 from dglweb.articles.blocks import cifra
 from dglweb.articles.models import ArticleIndexPage, ArticlePage, Categoria
@@ -997,3 +997,111 @@ def test_lo_mas_reciente_ignora_al_fijado(indice: ArticleIndexPage, client: Clie
     panel = client.get(indice.url).content.decode().split("<aside")[1]
 
     assert panel.index("El nuevo sin fijar") < panel.index("El viejo fijado")
+
+
+# ── Lo restringido no se asoma por los listados (SEC-01 del review v10) ─────────────────────────
+
+
+def _restringir(pagina: Page) -> None:
+    """Marca la página como privada, igual que hace el editor desde «Privacidad» en el CMS."""
+    PageViewRestriction.objects.create(page=pagina, restriction_type=PageViewRestriction.PASSWORD, password="loquesea")
+
+
+@pytest.mark.django_db
+def test_wagtail_protege_el_detalle_de_un_articulo_restringido(indice: ArticleIndexPage, client: Client) -> None:
+    """La mitad que YA funcionaba, escrita como test porque es la promesa que las otras sostienen.
+
+    Si esto dejara de ser verdad, los tests de abajo estarían protegiendo la entrada de una casa sin
+    puerta trasera. Wagtail devuelve 200 con un formulario de clave, no un 403 — de ahí el assert
+    sobre el campo y no sobre el código.
+    """
+    articulo = _restringido(indice, "Primicia embargada")
+
+    html = client.get(articulo.url).content.decode()
+
+    assert 'type="password"' in html
+    assert articulo.entradilla not in html
+
+
+def _restringido(indice: ArticleIndexPage, titulo: str) -> ArticlePage:
+    articulo = _articulo(indice, titulo, entradilla="El fichaje que nadie ha contado todavía.")
+    _restringir(articulo)
+    return articulo
+
+
+@pytest.mark.django_db
+def test_un_articulo_restringido_no_sale_en_la_portada(indice: ArticleIndexPage, client: Client) -> None:
+    """En Wagtail `live` es «publicado en el árbol», NO «visible para cualquiera».
+
+    Sin `public()`, la tarjeta de portada enseñaba titular, entradilla, imagen, categoría y etiquetas
+    de una pieza embargada: la primicia entera menos el cuerpo. Y no se nota mirando la pantalla,
+    porque la página se ve perfectamente bien.
+    """
+    articulo = _restringido(indice, "Primicia embargada")
+    _articulo(indice, "Una nota normal")
+
+    html = client.get("/").content.decode()
+
+    assert "Una nota normal" in html, "la portada tiene que seguir enseñando lo que sí es público"
+    assert articulo.title not in html
+    assert articulo.entradilla not in html
+
+
+@pytest.mark.django_db
+def test_un_articulo_restringido_no_sale_en_el_indice(indice: ArticleIndexPage, client: Client) -> None:
+    articulo = _restringido(indice, "Primicia embargada")
+    _articulo(indice, "Una nota normal")
+
+    html = client.get(indice.url).content.decode()
+
+    assert "Una nota normal" in html
+    assert articulo.title not in html
+
+
+@pytest.mark.django_db
+def test_un_articulo_restringido_tampoco_aparece_buscándolo(indice: ArticleIndexPage, client: Client) -> None:
+    """La búsqueda es la puerta que más fácil se queda fuera del arreglo.
+
+    Va por otro camino —`search()` sobre el queryset, no un `filter`— así que un `public()` puesto en
+    la vista y no en la consulta compartida la dejaría abierta. Y es la peor de las tres: quien
+    sospecha que existe la pieza puede preguntar por ella por su nombre.
+    """
+    articulo = _restringido(indice, "Primicia embargada")
+
+    html = client.get(f"{indice.url}?q=embargada").content.decode()
+
+    assert articulo.title not in html
+
+
+@pytest.mark.django_db
+def test_si_el_indice_esta_restringido_la_portada_no_enlaza_a_el(indice: ArticleIndexPage, client: Client) -> None:
+    """«Ver más artículos» llevando a una pantalla de contraseña es un botón roto a la vista de todos.
+
+    Mira el CONTEXTO y no el HTML a propósito: la misma URL sale también en el menú y en el pie, por
+    otro camino —el procesador de contexto—, así que buscarla en la página no distinguiría cuál de
+    los dos la puso. Ese otro camino tiene su propio test más abajo.
+    """
+    _articulo(indice, "Una nota normal")
+    _restringir(indice)
+
+    assert client.get("/").context["indice"] == ""
+
+
+@pytest.mark.django_db
+def test_el_menu_de_todas_las_paginas_tampoco_enlaza_un_indice_restringido(indice: ArticleIndexPage) -> None:
+    """El cuarto sitio que resolvía el índice por su cuenta, y el que más lejos llega: el menú y el
+    pie salen en TODAS las páginas del sitio, no solo en la portada.
+
+    El `delete` de la caché no es preparación del test, es lo que se está probando a medias: el
+    procesador cachea la URL un día entero, y restringir una página NO dispara `page_published`. Sin
+    las señales que se conectaron para esto, el enlace seguiría ahí hasta mañana.
+    """
+    from dglweb.articles.context_processors import CLAVE, _compartida
+    from dglweb.articles.context_processors import indice as procesador
+
+    _compartida().delete(CLAVE)
+    assert procesador(RequestFactory().get("/"))["indice_articulos"] == indice.url
+
+    _restringir(indice)  # y esto, por sí solo, tiene que tirar la caché
+
+    assert procesador(RequestFactory().get("/"))["indice_articulos"] == ""

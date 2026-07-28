@@ -160,8 +160,26 @@ def para_tarjetas(articulos: "PageQuerySet[ArticlePage]") -> "PageQuerySet[Artic
 
     Del review v9 (DEV-03/QA-03/ARCH-01). `tests/test_articles.py` fija un presupuesto de consultas
     para que volver a romperlo sea ruidoso.
+
+    Y EL `public()`, QUE NO ES CARGA SINO PERMISO
+    ---------------------------------------------
+    Vive acá por el mismo motivo que lo demás: es una política que los cuatro listados comparten y
+    que ninguno debería tener que acordarse de aplicar. Ponerla en cada sitio es dejar tres sitios
+    donde se puede olvidar, y el olvido no se ve — la página sale bien, solo que enseñando de más.
+
+    En Wagtail `live()` significa PUBLICADO EN EL ÁRBOL, no «visible para cualquiera». Si el día de
+    mañana marcas un artículo como restringido para un embargo, Wagtail protege el detalle —pide la
+    clave— pero la portada y el índice seguirían enseñando titular, entradilla, imagen, categoría y
+    etiquetas en la tarjeta. O sea, la primicia entera menos el cuerpo. Comprobado con una
+    `PageViewRestriction` de verdad antes de escribir esto (SEC-01 del review v10).
+
+    Que el propio mapa del sitio de Wagtail llame a `public()` y nuestras vistas no era la señal: no
+    es una precaución nuestra, es cómo se consulta el árbol de páginas cuando hay público delante.
+
+    No cuesta nada, y eso también está medido: la portada hace las mismas 2 consultas con `public()`
+    y sin él.
     """
-    return articulos.select_related("categoria", "imagen").prefetch_related("hashtags")
+    return articulos.public().select_related("categoria", "imagen").prefetch_related("hashtags")
 
 
 def _arrastre(consulta: str, categoria: str) -> str:

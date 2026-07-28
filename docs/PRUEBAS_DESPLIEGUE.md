@@ -52,6 +52,29 @@ curl -s https://dominicanosengrandesligas.com/sitemap.xml | grep -o "<loc>" | wc
 - [ ] Marcar un artículo como **«fijado arriba»** en el CMS y comprobar que encabeza la portada y el
       índice, aunque no sea el más reciente.
 
+### 1.2026.5 — los arreglos del review v10
+
+Nada de esto cambia la pantalla salvo el modal de video, así que lo que hay que mirar es el semáforo y
+el log de ingesta.
+
+```bash
+curl -s -o /dev/null -w "%{http_code}
+" https://dominicanosengrandesligas.com/health/pipeline
+docker exec dglweb-web-live python manage.py build_daily_standouts --fecha-hoy
+```
+
+- [ ] El semáforo sigue en **200** después de desplegar. Si sale 503, mirar el detalle con el token:
+      lo más probable es que `build_daily_standouts` todavía no tenga una corrida con el alcance
+      nuevo, y se arregla solo en la siguiente hora.
+- [ ] En el Backoffice, el log de ingesta enseña filas de `build_daily_standouts` con el alcance
+      **«… en curso»** en el modo horario, y **sin** sufijo en la corrida de las 4:30.
+- [ ] A media mañana, sin juegos cerrados, ese job deja un **salto** y el semáforo sigue verde.
+- [ ] **A comprobar de madrugada, una vez:** entre la 1 y las 4 a. m., un juego de la costa oeste que
+      cruzó la medianoche tiene que aparecer en «Destacados» sin esperar al refresco de las 4:30.
+- [ ] **El modal de video, con teclado** —esto NO lo cubre ninguna prueba automática, porque jsdom no
+      implementa `inert`—: abrir un clip, pulsar Tab cinco o seis veces y comprobar que el foco no se
+      escapa a los enlaces de detrás. Cerrar con Escape y ver que vuelve al botón que lo abrió.
+
 ### El retrato del biobox — ARREGLO DE PRODUCCIÓN
 
 El fallo: en producción la ficha no enseñaba la foto grande aunque el archivo estuviera. `existe()`

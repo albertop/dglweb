@@ -10,11 +10,12 @@ from typing import Any
 
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.utils import timezone
 from django.utils.formats import date_format
 
 from dglweb.players.models import Player
-from dglweb.stats import daily
+from dglweb.stats import daily, jobs
 from dglweb.stats.models import DailyStandout, IngestRun, SeasonDates
 from dglweb.stats.season_window import MLB
 from tests.test_players import _other_player
@@ -367,6 +368,31 @@ def test_una_jornada_sin_nadie_destacado_no_desplaza_a_la_anterior(temporada: Se
 # ── El comando ──────────────────────────────────────────────────────────────────────────────────
 
 
+def _pizarra_falsa(*jornadas: tuple[date, set[str], set[str]]) -> Any:
+    """Una pizarra con lo mínimo que mira `equipos_terminados`: día, juegos, estado y códigos.
+
+    Se arma a mano en vez de pedirla al proxy porque en los tests no se sale a la red. Ojo con la
+    tentación de devolver `None` para «no hay nada»: eso significa «no se pudo preguntar», que desde
+    el review v10 es un fallo y no un día tranquilo.
+    """
+    from types import SimpleNamespace
+
+    from dglweb.stats import scoreboard
+
+    def juego(codigo: str, estado: str) -> Any:
+        return SimpleNamespace(estado=estado, lados=[SimpleNamespace(codigo=codigo)])
+
+    return SimpleNamespace(
+        jornadas=[
+            SimpleNamespace(
+                dia=dia,
+                juegos=[juego(c, scoreboard.FINAL) for c in terminados] + [juego(c, scoreboard.VIVO) for c in jugando],
+            )
+            for dia, terminados, jugando in jornadas
+        ]
+    )
+
+
 class _ProxyFalso:
     """Devuelve una jornada con un bateador y un lanzador, más los códigos de equipo."""
 
@@ -400,10 +426,16 @@ def test_a_day_still_being_played_is_not_stored(temporada: SeasonDates, monkeypa
     Quien va de 0-2 a las nueve de la noche puede terminar de 2-4, y nada en la portada diría que la
     cifra todavía va a cambiar. Se anota como salto y no como fallo: el comando hizo lo correcto.
     """
+    from dglweb.stats import scoreboard
+
     _jugador(1)
     monkeypatch.setattr("dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso())
+    # La pizarra SÍ responde y dice que el juego sigue vivo. Antes este test pasaba sin pizarra
+    # ninguna, o sea por el motivo equivocado: ver `test_una_pizarra_que_no_responde_es_un_fallo`.
+    hoy = timezone.localdate()
+    monkeypatch.setattr(scoreboard, "del_dia", lambda: _pizarra_falsa((hoy, set(), {"MIA"})))
 
-    call_command("build_daily_standouts", "--fecha", timezone.localdate().isoformat())
+    call_command("build_daily_standouts", "--fecha", hoy.isoformat())
 
     assert not DailyStandout.objects.exists()
     assert IngestRun.objects.get(command="build_daily_standouts").status == IngestRun.Status.SKIPPED
@@ -504,8 +536,8 @@ def test_la_jornada_en_curso_solo_guarda_los_equipos_que_terminaron(
     jugando = daily.Actuacion(player_id=2, nombre="En curso", equipo="SEA", valor=2.0, linea="2-2, HR")
 
     monkeypatch.setattr(daily, "destacados", lambda *_: {"bateo": [acabo, jugando], "pitcheo": []})
-    monkeypatch.setattr(daily, "equipos_terminados", lambda *_: {"MIA"})
-    monkeypatch.setattr(scoreboard, "del_dia", lambda: None)
+    hoy = timezone.localdate()
+    monkeypatch.setattr(scoreboard, "del_dia", lambda: _pizarra_falsa((hoy, {"MIA"}, {"SEA"})))
     guardadas: dict[str, list[daily.Actuacion]] = {}
     monkeypatch.setattr(daily, "guardar", lambda _dia, listas: guardadas.update(listas) or len(listas["bateo"]))
     monkeypatch.setattr(daily, "podar", lambda _temporada: 0)
@@ -513,3 +545,158 @@ def test_la_jornada_en_curso_solo_guarda_los_equipos_que_terminaron(
     call_command("build_daily_standouts", "--fecha-hoy")
 
     assert [a.equipo for a in guardadas["bateo"]] == ["MIA"], "el equipo que sigue jugando no puede entrar"
+
+
+# ── El job horario: qué jornadas cubre y qué cuenta como sano (review v10) ──────────────────────
+
+
+@pytest.fixture
+def _sin_escribir(monkeypatch: pytest.MonkeyPatch) -> list[date]:
+    """Neutraliza la escritura y devuelve la lista de jornadas que el comando llegó a procesar.
+
+    Interesa QUÉ DÍAS toca, no qué guarda en cada uno — eso ya lo cubren los tests de arriba.
+    """
+    procesadas: list[date] = []
+
+    def _destacados(_cliente: Any, dia: date, _universo: Any) -> dict[str, list[Any]]:
+        procesadas.append(dia)
+        return {
+            "bateo": [daily.Actuacion(player_id=1, nombre="X", equipo="MIA", valor=2.0, linea="3-4")],
+            "pitcheo": [],
+        }
+
+    monkeypatch.setattr(daily, "destacados", _destacados)
+    monkeypatch.setattr(daily, "guardar", lambda _dia, listas: len(listas["bateo"]))
+    monkeypatch.setattr(daily, "podar", lambda _temporada: 0)
+    monkeypatch.setattr("dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: None)
+    return procesadas
+
+
+@pytest.mark.django_db
+def test_una_pizarra_que_no_responde_es_un_fallo_y_no_un_dia_tranquilo(
+    temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """El agujero que abría aceptar el salto como sano, y que no estaba en el review v10.
+
+    Con el proxy caído, `del_dia()` devuelve `None`, de ahí salía un conjunto vacío de equipos
+    terminados, y el comando lo anotaba como «ningún juego ha terminado todavía» — el MISMO salto que
+    a las diez de la mañana. Como el semáforo acepta ese salto en este job, el monitor se habría
+    quedado en verde mientras el widget se congelaba: justo lo contrario de lo que se pedía.
+
+    «Nadie ha terminado» tiene que significar eso, y no «no pude preguntar».
+    """
+    from dglweb.stats import scoreboard
+
+    monkeypatch.setattr(scoreboard, "del_dia", lambda: None)
+
+    with pytest.raises(CommandError, match="pizarra"):
+        call_command("build_daily_standouts", "--fecha-hoy")
+
+    assert not IngestRun.objects.filter(status=IngestRun.Status.SKIPPED).exists(), (
+        "un proxy caído no puede dejar la misma huella que una mañana sin juegos"
+    )
+
+
+@pytest.mark.django_db
+def test_el_job_horario_cubre_el_juego_del_pacifico_que_cruzo_la_medianoche(
+    temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch, _sin_escribir: list[date]
+) -> None:
+    """En béisbol la jornada no termina a medianoche (QA-02/SAB-01 del review v10).
+
+    Un juego de la costa oeste empieza el 28 y termina a la 1:15 de la madrugada dominicana del 29,
+    pero sigue siendo del 28. Preguntando solo por `localdate()`, a esa hora el job miraba el 29
+    —donde no ha empezado nada— y la actuación no aparecía hasta el refresco de las 4:30.
+    """
+    from dglweb.stats import scoreboard
+
+    hoy = timezone.localdate()
+    ayer = hoy - timedelta(days=1)
+    # De madrugada: lo de ayer acaba de cerrar, lo de hoy ni ha empezado.
+    monkeypatch.setattr(scoreboard, "del_dia", lambda: _pizarra_falsa((ayer, {"SEA"}, set()), (hoy, set(), set())))
+
+    call_command("build_daily_standouts", "--fecha-hoy")
+
+    assert _sin_escribir == [ayer]
+
+
+@pytest.mark.django_db
+def test_el_job_horario_suelta_ayer_en_cuanto_lo_toma_el_refresco_diario(
+    temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch, _sin_escribir: list[date]
+) -> None:
+    """El corte NO es una hora inventada: es el momento en que otro proceso se hace cargo.
+
+    Poner «antes de las 5 de la mañana todavía cuenta como ayer» habría sido un número a mantener el
+    día que el refresco cambie de hora. Así el traspaso se apaga solo, y son cuatro corridas de más.
+    """
+    from dglweb.stats import scoreboard
+
+    hoy = timezone.localdate()
+    ayer = hoy - timedelta(days=1)
+    monkeypatch.setattr(scoreboard, "del_dia", lambda: _pizarra_falsa((ayer, {"SEA"}, set()), (hoy, {"MIA"}, set())))
+    # La huella que deja el refresco de las 4:30 al guardar la jornada completa de ayer.
+    IngestRun.objects.create(
+        command="build_daily_standouts",
+        scope=ayer.isoformat(),
+        status=IngestRun.Status.SUCCESS,
+        started_at=timezone.now(),
+        finished_at=timezone.now(),
+    )
+
+    call_command("build_daily_standouts", "--fecha-hoy")
+
+    assert _sin_escribir == [hoy], "ayer ya lo guardó el refresco; volver a procesarlo es trabajo de más"
+
+
+@pytest.mark.django_db
+def test_las_corridas_del_job_horario_se_distinguen_de_las_del_refresco(
+    temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch, _sin_escribir: list[date]
+) -> None:
+    """Lo que impide que el éxito del refresco diario tape tres horas de fallos del horario.
+
+    Los dos modos escriben `command="build_daily_standouts"`, así que sin este sufijo en el `scope`
+    el semáforo no puede saber cuál de los dos corrió. Ver `stats/jobs.py`.
+    """
+    from dglweb.stats import scoreboard
+
+    hoy = timezone.localdate()
+    monkeypatch.setattr(scoreboard, "del_dia", lambda: _pizarra_falsa((hoy, {"MIA"}, set())))
+
+    call_command("build_daily_standouts", "--fecha-hoy")
+
+    assert IngestRun.objects.get().scope == f"{hoy.isoformat()} {jobs.ALCANCE_EN_CURSO}"
+
+
+@pytest.mark.django_db
+def test_una_manana_sin_juegos_cerrados_deja_un_salto_con_el_alcance_puesto(
+    temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """El salto sano tiene que llevar el alcance igual que la corrida buena.
+
+    Si no, el semáforo no lo encontraría —filtra por el sufijo— y se pondría rojo a media mañana
+    todos los días, que es la alarma que se aprende a ignorar.
+    """
+    from dglweb.stats import scoreboard
+
+    hoy = timezone.localdate()
+    monkeypatch.setattr(scoreboard, "del_dia", lambda: _pizarra_falsa((hoy, set(), {"MIA"})))
+
+    call_command("build_daily_standouts", "--fecha-hoy")
+
+    fila = IngestRun.objects.get()
+    assert fila.status == IngestRun.Status.SKIPPED
+    assert fila.scope.endswith(jobs.ALCANCE_EN_CURSO)
+
+
+@pytest.mark.django_db
+def test_el_refresco_diario_no_lleva_alcance(temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch) -> None:
+    """La otra mitad: la corrida de ayer tiene que quedar SIN sufijo.
+
+    Es lo que mira `_ya_la_tomo_el_refresco` para soltar la jornada, así que un sufijo de más acá
+    dejaría al job horario reprocesando ayer para siempre.
+    """
+    _jugador(1)
+    monkeypatch.setattr("dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso())
+
+    call_command("build_daily_standouts", "--fecha", "2026-07-25")
+
+    assert IngestRun.objects.get().scope == "2026-07-25"

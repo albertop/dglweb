@@ -14,6 +14,32 @@
   var video = null;
   var titulo = null;
   var quienAbrio = null;
+  var apagados = [];
+
+  /* `aria-modal="true"` promete que el resto de la página queda fuera de alcance, y hasta el review
+   * v10 (FE-01) era solo una promesa: se abría el video, se pulsaba Tab un par de veces y el foco se
+   * iba a los enlaces de detrás del overlay — invisibles, pero enfocables.
+   *
+   * `inert` y no un trampa-foco a mano: apagar el fondo es la misma garantía en una línea, y además
+   * lo esconde del lector de pantalla, que un ciclo de Tab no hace. Se guarda a quién se apagó para
+   * no encender al cerrar algo que ya estaba apagado por otro motivo.
+   *
+   * Donde el navegador no conozca `inert` esto no hace nada y el modal se comporta como antes: no
+   * mejora, pero tampoco rompe.
+   */
+  function aislarFondo(encender) {
+    if (encender) {
+      Array.prototype.forEach.call(document.body.children, function (hijo) {
+        if (hijo !== ventana && !hijo.inert) {
+          hijo.inert = true;
+          apagados.push(hijo);
+        }
+      });
+      return;
+    }
+    apagados.forEach(function (hijo) { hijo.inert = false; });
+    apagados = [];
+  }
 
   function armar() {
     ventana = document.createElement("div");
@@ -46,6 +72,7 @@
     video.poster = boton.dataset.portada || "";
     video.src = boton.dataset.video;
     ventana.hidden = false;
+    aislarFondo(true);
     document.body.classList.add("dgl-sin-scroll");
     video.play().catch(function () { /* si el navegador no deja arrancar solo, quedan los controles */ });
     ventana.querySelector(".dgl-modal-cerrar").focus();
@@ -57,6 +84,9 @@
     video.removeAttribute("src");
     video.load();  // corta la descarga; sin esto el mp4 sigue bajando con la ventana cerrada
     ventana.hidden = true;
+    // Encender el fondo ANTES de devolver el foco: un elemento inerte no se puede enfocar, así que
+    // al revés el `focus()` de abajo no haría nada y quien navega con teclado acabaría en el body.
+    aislarFondo(false);
     document.body.classList.remove("dgl-sin-scroll");
     // Devolver el foco a donde estaba: si no, quien navega con teclado vuelve al principio de todo.
     if (quienAbrio && document.contains(quienAbrio)) { quienAbrio.focus(); }

@@ -52,7 +52,10 @@ def indice(request: HttpRequest) -> dict[str, Any]:
 
     url = _compartida().get(CLAVE)
     if url is None:
-        pagina = ArticleIndexPage.objects.live().first()
+        # `public()` por lo mismo que los listados —ver `para_tarjetas`—: `live()` es «publicado en
+        # el árbol», no «visible para cualquiera». Acá pesa más que en ningún otro sitio porque este
+        # enlace sale en el menú y el pie de TODAS las páginas.
+        pagina = ArticleIndexPage.objects.live().public().first()
         url = pagina.url if pagina else ""
         _compartida().set(CLAVE, url, SEGUNDOS)
     return {"indice_articulos": url}
@@ -69,7 +72,14 @@ def _olvidar(**kwargs: Any) -> None:  # noqa: ANN401 — la firma es la de las s
 
 def conectar_senales() -> None:
     """Engancha el olvido a publicar, despublicar y mover. La llama `ArticlesConfig.ready()`."""
+    from django.db.models.signals import post_delete, post_save
+    from wagtail.models import PageViewRestriction
     from wagtail.signals import page_published, page_unpublished
 
     page_published.connect(_olvidar, dispatch_uid="articles-indice-publicado")
     page_unpublished.connect(_olvidar, dispatch_uid="articles-indice-despublicado")
+    # Restringir el índice NO dispara `page_published` —la página no se republica, solo cambia quién
+    # puede verla— así que sin estas dos el menú seguiría enlazándolo hasta 24 horas. Wagtail no
+    # publica una señal propia para esto; las de Django sobre el modelo hacen el mismo trabajo.
+    post_save.connect(_olvidar, sender=PageViewRestriction, dispatch_uid="articles-indice-restringido")
+    post_delete.connect(_olvidar, sender=PageViewRestriction, dispatch_uid="articles-indice-liberado")
