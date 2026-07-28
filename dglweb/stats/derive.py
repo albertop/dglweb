@@ -69,6 +69,32 @@ FIRST_STATCAST_SEASON = 1989
 # temporadas pasan y la UI lo advierte. Ver SAB-03 en docs/TODO.md.
 UNDERTYPED_STATCAST_SEASONS = frozenset({1989, 1990, 1993, 1994, 1995, 1996, 1997})
 
+# QUÉ columnas ensucia esa falta, que NO son todas las del panel (SAB-03b del review v4).
+#
+# Lo que falta en esas siete temporadas son los HITS por tipo. Los cinco conteos de OUTS por tipo
+# —AO/GO/FO/PO/LO— están completos, y advertir sobre el panel entero los pone bajo sospecha sin
+# motivo: son 5 columnas de 12 marcadas de más.
+#
+# Los coeficientes sí caen, porque su numerador incluye los hits: `gb_pct` es (outs + hits) / BIP, y
+# si faltan hits el porcentaje queda por debajo de lo real. `gb_fb` también, que es un cociente entre
+# dos de ellos.
+#
+# Contact% y Whiff% NO están acá y no es un olvido: se calculan sobre swings, que la fuente sí
+# entrega completos. Marcarlos sería el mismo error una talla más chica.
+UNDERTYPED_COLUMNS = frozenset(
+    {
+        "ground_hits",
+        "fly_hits",
+        "line_hits",
+        "pop_hits",
+        "gb_pct",
+        "fb_pct",
+        "ld_pct",
+        "pu_pct",
+        "gb_fb",
+    }
+)
+
 
 def _sum(*values: int | None) -> int | None:
     known = [v for v in values if v is not None]

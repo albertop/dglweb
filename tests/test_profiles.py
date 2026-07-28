@@ -828,3 +828,56 @@ def test_puestos_tab_hidden_without_any_top10() -> None:
 
     assert PuestosTab().applies_to(player) is False
     assert "puestos" not in [tab.key for tab in tabs_for(player)]
+
+
+# ── SAB-03b: la marca de dato incompleto va en la CELDA, no sobre el panel ───────────────────────
+
+
+@pytest.mark.django_db
+def test_solo_se_marcan_las_columnas_que_de_verdad_estan_incompletas() -> None:
+    """En 1989-97 la fuente no tipificó todos los HITS. Los OUTS por tipo están completos.
+
+    Advertir sobre el panel entero marcaba 5 columnas de 12 sin motivo, y obligaba al lector a
+    cruzar el año con los nombres de las columnas de memoria. La marca en la celda lo dice donde se
+    toma la decisión de creerle o no a un número.
+    """
+    from dglweb.profiles.tabs import _marcar_sin_tipificar
+
+    marcados = _marcar_sin_tipificar(1990, {})
+
+    # Los hits por tipo y los coeficientes, sí: su numerador incluye los hits que faltan.
+    assert all(marcados[c] == "dato-parcial" for c in ("ground_hits", "fly_hits", "gb_pct", "gb_fb"))
+    # Los outs por tipo, NO. Es el finding entero.
+    assert not any(c in marcados for c in ("ground_outs", "fly_outs", "line_outs", "pop_outs", "ao"))
+    # Contact% y Whiff% tampoco: se calculan sobre swings, que la fuente sí entrega completos.
+    assert "contact_pct" not in marcados and "whiff_pct" not in marcados
+
+
+@pytest.mark.django_db
+def test_una_temporada_sana_no_lleva_ninguna_marca() -> None:
+    from dglweb.profiles.tabs import _marcar_sin_tipificar
+
+    assert _marcar_sin_tipificar(2001, {}) == {}
+
+
+@pytest.mark.django_db
+def test_la_marca_se_suma_al_resaltado_sin_pisarlo() -> None:
+    """Una celda puede ser líder de temporada Y estar incompleta. Quedarse con una sola de las dos
+    marcas perdería información — y el color ya está tomado, por eso la marca es un subrayado."""
+    from dglweb.profiles.tabs import _marcar_sin_tipificar
+
+    marcados = _marcar_sin_tipificar(1990, {"gb_pct": "lead-season"})
+
+    assert marcados["gb_pct"] == "lead-season dato-parcial"
+
+
+@pytest.mark.django_db
+def test_marcar_no_toca_el_diccionario_original() -> None:
+    """Los `leads` los comparten las filas de Estándar y Avanzado, que NO están afectados. Mutarlos
+    pintaría el subrayado en paneles donde el dato está completo."""
+    from dglweb.profiles.tabs import _marcar_sin_tipificar
+
+    original = {"gb_pct": "lead-season"}
+    _marcar_sin_tipificar(1990, original)
+
+    assert original == {"gb_pct": "lead-season"}

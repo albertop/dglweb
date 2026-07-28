@@ -593,10 +593,22 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   — la carga de Retrosheet cubrió las diez, no solo 2000-2002. Lo que pasa es que ahí Retrosheet
   tampoco clasificó todo: en 1990 registra los 2.575 hits pero solo le puso trayectoria a 2.314. Ese
   10% no lo anotó nadie en 1990; es el techo del registro histórico, no algo por hacer.
-  Lo que sí queda pendiente es de precisión en la UI: los cinco conteos de OUTS por tipo
-  (AO/GO/FO/PO/LO) están completos en esos años, y hoy se advierte sobre el panel Statcast entero
-  como si estuvieran todos afectados. Un piso por (métrica, temporada) lo diría con exactitud.
-  **Prioridad baja**: la advertencia sobra en cinco columnas de doce, pero no miente.
+  **Hecho (2026-07-27).** La marca pasó del panel a la CELDA. `derive.UNDERTYPED_COLUMNS` dice qué
+  columnas ensucia de verdad la falta —los cuatro hits por tipo y los cuatro coeficientes, más
+  `gb_fb`— y `tabs._marcar_sin_tipificar()` les pone la clase solo en las siete temporadas afectadas.
+
+  Los cinco conteos de OUTS por tipo ya NO se marcan, que era el finding. Contact% y Whiff% tampoco:
+  se calculan sobre swings, que la fuente sí entrega completos — marcarlos habría sido el mismo error
+  una talla más chica.
+
+  Comprobado en el perfil de Sammy Sosa: en la fila de 1989 el panel Statcast marca FH/PH/LH/GH y
+  deja limpias AO/GO/FO/PO/LO; el de coeficientes marca los cuatro porcentajes y GB/FB, y deja
+  Contact% y Whiff%. En 2001, ninguna.
+
+  La marca es un subrayado punteado y no un color, porque el color ya está tomado —vino es líder de
+  temporada, azul de carrera— y una celda puede ser las dos cosas a la vez; el subrayado se suma sin
+  pelearse. El pie del panel sigue, pero ahora explica qué significa la marca en vez de cargar solo
+  con la advertencia, y dice explícitamente qué NO está afectado. 4 tests.
 - [x] **DEV-02 / FE-03 — `leaders_context()` revienta con la base vacía.** **Corregido**: `_empty_context()` devuelve un contexto renderizable y la plantilla tiene su rama para base vacía. Con test.
   ~~ **Reproducido**:
   `IndexError: list index out of range` en `division_labels[0]`. Pasa en staging limpio, base recién

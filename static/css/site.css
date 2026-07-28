@@ -1249,3 +1249,17 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 .dgl-articulo-cuerpo small {
   font-size: .84em; line-height: 1.5; color: #4b5563;
 }
+
+/* La celda cuyo dato la fuente entregó incompleto (SAB-03b). Hoy son los hits por tipo y los cuatro
+   coeficientes de las siete temporadas de 1989-97 — ver `derive.UNDERTYPED_COLUMNS`.
+
+   Antes esto solo se decía en el pie del panel. Correcto, pero obligaba a cruzar el año con los
+   nombres de las columnas de memoria, y como la nota colgaba del panel entero se leía como si las
+   doce columnas estuvieran flojas — cuando los cinco conteos de outs por tipo están completos.
+
+   Subrayado punteado y no color: el color ya está tomado —vino es líder de temporada, azul de
+   carrera— y una celda puede ser las dos cosas a la vez. El subrayado se suma sin pelearse. El
+   `help` en el cursor y el `title` en la celda dan la explicación corta; la larga sigue en el pie. */
+.dgl-stats-table td.dato-parcial {
+  text-decoration: underline dotted #9aa5b1; text-underline-offset: 3px; cursor: help;
+}

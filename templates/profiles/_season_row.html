@@ -5,5 +5,10 @@ combinado de una temporada dividida y se muestra como "Tot".{% endcomment %}
   <td class="ps-3 dgl-mid">{% ifchanged line.row.season %}{{ line.row.season }}{% endifchanged %}</td>
   <td class="dgl-mid">{% if line.row.team == "XXX" %}Tot{% else %}{{ line.row.team|default:"—" }}{% endif %}</td>
   <td>{% ifchanged line.row.season %}{{ line.row.age|num }}{% endifchanged %}</td>
-  {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}">{{ cell.text }}</td>{% endfor %}
+  {% comment %}
+    El `title` solo cuando la celda lleva la marca de dato incompleto: es la explicación corta al
+    pasar el cursor, para no tener que bajar al pie a averiguar qué significa el subrayado. La larga
+    sigue en el pie, que es donde cabe.
+  {% endcomment %}
+  {% for cell in cells %}<td class="{{ cell.css }}{% if forloop.last %} pe-3{% endif %}"{% if "dato-parcial" in cell.css %} title="La fuente no tipificó todos los hits de esta temporada: el valor real es más alto"{% endif %}>{{ cell.text }}</td>{% endfor %}
 </tr>

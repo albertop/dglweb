@@ -23,7 +23,12 @@ from dglweb.profiles.metric_layout import (
     qualifier_lookups,
 )
 from dglweb.stats import career_totals, leaders, qualifier
-from dglweb.stats.derive import FIRST_STATCAST_SEASON, UNDERTYPED_STATCAST_SEASONS, batted_ball_coefficients
+from dglweb.stats.derive import (
+    FIRST_STATCAST_SEASON,
+    UNDERTYPED_COLUMNS,
+    UNDERTYPED_STATCAST_SEASONS,
+    batted_ball_coefficients,
+)
 from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
 from dglweb.stats.models import (
     Batting,
@@ -342,6 +347,30 @@ def _cells(
     return {name: columns.cells(row, tables[name], leads) for name in names}
 
 
+def _marcar_sin_tipificar(season: int, leads: dict[str, str]) -> dict[str, str]:
+    """Añade la marca de «dato incompleto» a las celdas que de verdad lo están (SAB-03b).
+
+    Antes esto se decía SOLO en el pie del panel: «en 1990 faltan los hits por tipo». Correcto, pero
+    obliga al lector a cruzar el año con los nombres de las columnas de memoria mientras mira una
+    tabla de doce. Y como la nota cuelga del panel, se lee como si el panel entero estuviera flojo —
+    cuando los cinco conteos de outs por tipo están completos en esos años.
+
+    Marcando la celda, la advertencia queda donde se toma la decisión de creerle o no a un número. El
+    pie sigue estando: ahí se explica qué significa la marca, que en la celda no cabe.
+
+    Devuelve un diccionario NUEVO. Los `leads` los comparten las filas de los otros paneles —Estándar
+    y Avanzado, que no están afectados—, así que mutarlos pintaría la marca donde no toca.
+    """
+    if season not in UNDERTYPED_STATCAST_SEASONS:
+        return leads
+    marcados = dict(leads)
+    for columna in UNDERTYPED_COLUMNS:
+        # Se CONCATENA con lo que ya hubiera: una celda puede ser a la vez líder de temporada y estar
+        # incompleta, y quedarse con una sola de las dos marcas perdería información.
+        marcados[columna] = f"{marcados.get(columna, '')} dato-parcial".strip()
+    return marcados
+
+
 def _is_his_trade(group: str, player: Player) -> bool:
     """Whether this stat group is what the player is actually paid to do."""
     return is_pitcher(player) if group == "pitching" else not is_pitcher(player)
@@ -391,7 +420,9 @@ def _group_context(
     # earlier gets no panes at all, and no row of pure `—` is ever printed.
     # Coverage is judged on the season lines, never on the row count: a traded year contributes
     # several rows but is still one season.
-    statcast_rows = [(row, leads) for row, leads in rows if row.season >= FIRST_STATCAST_SEASON]
+    statcast_rows = [
+        (row, _marcar_sin_tipificar(row.season, leads)) for row, leads in rows if row.season >= FIRST_STATCAST_SEASON
+    ]
     statcast_seasons = [row for row in seasons if row.season >= FIRST_STATCAST_SEASON]
     post_lines, post_totals = _postseason(post_model, group, player)
     # Postseason leadership overlay: the wine mark lives on the aggregate the board ranks — a whole
