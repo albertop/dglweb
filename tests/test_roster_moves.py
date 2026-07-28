@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from django.test import Client
+from django.utils import timezone
 
 from dglweb.players.models import Player
 from dglweb.stats import roster_moves
@@ -253,12 +254,15 @@ def test_the_ticker_does_not_show_stale_moves() -> None:
     que la ventana se ancla al dato — ver `roster_moves.JORNADAS_CINTILLO`.
     """
     jugador = _jugador()
+    # Relativo a HOY y no a una fecha escrita a mano: desde que el cintillo se esconde por atraso
+    # (2026-07-28), una fecha fija haría que esta prueba pasara hoy y fallara sola en dos días.
+    hoy = timezone.localdate()
     for numero, dias in enumerate((0, 4)):
         RosterMove.objects.create(
             transaction_id=900020 + numero,
             mlb_id=665742,
             player=jugador,
-            fecha=date(2026, 7, 28) - timedelta(days=dias),
+            fecha=hoy - timedelta(days=dias),
             texto=f"Movimiento de hace {dias} días",
         )
 
@@ -442,18 +446,19 @@ def test_el_cintillo_muestra_las_dos_ultimas_jornadas_con_movimientos() -> None:
     noticia, son archivo.
     """
     jugador = _jugador()
+    hoy = timezone.localdate()  # relativo a hoy: ver la nota de `test_the_ticker_does_not_show_stale_moves`
     for dias in (0, 1, 2, 5):
         RosterMove.objects.create(
             transaction_id=1000 + dias,
             mlb_id=jugador.player_id,
-            fecha=date(2026, 7, 28) - timedelta(days=dias),
+            fecha=hoy - timedelta(days=dias),
             player=jugador,
             texto=f"Movimiento de hace {dias} días",
         )
 
     fechas = sorted({m.fecha for m in roster_moves.portada()}, reverse=True)
 
-    assert fechas == [date(2026, 7, 28), date(2026, 7, 27)]
+    assert fechas == [hoy, hoy - timedelta(days=1)]
 
 
 @pytest.mark.django_db
@@ -464,14 +469,13 @@ def test_si_el_dia_mas_reciente_solo_trae_cosas_que_no_se_publican_no_gasta_la_v
     fecha marcaría la ventana y el cintillo quedaría vacío teniendo material del día anterior.
     """
     jugador = _jugador()
+    hoy = timezone.localdate()
     # Hoy: solo un movimiento sin ficha en el maestro, que no se publica.
-    RosterMove.objects.create(
-        transaction_id=1, mlb_id=999999, fecha=date(2026, 7, 28), player=None, texto="Firmó alguien"
-    )
+    RosterMove.objects.create(transaction_id=1, mlb_id=999999, fecha=hoy, player=None, texto="Firmó alguien")
     RosterMove.objects.create(
         transaction_id=2,
         mlb_id=jugador.player_id,
-        fecha=date(2026, 7, 27),
+        fecha=hoy - timedelta(days=1),
         player=jugador,
         texto="Subido al roster",
     )
@@ -485,3 +489,90 @@ def test_si_el_dia_mas_reciente_solo_trae_cosas_que_no_se_publican_no_gasta_la_v
 def test_sin_nada_publicable_el_cintillo_va_vacio_en_vez_de_reventar() -> None:
     """En invierno no hay movimientos, y la plantilla esconde la tira entera si la lista viene vacía."""
     assert roster_moves.portada() == []
+
+
+# ── El cintillo se esconde cuando lo que muestra dejó de ser noticia (dueño, 2026-07-28) ────────
+
+
+def _movimiento(jugador: Player, dias_atras: int, texto: str = "Subido al roster") -> RosterMove:
+    return RosterMove.objects.create(
+        transaction_id=2000 + dias_atras,
+        mlb_id=jugador.player_id,
+        player=jugador,
+        fecha=timezone.localdate() - timedelta(days=dias_atras),
+        texto=texto,
+    )
+
+
+@pytest.mark.django_db
+def test_diez_dias_sin_transacciones_apagan_el_cintillo() -> None:
+    """El caso que lo motivó, con las palabras del dueño: «como si fuera un periódico viejo».
+
+    Anclarse en el dato es lo correcto para ELEGIR los días, pero no dice nada de si esos días siguen
+    siendo noticia. Sin esta regla, diez días sin movimientos dejan las mismas dos jornadas girando en
+    la cabecera de todas las páginas, y nada en pantalla avisa de que pasó semana y media.
+    """
+    jugador = _jugador()
+    _movimiento(jugador, 10)
+    _movimiento(jugador, 11)
+
+    assert roster_moves.portada() == []
+
+
+@pytest.mark.django_db
+def test_lo_de_ayer_sigue_saliendo() -> None:
+    """La otra mitad de la decisión, y la razón de que el corte sea un día y no cero.
+
+    Los movimientos entran DURANTE la jornada: a las ocho de la mañana la fecha más alta suele ser
+    todavía la de ayer. Con cero de tolerancia el cintillo desaparecería de la portada todas las
+    madrugadas para volver por la tarde, cuando MLB publique lo del día.
+    """
+    jugador = _jugador()
+    _movimiento(jugador, 1, "Lo de ayer")
+    _movimiento(jugador, 2, "Lo de anteayer")
+
+    assert [m.texto for m in roster_moves.portada()] == ["Lo de ayer", "Lo de anteayer"]
+
+
+@pytest.mark.django_db
+def test_a_los_dos_dias_de_atraso_ya_no() -> None:
+    """El escalón exacto, escrito aparte para que moverlo cueste tocar un test.
+
+    Dos días ya no es «lo de ayer», es archivo — que era la queja original sobre la ventana vieja.
+    """
+    jugador = _jugador()
+    _movimiento(jugador, 2)
+    _movimiento(jugador, 3)
+
+    assert roster_moves.portada() == []
+
+
+@pytest.mark.django_db
+def test_lo_de_hoy_manda_aunque_arrastre_una_jornada_vieja() -> None:
+    """Con algo de hoy el cintillo se ve, y la segunda jornada sale de la ventana, no del calendario.
+
+    O sea que un movimiento de hoy y otro de hace una semana muestran los dos: la regla de atraso
+    mira la fecha MÁS ALTA, y la de abajo la elige `JORNADAS_CINTILLO`. Son dos preguntas distintas y
+    conviene que no se confundan — acá la de abajo no entra porque cae fuera de la ventana de dos
+    jornadas, no porque esté vieja.
+    """
+    jugador = _jugador()
+    _movimiento(jugador, 0, "Lo de hoy")
+    _movimiento(jugador, 7, "Lo de la semana pasada")
+
+    assert [m.texto for m in roster_moves.portada()] == ["Lo de hoy"]
+
+
+@pytest.mark.django_db
+def test_con_el_cintillo_atrasado_la_pagina_no_lo_dibuja(client: Client) -> None:
+    """Que la lista vacía llegue hasta la pantalla, que es donde importa.
+
+    Y sin cartel de «desactualizado»: un aviso de que la información está vieja ocupa el mismo sitio
+    que la información y no le sirve a nadie. La cabecera simplemente queda sin la franja.
+    """
+    _movimiento(_jugador(), 10, "Algo de hace diez días")
+
+    html = client.get("/").content.decode()
+
+    assert "Algo de hace diez días" not in html
+    assert 'aria-label="Movimientos de roster"' not in html

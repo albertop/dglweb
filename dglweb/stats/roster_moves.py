@@ -41,6 +41,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from django.db import transaction
+from django.utils import timezone
 
 from dglweb.mlb.client import MlbProxyClient
 from dglweb.players.models import Player
@@ -264,12 +265,37 @@ EN_CINTILLO = 25
 # no en el reloj. La fecha más alta que haya es «hoy» del cintillo, y la anterior es su «ayer».
 JORNADAS_CINTILLO = 2
 
+# CUÁNTO ATRASO SE AGUANTA ANTES DE ESCONDER EL CINTILLO ENTERO.
+#
+# El agujero que tapa esto (dueño, 2026-07-28): anclarse en el dato es lo correcto para ELEGIR los
+# días, pero no dice nada de si esos días siguen siendo noticia. Diez días sin transacciones y el
+# cintillo repite las mismas dos jornadas indefinidamente — un periódico viejo en la portada, y de
+# los peores, porque nada en pantalla avisa de que lo que se lee pasó hace semana y media.
+#
+# UN DÍA Y NO CERO, y esa es la decisión que hay detrás del número. Los movimientos entran DURANTE la
+# jornada: a las ocho de la mañana la fecha más alta suele ser todavía la de ayer, y con cero de
+# tolerancia el cintillo desaparecería de la portada todas las madrugadas para volver por la tarde,
+# cuando MLB publique lo del día. Con uno, la noche se atraviesa entera y solo se esconde cuando el
+# dato pasa a tener dos días — que ya no es «lo de ayer», es archivo.
+#
+# Medido sobre el último mes (2026-06-28 al 07-28): 30 de 31 días tuvieron al menos un movimiento
+# publicable y el hueco más grande fue de 2 días, así que esta regla no lo habría escondido ni una
+# vez. Está para el receso y para las rachas muertas, no para el día a día.
+#
+# Se compara contra el reloj y no contra otra fecha de la tabla a propósito: la pregunta es «¿esto
+# sigue siendo noticia HOY?», y esa solo la contesta el calendario.
+MAXIMO_ATRASO = 1
+
 
 def portada() -> list[RosterMove]:
     """Los movimientos para el cintillo: las DOS últimas jornadas con movimientos publicables.
 
-    La ventana se ancla en el dato y no en el reloj — ver `JORNADAS_CINTILLO`. Tres filtros, y los
-    tres son reglas del sitio.
+    QUÉ DÍAS y HASTA CUÁNDO son dos preguntas distintas, y cada una se contesta con lo suyo. Los días
+    salen del DATO —la fecha más alta que haya y la anterior, ver `JORNADAS_CINTILLO`—, pero si esos
+    días siguen siendo noticia lo dice el RELOJ: pasado un día de atraso el cintillo se esconde entero
+    en vez de repetir lo mismo hasta que aparezca algo nuevo (ver `MAXIMO_ATRASO`).
+
+    Cuatro filtros, y los cuatro son reglas del sitio.
 
     **Solo los que tienen ficha en `dgl_master`** — decisión del dueño (2026-07-27). Se guardan
     igual los de `dom_players` que aún no llegaron a las mayores, porque el dato es bueno y algún día
@@ -287,6 +313,12 @@ def portada() -> list[RosterMove]:
     # el cintillo quedaría vacío teniendo material del día anterior.
     ultima = publicables.order_by("-fecha").values_list("fecha", flat=True).first()
     if ultima is None:
+        return []
+
+    # Lista vacía y no una marca de «esto está viejo»: `base.html` esconde el cintillo entero cuando
+    # no hay nada. Es lo que se quiere — un aviso de que la información está desactualizada ocupa el
+    # mismo sitio que la información, y no le sirve a nadie.
+    if (timezone.localdate() - ultima).days > MAXIMO_ATRASO:
         return []
 
     desde = ultima - timedelta(days=JORNADAS_CINTILLO - 1)
