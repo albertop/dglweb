@@ -149,7 +149,11 @@ listener de la pizarra en DEV-01, QA-01 y FE-01.
 
 ### Aceptados — prioridad alta
 
-- [ ] **SEC-01 + ARCH-02 [P2] — `/ready` filtra detalles internos sin autenticación.** Verificado:
+- [x] **SEC-01 + ARCH-02 [P2] — `/ready` filtra detalles internos sin autenticación.** **Corregido
+      (2026-07-28)**: público solo el semáforo —`{"status": "error"}` con 503, y cuántas migraciones
+      faltan— y el detalle detrás de `_puede_ver_el_detalle()`, el mismo guardia de
+      `/health/pipeline`. Con dos pruebas nuevas; las dos que ya existían fijaban el contrato viejo y
+      se actualizaron. Verificado:
       con la base caída devuelve `{"detalle": "OperationalError: connection to server at ..."}`, que
       puede llevar host, puerto, usuario y nombre de base; y con migraciones pendientes las nombra.
 
@@ -160,7 +164,11 @@ listener de la pizarra en DEV-01, QA-01 y FE-01.
 
       El arreglo: público solo `{"status": "error"}` con 503, y el detalle por el mismo guardia.
 
-- [ ] **DEV-01 + QA-01 + FE-01 [P2] — la pizarra acumula un listener global por refresco.**
+- [x] **DEV-01 + QA-01 + FE-01 [P2] — la pizarra acumula un listener global por refresco.**
+      **Corregido (2026-07-28)**: un solo listener al cargar el módulo, que resuelve el banner actual
+      en cada clic — así el reemplazo del HTML deja de importar y no hay nada que desmontar. La
+      prueba (`tests/js/pizarra.test.js`) pasa por el camino real: `data-vivo="1"`, `fetch` simulado
+      y reloj adelantado, para que ejecute `preparar()` de verdad.
       Confirmado en `static/js/pizarra.js`: `preparar()` registra un
       `document.addEventListener("click", …)` que cierra sobre el `raiz` de esa versión, y el
       refresco en vivo llama `preparar(nuevo, false)` **cada minuto** tras reemplazar el
