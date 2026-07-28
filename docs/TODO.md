@@ -109,6 +109,35 @@ muestra escritas a mano.
 
       Dejarlo en la lista hacía que un dato correcto pareciera un apaño a medias.
 
+## Fase 7 — lo que falta del plan de construcción (2026-07-28)
+
+**Por qué aparece recién ahora.** La Fase 7 vivía solo en `docs/BUILD_PLAN.md` y nunca se volcó acá,
+así que la lista de pendientes daba una impresión más limpia que la realidad: parecía que del lado
+del desarrollo no quedaba nada cuando quedaba una fase entera. Un backlog que no incluye una fase no
+es un backlog, es un resumen optimista.
+
+De sus cinco entregas, **dos ya están hechas por otro camino** y se anotan para que nadie las vuelva
+a planificar:
+
+- [x] ~~**Players search** (typeahead a la página del jugador).~~ Construido: se monta sobre
+      `[data-buscador]`, degrada a un GET normal sin JavaScript, ignora tildes y eñes vía `unaccent`,
+      y tiene pruebas de teclado (`tests/js/buscador.test.js`).
+- [x] ~~**Landing estilo Savant** (artículos rodeados de stats).~~ Es la portada actual: pizarra,
+      destacados, líderes y la retícula de artículos.
+
+Lo que queda:
+
+- [ ] **Login social con `django-allauth`** (Google/Facebook, **sin muro**: el sitio se lee entero
+      sin cuenta). **El botón «Entrar» de la barra apunta a `#`** hoy, en todas las páginas del
+      sitio — es lo más visible que queda sin hacer.
+
+      Ojo con lo que arrastra: cuentas de usuario significan datos personales, así que la política de
+      privacidad —que hoy presume de no pedir nada— hay que reescribirla EN EL MISMO commit. Ver
+      `dglweb/core/legal.py` y la regla que ya está escrita ahí.
+- [ ] **Zonas de anuncio: la etiqueta del proveedor.** Los huecos ya están en las plantillas, con
+      alto fijo y agnósticos de proveedor. Falta pegar la etiqueta, que depende de elegir el ad
+      server — y de añadir su dominio a la CSP, o no cargará y fallará en silencio.
+
 ## Contenido
 
 - [ ] Escribir los 8–12 artículos semilla (cuello de botella — **ya no está bloqueado**: el CMS
