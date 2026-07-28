@@ -45,12 +45,27 @@ from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
 
-# El sitio público. Todo del propio origen salvo los estilos inline — ver la cabecera.
+# LOS VIDEOS DE MLB. Es la única excepción del sitio público, y hay que declararla o el televisorcito
+# de la portada abre una ventana negra: el navegador dice «Media load rejected by URL safety check» y
+# ni siquiera deja un error en la consola que se entienda.
+#
+# Medido sobre los 42 clips guardados: los `.mp4` salen de DOS hosts —`mlb-cuts-diamond.mlb.com` y
+# `bdata-producedclips.mlb.com`— y las miniaturas de `img.mlbstatic.com`. Van con comodín de
+# subdominio justamente por eso: si con 42 clips ya hay dos hosts distintos para lo mismo, listarlos a
+# mano garantiza que el día que MLB estrene un tercero el video deje de verse sin avisar.
+#
+# El comodín es barato acá: `media-src` e `img-src` no pueden ejecutar código. Lo que de verdad
+# importa —`script-src`— sigue en `'self'` a secas.
+VIDEO_MLB = "https://*.mlb.com"
+IMAGEN_MLB = "https://*.mlbstatic.com"
+
+# El sitio público. Todo del propio origen salvo los estilos inline y los videos — ver la cabecera.
 PUBLICA = (
     "default-src 'self'; "
     "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; "
+    f"img-src 'self' data: {IMAGEN_MLB}; "
+    f"media-src 'self' {VIDEO_MLB}; "
     "font-src 'self'; "
     "connect-src 'self'; "
     "frame-src 'none'; "

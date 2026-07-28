@@ -17,7 +17,7 @@ from django.test import Client
 from django.urls import reverse
 from django.utils.html import escape
 
-from dglweb.core import legal
+from dglweb.core import csp, legal
 
 # Las páginas que ve cualquiera sin identificarse. Es la lista que importa: el CMS sí pone cookies
 # —sesión y CSRF— y eso está declarado en el documento como la excepción del equipo editorial.
@@ -71,6 +71,16 @@ def test_el_sitio_publico_no_pide_nada_a_terceros(client: Client, ruta: str) -> 
     Por eso mira `src` de cualquier etiqueta y `href` SOLO de `<link>` —que es una carga— y deja en
     paz los `href` de los enlaces. Así no hay lista blanca que actualizar cada vez que el sitio
     enlace a algún sitio nuevo.
+
+    LO QUE ESTA PRUEBA NO VE, Y CONVIENE SABERLO
+    --------------------------------------------
+    Solo mira el HTML servido. El video de MLB no aparece acá por dos motivos a la vez: su URL viaja
+    en un `data-video`, no en un `src`, y el JS se la pone al `<video>` recién al pulsar el
+    televisorcito. O sea que un tercero cargado POR JAVASCRIPT es invisible para esta prueba.
+
+    Eso no es un descuido: es el reparto de trabajo. Lo que gobierna esas cargas es la CSP, y quien
+    las vigila es `test_la_csp_permite_los_videos_de_mlb`. Esta prueba cubre lo que se carga solo al
+    abrir la página; aquella, lo que puede cargarse después.
     """
     sopa = BeautifulSoup(client.get(ruta).content.decode(), "html.parser")
     cargas = [etiqueta.get("src") for etiqueta in sopa.find_all(src=True)]
@@ -142,6 +152,23 @@ def test_la_csp_va_en_las_paginas_publicas(client: Client, ruta: str) -> None:
     politica = client.get(ruta).headers.get("Content-Security-Policy", "")
     assert "script-src 'self';" in politica, "el sitio público no admite scripts inline"
     assert "object-src 'none'" in politica
+
+
+@pytest.mark.django_db
+def test_la_csp_permite_los_videos_de_mlb(client: Client) -> None:
+    """La CSP rompió el televisorcito de la portada y nadie se enteró hasta que lo pulsó una persona.
+
+    Con `media-src` cayendo en `default-src 'self'`, el navegador rechazaba el `.mp4` de MLB con un
+    «Media load rejected by URL safety check» que no deja rastro útil: la ventana se abre negra y no
+    hay error en la consola que lleve a la causa.
+
+    No lo cazó ninguna prueba porque el video se carga por JavaScript desde un `data-video` —ver
+    `test_el_sitio_publico_no_pide_nada_a_terceros`—, así que la protección tiene que estar acá: en
+    la propia política, que es lo que decide si esa carga se permite.
+    """
+    politica = client.get("/").headers["Content-Security-Policy"]
+    assert f"media-src 'self' {csp.VIDEO_MLB}" in politica, "los clips no se van a poder reproducir"
+    assert csp.IMAGEN_MLB in politica, "la miniatura del clip quedaría en negro"
 
 
 @pytest.mark.django_db
