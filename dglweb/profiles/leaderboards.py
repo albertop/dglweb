@@ -148,7 +148,22 @@ def _direction_label(metric: Metric) -> str:
     return "Más es mejor" if higher else "Menos es mejor"
 
 
-def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool, october: bool = False) -> str:
+def _juegos_de_la_temporada(season: int) -> int | None:
+    """El calendario más largo de esa temporada, para explicar el umbral en el pie.
+
+    Es el MÁXIMO de todos los equipos, no el de uno: el pie de la tabla habla del tablero entero y no
+    de un jugador, y cada uno se midió contra los juegos de SU equipo. Poner el máximo dice de dónde
+    sale el orden de magnitud sin fingir una precisión que la frase no puede tener.
+    """
+    from dglweb.stats.models import TeamSeasonGames
+
+    maximo: int | None = TeamSeasonGames.objects.filter(season=season).aggregate(mx=Max("games"))["mx"]
+    return maximo
+
+
+def _qualifier_note(
+    metric: Metric, scope: str, *, has_worst: bool, october: bool = False, season: int | None = None
+) -> str:
     """La frase del pie que explica el umbral. Vacía cuando no hay ninguno.
 
     Cuál de las dos tablas filtra depende del tipo de métrica, y por eso la frase cambia:
@@ -168,18 +183,25 @@ def _qualifier_note(metric: Metric, scope: str, *, has_worst: bool, october: boo
         season_floor, career_floor = _POST_QUALIFIER.get(metric.stat_group, ("", ""))
         formula = career_floor if scope == "carrera" else season_floor
         return f"Mínimo para calificar: {pretty_qualifier(formula)}." if formula else ""
-    defaults, _ = qualifier_lookups()
+    defaults, overrides = qualifier_lookups()
+    juegos = _juegos_de_la_temporada(season) if scope != "carrera" and season else None
     formula = (
         qualifier.resolve_career(metric, defaults)
         if scope == "carrera"
-        else qualifier.resolve_season(metric, 0, defaults, {})
+        else qualifier.resolve_season(metric, season or 0, defaults, overrides, juegos)
     )
     if not formula:
         return ""
     pretty = pretty_qualifier(formula)
+    # De dónde sale el número, cuando sale de los juegos. Un umbral que cambia de una temporada a
+    # otra sin explicarse invita a pensar que está mal: en 2026 pide 332 y en 2025 pedía 502, y sin
+    # esta coletilla no hay forma de saber que es la misma regla con menos juegos.
+    origen = ""
+    if juegos and not overrides.get((metric.stat_group, season or 0)) and not metric.qualifier_season:
+        origen = f" ({juegos} juegos)"
     if is_rate:
-        return f"Mínimo para calificar: {pretty}."
-    return f"Mínimo para entrar en Últimos: {pretty}."
+        return f"Mínimo para calificar: {pretty}{origen}."
+    return f"Mínimo para entrar en Últimos: {pretty}{origen}."
 
 
 def _link(state: dict[str, str], **changes: str | None) -> str:
@@ -504,7 +526,9 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             "name": metric.name_es or metric.abbrev,
             "abbr": metric.abbrev,
             "direction": _direction_label(metric),
-            "qualifier": _qualifier_note(metric, scope, has_worst=len(columns) > 1, october=october),
+            "qualifier": _qualifier_note(
+                metric, scope, has_worst=len(columns) > 1, october=october, season=chosen_season
+            ),
             "available_from": metric.available_from,  # "disponible desde YYYY" cuando aplica (Statcast)
             "scope_label": f"temporada {chosen_season}" if scope == "temporada" else "de por vida",
             "columns": columns,  # Mejores y (si existe y no quedó vacía tras el dedup) Peores

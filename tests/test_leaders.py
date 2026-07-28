@@ -7,6 +7,7 @@ from django.core.management import call_command
 
 from dglweb.players.models import Player
 from dglweb.stats.leaders import build_leaders
+from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
 from dglweb.stats.models import Batting, Fielding, IngestRun, Leader, Metric, Pitching, QualifierDefault
 from tests.test_players import _other_player
 
@@ -374,3 +375,61 @@ def test_build_leaders_command_is_recorded_in_the_ingest_log(players: dict[str, 
     run = IngestRun.objects.get(command="build_leaders")
     assert run.status == IngestRun.Status.SUCCESS
     assert run.rows_affected >= 1
+
+
+# ── El umbral prorrateado: qué juegos se usan para cada fila ────────────────────────────────────
+
+
+def test_una_temporada_con_un_solo_equipo_usa_los_juegos_de_ese_equipo() -> None:
+    """Es la regla de MLB, y por eso la tabla guarda el grano por equipo: en 1981 el rango fue de 103
+    a 111 juegos y los 26 equipos quedaron fuera de la mediana."""
+    from dglweb.stats.leaders import _juegos_de
+
+    por_equipo = {(1981, "NYA"): 107, (1981, "BOS"): 108}
+    por_liga = {(1981, "AL"): 110}
+
+    assert _juegos_de({"season": 1981, "team": "NYA", "league": "AL"}, por_equipo, por_liga) == 107
+
+
+def test_un_traspasado_usa_el_maximo_de_su_liga() -> None:
+    """Con el centinela de equipo combinado no hay UN equipo al que preguntarle.
+
+    Se usa el máximo de su liga y no la mediana: es el calendario más largo que alguien de esa liga
+    llegó a jugar, así que nadie califica por juegos que su liga no disputó.
+    """
+    from dglweb.stats.leaders import _juegos_de
+
+    fila = {"season": 1961, "team": COMBINED_TEAM, "league": "NL"}
+
+    assert _juegos_de(fila, {}, {(1961, "NL"): 156, (1961, "AL"): 163}) == 156
+
+
+def test_la_liga_importa_y_1961_lo_prueba() -> None:
+    """Ese año la Americana se expandió a 10 equipos y pasó a 162 juegos mientras la Nacional seguía
+    con 8 y 154. Un número único para toda la liga habría pedido 21 apariciones de más a la mitad de
+    los jugadores de esa temporada."""
+    from dglweb.stats.leaders import _juegos_de
+
+    por_liga = {(1961, "AL"): 163, (1961, "NL"): 156}
+    americana = _juegos_de({"season": 1961, "team": COMBINED_TEAM, "league": "AL"}, {}, por_liga)
+    nacional = _juegos_de({"season": 1961, "team": COMBINED_TEAM, "league": "NL"}, {}, por_liga)
+
+    assert (americana, nacional) == (163, 156)
+
+
+def test_un_traspasado_entre_ligas_se_mide_con_el_umbral_fijo() -> None:
+    """Cambió de liga, así que el centinela está también en `league` y no queda nada a lo que
+    agarrarse. Devolver `None` deja mandar al fijo, que es el más exigente: el error va del lado de
+    dejar fuera, no de colar a alguien que no calificaba."""
+    from dglweb.stats.leaders import _juegos_de
+
+    fila = {"season": 2019, "team": COMBINED_TEAM, "league": COMBINED_LEAGUE}
+
+    assert _juegos_de(fila, {}, {(2019, "AL"): 162}) is None
+
+
+def test_un_equipo_que_no_esta_en_la_tabla_cae_a_su_liga() -> None:
+    """Una temporada a medio cargar no puede dejar sin umbral a media liga."""
+    from dglweb.stats.leaders import _juegos_de
+
+    assert _juegos_de({"season": 2026, "team": "XXY", "league": "AL"}, {}, {(2026, "AL"): 107}) == 107

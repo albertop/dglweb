@@ -32,12 +32,72 @@ Defaults = Mapping[str, tuple[str, str]]  # group -> (season formula, career for
 Overrides = Mapping[tuple[str, int], str]  # (group, season) -> season formula
 
 
-def resolve_season(metric: Metric, season: int, defaults: Defaults, overrides: Overrides) -> str:
+# EL UMBRAL POR JUEGO DE CADA OFICIO. `(campo, cuánto por juego)`.
+#
+# No son números elegidos: son los umbrales de temporada completa divididos entre 162, y los tres se
+# comprobaron contra los overrides que el dueño venía poniendo a mano temporada por temporada.
+#
+#   bateo    3.1 PA/juego   →  3.1 x 162 = 502, el umbral fijo de siempre. Sus overrides de 1958
+#                              (477), 1981 (332), 1994 (353) y 2020 (186) dan 154, 107, 114 y 60
+#                              juegos: la mediana de cada una de esas temporadas, clavada.
+#   pitcheo  1.0 IP/juego   →  162 IP. Igual: sus overrides de 1960, 1981, 1994 y 2020 son 154,
+#                              107, 114 y 60.
+#   fildeo   0.617 G/juego  →  100/162. Sus overrides dan 95/154, 66/108 y 37/60 = 0.617.
+#
+# O sea que la regla no se inventó acá: se leyó de lo que el dueño ya hacía a mano.
+POR_JUEGO: dict[str, tuple[str, float]] = {
+    "batting": ("PA", 502 / 162),
+    "pitching": ("IP", 162 / 162),
+    "fielding": ("G", 100 / 162),
+}
+
+
+def prorated(group: str, games: int) -> str:
+    """El umbral de un oficio para una temporada de `games` juegos. Vacío si el oficio no se conoce.
+
+    Se redondea al entero más cercano porque un umbral con decimales no se puede explicar en el pie
+    de una tabla: «PA ≥ 331,7» invita a preguntar de dónde sale el 0,7.
+    """
+    regla = POR_JUEGO.get(group)
+    if not regla or games <= 0:
+        return ""
+    campo, por_juego = regla
+    return f"{campo}>={round(games * por_juego)}"
+
+
+def resolve_season(
+    metric: Metric, season: int, defaults: Defaults, overrides: Overrides, games: int | None = None
+) -> str:
+    """El umbral de temporada, de lo más específico a lo más general.
+
+    EL ESCALÓN NUEVO ES `games` (2026-07-28)
+    ----------------------------------------
+    Antes el último escalón era un número fijo —`PA>=502`— y eso mentía en cuanto la temporada no
+    llegaba a 162 juegos. Medido: con 107 juegos jugados, 2026 publicaba CERO líderes de AVG, OBP,
+    OPS, wOBA, wRC+, ERA y WHIP porque nadie llegaba a 502 apariciones. Y en silencio pasaba lo
+    mismo con 1995, una temporada de 145 juegos que nadie había corregido a mano.
+
+    `games` va DEBAJO del override del dueño y del umbral propio de la métrica, y ARRIBA del fijo:
+
+        override del dueño  →  el de la métrica  →  3.1 x juegos  →  el fijo del oficio
+             (manda)            (métricas raras)      (la regla)         (la red)
+
+    El fijo no se retira: es lo que queda si no sabemos los juegos de esa temporada —el proxy caído,
+    un año que la fuente no cubra— y publicar sin umbral sería peor que publicar con uno estricto.
+
+    QUIÉN DECIDE CUÁNTOS JUEGOS. Esta función no lo sabe y no debe saberlo: recibe el número ya
+    resuelto. Quien llama es quien tiene el dato —los juegos del equipo del jugador, o el máximo de
+    su liga si lo cambiaron a mitad de temporada— y esa decisión vive junto a esos datos.
+    """
     override = overrides.get((metric.stat_group, season))
     if override:
         return override
     if metric.qualifier_season:
         return metric.qualifier_season
+    if games:
+        prorrateado = prorated(metric.stat_group, games)
+        if prorrateado:
+            return prorrateado
     return defaults.get(metric.stat_group, ("", ""))[0]
 
 

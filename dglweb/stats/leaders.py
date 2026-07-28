@@ -12,13 +12,14 @@ Value:
 """
 
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
 
 from django.db import models, transaction
 
 from dglweb.players.visibility import only_visible
 from dglweb.stats import career_rate, locks, qualifier
+from dglweb.stats.leagues import COMBINED_LEAGUE, COMBINED_TEAM
 from dglweb.stats.models import (
     Batting,
     BattingPost,
@@ -112,7 +113,12 @@ def _totals(metric: Metric, pos: str | None) -> list[dict[str, Any]]:
         qualifier.field_column(metric.stat_group, formula)
         for formula in (metric.qualifier_season, metric.qualifier_career)
     ]
-    columns = list(dict.fromkeys(["player_id", "season", metric.column, qualifier_col, *filter(None, own)]))
+    # `team` y `league` entran para poder prorratear el umbral por los juegos de SU equipo. En una
+    # temporada repartida entre clubes vienen con los centinelas combinados (`XXX`/`XX`), y ahí se cae
+    # al máximo de la liga — ver `_juegos_de`.
+    columns = list(
+        dict.fromkeys(["player_id", "season", "team", "league", metric.column, qualifier_col, *filter(None, own)])
+    )
     return list(rows.values(*columns))
 
 
@@ -138,6 +144,33 @@ def _needs_qualifier(metric: Metric, descending: bool) -> bool:
     return metric.kind == Metric.Kind.RATE or not descending
 
 
+def _juegos_de(
+    row: dict[str, Any],
+    por_equipo: Mapping[tuple[int, str], int],
+    por_liga: Mapping[tuple[int, str], int],
+) -> int | None:
+    """Cuántos juegos jugó el equipo de esta fila. `None` si no se sabe, y ahí manda el umbral fijo.
+
+    Un traspasado a mitad de temporada llega con el centinela `XXX` de equipo combinado: no tuvo UN
+    equipo, así que no hay juegos suyos que consultar. Se usa el máximo de su liga, que es el
+    calendario más largo que alguien de esa liga llegó a jugar.
+
+    Si además cambió de liga, el centinela también está en `league` y no queda nada a lo que
+    agarrarse: devuelve `None` y la fila se mide con el umbral fijo. Son un puñado de casos al año y
+    el fijo es el más exigente, así que el error va del lado de dejar fuera, no de colar a alguien.
+    """
+    temporada = row["season"]
+    equipo = row.get("team")
+    if equipo and equipo != COMBINED_TEAM:
+        propios = por_equipo.get((temporada, equipo))
+        if propios:
+            return propios
+    liga = row.get("league")
+    if liga and liga != COMBINED_LEAGUE:
+        return por_liga.get((temporada, liga))
+    return None
+
+
 def _season_leaders(
     metric: Metric,
     board: str,
@@ -146,6 +179,8 @@ def _season_leaders(
     descending: bool,
     defaults: qualifier.Defaults,
     overrides: qualifier.Overrides,
+    por_equipo: Mapping[tuple[int, str], int],
+    por_liga: Mapping[tuple[int, str], int],
 ) -> list[Leader]:
     by_season: dict[int, list[tuple[int, float]]] = {}
     for row in rows:
@@ -153,7 +188,8 @@ def _season_leaders(
         if value is None or (metric.exclude_zeros and value == 0):
             continue
         if _needs_qualifier(metric, descending):
-            formula = qualifier.resolve_season(metric, row["season"], defaults, overrides)
+            juegos = _juegos_de(row, por_equipo, por_liga)
+            formula = qualifier.resolve_season(metric, row["season"], defaults, overrides, juegos)
             if not qualifier.qualifies(formula, metric.stat_group, row):
                 continue
         by_season.setdefault(row["season"], []).append((row["player_id"], _leader_value(metric, float(value))))
@@ -437,6 +473,31 @@ def _postseason_rate_leaders(metric: Metric) -> list[Leader]:
     return leaders
 
 
+def _juegos_por_equipo() -> tuple[dict[tuple[int, str], int], dict[tuple[int, str], int]]:
+    """Dos diccionarios: juegos por (temporada, equipo) y el MÁXIMO por (temporada, liga).
+
+    El segundo es para el jugador traspasado a mitad de temporada, que no tiene un solo equipo al que
+    preguntarle. Se usa el máximo de su liga —no la mediana— porque es el calendario más largo que
+    alguien de esa liga llegó a jugar: nadie queda calificado por juegos que su liga no disputó.
+
+    Que haga falta partirlo por liga lo prueba 1961: la Americana se expandió a 10 equipos y pasó a
+    162 juegos mientras la Nacional seguía con 8 y 154. Un número único habría pedido 21 apariciones
+    de más a la mitad de los jugadores de ese año.
+
+    Se cargan de una vez, como los umbrales: son ~1.900 filas y la alternativa es una consulta por
+    fila de tablero.
+    """
+    from dglweb.stats.models import TeamSeasonGames
+
+    por_equipo: dict[tuple[int, str], int] = {}
+    por_liga: dict[tuple[int, str], int] = {}
+    for temporada, liga, equipo, partidos in TeamSeasonGames.objects.values_list("season", "league", "team", "games"):
+        por_equipo[temporada, equipo] = partidos
+        clave = (temporada, liga)
+        por_liga[clave] = max(por_liga.get(clave, 0), partidos)
+    return por_equipo, por_liga
+
+
 def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int]:
     """Rebuild `dgl_leader` from scratch. Returns {written, prorated_rate_career}."""
     defaults: qualifier.Defaults = {
@@ -445,6 +506,7 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
     overrides: qualifier.Overrides = {
         (o.stat_group, o.season): o.qualifier_season for o in QualifierSeasonOverride.objects.all()
     }
+    juegos = _juegos_por_equipo()
 
     sums_cache: dict[tuple[str, str | None, int], dict[int, dict[str, Any]]] = {}  # per (group, pos, floor)
     written = prorated = 0
@@ -477,7 +539,7 @@ def build_leaders(note: Callable[[str], None] = lambda _: None) -> dict[str, int
                             buffer += _prorated_career_rate_leaders(metric, board, pos, descending, rows, formula)
                             prorated += 1
                     elif scope == "season":
-                        buffer += _season_leaders(metric, board, pos, rows, descending, defaults, overrides)
+                        buffer += _season_leaders(metric, board, pos, rows, descending, defaults, overrides, *juegos)
                     else:
                         buffer += _career_leaders(metric, board, pos, rows, descending, defaults)
                     if len(buffer) >= _BATCH:

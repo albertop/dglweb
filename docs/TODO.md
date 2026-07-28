@@ -811,26 +811,46 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [x] **QA-03 — el scheduler encadena por horario, no por workflow.** **Corregido** con `refresh_daily` — es el mismo ítem que QA-01 + ARCH-01 del v6, que es donde se sigue. Anotado tres veces en tres reviews; se cuenta una.
   ~~ Ya está en `MEJORAS_FUTURAS.md`
   como "A DISCUTIR". El review coincide.
-- [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.**
+- [x] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** **HECHO (2026-07-28).**
 
-      ⚠️ **El puntero que tenía acá estaba MAL y escondía el problema.** Decía «es el mismo ítem que
-      SAB-01 del v6», pero el SAB-01 del v6 era otra cosa —validar la cobertura por (temporada,
-      oficio)— y quedó corregido. O sea que esto llevaba contándose como duplicado, sin serlo.
+      Llevaba semanas contándose como duplicado por un puntero mal puesto —decía «es el mismo ítem
+      que SAB-01 del v6» y no lo era— así que nadie lo miraba. Verificado, era un fallo visible: los
+      tableros de tasa de 2026 estaban **vacíos**. Cero líderes de AVG, OBP, OPS, wOBA, wRC+, ERA y
+      WHIP, contra 27/27/27/21/21/13/8 en 2025.
 
-      **Verificado el 2026-07-28, y pasa AHORA MISMO en el sitio:** todos los tableros de tasa de
-      2026 están **vacíos**. AVG, OBP y OPS tienen 27 líderes cada uno en 2025 y **cero** en 2026;
-      wOBA y wRC+, 21 y cero; ERA, 13 y cero; WHIP, 8 y cero. El umbral es `PA>=502` —temporada
-      completa— y el dominicano con más apariciones lleva **464**. A finales de julio no califica
-      nadie, y en abril menos.
+      **502 nunca fue un número mágico: es 3,1 x 162.** El umbral fijo ya era la regla prorrateada
+      aplicada a una temporada completa; lo que faltaba era aplicarla cuando la temporada no llega a
+      162 juegos. Y eso pasa más de lo que parece: la en curso, las huelgas de 1972/1981/1994, la
+      pandemia de 2020 y los calendarios de 154 juegos de antes de 1961.
 
-      Peor que vacío: es **inconsistente**. Los coeficientes (GB%, FB%, LD%, PU%) sí publican para
-      2026 porque traen su propio umbral sobre batazos en juego, así que la página enseña unas tablas
-      llenas y otras vacías sin decir por qué.
+      **La regla se leyó de lo que el dueño ya hacía a mano.** Sus overrides implican 154, 107, 114 y
+      60 juegos para 1958, 1981, 1994 y 2020 — la mediana de cada temporada, clavada. De ahí salen
+      los tres coeficientes: bateo 3,1 PA/juego, pitcheo 1,0 IP/juego, fildeo 0,617 G/juego
+      (= 100/162). La fórmula reproduce sus seis overrides exactamente.
 
-      La salida propuesta por el reviewer sigue siendo buena: prorratear contra los juegos del equipo
-      (`PA >= 3.1 * team_games`), que es la regla de MLB para los líderes en curso. Requiere saber
-      cuántos juegos lleva el equipo, que es dato que el proxy da.
-  ~~ Mismo caso: ya identificado.
+      **Tabla `dgl_team_season_games`, con grano (temporada, liga, equipo).** Las tres columnas hacen
+      falta: por equipo, porque en 1981 el rango fue 103-111 juegos y los 26 quedaron fuera de la
+      mediana; por liga, porque un equipo CAMBIA de liga (Astros a la Americana en 2013) y porque es
+      la llave para el traspasado. Que la liga importa lo prueba **1961**: la Americana se expandió a
+      10 equipos y 162 juegos mientras la Nacional seguía con 8 y 154 — un número único habría pedido
+      21 apariciones de más a media liga.
+
+      **El traspasado** (7,5% de las temporadas-jugador) usa el máximo de SU liga: es el calendario
+      más largo que alguien de esa liga jugó, así que nadie califica por juegos que su liga no
+      disputó. Si además cambió de liga, se cae al fijo — el más exigente, así que el error va del
+      lado de dejar fuera.
+
+      **La cascada queda:** override del dueño → umbral de la métrica → 3,1 x juegos → fijo del
+      oficio. **No se borró nada.** Sus overrides siguen mandando, `qualifier_career` no se toca —un
+      umbral de carrera no se prorratea— y el fijo pasa a ser la red por si el proxy no responde.
+
+      **Medido tras reconstruir:** 2026 pasó de **0 a 17** dominicanos que califican en bateo. En
+      1995 no cambió nada (8 y 8): el sesgo era real pero ningún dominicano cayó entre 446 y 501
+      apariciones ese año. El pie de la tabla ahora explica el número — «PA ≥ 332 (107 juegos)».
+
+      Relleno histórico: 1.856 filas, 71 temporadas, 23 segundos. `build_team_games` va como PRIMER
+      paso del refresco diario, antes que los líderes que lo consumen.
+
 - [x] **SEC-02 / SEC-03 — CDN sin SRI/CSP; Ofelia con socket.** **Cerrado (2026-07-27)**, en tres
   piezas y por caminos distintos:
 

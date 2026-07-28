@@ -1908,3 +1908,67 @@ class RosterMove(models.Model):
 
     def __str__(self) -> str:
         return f"{self.fecha} {self.nombre}: {self.type_desc}"
+
+
+class TeamSeasonGames(models.Model):
+    """Cuántos juegos jugó cada equipo en cada temporada. La base del umbral prorrateado.
+
+    POR QUÉ EXISTE
+    --------------
+    El umbral de un tablero de tasas —«PA >= 502»— no es un número mágico: es `3,1 x 162`, o sea la
+    regla de MLB aplicada a una temporada completa. Escrito fijo, miente en cuanto la temporada no
+    llega a 162 juegos, y eso pasa más de lo que parece:
+
+    - **La temporada en curso.** Medido el 2026-07-28, con 107 juegos jugados el umbral correcto era
+      332 y el fijo pedía 502. Resultado: TODOS los tableros de tasa de 2026 estaban vacíos — cero
+      líderes de AVG, OBP, OPS, wOBA, wRC+, ERA y WHIP, contra 27, 27, 27, 21, 21, 13 y 8 en 2025.
+    - **Las temporadas cortas.** 1981 y 1994 por huelga, 2020 por la pandemia, y los calendarios de
+      154 juegos de antes de 1961. El dueño las venía corrigiendo a mano con overrides, y funcionaba
+      hasta que se pasaba una: **1995** (145 juegos) no tenía override y publicaba con umbral de
+      temporada completa — un 12% más exigente de lo que tocaba, en silencio.
+
+    EL GRANO ES (TEMPORADA, LIGA, EQUIPO), Y LAS TRES COLUMNAS HACEN FALTA
+    ---------------------------------------------------------------------
+    **Equipo**, porque no todos juegan lo mismo: en 1981 el rango fue de 103 a 111 juegos y los 26
+    equipos quedaron fuera de la mediana. En 2008 y 1998, 8 de 30.
+
+    **Liga**, y no derivada del maestro de equipos, por dos razones. La primera es que un equipo
+    CAMBIA de liga —los Astros pasaron a la Americana en 2013— así que la liga de un equipo solo
+    tiene sentido junto a su temporada; el maestro solo sabe la de hoy. La segunda es que se usa como
+    llave de agrupación: al jugador traspasado a mitad de temporada no se le puede pedir «los juegos
+    de su equipo» porque tuvo dos, así que se usa el máximo de su liga ese año. Sin esta columna ese
+    máximo no se puede calcular.
+
+    Que eso importa lo prueba **1961**: la Americana se expandió a 10 equipos y pasó a 162 juegos
+    mientras la Nacional seguía con 8 y 154. Un traspasado en la Nacional pide 484 y en la Americana
+    505 — con un número único para toda la liga se le exigirían 21 apariciones de más a la mitad de
+    los jugadores de ese año.
+
+    QUÉ NO ES
+    ---------
+    No sustituye a `QualifierSeasonOverride`: ese sigue mandando por encima de esto, porque es la
+    decisión del dueño y una regla no puede pisarla. Ni a `QualifierDefault.qualifier_career`, que no
+    se prorratea — un umbral de carrera no depende de los juegos de un año.
+    """
+
+    season = models.PositiveSmallIntegerField(verbose_name="Temporada")
+    # El código de dos letras del dueño (`AL`, `NL`, …), no el id numérico de MLB: es el mismo que
+    # llevan las filas de estadísticas, así que se puede cruzar sin traducir.
+    league = models.CharField(max_length=2, verbose_name="Liga")
+    team = models.CharField(max_length=3, verbose_name="Equipo")
+    games = models.PositiveSmallIntegerField(verbose_name="Juegos jugados")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Actualizado")
+
+    class Meta:
+        db_table = "dgl_team_season_games"
+        constraints = [
+            models.UniqueConstraint(fields=["season", "team"], name="uniq_team_season_games"),
+        ]
+        # Por (temporada, liga): es la consulta del traspasado, que pide el máximo de su liga.
+        indexes = [models.Index(fields=["season", "league"], name="idx_team_games_season_league")]
+        ordering = ["-season", "league", "team"]
+        verbose_name = "juegos por equipo y temporada"
+        verbose_name_plural = "juegos por equipo y temporada"
+
+    def __str__(self) -> str:
+        return f"{self.season} {self.team} ({self.league}): {self.games}"

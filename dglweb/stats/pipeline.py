@@ -36,7 +36,12 @@ from dglweb.stats.models import IngestRun
 from dglweb.stats.runlog import record_run, record_skip
 
 # Los insumos del día: lo que el proxy trae y nosotros guardamos.
-ENTRADAS = ("update_batting", "update_pitching", "update_fielding")
+#
+# `build_team_games` va PRIMERO y no con los derivados, aunque nada suyo dependa de las estadísticas:
+# de él sale el umbral prorrateado que `build_leaders` aplica al final. Si corriera después, los
+# tableros del día se construirían con los juegos de ayer — un día de menos, unas tres apariciones de
+# umbral. Poco, pero gratis de evitar poniéndolo en el orden correcto.
+ENTRADAS = ("build_team_games", "update_batting", "update_pitching", "update_fielding")
 # Los de octubre, con su propia ventana: en junio no hay postemporada que buscar.
 ENTRADAS_POST = ("update_batting_post", "update_pitching_post", "update_fielding_post")
 # Lo que se CALCULA a partir de lo anterior. En orden: los líderes de por vida leen los totales.
