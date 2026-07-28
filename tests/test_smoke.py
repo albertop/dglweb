@@ -92,7 +92,10 @@ def test_the_widget_zone_shows_the_stored_standouts(db):
 
     body = Client().get("/").content
 
-    assert b"Destacados del" in body
+    # «Destacados» a secas: la fecha salió del título cuando el widget pasó a mezclar dos jornadas
+    # —dentro del título afirmaba de todas las filas algo que solo valía para las de arriba— y ahora
+    # va al costado como dato de contexto.
+    assert b"Destacados" in body
     assert b"3-4, 2B, HR, 4 RBI" in body
 
 

@@ -432,3 +432,53 @@ def test_a_day_without_games_is_not_a_failure(temporada: SeasonDates, monkeypatc
     call_command("build_daily_standouts", "--fecha", "2026-07-14")
 
     assert IngestRun.objects.get(command="build_daily_standouts").status == IngestRun.Status.SUCCESS
+
+
+@pytest.mark.django_db
+def test_la_ventana_son_dos_dias_consecutivos(temporada: SeasonDates) -> None:
+    """El «hoy» del widget es la jornada más reciente que haya, y el «ayer» es esa fecha menos uno.
+
+    Regla del dueño (2026-07-27), y no es lo mismo que «las dos fechas con datos»: acá hay un hueco
+    —falta la de hace tres días— y la de hace cuatro NO puede colarse a rellenar. Si lo hiciera,
+    saldría etiquetada «Ayer» siendo de otra semana, que es mentir en la única palabra que el lector
+    no puede verificar.
+    """
+    hoy = timezone.localdate()
+    for dias, pid in ((1, 500), (2, 501), (4, 502)):
+        DailyStandout.objects.create(
+            fecha=hoy - timedelta(days=dias),
+            grupo=DailyStandout.Grupo.BATEO,
+            player=_jugador(pid),
+            linea="3-4, HR",
+            valor=2.0,
+        )
+
+    datos = daily.portada()
+
+    assert datos is not None
+    assert datos["dia"] == hoy - timedelta(days=1)
+    assert [d.player.player_id for d in datos["destacados"]] == [500, 501]
+    assert [d.etiqueta for d in datos["destacados"]] == ["", "Ayer"]
+
+
+@pytest.mark.django_db
+def test_en_el_receso_se_cae_a_la_ultima_jornada_que_hubo(temporada: SeasonDates) -> None:
+    """La red para el Juego de Estrellas: cuatro días sin pelota dejan hoy y ayer vacíos.
+
+    Sin esta rama el widget desaparecería de la portada durante el receso, que es justo cuando menos
+    hay que enseñar. Se cae a la última jornada real —una sola— y la fecha del título avisa.
+    """
+    hoy = timezone.localdate()
+    DailyStandout.objects.create(
+        fecha=hoy - timedelta(days=4),
+        grupo=DailyStandout.Grupo.BATEO,
+        player=_jugador(600),
+        linea="3-4, HR",
+        valor=2.0,
+    )
+
+    datos = daily.portada()
+
+    assert datos is not None
+    assert datos["dia"] == hoy - timedelta(days=4)
+    assert [d.player.player_id for d in datos["destacados"]] == [600]

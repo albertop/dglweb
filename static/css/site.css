@@ -1283,3 +1283,11 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   font-size: .62rem; letter-spacing: .04em; text-transform: uppercase; color: #6b7280;
   border: 1px solid #dde3ea; border-radius: .25rem; padding: 0 .25rem; white-space: nowrap;
 }
+
+/* La fecha de la jornada de referencia, al costado del título de destacados. Salió de dentro del
+   título cuando el widget pasó a mezclar dos días: ahí afirmaba de todas las filas algo que solo
+   valía para las de arriba. Como dato de contexto sigue haciendo falta —en el receso del Juego de
+   Estrellas es lo único que dice que lo que se ve no es de hoy— pero en peso de nota al margen. */
+.dgl-destacados-fecha {
+  font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; color: #6b7280; white-space: nowrap;
+}

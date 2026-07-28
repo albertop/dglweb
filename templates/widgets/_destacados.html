@@ -18,13 +18,19 @@ no esté a que esté hueco.
   <div class="dgl-destacados">
     <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
       {% comment %}
-        La fecha va DENTRO del título y no en una esquina: el widget muestra la jornada más reciente
-        CON destacados, que en el receso del Juego de Estrellas no es la de ayer. Sin decir cuál es,
-        el título afirma algo que el lector no puede comprobar.
+        El título ya NO lleva la fecha dentro. La llevaba —«Destacados del 26 Jul»— cuando el widget
+        enseñaba una sola jornada; ahora mezcla dos, así que esa frase afirmaba de todas las filas
+        algo que solo valía para las de arriba.
+
+        La fecha no se pierde: se va al costado, como dato de contexto y no como parte de la
+        afirmación. Es la de la jornada de referencia, y las filas del día anterior se distinguen
+        solas con su etiqueta «Ayer». Sin ella, en el receso del Juego de Estrellas el lector no
+        tendría forma de saber que lo que ve es de hace cuatro días.
       {% endcomment %}
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="destacados-titulo">
-        Destacados del {{ destacados.dia|date:"j M" }}
+        Destacados
       </h2>
+      <span class="dgl-destacados-fecha">{{ destacados.dia|date:"j M" }}</span>
     </div>
 
     {% comment %}

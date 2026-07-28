@@ -357,26 +357,6 @@ VISIBLES = 6
 MAXIMO = 12
 
 
-def _cuando(fecha: date) -> str:
-    """Cómo se nombra una jornada que no es la de arriba: «Ayer», o la fecha si queda más lejos.
-
-    No siempre es ayer, y por eso no se escribe fijo: tras el receso del Juego de Estrellas la
-    segunda jornada con destacados puede ser de hace cuatro días, y llamarla «Ayer» sería mentir en
-    la única palabra que el lector no puede verificar.
-    """
-    from django.utils import timezone
-
-    hoy = timezone.localdate()
-    if fecha == hoy - timedelta(days=1):
-        return "Ayer"
-    return f"{fecha.day} {MESES[fecha.month - 1]}"
-
-
-# Abreviados a mano y no con `date_format`: la etiqueta va en un hueco de tres caracteres al lado del
-# nombre, y el formato corto de Django mete el punto («jul.») que acá no cabe.
-MESES = ("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
-
-
 def _pasan_el_piso() -> Any:  # noqa: ANN401 — es un `Q` de Django, tipado como Any para no importarlo arriba
     """El filtro «esto sí es una actuación destacada», con el piso de cada oficio.
 
@@ -431,19 +411,30 @@ def portada() -> dict[str, Any] | None:
     Devuelve `None` cuando no hay nada que pase el piso, para que la plantilla no dibuje el panel
     hueco. Un widget vacío se lee como un sitio roto.
     """
+
     from dglweb.stats.models import DailyStandout
 
-    # Las dos últimas fechas CON ALGUIEN QUE PASE EL PISO, no las dos últimas guardadas. Con la carga
-    # horaria, «hoy» empieza a existir a media tarde con cero destacados: mirar lo guardado gastaría
-    # uno de los dos huecos en una fecha que no aporta ninguna fila.
+    # LA ÚLTIMA JORNADA CON DESTACADOS, Y LA DE ANTES DE ELLA. Decisión del dueño (2026-07-27): el
+    # «hoy» del widget es la fecha más alta que tengamos de un juego terminado, y el «ayer» es esa
+    # fecha menos uno. No el calendario.
     #
-    # Dos y no más porque el widget es de actualidad. Un destacado de anteayer ya no es noticia, y
-    # con `MAXIMO` en doce las dos fechas dan de sobra para llenarlo.
-    fechas = list(
-        DailyStandout.objects.filter(_pasan_el_piso()).order_by("-fecha").values_list("fecha", flat=True).distinct()[:2]
+    # La diferencia importa dos veces al día. A las 10 de la mañana el calendario dice 27 y no hay
+    # nada del 27: con la regla del calendario el widget enseñaría solo el 26 y perdería el contexto
+    # del 25. Y al revés, la primera versión de esto pedía «las dos fechas más recientes que tengan
+    # datos», que con un hueco de por medio metía anteayer disfrazado de ayer.
+    #
+    # Anclando en la referencia, «Ayer» significa siempre lo mismo: el día anterior a la jornada que
+    # se está enseñando. Es la única lectura que no obliga al lector a saber qué día es hoy.
+    referencia = (
+        DailyStandout.objects.filter(_pasan_el_piso()).order_by("-fecha").values_list("fecha", flat=True).first()
     )
-    if not fechas:
+    if referencia is None:
         return None
+
+    anterior = referencia - timedelta(days=1)
+    fechas = [referencia]
+    if DailyStandout.objects.filter(_pasan_el_piso(), fecha=anterior).exists():
+        fechas.append(anterior)
 
     from dglweb.stats import videos
 
@@ -470,7 +461,7 @@ def portada() -> dict[str, Any] | None:
                 grupo=fila.grupo,
                 valor=fila.valor,
                 fecha=fila.fecha,
-                etiqueta="" if fila.fecha == fechas[0] else _cuando(fila.fecha),
+                etiqueta="" if fila.fecha == referencia else "Ayer",
             )
             for fila in elegidas
         ),
@@ -479,7 +470,7 @@ def portada() -> dict[str, Any] | None:
     )[:MAXIMO]
 
     return {
-        "dia": fechas[0],
+        "dia": referencia,
         "destacados": lista,
         # Los que caben sin desplegar y los que quedan detrás del botón. El corte se decide ACÁ y no
         # midiendo en el navegador —como sí hace el widget de líderes, cuya rejilla cambia de columnas
