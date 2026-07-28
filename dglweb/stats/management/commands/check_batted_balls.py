@@ -11,8 +11,13 @@ Qué busca: filas donde los cuatro tipos de batazo —outs de MLB más hits de R
 los `balls_in_play` que reportó el proxy. Cuando eso pasa, GB%+FB%+LD%+PU% pasa de 100%, que es
 imposible y a simple vista no se nota: un GB% de 41 no tiene nada de raro por sí solo.
 
-Sale con código 1 si encuentra algo por encima de la tolerancia y fuera de `ACEPTADAS`, para poder
-colgarlo de un job sin leer la salida.
+**SALE SIEMPRE EN CERO salvo que se pida `--estricto`.** Regla del dueño (2026-07-27): ningún proceso
+automático se detiene porque MLB entregue data mala. Ellos son la autoridad y nosotros consumidores;
+si el dato viene descuadrado no hay nada que podamos hacer salvo dejar constancia y seguir. Este
+comando informa — no es un portero.
+
+`--estricto` existe para la auditoría a mano, cuando alguien quiere el código de salida para
+encadenarlo con otra cosa. **No lo cuelgues de un job.**
 """
 
 from typing import Any
@@ -80,6 +85,11 @@ class Command(BaseCommand):
             default=TOLERANCIA,
             help=f"Batazos de más que se dan por ruido de la fuente (por defecto {TOLERANCIA}).",
         )
+        parser.add_argument(
+            "--estricto",
+            action="store_true",
+            help="Sale con código 1 si hay descuadres. Para auditar a mano, NO para un job.",
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         desde: int = options["desde"]
@@ -143,9 +153,14 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("Ningún coeficiente imposible fuera de lo esperado."))
             return
 
-        self.stdout.write(self.style.ERROR(f"{len(malas)} fila(s) con coeficientes imposibles:"))
+        self.stdout.write(self.style.WARNING(f"{len(malas)} fila(s) con coeficientes imposibles:"))
         for linea in malas[:limite]:
             self.stdout.write(f"  {linea}")
         if len(malas) > limite:
             self.stdout.write(f"  … y {len(malas) - limite} más.")
-        raise SystemExit(1)
+        self.stdout.write(
+            "Es dato de la fuente y no hay nada que corregir de nuestro lado. Queda constancia."
+        )
+        # El código de salida solo con `--estricto`. Por defecto cero: ver la cabecera del módulo.
+        if options["estricto"]:
+            raise SystemExit(1)

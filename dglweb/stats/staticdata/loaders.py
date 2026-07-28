@@ -6,6 +6,7 @@ adivinar: qué columna del CSV es qué campo, cómo se resuelve una referencia e
 ESTE dataset esté sano.
 """
 
+import logging
 from datetime import date
 from typing import Any, ClassVar
 
@@ -20,6 +21,8 @@ from dglweb.stats.models import (
     fechas_fuera_de_orden,
 )
 from dglweb.stats.staticdata.engine import Loader, Problem, register
+
+logger = logging.getLogger(__name__)
 
 _GROUPS = {"batting", "pitching"}
 # Piso de cobertura POR TEMPORADA (no por fila — ver `checks`).
@@ -212,26 +215,35 @@ class BattedBallHitsLoader(Loader):
                 # los hits nuevos. Si los cuatro tipos no caben en los batazos que reportó el proxy,
                 # las cuatro proporciones suman más de 100%: imposible.
                 #
-                # SE COMPARA, no se mira solo el resultado. La primera versión abortaba con cualquier
-                # exceso, y eso estaba mal: la auditoría destapó que ya hay una fila así en la base
-                # —Soriano 2010, 165 batazos contra 164 BIP— con los hits del propio proxy, o sea una
-                # inconsistencia de MLB consigo mismo que no tiene nada que ver con este CSV. Con la
-                # regla ingenua, un import legítimo se caía entero por una fila que ya estaba rota
-                # desde antes, y el mensaje habría señalado al CSV equivocado.
+                # AVISA Y SIGUE. NUNCA CORTA. Regla del dueño (2026-07-27), y no es pereza:
                 #
-                # La regla correcta es: lo que cargamos no puede EMPEORARLO. El ruido que ya venía de
-                # la fuente se deja pasar y lo reporta `manage.py check_batted_balls`, que es la
-                # herramienta para eso.
+                #   «MLB es la máxima autoridad y nosotros simples consumidores. Si nos dan data
+                #   mala, ¿qué podemos hacer? Hay que aceptarlo y seguir adelante.»
+                #
+                # La versión anterior levantaba `ValueError` acá dentro, o sea abortaba la
+                # transacción del import entero. Eso convertía un descuadre de UN batazo en la fuente
+                # —Soriano 2010, medido: 165 contra 164— en una carga que no entra, un job en rojo y
+                # a alguien depurando un CSV que estaba bien. El precio de parar es enorme y el de
+                # seguir es un porcentaje 0,6 puntos raro que nadie suma en pantalla.
+                #
+                # Se sigue midiendo antes y después para poder decir en el aviso si el descuadre lo
+                # trajimos nosotros o ya venía; el recuento completo lo da `check_batted_balls`.
                 antes = batted_ball_excess(_as_dict(linea))
                 for campo in ("ground_hits", "fly_hits", "line_hits", "pop_hits"):
                     setattr(linea, campo, nuevo[campo])
                 despues = batted_ball_excess(_as_dict(linea))
-                if despues is not None and despues > 0 and (antes is None or despues > antes):
-                    raise ValueError(
-                        f"jugador {linea.player_id} {linea.season} ({group}): con estos hits, los "
-                        f"cuatro tipos de batazo superan en {despues} a los {linea.balls_in_play} "
-                        f"balls in play (antes: {antes}). Los coeficientes sumarían más de 100%. "
-                        "Ver SAB-02 en docs/TODO.md."
+                if despues is not None and despues > 0:
+                    origen = "ya venía así" if antes is not None and antes >= despues else "lo empeora este CSV"
+                    logger.warning(
+                        "Batazos por encima de BIP (%s): jugador %s %s (%s) — %s de más sobre %s "
+                        "balls in play. Los coeficientes suman más de 100%%. Se carga igual; "
+                        "auditar con `manage.py check_batted_balls`.",
+                        origen,
+                        linea.player_id,
+                        linea.season,
+                        group,
+                        despues,
+                        linea.balls_in_play,
                     )
                 for campo, valor in batted_ball_coefficients(_as_dict(linea)).items():
                     setattr(linea, campo, valor)

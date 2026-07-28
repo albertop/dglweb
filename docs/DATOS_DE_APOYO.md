@@ -193,9 +193,23 @@ Los cuatro tipos son una partición de los batazos, así que **sus proporciones 
 cuenta. Se mide con `derive.batted_ball_excess()`, en batazos enteros y no en proporciones: son
 exactos, así que `> 0` es una respuesta limpia sin epsilon que calibrar.
 
-Se aplica en dos momentos: `post_apply` aborta la transacción si **lo que se carga empeora** el
-desajuste —no si simplemente lo hay, ver abajo— y `manage.py check_batted_balls` audita lo que ya
-está guardado.
+### Regla de oro: esto AVISA, nunca corta
+
+**Ningún proceso automático se detiene porque MLB entregue data mala.** Decisión del dueño
+(2026-07-27), y el razonamiento es difícil de discutir: MLB es la máxima autoridad y nosotros
+simples consumidores. Si el dato viene descuadrado, no hay nada que podamos corregir de nuestro
+lado — parar el proceso no arregla el número y sí rompe todo lo que venga detrás.
+
+Por eso:
+
+- `post_apply` **escribe un `logging.warning` y sigue**. Una versión anterior levantaba `ValueError`
+  ahí dentro, o sea abortaba la transacción del import entero: un descuadre de UN batazo en la fuente
+  se convertía en una carga que no entra, un job en rojo y alguien depurando un CSV que estaba bien.
+- `manage.py check_batted_balls` **sale siempre en cero**, salvo que se le pase `--estricto`, que
+  existe para auditar a mano. **No lo cuelgues de un job.**
+
+El coste de seguir es un porcentaje 0,6 puntos raro que nadie suma en pantalla. El de parar es la
+carga entera.
 
 ### Anomalía conocida y aceptada: Rafael Soriano 2010
 

@@ -299,3 +299,54 @@ def test_coverage_is_measured_per_trade_not_just_per_season() -> None:
     flojas = [p for p in problems if "por debajo" in p.message]
     assert len(flojas) == 1
     assert flojas[0].rows == ["2000 (pitching): 10 de 1,000 hits con trayectoria (1.0%)"]
+
+
+@pytest.mark.django_db
+def test_post_apply_avisa_de_los_batazos_imposibles_pero_nunca_corta(caplog: Any) -> None:
+    """Regla del dueño (2026-07-27): ningún proceso se detiene porque MLB entregue data mala.
+
+    MLB es la autoridad y nosotros consumidores. Si el dato viene descuadrado no hay nada que
+    podamos corregir, así que se deja constancia y se sigue. La versión anterior levantaba
+    `ValueError` acá dentro, o sea abortaba la transacción del import entero: un descuadre de UN
+    batazo en la fuente se convertía en una carga que no entra y alguien depurando un CSV sano.
+
+    Lo que se prueba es lo que NO pasa: que la carga termine y que la fila quede escrita.
+    """
+    import logging
+
+    from dglweb.players.models import Player
+    from dglweb.stats.models import Pitching
+    from dglweb.stats.staticdata.loaders import BattedBallHitsLoader
+    from tests.test_players import _other_player
+
+    jugador = Player.objects.create(**_other_player(player_id=7, dgl_id="z01", full_name="Un Lanzador"))
+    # 60 outs contra 61 BIP, y el CSV trae 5 hits: 65 batazos donde caben 61.
+    Pitching.objects.create(
+        player=jugador,
+        season=2010,
+        stint=1,
+        balls_in_play=61,
+        ground_outs=30,
+        fly_outs=20,
+        line_outs=5,
+        pop_outs=5,
+        ground_hits=0,
+        fly_hits=0,
+        line_hits=0,
+        pop_hits=0,
+    )
+    fila = {
+        "player_id": jugador.pk,
+        "season": 2010,
+        "stat_group": "pitching",
+        "ground_hits": 2,
+        "fly_hits": 2,
+        "line_hits": 1,
+        "pop_hits": 0,
+    }
+
+    with caplog.at_level(logging.WARNING):
+        BattedBallHitsLoader().post_apply([fila])  # no levanta nada
+
+    assert "por encima de BIP" in caplog.text
+    assert Pitching.objects.get().ground_hits == 2, "la carga tiene que haber entrado igual"

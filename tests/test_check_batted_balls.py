@@ -2,6 +2,9 @@
 
 Lo que se protege acá es que el comando SIRVA, que no es lo mismo que que funcione:
 
+- Que **nunca corte nada**. Regla del dueño: ningún proceso se detiene porque MLB entregue data
+  mala. Por eso el comando sale en cero salvo que se le pida `--estricto`, y por eso el import
+  avisa y sigue en vez de abortar la transacción.
 - Que encuentre el descuadre grande, obviamente.
 - Que el ruido de una unidad no lo tumbe. Si cada corrida terminara en rojo por un batazo suelto,
   nadie volvería a correrlo y el comando dejaría de valer para lo que se construyó.
@@ -43,12 +46,26 @@ def _fila(exceso: int = 0, season: int = 2015, pid: int = 400089) -> None:
 
 
 @pytest.mark.django_db
-def test_un_descuadre_grande_hace_fallar_el_comando(capsys: Any) -> None:
+def test_un_descuadre_grande_se_reporta_pero_no_corta(capsys: Any) -> None:
+    """Lo importante es la segunda mitad: NO levanta `SystemExit`.
+
+    Un descuadre así es dato de la fuente, y no hay nada que podamos corregir de nuestro lado.
+    Parar el proceso no arregla el número y sí rompe todo lo que venga detrás.
+    """
+    _fila(exceso=5)
+    call_command("check_batted_balls")
+    salida = capsys.readouterr().out
+    assert "5 batazo(s) por encima de 100 BIP" in salida
+    assert "no hay nada que corregir de nuestro lado" in salida
+
+
+@pytest.mark.django_db
+def test_solo_estricto_devuelve_codigo_de_error(capsys: Any) -> None:
+    """El código de salida es opt-in, para auditar a mano. No para colgarlo de un job."""
     _fila(exceso=5)
     with pytest.raises(SystemExit) as salida:
-        call_command("check_batted_balls")
+        call_command("check_batted_balls", "--estricto")
     assert salida.value.code == 1
-    assert "5 batazo(s) por encima de 100 BIP" in capsys.readouterr().out
 
 
 @pytest.mark.django_db
@@ -79,8 +96,7 @@ def test_lo_tolerado_se_cuenta_aunque_no_se_liste(capsys: Any) -> None:
 def test_con_tolerancia_cero_hasta_un_batazo_falla(capsys: Any) -> None:
     """La regla estricta sigue disponible para auditar a fondo."""
     _fila(exceso=1)
-    with pytest.raises(SystemExit):
-        call_command("check_batted_balls", "--tolerancia", "0")
+    call_command("check_batted_balls", "--tolerancia", "0")
     assert "1 batazo(s) por encima de 100 BIP" in capsys.readouterr().out
 
 

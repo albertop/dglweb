@@ -667,8 +667,15 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 
   Tres piezas: `derive.batted_ball_excess()` hace la aritmética una sola vez y en batazos enteros —no
   en proporciones, para no tener que inventar un epsilon que acabaría escondiendo desajustes de una
-  unidad—; `post_apply` aborta la transacción si lo que se carga empeora el desajuste; y
-  `manage.py check_batted_balls` audita lo que ya está guardado.
+  unidad—; `post_apply` deja un `logging.warning`; y `manage.py check_batted_balls` audita lo que ya
+  está guardado.
+
+  **NADA DE ESTO CORTA NUNCA. Regla del dueño (2026-07-27):** ningún proceso automático se detiene
+  porque MLB entregue data mala. Ellos son la autoridad y nosotros consumidores; si el dato viene
+  descuadrado no hay nada que corregir de nuestro lado, y parar no arregla el número pero sí rompe
+  todo lo que venga detrás. La primera versión abortaba la transacción del import y eso convertía un
+  descuadre de UN batazo en la fuente en una carga que no entra. El comando sale en cero salvo
+  `--estricto`, que es para auditar a mano y no para colgarlo de un job.
 
   **La auditoría encontró una fila real**, y eso cambió el diseño de la guarda: **Rafael Soriano
   2010 (pitcheo)** tiene 129 outs + 36 hits = **165 batazos contra 164 BIP**, o sea coeficientes
