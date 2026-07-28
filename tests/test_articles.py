@@ -1105,3 +1105,38 @@ def test_el_menu_de_todas_las_paginas_tampoco_enlaza_un_indice_restringido(indic
     _restringir(indice)  # y esto, por sí solo, tiene que tirar la caché
 
     assert procesador(RequestFactory().get("/"))["indice_articulos"] == ""
+
+
+# ── La tarjeta no hereda el contexto de la página ───────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_solo_el_primero_del_indice_se_dibuja_como_destacado(indice: ArticleIndexPage, client: Client) -> None:
+    """El fallo que esto fija es de los que no se ven leyendo el código, solo mirando la pantalla.
+
+    `{% include %}` HEREDA el contexto de la página, y el índice tiene una variable `destacado` que es
+    EL ARTÍCULO destacado. Dentro de la tarjeta, `destacado` es una BANDERA de estilo. La colisión
+    hacía que `{% if destacado %}` diera verdadero en TODAS las tarjetas: el 2026-07-28, en
+    `/articulos/`, las diez salían con el titular a 24px en vez de 15 y la entradilla sin recortar.
+
+    Se arregló con `only` en los includes, y esta prueba es lo que impide que alguien lo quite por
+    parecer de más — porque el HTML sigue siendo válido sin él, solo se ve mal.
+    """
+    for numero in range(4):
+        _articulo(indice, f"Artículo {numero}")
+
+    html = client.get(indice.url).content.decode()
+
+    assert html.count('class="dgl-art dgl-art-destacado"') == 1
+    assert html.count('class="dgl-art"') == 3
+
+
+@pytest.mark.django_db
+def test_en_la_portada_el_grande_es_uno_solo(indice: ArticleIndexPage, client: Client) -> None:
+    """La portada arma la retícula por otro camino, así que la colisión hay que descartarla acá también."""
+    for numero in range(4):
+        _articulo(indice, f"Artículo {numero}")
+
+    html = client.get("/").content.decode()
+
+    assert html.count('class="dgl-art dgl-art-destacado"') == 1

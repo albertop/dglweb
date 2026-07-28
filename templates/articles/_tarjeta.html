@@ -4,8 +4,13 @@ eran dos bloques de HTML calcados y el primer cambio de estilo habría dejado un
 
 Parámetros:
   articulo   la página
-  destacado  horizontal y con la entradilla completa; sin esto, vertical y compacta
+  destacado  con el titular y la entradilla grandes; sin esto, compacta
   (el alto es fijo — 300px — para todas las tarjetas del sitio; ver `.dgl-art` en site.css)
+
+INCLÚYELA SIEMPRE CON `only`. `{% include %}` hereda el contexto de la página, y el índice tiene una
+variable llamada `destacado` que es EL ARTÍCULO destacado, no una bandera. Sin `only` esa variable se
+cuela acá dentro, `{% if destacado %}` da verdadero y TODA la retícula se dibuja como el destacado.
+Pasó: el 2026-07-28, en `/articulos/`, las diez tarjetas salían con el titular a 24px.
 
 La miniatura solo aparece si hay imagen. No se dibuja un rectángulo de relleno en su lugar: un hueco
 gris con el nombre del gráfico dentro es lo que hacían los mockups, y en producción se lee como una

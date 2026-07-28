@@ -92,7 +92,7 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
     </p>
     <div class="row g-3">
       {% for articulo in resultados %}
-        <div class="col-md-4">{% include "articles/_tarjeta.html" with articulo=articulo %}</div>
+        <div class="col-md-4">{% include "articles/_tarjeta.html" with articulo=articulo only %}</div>
       {% endfor %}
     </div>
 
@@ -120,10 +120,10 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
   {% if destacado %}
   <div class="row g-4">
     <div class="col-lg-8">
-      <div class="mb-4">{% include "articles/_tarjeta.html" with articulo=destacado destacado=True %}</div>
+      <div class="mb-4">{% include "articles/_tarjeta.html" with articulo=destacado destacado=True only %}</div>
       <div class="row g-3">
         {% for articulo in reticula %}
-          <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=articulo %}</div>
+          <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=articulo only %}</div>
         {% endfor %}
       </div>
     </div>
@@ -156,7 +156,7 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
         </section>
       {% endif %}
       {% for articulo in lateral %}
-        {% include "articles/_tarjeta.html" with articulo=articulo %}
+        {% include "articles/_tarjeta.html" with articulo=articulo only %}
       {% endfor %}
     </aside>
   </div>
@@ -169,7 +169,7 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
   {% if resto %}
     <div class="row g-3 mt-1">
       {% for articulo in resto %}
-        <div class="col-md-4">{% include "articles/_tarjeta.html" with articulo=articulo %}</div>
+        <div class="col-md-4">{% include "articles/_tarjeta.html" with articulo=articulo only %}</div>
       {% endfor %}
     </div>
   {% endif %}

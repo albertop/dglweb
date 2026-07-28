@@ -48,7 +48,7 @@
       hueco publicitario cambiaba de tamaño con cada publicación — un formato que no mide siempre
       igual no se puede vender.
     {% endcomment %}
-    <div class="col-lg-8">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True %}</div>
+    <div class="col-lg-8">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}</div>
     <div class="col-lg-4">
       <div class="dgl-ad dgl-ad-alto h-100">Espacio publicitario · 300×250</div>
     </div>
@@ -58,7 +58,7 @@
     <h2 class="dgl-section-title">Últimos artículos</h2>
     <div class="row g-3">
       {% for otro in articulos %}
-        <div class="col-md-6 col-lg-4">{% include "articles/_tarjeta.html" with articulo=otro %}</div>
+        <div class="col-md-6 col-lg-4">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
       {% endfor %}
     </div>
   {% endif %}

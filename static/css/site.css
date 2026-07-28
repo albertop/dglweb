@@ -887,9 +887,19 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   padding: .7rem .9rem .7rem; display: flex; flex-direction: column;
   flex: 1 1 auto; min-width: 0; overflow: hidden;
 }
-/* Recortado a dos líneas, con puntos suspensivos en la línea justa en vez de tajar a media palabra.
+/* Recortado a TRES líneas, con puntos suspensivos en la línea justa en vez de tajar a media palabra.
    Es la otra mitad del alto fijo: sin esto un titular largo desborda los 300px y se lo come el
    `overflow`, que corta a media altura de las letras y se ve como un error de dibujo.
+
+   Eran dos hasta el 2026-07-28, y las subió el dueño al ver un titular partido con puntos
+   suspensivos teniendo la tarjeta medio vacía debajo. Medido antes de cambiarlo, en el peor caso
+   —tarjeta CON banda de imagen, entradilla de dos líneas, etiquetas y meta— el contenido no desborda
+   ni en la retícula ni en el destacado: la banda es de alto fijo (65px, 70 en el destacado) y no
+   crece con el ancho, así que el margen es el mismo en todas. Con dos líneas sobraban entre 109 y
+   167px; la tercera cuesta 20 en la chica y 29 en el destacado.
+
+   La cuarta ya no cabe, y tampoco convendría: un titular que no entra en tres líneas es un titular
+   que hay que acortar, no una tarjeta que hay que agrandar.
 
    `flex-shrink: 0` es la parte que no se ve venir: `.pie` lleva `margin-top: auto` para quedar
    pegado abajo, y cuando el contenido no deja espacio libre el flex se cobra la diferencia
@@ -897,7 +907,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    por la mitad. No era el recorte fallando, era el flex apretando. */
 .dgl-art h3 {
   font-size: .95rem; font-weight: 750; letter-spacing: -.01em; line-height: 1.3; margin: .3rem 0 .45rem;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
   overflow: hidden; flex-shrink: 0;
 }
 .dgl-art h3 a { color: var(--dgl-ink); }
