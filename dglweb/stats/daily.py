@@ -24,13 +24,66 @@ de que un relevista de un inning no desplace a un abridor de siete, porque los o
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from dglweb.mlb.client import MlbProxyClient
+from dglweb.stats import scoreboard
 from dglweb.stats._download import fetch_team_codes
 
 _LIMITE = 8000
+
+# EL PISO PARA LLAMARSE DESTACADO. Decisión del dueño (2026-07-27), medida sobre 14 jornadas reales.
+#
+# Antes no había piso: se publicaba el top-3 y el top-2 pasara lo que pasara. Medido, eso ya
+# coronaba actuaciones que no lo son — el tercer bateador publicado bajaba hasta **0,25** en las
+# jornadas flojas (un 1-4 con sencillo) y el segundo lanzador hasta **46**, que en la escala de Tango
+# está por DEBAJO del promedio. Llamarle destacado a eso contradice la propia métrica.
+#
+# Los dos números son estándares, no inventos:
+#
+#   - **1,0 en bateo** es una carrera producida por encima de lo que habría dado un bateador
+#     promedio en esas mismas apariciones. La unidad sale de la propia matriz de pesos lineales.
+#     Deja fuera el 1-4 con sencillo y deja dentro el 2-4 con jonrón.
+#   - **50 en pitcheo** es, por definición, la salida promedio en Game Score v2.
+#
+# Con estos pisos se llenan 1,9 de los 3 huecos de bateo y 1,0 de los 2 de pitcheo al día. Que a
+# veces queden vacíos es la respuesta correcta: hubo jornadas en las que nadie destacó.
+#
+# El piso se aplica al MOSTRAR, no al guardar. La tabla es el registro de la jornada y se queda con
+# todos los que jugaron — cambiar el umbral no puede exigir volver a pedirle nada al proxy.
+PISO_BATEO = 1.0
+PISO_PITCHEO = 50.0
+
+# LA ESCALA COMÚN, para poder ordenar las dos listas juntas (decisión del dueño, 2026-07-27).
+#
+# Durante mucho tiempo acá NO se comparaban: dos listas separadas, porque un 3-4 y siete entradas de
+# una carrera no están en la misma unidad. El dueño decidió mezclarlas, y para eso hay que traducir.
+#
+# La traducción NO necesita ninguna constante inventada: sale de la propia fórmula de Game Score v2.
+#
+#   - El término `-3R` dice que **una carrera cuesta 3 puntos**.
+#   - **50 es, por definición, la salida promedio.**
+#
+# Luego `(GS - 50) / 3` son carreras por encima de una salida promedio — exactamente la unidad en la
+# que ya está el bateo, que son carreras producidas por encima del bateador promedio.
+#
+# Lo que sale de ahí es defendible aunque sorprenda: en las jornadas con buen pitcheo, los lanzadores
+# encabezan. Medido, una salida de 5.2 entradas sin carreras vale +6,7 y un juego de 2 jonrones
+# +2,2. En valor de carreras eso es correcto: evitar carreras rinde más que producirlas, y esa es
+# justamente la afirmación que hace la métrica.
+GS_PROMEDIO = 50.0
+PUNTOS_POR_CARRERA = 3.0
+
+
+def en_carreras(grupo: str, valor: float) -> float:
+    """El valor de una actuación en carreras sobre el promedio, venga del oficio que venga.
+
+    Es lo único que permite ordenar las dos listas juntas sin inventarse una equivalencia. El bateo
+    ya viene en esta unidad; el pitcheo se traduce desde Game Score — ver arriba.
+    """
+    return valor if grupo == "bateo" else (valor - GS_PROMEDIO) / PUNTOS_POR_CARRERA
+
 
 # Cómo se puntúa y cómo se describe una jornada. Van tipados en vez de `Any` para que agregar un
 # oficio nuevo falle en mypy si la firma no encaja, en vez de a mitad de una corrida.
@@ -253,6 +306,16 @@ class Destacado:
     team: str
     linea: str
     clips: tuple[Any, ...]  # `videos.Clip`
+    # `grupo` y `valor` NO se muestran: están para poder ordenar la lista mezclada en una misma
+    # unidad (`en_carreras`). Sin ellos habría que llevar dos listas paralelas —una para pintar y
+    # otra para ordenar— y basta con que se desincronicen una vez para publicar un orden falso.
+    grupo: str = "bateo"
+    valor: float = 0.0
+    fecha: date | None = None
+    # Lo que se dibuja al lado del nombre cuando la fila NO es de la jornada de arriba: «Ayer», o la
+    # fecha corta si el hueco es mayor. Vacío para las de la jornada de referencia — etiquetarlas
+    # todas sería repetir en seis filas lo que ya dice el título.
+    etiqueta: str = ""
 
     @property
     def foto(self) -> str:
@@ -279,71 +342,150 @@ class Destacado:
         return nombre_corto(self.player.full_name)
 
 
-# Hasta acá caben todos juntos y las pestañas sobran. Pasado eso, la lista se hace larga y conviene
-# separar los dos oficios, que además no se comparan entre sí.
-SIN_PESTANAS = 6
+# Cuántos destacados caben en el panel sin desplegar. NO es un número de diseño elegido a ojo: el
+# marco es una rejilla de 2 columnas por 3 filas con `overflow: hidden`, medida en el navegador, así
+# que seis es exactamente su capacidad. Poner otro número dejaría un hueco o cortaría una caja.
+#
+# Las pestañas por oficio que había acá se retiraron (decisión del dueño, 2026-07-27). Nunca llegaron
+# a dibujarse: se activaban pasados los 6 destacados y la portada pedía como mucho 5, así que la rama
+# estuvo muerta desde que se escribió. Un botón de «ver más» hace el mismo trabajo sin esconder la
+# mitad del contenido detrás de un clic.
+VISIBLES = 6
+
+# El tope de lo que se llega a mandar al navegador. Medido sobre 14 jornadas con el piso puesto: la
+# mejor dio 11 destacados. Doce deja margen sin que una jornada excepcional arme una lista infinita.
+MAXIMO = 12
 
 
-def portada(bateadores: int = 3, lanzadores: int = 2) -> dict[str, Any] | None:
-    """Los destacados que muestra la portada, de la jornada más reciente que haya guardada.
+def _cuando(fecha: date) -> str:
+    """Cómo se nombra una jornada que no es la de arriba: «Ayer», o la fecha si queda más lejos.
 
-    «La más reciente que haya» y no «ayer» a propósito: en el receso del Juego de Estrellas ayer no
-    hubo pelota, y pedir literalmente ayer dejaría el widget vacío cuatro días. Se muestra la última
-    jornada real, y la fecha va al lado para que nadie la confunda con la de hoy.
+    No siempre es ayer, y por eso no se escribe fijo: tras el receso del Juego de Estrellas la
+    segunda jornada con destacados puede ser de hace cuatro días, y llamarla «Ayer» sería mentir en
+    la única palabra que el lector no puede verificar.
+    """
+    from django.utils import timezone
 
-    Devuelve `None` cuando la tabla está vacía —sitio recién levantado, o el refresco nunca corrió—
-    para que la plantilla pueda decidir no dibujar el panel en vez de dibujarlo hueco.
+    hoy = timezone.localdate()
+    if fecha == hoy - timedelta(days=1):
+        return "Ayer"
+    return f"{fecha.day} {MESES[fecha.month - 1]}"
+
+
+# Abreviados a mano y no con `date_format`: la etiqueta va en un hueco de tres caracteres al lado del
+# nombre, y el formato corto de Django mete el punto («jul.») que acá no cabe.
+MESES = ("Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic")
+
+
+def _pasan_el_piso() -> Any:  # noqa: ANN401 — es un `Q` de Django, tipado como Any para no importarlo arriba
+    """El filtro «esto sí es una actuación destacada», con el piso de cada oficio.
+
+    Va en un solo sitio porque lo usan dos consultas —cuál es la última jornada con destacados, y
+    cuáles son— y que se separaran daría el peor fallo posible: una fecha elegida por un criterio y
+    unas filas por otro, o sea un widget con el título de hoy y el contenido vacío.
+    """
+    from django.db.models import Q
+
+    from dglweb.stats.models import DailyStandout
+
+    return Q(grupo=DailyStandout.Grupo.BATEO, valor__gte=PISO_BATEO) | Q(
+        grupo=DailyStandout.Grupo.PITCHEO, valor__gte=PISO_PITCHEO
+    )
+
+
+def equipos_terminados(pizarra: Any, dia: date) -> set[str]:  # noqa: ANN401 — `scoreboard.Pizarra`
+    """Los equipos cuyos juegos de `dia` están TODOS terminados.
+
+    Es lo que hace honesta la carga horaria. `byDateRange` no distingue juego terminado de juego en
+    curso: devuelve lo acumulado hasta ese instante. Sin este filtro, el widget publicaría «1.0 IP,
+    1 K» de alguien que sigue en el montículo, y ese número cambiaría solo bajo los ojos del lector
+    — peor que estar desactualizado. Medido el 27-07 a media tarde: entre los mejores del día
+    aparecía un lanzador de SEA con el juego en marcha.
+
+    «TODOS» y no «alguno» por las dobles tandas: con el primer juego final y el segundo en curso, las
+    cifras del día siguen moviéndose para ese equipo.
+    """
+    jugando: set[str] = set()
+    terminados: set[str] = set()
+    for jornada in getattr(pizarra, "jornadas", ()):
+        if jornada.dia != dia:
+            continue
+        for juego in jornada.juegos:
+            for lado in juego.lados:
+                (terminados if juego.estado == scoreboard.FINAL else jugando).add(lado.codigo)
+    return terminados - jugando
+
+
+def portada() -> dict[str, Any] | None:
+    """Los destacados de la portada: las dos jornadas más recientes, en un solo flujo.
+
+    NO es «la última jornada» y esa es la diferencia que se ve. Antes el widget era una foto de ayer
+    que no se movía en 24 horas, y la portada parecía muerta durante todo el día. Ahora, según van
+    terminando los juegos de hoy, sus destacados entran POR ARRIBA y empujan a los de ayer hacia
+    abajo; el widget nunca está hueco porque los de ayer siguen ahí llenando lo que falte.
+
+    El orden es fecha descendente y, dentro de cada fecha, valor en carreras descendente. Las dos
+    claves importan: sin la fecha, una jornada de ayer excepcional taparía el primer destacado de hoy
+    —que es la noticia—; sin el valor, el orden dentro del día sería arbitrario.
+
+    Devuelve `None` cuando no hay nada que pase el piso, para que la plantilla no dibuje el panel
+    hueco. Un widget vacío se lee como un sitio roto.
     """
     from dglweb.stats.models import DailyStandout
 
-    ultima = DailyStandout.objects.order_by("-fecha").values_list("fecha", flat=True).first()
-    if ultima is None:
+    # Las dos últimas fechas CON ALGUIEN QUE PASE EL PISO, no las dos últimas guardadas. Con la carga
+    # horaria, «hoy» empieza a existir a media tarde con cero destacados: mirar lo guardado gastaría
+    # uno de los dos huecos en una fecha que no aporta ninguna fila.
+    #
+    # Dos y no más porque el widget es de actualidad. Un destacado de anteayer ya no es noticia, y
+    # con `MAXIMO` en doce las dos fechas dan de sobra para llenarlo.
+    fechas = list(
+        DailyStandout.objects.filter(_pasan_el_piso()).order_by("-fecha").values_list("fecha", flat=True).distinct()[:2]
+    )
+    if not fechas:
         return None
 
     from dglweb.stats import videos
 
-    del_dia = DailyStandout.objects.filter(fecha=ultima).select_related("player").order_by("-valor")
-    filas = {
-        "bateo": list(del_dia.filter(grupo=DailyStandout.Grupo.BATEO)[:bateadores]),
-        "pitcheo": list(del_dia.filter(grupo=DailyStandout.Grupo.PITCHEO)[:lanzadores]),
-    }
+    elegidas = (
+        DailyStandout.objects.filter(_pasan_el_piso(), fecha__in=fechas).select_related("player").order_by("-fecha")
+    )
 
-    # El video se resuelve acá y no en la plantilla: una sola consulta para los cinco, y así la
-    # plantilla no tiene que saber que existe una tabla de videos.
-    clips = videos.por_jugador(ultima, {fila.player_id for lista in filas.values() for fila in lista})
-    armadas = {
-        oficio: [
+    # El video se resuelve acá y no en la plantilla: una sola consulta por fecha, y así la plantilla
+    # no tiene que saber que existe una tabla de videos.
+    por_fecha: dict[date, set[int]] = {}
+    for fila in elegidas:
+        por_fecha.setdefault(fila.fecha, set()).add(fila.player_id)
+    clips = {fecha: videos.por_jugador(fecha, ids) for fecha, ids in por_fecha.items()}
+
+    # `fechas[0]` es la jornada de arriba: sus filas no llevan etiqueta porque son las de referencia.
+    # Las de abajo sí, o el lector leería el widget entero como si fuera de hoy.
+    lista = sorted(
+        (
             Destacado(
                 player=fila.player,
                 team=fila.team,
                 linea=fila.linea,
-                clips=clips.get(fila.player_id, ()),
+                clips=clips.get(fila.fecha, {}).get(fila.player_id, ()),
+                grupo=fila.grupo,
+                valor=fila.valor,
+                fecha=fila.fecha,
+                etiqueta="" if fila.fecha == fechas[0] else _cuando(fila.fecha),
             )
-            for fila in lista
-        ]
-        for oficio, lista in filas.items()
-    }
-    # Con pocos destacados las pestañas estorban: obligan a un clic para ver cinco nombres que
-    # cabían juntos, y esconden la mitad del contenido detrás de una pestaña que nadie va a tocar.
-    # Solo se separan los oficios cuando la lista se hace larga de verdad.
-    total = sum(len(lista) for lista in armadas.values())
-    grupos = (
-        (("bateo", "Bateo", armadas["bateo"]), ("pitcheo", "Pitcheo", armadas["pitcheo"]))
-        if total > SIN_PESTANAS
-        # Bateadores primero y lanzadores después, sin mezclar: sus valores no están en la misma
-        # escala —un 3-4 y siete entradas de una carrera no se comparan— así que ordenarlos juntos
-        # daría una lista con un criterio que no existe.
-        else (("todos", "", [*armadas["bateo"], *armadas["pitcheo"]]),)
-    )
+            for fila in elegidas
+        ),
+        key=lambda d: (d.fecha.toordinal() if d.fecha else 0, en_carreras(d.grupo, d.valor)),
+        reverse=True,
+    )[:MAXIMO]
+
     return {
-        "dia": ultima,
-        # `grupos` es lo que recorre la plantilla —una vez para las pestañas y otra para las listas—
-        # con su clave y su etiqueta ya puestas. Las etiquetas riman con las del widget de líderes,
-        # que está al lado y dice lo mismo con las mismas palabras.
-        # Las claves sueltas se quedan porque los tests las usan por nombre.
-        "grupos": grupos,
-        "con_pestanas": len(grupos) > 1,
-        **armadas,
+        "dia": fechas[0],
+        "destacados": lista,
+        # Los que caben sin desplegar y los que quedan detrás del botón. El corte se decide ACÁ y no
+        # midiendo en el navegador —como sí hace el widget de líderes, cuya rejilla cambia de columnas
+        # con el ancho— porque esta es fija: 2 por 3. Un número que ya se sabe no hay que medirlo.
+        "visibles": lista[:VISIBLES],
+        "de_mas": lista[VISIBLES:],
     }
 
 

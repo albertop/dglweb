@@ -1263,3 +1263,23 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 .dgl-stats-table td.dato-parcial {
   text-decoration: underline dotted #9aa5b1; text-underline-offset: 3px; cursor: help;
 }
+
+/* El «ver más» de los destacados. Las cajas de más existen en el HTML desde el principio —no las
+   trae ningún fetch— así que desplegar es instantáneo y funciona igual si el JS tarda: sin él se ven
+   las seis primeras, que es información correcta, solo que menos. */
+.dgl-destacado-de-mas { display: none; }
+.dgl-destacados.esta-desplegado .dgl-destacado-de-mas { display: flex; }
+/* El marco recorta a seis con `overflow: hidden`; al desplegar tiene que soltar el alto o las cajas
+   nuevas quedarían dibujadas fuera de la vista, que es el fallo que más cuesta descubrir porque el
+   botón parece no hacer nada. */
+.dgl-destacados.esta-desplegado .dgl-destacados-marco { height: auto; max-height: none; overflow: visible; }
+
+/* De qué jornada viene una actuación, cuando no es la de arriba. El widget mezcla dos días para no
+   quedarse hueco mientras los juegos de hoy van terminando.
+
+   En gris y muy pequeña a propósito: es una aclaración, no un dato del pelotero. Si pesara lo mismo
+   que el nombre, la vista iría primero a la fecha — que es lo menos importante de la fila. */
+.dgl-destacado-cuando {
+  font-size: .62rem; letter-spacing: .04em; text-transform: uppercase; color: #6b7280;
+  border: 1px solid #dde3ea; border-radius: .25rem; padding: 0 .25rem; white-space: nowrap;
+}

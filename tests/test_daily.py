@@ -5,7 +5,7 @@ al que menos hizo no es un bug de programación, es una afirmación falsa en la 
 mayoría de estos tests comparan dos jornadas y exigen que gane la que cualquiera diría que es mejor.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import pytest
@@ -218,56 +218,149 @@ def test_without_an_active_season_nothing_is_pruned(temporada: SeasonDates) -> N
 
 
 def _guardar_jornada(bateadores: int, lanzadores: int) -> None:
+    """Una jornada donde TODOS pasan el piso, para probar el recorte y no el filtro.
+
+    Los valores bajan de uno en uno para que el orden sea predecible, pero se quedan siempre por
+    encima del piso de su oficio: si no, estas pruebas medirían cuántos filtra el umbral en vez de
+    cuántos caben en el panel, y se caerían el día que el dueño mueva un piso.
+    """
     for n in range(bateadores + lanzadores):
-        jugador = _jugador(100 + n)
+        es_bateo = n < bateadores
         DailyStandout.objects.create(
             fecha=AYER,
-            grupo=DailyStandout.Grupo.BATEO if n < bateadores else DailyStandout.Grupo.PITCHEO,
-            player=jugador,
+            grupo=DailyStandout.Grupo.BATEO if es_bateo else DailyStandout.Grupo.PITCHEO,
+            player=_jugador(100 + n),
             linea="1-4",
-            valor=1.0 - n / 100,
+            valor=(daily.PISO_BATEO + 5 - n / 100) if es_bateo else (daily.PISO_PITCHEO + 20 - n / 100),
         )
 
 
 @pytest.mark.django_db
-def test_a_short_day_shows_everyone_together_without_tabs(temporada: SeasonDates) -> None:
-    """Con pocos destacados las pestañas estorban: un clic para ver cinco nombres que cabían juntos."""
+def test_una_jornada_corta_cabe_entera_sin_boton(temporada: SeasonDates) -> None:
+    """Seis es la capacidad del marco —2 columnas por 3 filas—, así que hasta ahí no hay nada que
+    desplegar y el botón no debe aparecer."""
     _guardar_jornada(bateadores=3, lanzadores=2)
 
     datos = daily.portada()
 
     assert datos is not None
-    assert datos["con_pestanas"] is False
-    assert len(datos["grupos"]) == 1
-    assert len(datos["grupos"][0][2]) == 5
+    assert len(datos["visibles"]) == 5
+    assert datos["de_mas"] == []
 
 
 @pytest.mark.django_db
-def test_a_long_day_splits_the_two_crafts(temporada: SeasonDates) -> None:
-    """Pasado el corte la lista se hace larga, y ahí sí conviene separarlos."""
-    _guardar_jornada(bateadores=5, lanzadores=4)
-
-    datos = daily.portada(bateadores=5, lanzadores=4)
-
-    assert datos is not None
-    assert datos["con_pestanas"] is True
-    assert [clave for clave, _, _ in datos["grupos"]] == ["bateo", "pitcheo"]
-
-
-@pytest.mark.django_db
-def test_the_two_crafts_are_never_ranked_against_each_other(temporada: SeasonDates) -> None:
-    """Un 3-4 y siete entradas de una carrera no están en la misma escala.
-
-    Juntos en una sola caja van igual —bateadores primero, lanzadores después— pero NO reordenados
-    por valor: ese orden daría a entender una comparación que no existe.
-    """
-    _guardar_jornada(bateadores=2, lanzadores=2)
+def test_pasados_los_seis_el_resto_queda_detras_del_boton(temporada: SeasonDates) -> None:
+    """Las pestañas por oficio se retiraron: una sola lista y un «ver más». Ver `_destacados.html`."""
+    _guardar_jornada(bateadores=6, lanzadores=4)
 
     datos = daily.portada()
 
     assert datos is not None
-    grupos = [d.player.player_id for d in datos["grupos"][0][2]]
-    assert grupos == [100, 101, 102, 103]
+    assert len(datos["destacados"]) == 10
+    assert len(datos["visibles"]) == daily.VISIBLES
+    assert len(datos["de_mas"]) == 4
+
+
+@pytest.mark.django_db
+def test_la_lista_no_crece_sin_fin(temporada: SeasonDates) -> None:
+    """`MAXIMO` está para que una jornada excepcional no arme una lista infinita, no para elegir."""
+    _guardar_jornada(bateadores=20, lanzadores=10)
+
+    datos = daily.portada()
+
+    assert datos is not None
+    assert len(datos["destacados"]) == daily.MAXIMO
+
+
+@pytest.mark.django_db
+def test_los_dos_oficios_se_ordenan_en_una_misma_unidad(temporada: SeasonDates) -> None:
+    """El sitio llevaba dos listas separadas porque un 3-4 y siete entradas no se comparan. El dueño
+    decidió mezclarlas (2026-07-27), y eso obliga a traducir en vez de a intercalar.
+
+    La traducción no inventa nada: en Game Score v2 una carrera cuesta 3 puntos y 50 es la salida
+    promedio, así que `(GS-50)/3` son carreras sobre el promedio — la unidad del bateo.
+
+    Acá el lanzador vale +5 carreras y el bateador +2, así que va primero. Sin traducir, el 65 del
+    Game Score habría ganado por ser un número más grande, que es comparar centímetros con kilos.
+    """
+    bateador = _jugador(400)
+    lanzador = _jugador(401)
+    DailyStandout.objects.create(
+        fecha=AYER, grupo=DailyStandout.Grupo.BATEO, player=bateador, linea="3-4, HR", valor=2.0
+    )
+    DailyStandout.objects.create(
+        fecha=AYER, grupo=DailyStandout.Grupo.PITCHEO, player=lanzador, linea="7.0 IP, 0 ER", valor=65.0
+    )
+
+    datos = daily.portada()
+
+    assert datos is not None
+    assert daily.en_carreras("pitcheo", 65.0) == 5.0
+    assert [d.player.player_id for d in datos["destacados"]] == [401, 400]
+
+
+@pytest.mark.django_db
+def test_un_bateador_le_gana_a_un_lanzador_que_valio_menos(temporada: SeasonDates) -> None:
+    """El reverso, que es el que prueba que la traducción manda y no el oficio."""
+    bateador = _jugador(402)
+    lanzador = _jugador(403)
+    DailyStandout.objects.create(
+        fecha=AYER, grupo=DailyStandout.Grupo.BATEO, player=bateador, linea="3-4, 2 HR", valor=2.5
+    )
+    DailyStandout.objects.create(
+        fecha=AYER, grupo=DailyStandout.Grupo.PITCHEO, player=lanzador, linea="5.0 IP, 2 ER", valor=54.0
+    )
+
+    datos = daily.portada()
+
+    assert datos is not None
+    assert [d.player.player_id for d in datos["destacados"]] == [402, 403]
+
+
+@pytest.mark.django_db
+def test_solo_entran_los_que_pasan_el_piso(temporada: SeasonDates) -> None:
+    """El piso es lo que hace que «destacado» signifique algo.
+
+    Sin él, el top-N tenía que llenar sus huecos pasara lo que pasara, y en las jornadas flojas
+    coronaba un 1-4 con sencillo. Medido sobre 14 jornadas reales, el tercer bateador publicado
+    bajaba hasta 0,25 y el segundo lanzador hasta 46 — por debajo del promedio de su propia escala.
+    """
+    bueno = _jugador(200)
+    flojo = _jugador(201)
+    DailyStandout.objects.create(
+        fecha=AYER, grupo=DailyStandout.Grupo.BATEO, player=bueno, linea="2-4, HR", valor=daily.PISO_BATEO
+    )
+    DailyStandout.objects.create(
+        fecha=AYER, grupo=DailyStandout.Grupo.BATEO, player=flojo, linea="1-4", valor=daily.PISO_BATEO - 0.01
+    )
+
+    datos = daily.portada()
+
+    assert datos is not None
+    assert [d.player.player_id for d in datos["destacados"]] == [200]
+
+
+@pytest.mark.django_db
+def test_una_jornada_sin_nadie_destacado_no_desplaza_a_la_anterior(temporada: SeasonDates) -> None:
+    """La regla del dueño: hoy se enseña en cuanto haya UN destacado; mientras no lo haya, ayer.
+
+    Es lo que hace que la carga horaria no vacíe el widget. «Hoy» empieza a existir a media tarde con
+    cero destacados, y elegir la última jornada GUARDADA lo habría dejado hueco hasta la noche.
+    """
+    ayer_bueno = _jugador(300)
+    hoy_flojo = _jugador(301)
+    DailyStandout.objects.create(
+        fecha=AYER, grupo=DailyStandout.Grupo.BATEO, player=ayer_bueno, linea="3-4, HR", valor=2.0
+    )
+    DailyStandout.objects.create(
+        fecha=AYER + timedelta(days=1), grupo=DailyStandout.Grupo.BATEO, player=hoy_flojo, linea="1-4", valor=0.1
+    )
+
+    datos = daily.portada()
+
+    assert datos is not None
+    assert datos["dia"] == AYER
+    assert [d.player.player_id for d in datos["destacados"]] == [300]
 
 
 # ── El comando ──────────────────────────────────────────────────────────────────────────────────
@@ -282,18 +375,14 @@ class _ProxyFalso:
         bateando = (params or {}).get("group") == "hitting"
         stat = _bateo(AB=4, H=3, X2B=1, HR=1, RBI=4) if bateando else _pitcheo(outsPitched=21, K=9, IP="7.0")
         return {
-            "stats": [
-                {"splits": [{"player": {"id": 1, "fullName": "Jugador 1"}, "team": {"id": 135}, "stat": stat}]}
-            ]
+            "stats": [{"splits": [{"player": {"id": 1, "fullName": "Jugador 1"}, "team": {"id": 135}, "stat": stat}]}]
         }
 
 
 @pytest.mark.django_db
 def test_the_command_stores_the_day_and_records_it(temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch) -> None:
     _jugador(1)
-    monkeypatch.setattr(
-        "dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso()
-    )
+    monkeypatch.setattr("dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso())
 
     call_command("build_daily_standouts", "--fecha", "2026-07-25")
 
@@ -311,9 +400,7 @@ def test_a_day_still_being_played_is_not_stored(temporada: SeasonDates, monkeypa
     cifra todavía va a cambiar. Se anota como salto y no como fallo: el comando hizo lo correcto.
     """
     _jugador(1)
-    monkeypatch.setattr(
-        "dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso()
-    )
+    monkeypatch.setattr("dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso())
 
     call_command("build_daily_standouts", "--fecha", timezone.localdate().isoformat())
 
@@ -325,9 +412,7 @@ def test_a_day_still_being_played_is_not_stored(temporada: SeasonDates, monkeypa
 def test_forcing_stores_an_unfinished_day_anyway(temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch) -> None:
     """La puerta se abre a mano cuando alguien sabe lo que hace; sola, nunca."""
     _jugador(1)
-    monkeypatch.setattr(
-        "dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso()
-    )
+    monkeypatch.setattr("dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyFalso())
 
     call_command("build_daily_standouts", "--fecha", timezone.localdate().isoformat(), "--force")
 
@@ -342,9 +427,7 @@ def test_a_day_without_games_is_not_a_failure(temporada: SeasonDates, monkeypatc
         def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
             return {"teams": []} if path == "/api/v1/teams" else {"stats": [{"splits": []}]}
 
-    monkeypatch.setattr(
-        "dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _Vacio()
-    )
+    monkeypatch.setattr("dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _Vacio())
 
     call_command("build_daily_standouts", "--fecha", "2026-07-14")
 
