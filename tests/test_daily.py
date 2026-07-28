@@ -482,3 +482,33 @@ def test_en_el_receso_se_cae_a_la_ultima_jornada_que_hubo(temporada: SeasonDates
     assert datos is not None
     assert datos["dia"] == hoy - timedelta(days=4)
     assert [d.player.player_id for d in datos["destacados"]] == [600]
+
+
+@pytest.mark.django_db
+def test_la_jornada_en_curso_solo_guarda_los_equipos_que_terminaron(
+    temporada: SeasonDates, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Lo que hace honesta la carga horaria.
+
+    `byDateRange` no distingue juego terminado de juego en curso: devuelve lo acumulado hasta ese
+    instante. Sin filtrar, el widget publicaría «1.0 IP, 1 K» de alguien que sigue en el montículo, y
+    ese número cambiaría solo bajo los ojos del lector — peor que estar desactualizado.
+
+    Medido el 27-07 a media tarde: entre los mejores del día aparecía un lanzador de SEA con el juego
+    en marcha.
+    """
+    from dglweb.stats import scoreboard
+
+    acabo = daily.Actuacion(player_id=1, nombre="Terminado", equipo="MIA", valor=2.0, linea="3-4, HR")
+    jugando = daily.Actuacion(player_id=2, nombre="En curso", equipo="SEA", valor=2.0, linea="2-2, HR")
+
+    monkeypatch.setattr(daily, "destacados", lambda *_: {"bateo": [acabo, jugando], "pitcheo": []})
+    monkeypatch.setattr(daily, "equipos_terminados", lambda *_: {"MIA"})
+    monkeypatch.setattr(scoreboard, "del_dia", lambda: None)
+    guardadas: dict[str, list[daily.Actuacion]] = {}
+    monkeypatch.setattr(daily, "guardar", lambda _dia, listas: guardadas.update(listas) or len(listas["bateo"]))
+    monkeypatch.setattr(daily, "podar", lambda _temporada: 0)
+
+    call_command("build_daily_standouts", "--fecha-hoy")
+
+    assert [a.equipo for a in guardadas["bateo"]] == ["MIA"], "el equipo que sigue jugando no puede entrar"

@@ -30,6 +30,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--fecha", type=date.fromisoformat, default=None, help="Jornada (default: ayer).")
         parser.add_argument(
+            "--fecha-hoy",
+            action="store_true",
+            help="La jornada de HOY, guardando solo los equipos cuyo juego ya terminó. Lo usa el job horario.",
+        )
+        parser.add_argument(
             "--force",
             action="store_true",
             help=(
@@ -44,22 +49,39 @@ class Command(BaseCommand):
 
         # Ayer y no hoy: los juegos terminan de noche, y el refresco corre a las 6 de la mañana. Pedir
         # «hoy» a esa hora devolvería una jornada que todavía no empezó.
-        dia = options["fecha"] or timezone.localdate() - timedelta(days=1)
+        # `--fecha-hoy` en vez de `--fecha $(date)`: la fecha la tiene que resolver el proceso con SU
+        # zona horaria, no el shell del scheduler. Con el contenedor en hora dominicana y el job
+        # corriendo a las 00:50, las dos no coinciden — y el fallo sería guardar la jornada de ayer
+        # creyendo que es la de hoy, una hora al día, sin que nada lo dijera.
+        dia = options["fecha"] or timezone.localdate() - (timedelta(0) if options["fecha_hoy"] else timedelta(days=1))
 
+        # LOS EQUIPOS QUE YA TERMINARON, cuando la jornada es la de hoy.
+        #
+        # Antes una jornada en curso sencillamente no se guardaba, y por eso el widget era una foto de
+        # ayer que no se movía en 24 horas. Ahora sí se guarda, pero SOLO lo de los equipos cuyo juego
+        # acabó: `byDateRange` no distingue terminado de en curso —devuelve lo acumulado hasta ese
+        # instante— y sin filtrar publicaríamos «1.0 IP, 1 K» de alguien que sigue en el montículo.
+        # Ese número cambiaría solo bajo los ojos del lector, que es peor que estar desactualizado.
+        #
+        # Medido el 27-07 a media tarde: entre los mejores del día aparecía un lanzador de SEA con el
+        # juego en marcha. Con `--force` no se filtra, que es lo que hace falta para reprocesar.
+        terminados: set[str] | None = None
         if dia >= timezone.localdate() and not options["force"]:
-            # Una jornada en curso no se guarda. El widget presenta lo guardado como la actuación del
-            # día, y con juegos a medias eso es sencillamente falso: quien va de 0-2 a las nueve de la
-            # noche puede terminar de 2-4. Guardarla haría que la portada anunciara una cifra que aún
-            # va a cambiar, y nada en la pantalla diría que está a medias.
-            #
-            # Se anota como salto, no como fallo: el comando hizo lo correcto al no correr, y una fila
-            # roja en el Backoffice mandaría a buscar una avería que no existe.
-            record_skip("build_daily_standouts", dia.isoformat(), "la jornada todavía no ha terminado")
-            self.stdout.write(self.style.WARNING(f"{dia} no ha terminado; use --force para guardarla igual."))
-            return
+            from dglweb.stats import scoreboard
+
+            terminados = daily.equipos_terminados(scoreboard.del_dia(), dia)
+            if not terminados:
+                # Ni un juego cerrado todavía. No es un fallo —a media mañana es lo normal— y anotarlo
+                # como salto evita una fila roja en el Backoffice buscando una avería que no existe.
+                record_skip("build_daily_standouts", dia.isoformat(), "ningún juego ha terminado todavía")
+                self.stdout.write(f"{dia}: ningún juego ha terminado todavía.")
+                return
 
         with record_run("build_daily_standouts", dia.isoformat()) as run:
             listas = daily.destacados(build_client(), dia, universe.debuted())
+            if terminados is not None:
+                listas = {oficio: [a for a in lista if a.equipo in terminados] for oficio, lista in listas.items()}
+                run.note(f"Jornada en curso: {len(terminados)} equipos con el juego terminado.")
             guardadas = daily.guardar(dia, listas)
             run.add_rows(guardadas)
             run.note(f"{len(listas['bateo'])} bateadores, {len(listas['pitcheo'])} lanzadores.")
