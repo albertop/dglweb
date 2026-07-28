@@ -588,7 +588,7 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   98,2%. Sammy Sosa 2000 pasó de que sus coeficientes sumaran 55,9% a sumar 97,3%, y su LD% de .036
   a .218. La advertencia de la UI bajó de diez temporadas a siete.
   **Residuo, separado abajo**: la advertencia sigue siendo por año.
-- [ ] **SAB-03b — la advertencia marca el panel entero cuando solo los hits están incompletos.**
+- [x] **SAB-03b — la advertencia marca el panel entero cuando solo los hits están incompletos.**
   Ojo con la redacción: en las siete temporadas que quedan (1989-90, 1993-97) **el dato ya se trajo**
   — la carga de Retrosheet cubrió las diez, no solo 2000-2002. Lo que pasa es que ahí Retrosheet
   tampoco clasificó todo: en 1990 registra los 2.575 hits pero solo le puso trayectoria a 2.314. Ese
