@@ -74,7 +74,7 @@ $Tamanos = @(120, 360)
 # Solo el id: la vista trae más columnas, pero acá lo único que se necesita es con qué armar la URL.
 $Query = @"
 SELECT DISTINCT [player_id]
-FROM   [dbo].[v_dglweb_players_played_last_2_years]
+FROM   [dbo].[v_dglweb_players_played_all_years]
 WHERE  [player_id] IS NOT NULL
 ORDER BY [player_id];
 "@

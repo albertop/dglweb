@@ -17,7 +17,7 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 
 ## Antes de salir a producción
 
-- [ ] **Verificar que el usuario de Postgres pueda `CREATE EXTENSION unaccent`.** El buscador de jugadores depende de esa extensión —es lo que hace que «nunez» encuentre a Núñez, y sin ella la mitad del maestro es inalcanzable—. No va en `requirements.txt` porque no es un paquete de Python: vive en la base. La migración `players/0005_unaccent.py` la crea sola al correr `migrate`, pero `CREATE EXTENSION` pide permisos elevados. En el Postgres actual funciona; en uno gestionado con usuario restringido, `migrate` fallaría ahí. **Comprobarlo antes de migrar**, no después.
+- [x] **Verificar que el usuario de Postgres pueda `CREATE EXTENSION unaccent`.** **HECHO (2026-07-28).** La crea el SUPERUSUARIO en el script de inicialización de la instancia, no la aplicación: el sitio se conecta con un rol propio (`dglweb`) que no puede instalar extensiones, y no le hace falta. Ver `/srv/postgres/init/10-dglweb.sh` en el VPS. El buscador de jugadores depende de esa extensión —es lo que hace que «nunez» encuentre a Núñez, y sin ella la mitad del maestro es inalcanzable—. No va en `requirements.txt` porque no es un paquete de Python: vive en la base. La migración `players/0005_unaccent.py` la crea sola al correr `migrate`, pero `CREATE EXTENSION` pide permisos elevados. En el Postgres actual funciona; en uno gestionado con usuario restringido, `migrate` fallaría ahí. **Comprobarlo antes de migrar**, no después.
 
 - [ ] **Rotar el token del bot de Telegram.** Quedó expuesto durante la configuración, así que conviene renovarlo antes de producción: @BotFather → `/mybots` → el bot → *API Token* → *Revoke current token*, y reemplazar `TELEGRAM_BOT_TOKEN` en `.env`. El bot y el grupo siguen siendo los mismos; solo cambia la llave.
 
@@ -285,7 +285,7 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
 
 ## Deferido a Fase 8 (hardening de prod) — de code review
 
-- [ ] **Imagen prod separada:** Dockerfile de producción con `collectstatic` en el build, solo
+- [x] **Imagen prod separada:** **HECHA (2026-07-28)**, `Dockerfile.prod`: dos etapas, solo dependencias de ejecución, `collectstatic` en el build y gunicorn con `--preload` y 3 workers. 298 MB en el VPS contra 626 de la de desarrollo. Con `deploy_dglweb_image.sh`, al estilo del script del proxy. ~~ Dockerfile de producción con `collectstatic` en el build, solo
   deps de runtime, `config.settings.prod` por defecto, gunicorn, y fallo-ruidoso si faltan
   secretos. (El manifest storage de prod requiere `collectstatic`, que hoy no corre en el build.)
 - [x] **Vendorizar Bootstrap + fuentes.** **Hecho el 2026-07-27**, y entero: no queda una sola
@@ -293,7 +293,7 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
       que los regenera. Se recortaron los alfabetos cirílico, griego y vietnamita —que un sitio de
       béisbol dominicano no va a usar— y eso solo ahorró 321 KB.
   Self-host mejora resiliencia (Principio #0), privacidad y prepara CSP.
-- [ ] **`restart` policy** del contenedor web en el compose de prod.
+- [x] **`restart` policy** del contenedor web en el compose de prod. **HECHA (2026-07-28)**: `unless-stopped` en los dos servicios, con topes de log y healthcheck.
 
 ## Templates — cuando existan las páginas (Fases 4–5)
 
@@ -1337,7 +1337,7 @@ una imagen, porque los archivos caían en la raíz del proyecto y ninguna URL lo
 desarrollo las sirve Django (`static()` en `config/urls.py`, que se anula solo cuando `DEBUG` es
 falso). Los archivos viven en el volumen `dglweb_media`.
 
-- [ ] **En producción los tiene que servir el proxy** desde `MEDIA_ROOT`. WhiteNoise NO sirve medios:
+- [x] **En producción los tiene que servir el proxy** desde `MEDIA_ROOT`. **HECHO (2026-07-28)**: `location /media/` en nginx, con los archivos en `/srv/dglweb-datos/media` —fuera de `/var/lib/docker`, que nginx no puede atravesar—. Y de paso `location /static/img/mugshots/`, porque los 1.970 retratos están excluidos de git y no viajan en la imagen. ~~ WhiteNoise NO sirve medios:
       está para los estáticos, que son los que entran a la imagen. Sin esta regla, en el VPS el CMS
       acepta la imagen y después la muestra rota.
 
