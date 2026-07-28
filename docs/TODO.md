@@ -21,12 +21,28 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 
 - [ ] **Rotar el token del bot de Telegram.** Quedó expuesto durante la configuración, así que conviene renovarlo antes de producción: @BotFather → `/mybots` → el bot → *API Token* → *Revoke current token*, y reemplazar `TELEGRAM_BOT_TOKEN` en `.env`. El bot y el grupo siguen siendo los mismos; solo cambia la llave.
 
-- [ ] **Recomendar un monitor de uptime y dejarlo apuntando a `/health/pipeline`.** El endpoint ya
-  está; lo que falta es el servicio de afuera que lo consulte, que es la mitad que importa: el
-  scheduler estuvo días caído justamente porque lo único que podía avisar corría en el mismo
-  scheduler. El dueño no usa ninguno todavía, así que hay que recomendarle uno (hay opciones
-  gratuitas que alertan por correo y por Telegram) y configurarlo con la URL pública. **Recordarlo
-  cuando se prepare el despliegue**, no antes — sin dominio público no hay nada que vigilar.
+- [ ] **Montar monitoreo propio en 10.0.0.39, con software libre.** **Decisión del dueño
+  (2026-07-28): no se paga por monitoreo.** Nada de servicios contratados; se autoaloja en su
+  servidor de datos y desde ahí se vigila el VPS.
+
+  **Por qué en 10.0.0.39 y no en el propio VPS**, que es lo que hace que esto sirva: un vigilante que
+  corre en la misma máquina que vigila se cae con ella y no avisa de nada. Es exactamente el fallo
+  que ya pasó — el scheduler estuvo días caído y lo único que podía avisar corría dentro del mismo
+  scheduler. Desde fuera, una caída del VPS se nota.
+
+  **Qué tiene que vigilar**, por orden de lo que duele:
+  1. `https://dominicanosengrandesligas.com/health/pipeline` — el semáforo del refresco diario. Ya
+     existe y devuelve 503 cuando el dato se quedó viejo.
+  2. `https://dominicanosengrandesligas.com/ready` — que el sitio pueda atender: base viva y sin
+     migraciones pendientes.
+  3. La portada, por si nginx o el certificado fallan.
+  4. El **vencimiento del certificado**, como red por si la renovación automática falla.
+
+  **Requisito: que avise por Telegram**, que es el canal que el proyecto ya usa.
+
+  **Me toca a mí** proponer la herramienta, con su porqué y su coste real de mantenimiento — un
+  monitor que hay que cuidar todas las semanas se abandona, y un monitor abandonado es peor que
+  ninguno porque se cree que está mirando.
 
 - [x] **Avisos por Telegram.** **Funcionando** (`dglweb/core/notify.py`), verificado con un mensaje real el 2026-07-26. El bot es `@dglweb_avisos_bot` y escribe a un **grupo**, no a un chat privado: el id es negativo y eso tiene una ventaja — sumar a otra persona a los avisos es agregarla al grupo, sin tocar configuración. Avisa cuando **un paso del refresco falla** —diciendo cuál, que es lo que el «503» del monitor externo no puede decir— y cuando **aparece un debut nuevo**.
   Los debuts se avisan **todos los días** mientras sigan pendientes. Hubo una versión que avisaba una sola vez por debutante —yo puse esa deduplicación para no cansar— y **el dueño pidió lo contrario, con razón**: si el aviso sale un martes y ese día no lo ve, el pelotero se queda fuera del sitio sin que nada vuelva a recordarlo. La repetición ES el mecanismo, y para en cuanto lo carga, que es el acuse de recibo. Puede insistir sin cansar porque son pocos y raros: un puñado al año.
@@ -98,17 +114,6 @@ muestra escritas a mano.
 - [x] **Restringir el Backoffice al rol *Administradores*.** Hecho el 2026-07-27. A un redactor no
       le aparece el menú siquiera, y no por una regla suelta sino porque no tiene permisos sobre esos
       modelos — Wagtail esconde lo que no se puede tocar.
-- [x] ~~«Lo más leído» de verdad.~~ **Retirado por decisión del dueño (2026-07-28): el panel es «Lo
-      más reciente» y se queda así.**
-
-      Nunca fue un pendiente de verdad: era la aspiración de convertirlo en un ranking de lecturas
-      cuando hubiera analítica. Y «lo más reciente» no es un sustituto provisional de nada — es una
-      lista que se ordena sola, con dato que ya tenemos y que no puede equivocarse. «Lo más leído»
-      exigiría contar visitas, o sea analítica, o sea justo lo que la política de privacidad presume
-      de no hacer.
-
-      Dejarlo en la lista hacía que un dato correcto pareciera un apaño a medias.
-
 ## Fase 7 — lo que falta del plan de construcción (2026-07-28)
 
 **Por qué aparece recién ahora.** La Fase 7 vivía solo en `docs/BUILD_PLAN.md` y nunca se volcó acá,
