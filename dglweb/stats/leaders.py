@@ -155,9 +155,8 @@ def _juegos_de(
     equipo, así que no hay juegos suyos que consultar. Se usa el máximo de su liga, que es el
     calendario más largo que alguien de esa liga llegó a jugar.
 
-    Si además cambió de liga, el centinela también está en `league` y no queda nada a lo que
-    agarrarse: devuelve `None` y la fila se mide con el umbral fijo. Son un puñado de casos al año y
-    el fijo es el más exigente, así que el error va del lado de dejar fuera, no de colar a alguien.
+    Si además cambió de liga, no queda equipo ni liga: se cae al calendario más largo de la
+    temporada, mirando las dos ligas. `None` solo cuando no se sabe nada de ese año.
     """
     temporada = row["season"]
     equipo = row.get("team")
@@ -168,7 +167,17 @@ def _juegos_de(
     liga = row.get("league")
     if liga and liga != COMBINED_LEAGUE:
         return por_liga.get((temporada, liga))
-    return None
+
+    # Cambió de LIGA a mitad de temporada: no hay equipo ni liga a los que preguntarles. Antes se
+    # devolvía `None` y con eso no se prorrateaba nada — o sea que a un año de 60 juegos se le
+    # aplicaba el umbral de uno de 162. En 2020 eso echó de los tableros de coeficientes a jugadores
+    # con 188 bolas en juego, cuando el mínimo prorrateado eran 111.
+    #
+    # El último recurso es el calendario más largo de esa TEMPORADA, mirando las dos ligas. Sigue
+    # siendo el más exigente de los tres, así que el error va del lado de dejar fuera; pero es un
+    # umbral de la temporada que se jugó y no de una que no existió.
+    de_la_temporada = [juegos for (año, _), juegos in por_liga.items() if año == temporada]
+    return max(de_la_temporada) if de_la_temporada else None
 
 
 def _season_leaders(

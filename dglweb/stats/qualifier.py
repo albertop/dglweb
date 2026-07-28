@@ -45,11 +45,39 @@ Overrides = Mapping[tuple[str, int], str]  # (group, season) -> season formula
 #   fildeo   0.617 G/juego  →  100/162. Sus overrides dan 95/154, 66/108 y 37/60 = 0.617.
 #
 # O sea que la regla no se inventó acá: se leyó de lo que el dueño ya hacía a mano.
+TEMPORADA_COMPLETA = 162
+
 POR_JUEGO: dict[str, tuple[str, float]] = {
-    "batting": ("PA", 502 / 162),
-    "pitching": ("IP", 162 / 162),
-    "fielding": ("G", 100 / 162),
+    "batting": ("PA", 502 / TEMPORADA_COMPLETA),
+    "pitching": ("IP", TEMPORADA_COMPLETA / TEMPORADA_COMPLETA),
+    "fielding": ("G", 100 / TEMPORADA_COMPLETA),
 }
+
+
+def escalar(formula: str, games: int) -> str:
+    """El mismo umbral, medido contra una temporada de `games` juegos en vez de una completa.
+
+    PARA QUÉ, Y QUÉ DESTAPÓ QUE HICIERA FALTA
+    ------------------------------------------
+    Los coeficientes de batazos no filtran por apariciones sino por bolas en juego o por swings:
+    `BALLS_IN_PLAY>=300`, `TOTAL_SWINGS>=750`. Son cifras de UNA TEMPORADA COMPLETA, escritas a mano
+    en la métrica, y no se prorrateaban — así que en una temporada corta no las alcanzaba nadie y sus
+    tableros salían vacíos.
+
+    Estuvo escondido durante años porque los overrides del dueño ganaban por estar más arriba en la
+    cascada y rescataban a esos coeficientes de rebote. Al borrar los overrides (2026-07-28) el
+    agujero salió: 251 puestos de 2020 desaparecieron de golpe. Y en las temporadas cortas SIN
+    override —1972, 1995— llevaban vacíos desde siempre sin que nada lo dijera.
+
+    Se escala el NÚMERO y se respeta el campo y el operador: no hay que saber qué mide `BALLS_IN_PLAY`
+    para saber que 300 en 162 juegos son 111 en 60. Una fórmula que no se pueda leer se devuelve tal
+    cual — el motor prefiere un umbral estricto a uno inventado.
+    """
+    match = QUALIFIER_RE.match(formula)
+    if not match or games <= 0:
+        return formula
+    campo, operador, valor = match.group(1), match.group(2), float(match.group(3))
+    return f"{campo}{operador}{round(valor * games / TEMPORADA_COMPLETA)}"
 
 
 def prorated(group: str, games: int) -> str:
@@ -93,7 +121,9 @@ def resolve_season(
     if override:
         return override
     if metric.qualifier_season:
-        return metric.qualifier_season
+        # También se prorratea. Su cifra está escrita para una temporada completa —300 bolas en
+        # juego, 750 swings— y dejarla fija vacía el tablero en los años cortos. Ver `escalar`.
+        return escalar(metric.qualifier_season, games) if games else metric.qualifier_season
     if games:
         prorrateado = prorated(metric.stat_group, games)
         if prorrateado:

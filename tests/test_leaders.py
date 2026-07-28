@@ -417,15 +417,28 @@ def test_la_liga_importa_y_1961_lo_prueba() -> None:
     assert (americana, nacional) == (163, 156)
 
 
-def test_un_traspasado_entre_ligas_se_mide_con_el_umbral_fijo() -> None:
-    """Cambió de liga, así que el centinela está también en `league` y no queda nada a lo que
-    agarrarse. Devolver `None` deja mandar al fijo, que es el más exigente: el error va del lado de
-    dejar fuera, no de colar a alguien que no calificaba."""
+def test_un_traspasado_entre_ligas_usa_el_calendario_de_la_temporada() -> None:
+    """Sin equipo y sin liga, el último recurso es el calendario más largo de ESA temporada.
+
+    Devolver `None` —como hacía la primera versión— dejaba la fila sin prorratear, o sea midiendo un
+    año de 60 juegos con el umbral de uno de 162. En 2020 eso echó de los tableros de coeficientes a
+    jugadores con 188 bolas en juego cuando el mínimo prorrateado eran 111. Lo destapó comparar los
+    tableros antes y después de borrar los overrides.
+    """
     from dglweb.stats.leaders import _juegos_de
 
-    fila = {"season": 2019, "team": COMBINED_TEAM, "league": COMBINED_LEAGUE}
+    fila = {"season": 2020, "team": COMBINED_TEAM, "league": COMBINED_LEAGUE}
 
-    assert _juegos_de(fila, {}, {(2019, "AL"): 162}) is None
+    assert _juegos_de(fila, {}, {(2020, "AL"): 60, (2020, "NL"): 58}) == 60
+
+
+def test_una_temporada_desconocida_no_se_prorratea() -> None:
+    """`None` solo cuando no se sabe nada de ese año — ahí manda el umbral fijo, que es la red."""
+    from dglweb.stats.leaders import _juegos_de
+
+    fila = {"season": 1899, "team": COMBINED_TEAM, "league": COMBINED_LEAGUE}
+
+    assert _juegos_de(fila, {}, {(2020, "AL"): 60}) is None
 
 
 def test_un_equipo_que_no_esta_en_la_tabla_cae_a_su_liga() -> None:

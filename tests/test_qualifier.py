@@ -163,12 +163,37 @@ def test_el_prorrateo_va_debajo_del_override_del_dueno() -> None:
     assert qualifier.resolve_season(metrica, 2020, DEFECTOS, con_override, games=60) == "PA>=200"
 
 
-def test_el_prorrateo_va_debajo_del_umbral_propio_de_la_metrica() -> None:
-    """Los coeficientes de batazos filtran por bolas en juego, no por apariciones: su propio umbral
-    tiene que seguir ganando o el tablero mediría otra cosa."""
-    metrica = _metrica(qualifier_season="BALLS_IN_PLAY>=200")
+def test_el_umbral_propio_de_la_metrica_gana_pero_tambien_se_prorratea() -> None:
+    """Dos reglas a la vez, y las dos importan.
 
-    assert qualifier.resolve_season(metrica, 2026, DEFECTOS, {}, games=107) == "BALLS_IN_PLAY>=200"
+    **Gana**: los coeficientes filtran por bolas en juego, no por apariciones, así que su unidad tiene
+    que sobrevivir o el tablero mediría otra cosa.
+
+    **Y se prorratea**: su cifra está escrita para una temporada completa. Dejarla fija vaciaba los
+    tableros de coeficientes en los años cortos, y estuvo escondido años porque los overrides del
+    dueño ganaban por encima y los rescataban de rebote. Al borrarlos (2026-07-28) salió: 251 puestos
+    de 2020 desaparecieron de golpe, y 1972 y 1995 llevaban vacíos desde siempre sin que nada lo
+    dijera.
+    """
+    metrica = _metrica(qualifier_season="BALLS_IN_PLAY>=300")
+
+    # 107 de 162 juegos: el campo y el operador se respetan, el número se escala.
+    assert qualifier.resolve_season(metrica, 2026, DEFECTOS, {}, games=107) == "BALLS_IN_PLAY>=198"
+    # Una temporada completa es el caso neutro: devuelve exactamente lo escrito.
+    assert qualifier.resolve_season(metrica, 2025, DEFECTOS, {}, games=162) == "BALLS_IN_PLAY>=300"
+    # Sin juegos conocidos no se inventa nada.
+    assert qualifier.resolve_season(metrica, 2025, DEFECTOS, {}, games=None) == "BALLS_IN_PLAY>=300"
+
+
+def test_escalar_respeta_el_campo_y_el_operador() -> None:
+    """No hay que saber qué mide `TOTAL_SWINGS` para saber que 750 en 162 juegos son 278 en 60."""
+    assert qualifier.escalar("TOTAL_SWINGS>=750", 60) == "TOTAL_SWINGS>=278"
+    assert qualifier.escalar("BALLS_IN_PLAY>=300", 60) == "BALLS_IN_PLAY>=111"
+
+
+def test_una_formula_ilegible_se_devuelve_tal_cual() -> None:
+    """El motor prefiere un umbral estricto a uno inventado."""
+    assert qualifier.escalar("esto no es una fórmula", 60) == "esto no es una fórmula"
 
 
 def test_el_prorrateo_va_encima_del_fijo_del_oficio() -> None:
