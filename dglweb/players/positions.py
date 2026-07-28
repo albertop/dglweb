@@ -51,6 +51,34 @@ from dglweb.stats.models import Fielding, Pitching
 EN_ESPANOL: dict[str, str] = {"SP": "P-ABR", "RP": "P-REL"}
 
 
+# El nombre COMPLETO, para cuando hay sitio para escribirlo: la descripción que sale bajo el titular
+# en Google, por ejemplo. «Juan Soto, rf dominicano» se lee mal y no dice nada a quien no siga el
+# juego; «jardinero derecho» sí. Las siglas de arriba son para las tablas, donde el espacio manda.
+NOMBRE_COMPLETO: dict[str, str] = {
+    "P": "lanzador",
+    "SP": "lanzador abridor",
+    "RP": "lanzador relevista",
+    "C": "receptor",
+    "1B": "primera base",
+    "2B": "segunda base",
+    "3B": "tercera base",
+    "SS": "campocorto",
+    "LF": "jardinero izquierdo",
+    "CF": "jardinero central",
+    "RF": "jardinero derecho",
+    "OF": "jardinero",
+    "DH": "bateador designado",
+    "PH": "bateador emergente",
+    "PR": "corredor emergente",
+}
+
+
+def nombre_largo(posicion: str | None) -> str:
+    """`RF` -> `jardinero derecho`. Vacío si no se conoce, para que quien llama omita la frase entera
+    en vez de escribir una sigla suelta en medio de una oración."""
+    return NOMBRE_COMPLETO.get(posicion or "", "")
+
+
 def como_se_lee(posicion: str | None) -> str:
     """`RP` -> `P-REL`. Lo que no esté en la tabla sale tal cual: `SS` y `3B` se entienden solos."""
     return EN_ESPANOL.get(posicion or "", posicion or "")

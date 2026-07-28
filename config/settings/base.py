@@ -50,6 +50,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # El mapa del sitio. Son DOS: Django cubre lo que sirven nuestras vistas —las ~970 fichas de
+    # jugador, líderes, legales— y Wagtail lo suyo, que es el árbol de artículos y solo él sabe qué
+    # está publicado. Sin ellos, Google tiene que descubrir mil páginas siguiendo enlaces.
+    "django.contrib.sitemaps",
+    "wagtail.contrib.sitemaps",
 ]
 
 MIDDLEWARE = [

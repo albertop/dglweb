@@ -89,6 +89,8 @@ def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
         }
         for index, tab in enumerate(tabs_for(player))
     ]
+    bateo = BattingCareer.objects.filter(player=player, level=CareerLevel.TOTAL).first()
+    pitcheo = PitchingCareer.objects.filter(player=player, level=CareerLevel.TOTAL).first()
     context = {
         "player": player,
         # El retrato grande, no el de los widgets: acá se ve a 96px y en pantalla de retina el de
@@ -101,10 +103,42 @@ def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "bio": bio_lines(player),
         "tabs": tabs,
         "is_pitcher": player.pos in {"P", "RP", "SP"},
-        "bat_total": BattingCareer.objects.filter(player=player, level=CareerLevel.TOTAL).first(),
-        "pit_total": PitchingCareer.objects.filter(player=player, level=CareerLevel.TOTAL).first(),
+        "bat_total": bateo,
+        "pit_total": pitcheo,
     }
+    context["descripcion_social"] = descripcion_social(player, bateo, pitcheo)
     return render(request, "profiles/player_detail.html", context)
+
+
+def descripcion_social(player: Player, bateo: BattingCareer | None, pitcheo: PitchingCareer | None) -> str:
+    """La frase que sale bajo el titular en Google y en el recuadro de WhatsApp.
+
+    POR QUÉ NO SE DEJA VACÍA. Sin ella, Google recorta la primera frase que encuentre en la página —
+    que acá es la fila de datos biográficos— y publica algo como «Posición: P-ABR · Batea: Derecho ·
+    Estatura: 6-0». Es cierto y no dice nada. Son ~970 páginas: la descripción es lo único que las
+    distingue en una lista de resultados.
+
+    Se arma con lo que define a ese pelotero, en este orden: qué juega, cuándo jugó, y su cifra más
+    alta. Nada inventado — si un dato falta, no aparece la frase, en vez de escribir un cero.
+    """
+    from dglweb.players import positions
+
+    oficio = positions.nombre_largo(player.pos) or "pelotero"
+    partes = [f"{player.full_name}, {oficio} dominicano"]
+
+    if player.debut_date:
+        partes.append(f"en Grandes Ligas desde {player.debut_date.year}")
+
+    # La cifra que más lo define, y una sola: una lista de seis números no la lee nadie en un
+    # resultado de búsqueda. Un lanzador se resume por ponches; un bateador, por jonrones.
+    if pitcheo and (pitcheo.so or 0) > 0:
+        partes.append(f"{pitcheo.so:,} ponches de por vida".replace(",", "."))
+    elif bateo and (bateo.hr or 0) > 0:
+        partes.append(f"{bateo.hr:,} jonrones de por vida".replace(",", "."))
+    elif bateo and (bateo.h or 0) > 0:
+        partes.append(f"{bateo.h:,} hits de por vida".replace(",", "."))
+
+    return ". ".join([", ".join(partes[:2]), *partes[2:]]) + ". Estadísticas completas de su carrera."
 
 
 def _latest_full_season() -> int | None:

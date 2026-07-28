@@ -6,12 +6,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Dominicanos en Grandes Ligas{% endblock %}</title>
   {% comment %}
-    Vacío por defecto y lo llena quien tenga algo que resumir. Hoy solo el artículo, que trae su
-    entradilla escrita justamente para eso: es lo que sale bajo el titular en Google y en el recuadro
-    que dibujan WhatsApp y Twitter al pegar el enlace. Sin ella, esos recuadros recortan la primera
-    frase que encuentren en la página.
+    Vacío por defecto y lo llena quien tenga algo que resumir. Es lo que sale bajo el titular en
+    Google; sin ella, el buscador recorta la primera frase que encuentre en la página.
   {% endcomment %}
   {% block meta %}{% endblock %}
+
+  {% comment %}
+    LA CANÓNICA, y acá no es una formalidad. La página de líderes acepta métrica, alcance y temporada
+    por la URL: 146 x 2 x 72 son **~21.000 combinaciones** de la misma página. Sin esta etiqueta,
+    Google puede gastarse el presupuesto de rastreo ahí en vez de en las ~970 fichas de jugador, que
+    son el contenido de verdad.
+
+    `request.path` deja fuera la cadena de consulta, que es justo el efecto que se busca. Una
+    plantilla puede sobrescribirla si su filtro SÍ merece indexarse por separado.
+  {% endcomment %}
+  <link rel="canonical" href="{% block canonica %}{{ request.scheme }}://{{ request.get_host }}{{ request.path }}{% endblock %}">
+
+  {% comment %}
+    OPEN GRAPH — lo que se ve al pegar un enlace en WhatsApp, y por eso importa más de lo que parece:
+    para un sitio dominicano, WhatsApp va a mover más tráfico que Google durante un buen tiempo. Sin
+    estas etiquetas el enlace sale desnudo, sin foto ni titular, y nadie lo abre.
+
+    Cada bloque tiene un valor por defecto que sirve para el sitio entero; las páginas que tengan
+    algo mejor —un artículo su foto, un jugador su retrato— lo sobrescriben.
+  {% endcomment %}
+  <meta property="og:site_name" content="Dominicanos en Grandes Ligas">
+  <meta property="og:locale" content="es_DO">
+  <meta property="og:type" content="{% block og_tipo %}website{% endblock %}">
+  <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+  <meta property="og:title" content="{% block og_titulo %}Dominicanos en Grandes Ligas{% endblock %}">
+  <meta property="og:description" content="{% block og_descripcion %}Béisbol de las Grandes Ligas, visto a través del lente dominicano.{% endblock %}">
+  <meta property="og:image" content="{% block og_imagen %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-default.png' %}{% endblock %}">
+  {% comment %}
+    `summary_large_image` y no `summary`: la tarjeta grande usa la imagen a lo ancho en vez de un
+    cuadradito al lado, y en un sitio de fotos de peloteros esa diferencia es la mitad del clic.
+  {% endcomment %}
+  <meta name="twitter:card" content="summary_large_image">
   {% comment %}
     Las fuentes y Bootstrap los servimos NOSOTROS. Venían de fonts.googleapis.com y de jsdelivr, y
     eso tenía tres precios que no compensaban:

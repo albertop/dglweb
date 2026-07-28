@@ -3,6 +3,50 @@
 
 {% block title %}{{ player.full_name }} — Dominicanos en Grandes Ligas{% endblock %}
 
+{% comment %}
+  La descripción se arma en la vista (`profiles.views.descripcion_social`) y no acá: sale de los
+  datos del pelotero —posición, años, equipo, su cifra más alta— y meter esa lógica en la plantilla
+  la haría ilegible.
+
+  La imagen para compartir se queda en la del sitio y NO es el retrato, aunque lo tenga. Los retratos
+  son cuadrados y la tarjeta grande de Twitter es 2:1: recortaría la cara por la mitad. Un tercio de
+  los peloteros además no tiene retrato, así que la mitad de los enlaces saldría sin imagen.
+{% endcomment %}
+{% block og_tipo %}profile{% endblock %}
+{% block og_titulo %}{{ player.full_name }}{% endblock %}
+{% block og_descripcion %}{{ descripcion_social }}{% endblock %}
+{% block meta %}<meta name="description" content="{{ descripcion_social }}">{% endblock %}
+
+{% block extra_head %}
+{% comment %}
+  DATOS ESTRUCTURADOS. Le dicen a Google que esta página es una PERSONA y no un texto cualquiera —
+  con eso puede armar el panel lateral de resultados en vez de una línea de texto más.
+
+  `Person` y no `Athlete`: schema.org no tiene ese tipo, y `Person` con `jobTitle` es lo que usan los
+  sitios deportivos grandes.
+
+  Va en `<script type="application/ld+json">`, que la CSP permite porque NO es JavaScript ejecutable
+  — el navegador lo trata como datos. Si algún día `script-src` se aprieta más, hay que comprobar
+  que este siga pasando.
+
+  `escapejs` en cada valor: un nombre con comilla o barra rompería el JSON y Google descartaría el
+  bloque entero sin decir nada.
+{% endcomment %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "{{ player.full_name|escapejs }}",
+  "nationality": {"@type": "Country", "name": "República Dominicana"},
+  "jobTitle": "Pelotero profesional"{% if player.birth_date %},
+  "birthDate": "{{ player.birth_date|date:'Y-m-d' }}"{% endif %}{% if player.birth_place %},
+  "birthPlace": {"@type": "Place", "name": "{{ player.birth_place|escapejs }}{% if player.birth_province and player.birth_province != player.birth_place %}, {{ player.birth_province|escapejs }}{% endif %}, República Dominicana"}{% endif %}{% if foto %},
+  "image": "{{ request.scheme }}://{{ request.get_host }}{{ foto }}"{% endif %},
+  "url": "{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <main class="container my-4">
 

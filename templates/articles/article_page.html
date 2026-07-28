@@ -1,11 +1,52 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load static wagtailcore_tags wagtailimages_tags %}
 {% comment %}
 Un artículo. La columna de texto es estrecha a propósito —`.dgl-articulo` la limita— porque una línea
 de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde cuál venía.
 {% endcomment %}
 {% block title %}{{ page.title }} · Dominicanos en Grandes Ligas{% endblock %}
 {% block meta %}<meta name="description" content="{{ page.entradilla|truncatechars:160 }}">{% endblock %}
+{% comment %}
+  Lo que se ve al pegar el enlace en WhatsApp. `article` y no `website` para que las redes muestren
+  autor y fecha; y la foto del artículo recortada a 1200x630, que es la proporción que piden y la
+  única que no recortan ellas por su cuenta — con una foto vertical, WhatsApp corta por el medio.
+{% endcomment %}
+{% block og_tipo %}article{% endblock %}
+{% block og_titulo %}{{ page.title }}{% endblock %}
+{% block og_descripcion %}{{ page.entradilla|truncatechars:200 }}{% endblock %}
+{% if page.imagen %}
+  {% block og_imagen %}{% image page.imagen fill-1200x630 as social %}{{ request.scheme }}://{{ request.get_host }}{{ social.url }}{% endblock %}
+{% endif %}
+
+{% block extra_head %}
+{% comment %}
+  `NewsArticle` y no `Article`: es el tipo que mira Google Noticias y Discover, y este sitio es un
+  medio. Sin él, un artículo compite como una página cualquiera.
+
+  `datePublished` es obligatorio para que el tipo valga de algo — sin fecha, Google descarta la
+  ficha. `dateModified` sale de la última revisión de Wagtail, que es dato que ya tenemos.
+{% endcomment %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  "headline": "{{ page.title|escapejs }}",
+  "description": "{{ page.entradilla|escapejs }}",
+  "datePublished": "{{ page.fecha|date:'Y-m-d' }}",
+  "dateModified": "{{ page.last_published_at|date:'Y-m-d'|default:page.fecha|date:'Y-m-d' }}",
+  "inLanguage": "es-DO",{% if page.imagen %}
+  {% image page.imagen fill-1200x630 as social %}
+  "image": "{{ request.scheme }}://{{ request.get_host }}{{ social.url }}",{% endif %}{% if page.autor %}
+  "author": {"@type": "Person", "name": "{{ page.autor|escapejs }}"},{% endif %}
+  "publisher": {
+    "@type": "Organization",
+    "name": "Dominicanos en Grandes Ligas",
+    "logo": {"@type": "ImageObject", "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-default.png' %}"}
+  },
+  "mainEntityOfPage": "{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"
+}
+</script>
+{% endblock %}
 
 {% block content %}
 <main class="container my-4">

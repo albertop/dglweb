@@ -84,7 +84,16 @@ def test_el_sitio_publico_no_pide_nada_a_terceros(client: Client, ruta: str) -> 
     """
     sopa = BeautifulSoup(client.get(ruta).content.decode(), "html.parser")
     cargas = [etiqueta.get("src") for etiqueta in sopa.find_all(src=True)]
-    cargas += [etiqueta.get("href") for etiqueta in sopa.find_all("link", href=True)]
+    # `rel="canonical"` queda FUERA, y no es una excepción de conveniencia: una canónica no se carga
+    # nunca. Es una declaración para los buscadores —«esta página vive en esta dirección»— y el
+    # navegador no la pide jamás. Va absoluta porque Google la exige así (desde el SEO del
+    # 2026-07-28), y meterla en esta lista confundiría una etiqueta que no dispara ninguna petición
+    # con las que sí.
+    cargas += [
+        etiqueta.get("href")
+        for etiqueta in sopa.find_all("link", href=True)
+        if "canonical" not in (etiqueta.get("rel") or [])
+    ]
     for url in cargas:
         assert not str(url).startswith(("http://", "https://")), f"{ruta} carga {url}"
 

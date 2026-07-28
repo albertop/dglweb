@@ -8,11 +8,14 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.sitemaps.views import sitemap as sitemap_view
 from django.urls import URLPattern, URLResolver, include, path
 from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
+from wagtail.contrib.sitemaps.sitemap_generator import Sitemap as WagtailSitemap
 from wagtail.documents import urls as wagtaildocs_urls
 
+from dglweb.core.sitemaps import Jugadores, Legales, Portada
 from dglweb.core.views import (
     contacto,
     documento_legal,
@@ -21,8 +24,18 @@ from dglweb.core.views import (
     pipeline_health,
     pizarra,
     ready,
+    robots,
 )
 from dglweb.stats.staticdata import views as staticdata_views
+
+# Los cuatro mapas, en un solo `sitemap.xml`. El de Wagtail va aparte porque solo él sabe qué páginas
+# del árbol están publicadas — preguntárselo a mano sería reimplementar su lógica.
+MAPAS = {
+    "portada": Portada,
+    "jugadores": Jugadores,
+    "articulos": WagtailSitemap,
+    "legales": Legales,
+}
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("health", health, name="health"),
@@ -40,6 +53,18 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("cms/datos-apoyo/<int:pk>/confirmar/", staticdata_views.confirm, name="staticdata_confirm"),
     path("cms/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
+    # ── El mapa del sitio y el robots ────────────────────────────────────────────────────────────
+    #
+    # Van ARRIBA del catch-all de Wagtail, que si no se queda con `/sitemap.xml` y devuelve un 404 de
+    # página no encontrada — un 404 con cara de página normal, que es peor que un 404 limpio porque
+    # Google lo registra como contenido.
+    path("robots.txt", robots, name="robots"),
+    path(
+        "sitemap.xml",
+        sitemap_view,
+        {"sitemaps": MAPAS},
+        name="django.contrib.sitemaps.views.sitemap",
+    ),
     path("", home, name="home"),
     # Las tres páginas legales. Rutas fijas y no páginas del CMS a propósito — el porqué está en la
     # vista. Van ANTES del catch-all de Wagtail, que si no se queda con ellas.

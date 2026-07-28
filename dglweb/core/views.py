@@ -120,6 +120,35 @@ def contacto(request: HttpRequest) -> HttpResponse:
     return render(request, "contacto.html", {"legal": legal})
 
 
+def robots(request: HttpRequest) -> HttpResponse:
+    """`/robots.txt`. Le dice a los buscadores dónde está el mapa y qué NO mirar.
+
+    Lo importante no es lo que prohíbe —nada de eso es secreto, y `robots.txt` no protege nada; lo
+    que no quiere verse no se publica— sino que **evita gastar presupuesto de rastreo**. Google
+    dedica un tiempo limitado a cada sitio, y este tiene ~970 fichas de jugador que sí importan.
+
+    Lo que se cierra y por qué:
+    * `/cms/` y `/django-admin/` — pantallas de acceso, no contenido.
+    * `/jugadores/buscar/` — el endpoint del buscador; devuelve JSON, no una página.
+    * `/lideres/` CON parámetros — 146 métricas x 2 alcances x 72 temporadas son ~21.000 URLs de la
+      misma página. La URL desnuda sí se indexa, y va en el mapa.
+
+    Se sirve desde una vista y no como archivo estático para que el dominio salga del propio
+    request: en desarrollo apunta a localhost y en producción al dominio real, sin dos versiones que
+    se puedan desincronizar.
+    """
+    lineas = [
+        "User-agent: *",
+        "Disallow: /cms/",
+        "Disallow: /django-admin/",
+        "Disallow: /jugadores/buscar/",
+        "Disallow: /lideres/?",
+        "",
+        f"Sitemap: {request.scheme}://{request.get_host()}/sitemap.xml",
+    ]
+    return HttpResponse("\n".join(lineas) + "\n", content_type="text/plain; charset=utf-8")
+
+
 def health(request: HttpRequest) -> JsonResponse:
     """Liveness probe: is this process up? Does NOT touch the DB (used by the container
     healthcheck, so an upstream/DB blip can't mark a healthy web process as unhealthy)."""
