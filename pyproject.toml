@@ -59,7 +59,10 @@ markers = ["telegram: manda un mensaje REAL por Telegram. Excluido por defecto; 
 python_version = "3.13"
 strict = true
 plugins = ["mypy_django_plugin.main"]
-exclude = ["migrations/"]
+# `staticfiles/` es SALIDA de `collectstatic`, no código: es una copia de `static/`, y con la copia
+# delante mypy ve dos módulos con el mismo nombre («Duplicate module named vendorizar») y se planta
+# antes de revisar nada. Lo destapó construir la imagen de producción, que corre `collectstatic`.
+exclude = ["migrations/", "staticfiles/"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings.dev"

@@ -44,6 +44,18 @@ Con `vendorizar.py`, que está en esta misma carpeta. Hace tres cosas:
 Después se filtran los subconjuntos a latino y latino extendido, y se borran los `.woff2` que ya no
 referencia el CSS.
 
+## Los mapas de fuentes se quitan (2026-07-28)
+
+Bootstrap termina sus dos archivos con un comentario `sourceMappingURL=….map`. Nosotros no bajamos
+esos mapas —son ~500 KB que solo sirven para depurar Bootstrap, cosa que nadie va a hacer— y esa
+referencia colgando **rompe el build de producción**: `CompressedManifestStaticFilesStorage` resuelve
+cada URL que encuentra dentro de un estático y aborta si falta.
+
+    whitenoise.storage.MissingFileError: The file 'vendor/bootstrap.min.css.map' could not be found
+
+Lo destapó la primera construcción de la imagen de producción, no una prueba. Si se regeneran los
+archivos, **hay que volver a quitar esas dos líneas** o `docker build -f Dockerfile.prod` falla.
+
 ## Al subir de versión
 
 Bootstrap 5.3.3 es el que valida el diseño actual. Cambiar de versión mayor puede mover el layout, así

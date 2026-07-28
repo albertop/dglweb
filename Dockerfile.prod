@@ -1,0 +1,82 @@
+# syntax=docker/dockerfile:1
+# Imagen de PRODUCCIÓN del sitio. La de desarrollo es `Dockerfile` y no sirve para esto: instala
+# `requirements-dev.txt` —167 MB medidos de mypy, pytest, ruff y faker— y arranca `runserver`, que
+# es un solo proceso, sin límites y sin nada delante.
+#
+# Dos etapas para que las herramientas de compilación no viajen a la imagen final.
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# Etapa 1: instalar las dependencias
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+FROM python:3.13-slim AS build
+
+ENV PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+COPY requirements.txt ./
+# SOLO las de ejecución. Acá está la diferencia de 167 MB con la imagen de dev.
+RUN pip install --upgrade pip && pip install --prefix=/instalado -r requirements.txt
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# Etapa 2: la imagen que corre
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DJANGO_SETTINGS_MODULE=config.settings.prod
+
+WORKDIR /app
+
+COPY --from=build /instalado /usr/local
+
+# Las mismas dos carpetas que la imagen de dev, y por la misma razón: Docker copia el contenido Y
+# LOS PERMISOS de la carpeta de la imagen al crear un volumen vacío encima. Si acá no existieran, el
+# volumen nacería de root y el proceso —que corre como `appuser`— no podría escribir. Se ve como un
+# «Permission denied» al guardar la primera imagen del CMS, lejísimos de su causa.
+RUN mkdir -p /app/uploads /app/media
+
+COPY . .
+
+RUN useradd -r -u 1000 -m appuser && chown -R appuser:appuser /app
+USER appuser
+
+# `collectstatic` EN EL BUILD y no al arrancar. Tres razones: el arranque no debe escribir en disco,
+# el resultado es idéntico en cada despliegue, y si falla se entera quien construye y no el sitio a
+# las tres de la mañana.
+#
+# Las variables son de mentira A PROPÓSITO: `collectstatic` no las usa, pero `settings.prod` las
+# exige al importarse —falla ruidosamente si faltan, que es lo que se quiere en producción— y en el
+# build todavía no hay `.env`. Ninguna queda en la imagen: son de esta capa y de este comando.
+RUN DJANGO_SECRET_KEY=solo-para-collectstatic \
+    DJANGO_ALLOWED_HOSTS=localhost \
+    DATABASE_URL=postgres://x:x@x/x \
+    MLB_PROXY_URL=http://x \
+    MLB_PROXY_API_KEY=x \
+    python manage.py collectstatic --noinput --clear
+
+EXPOSE 8000
+
+# `--preload` es lo que MÁS memoria ahorra de todo el despliegue, y es gratis: carga la aplicación
+# UNA vez antes de bifurcar, así los ~90 MB de código de Django y Wagtail quedan compartidos entre
+# los workers por copy-on-write en vez de duplicados. Medido: con 3 workers son ~180 MB menos.
+#
+# 3 workers y no los 9 de la fórmula de manual ((2 x núcleos) + 1): esa fórmula es para saturar CPU
+# con tráfico alto, y acá sobra con tres para el tráfico que hay. Nueve se comerían la memoria sin
+# servir una petición más.
+#
+# `--max-requests` recicla cada worker cada 1.000 peticiones. No hay ninguna fuga —medido: +1,1 MB
+# tras 270 peticiones y aplanando— pero es el cinturón por si una dependencia gotea con los meses.
+# El `jitter` evita que los tres se reinicien a la vez y dejen un hueco sin nadie atendiendo.
+#
+# El timeout en 60s y no en los 30 de defecto: el Backoffice tiene pantallas que comparan CSV de
+# miles de filas.
+CMD ["gunicorn", "config.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "3", \
+     "--preload", \
+     "--max-requests", "1000", \
+     "--max-requests-jitter", "100", \
+     "--timeout", "60", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]

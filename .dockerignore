@@ -21,3 +21,8 @@ static_data/
 # se montan desde la carpeta local del proyecto (ver docker-compose.yml).
 static/img/mugshots/
 media/
+# El corredor de pruebas de JavaScript. No tiene nada que hacer en ninguna imagen —las pruebas
+# corren en su propio contenedor de Node— y además rompía el build: `node_modules/.bin/esbuild` es
+# un enlace simbólico que Docker no sabe empaquetar («invalid file request»).
+node_modules/
+package-lock.json
