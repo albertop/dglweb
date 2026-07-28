@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 from django.core.management import call_command
 from django.utils import timezone
+from django.utils.formats import date_format
 
 from dglweb.players.models import Player
 from dglweb.stats import daily
@@ -458,7 +459,7 @@ def test_la_ventana_son_dos_dias_consecutivos(temporada: SeasonDates) -> None:
     assert datos is not None
     assert datos["dia"] == hoy - timedelta(days=1)
     assert [d.player.player_id for d in datos["destacados"]] == [500, 501]
-    assert [d.etiqueta for d in datos["destacados"]] == ["", "Ayer"]
+    assert [d.etiqueta for d in datos["destacados"]] == ["", date_format(hoy - timedelta(days=2), "j M")]
 
 
 @pytest.mark.django_db

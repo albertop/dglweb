@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
+from django.utils.formats import date_format
+
 from dglweb.mlb.client import MlbProxyClient
 from dglweb.stats import scoreboard
 from dglweb.stats._download import fetch_team_codes
@@ -449,8 +451,16 @@ def portada() -> dict[str, Any] | None:
         por_fecha.setdefault(fila.fecha, set()).add(fila.player_id)
     clips = {fecha: videos.por_jugador(fecha, ids) for fecha, ids in por_fecha.items()}
 
-    # `fechas[0]` es la jornada de arriba: sus filas no llevan etiqueta porque son las de referencia.
-    # Las de abajo sí, o el lector leería el widget entero como si fuera de hoy.
+    # La jornada de arriba no lleva etiqueta —es la de referencia y su fecha ya está en el título—;
+    # las de abajo van con la SUYA.
+    #
+    # Decía «Ayer» y se cambió por la fecha (dueño, 2026-07-28). Es más corto de leer pero obliga a
+    # hacer una cuenta: para saber de qué día habla hay que saber primero de qué día es la jornada de
+    # arriba, que está en la otra punta del panel. La fecha se lee sola.
+    #
+    # `date_format` y no una tabla de meses propia: da «26 Jul», que es exactamente lo que usa el
+    # título del widget, así que las dos fechas del panel se escriben igual. El CSS las pasa a
+    # mayúsculas.
     lista = sorted(
         (
             Destacado(
@@ -461,7 +471,7 @@ def portada() -> dict[str, Any] | None:
                 grupo=fila.grupo,
                 valor=fila.valor,
                 fecha=fila.fecha,
-                etiqueta="" if fila.fecha == referencia else "Ayer",
+                etiqueta="" if fila.fecha == referencia else date_format(fila.fecha, "j M"),
             )
             for fila in elegidas
         ),
