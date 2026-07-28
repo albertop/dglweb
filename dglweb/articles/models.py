@@ -37,6 +37,7 @@ from taggit.models import ItemBase, TagBase
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.query import PageQuerySet
 from wagtail.search import index
 from wagtail.snippets.models import register_snippet
 
@@ -118,9 +119,7 @@ class HashtagDeArticulo(ItemBase):
     """
 
     tag = models.ForeignKey(Hashtag, related_name="articulos", on_delete=models.CASCADE)
-    content_object = ParentalKey(
-        "articles.ArticlePage", related_name="hashtags_relacion", on_delete=models.CASCADE
-    )
+    content_object = ParentalKey("articles.ArticlePage", related_name="hashtags_relacion", on_delete=models.CASCADE)
 
 
 def _paginar(articulos: QuerySet["ArticlePage"] | Any, pedida: str | None) -> "Page_[Any]":  # noqa: ANN401
@@ -138,6 +137,31 @@ def _paginar(articulos: QuerySet["ArticlePage"] | Any, pedida: str | None) -> "P
         return paginador.page(pedida or 1)
     except (PageNotAnInteger, EmptyPage):
         return paginador.page(1)
+
+
+def para_tarjetas(articulos: "PageQuerySet[ArticlePage]") -> "PageQuerySet[ArticlePage]":
+    """Lo que `_tarjeta.html` necesita, traído de una vez. ÚSALO en todo listado de artículos.
+
+    POR QUÉ EXISTE
+    --------------
+    La tarjeta es una sola plantilla compartida por la portada, el índice, la búsqueda y el panel de
+    recientes — pero cada uno armaba su consulta por su cuenta, y todos se quedaban en
+    `select_related("categoria")`. La tarjeta además lee `articulo.imagen` y `articulo.hashtags.all`,
+    así que cada una disparaba lo suyo.
+
+    Medido en `/articulos/` antes de esto: **40 consultas, de ellas 15 a `articles_hashtag` y 11 a
+    `wagtailimages_image`** — una por tarjeta. Con 12 por página no dolía; crece lineal, y los
+    artículos semilla vienen en camino.
+
+    El problema de fondo no era el número: era que **compartían plantilla sin compartir política de
+    carga**. Esa asimetría es donde nacen los N+1, porque el que añade una relación a la tarjeta no
+    tiene forma de saber qué consultas hay que tocar. Ahora hay una sola, y este docstring es donde
+    se entera.
+
+    Del review v9 (DEV-03/QA-03/ARCH-01). `tests/test_articles.py` fija un presupuesto de consultas
+    para que volver a romperlo sea ruidoso.
+    """
+    return articulos.select_related("categoria", "imagen").prefetch_related("hashtags")
 
 
 def _arrastre(consulta: str, categoria: str) -> str:
@@ -176,10 +200,9 @@ class ArticleIndexPage(Page):
         publicar sin querer algo a medio escribir.
         """
         return (
-            ArticlePage.objects.child_of(self)
-            .live()
-            .select_related("categoria")
-            .order_by("-fecha", "-pk")  # el `pk` desempata: dos artículos del mismo día tienen orden
+            para_tarjetas(ArticlePage.objects.child_of(self).live())
+            # El `pk` desempata: dos artículos del mismo día tienen orden.
+            .order_by("-fecha", "-pk")
         )
 
     def get_context(

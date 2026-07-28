@@ -37,11 +37,13 @@ def home(request: HttpRequest) -> HttpResponse:
     la fila de abajo — cuántos van no lo decide la plantilla, lo decide este corte, para que no haya
     que contar `forloop` en el HTML.
     """
-    from dglweb.articles.models import ArticlePage
+    from dglweb.articles.models import ArticlePage, para_tarjetas
     from dglweb.stats import daily, mlb_leaders, scoreboard
 
     cuantos = PORTADA_DESTACADO + PORTADA_RESTO
-    articulos = list(ArticlePage.objects.live().select_related("categoria").order_by("-fecha", "-pk")[:cuantos])
+    # `para_tarjetas` y no un `select_related` propio: la portada usa la misma plantilla de tarjeta
+    # que el índice, así que tiene que traer lo mismo. Ver su docstring.
+    articulos = list(para_tarjetas(ArticlePage.objects.live()).order_by("-fecha", "-pk")[:cuantos])
     return render(
         request,
         "home.html",

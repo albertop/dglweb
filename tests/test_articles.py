@@ -906,3 +906,39 @@ def test_la_letra_chica_llega_a_la_pagina(client: Client) -> None:
 
     salida = enlaces_seguros("<p>Cifras hasta el <small>15 de julio</small>.</p>")
     assert "<small>15 de julio</small>" in salida
+
+
+# ── Presupuesto de consultas del índice (DEV-03/QA-03/ARCH-01 del review v9) ────────────────────
+
+# Medido el 2026-07-28 con 12 artículos, imagen y hashtags: 18 consultas. El techo deja margen para
+# que una consulta se reordene sin obligar a editar el test, pero no para que vuelva un N+1: antes
+# de `para_tarjetas()` eran 40, de ellas 15 a `hashtag` y 11 a `wagtailimages_image`.
+_PRESUPUESTO_INDICE = 24
+
+
+@pytest.mark.django_db
+def test_el_indice_no_hace_una_consulta_por_tarjeta(indice: ArticleIndexPage) -> None:
+    """El N+1 que el review v9 encontró, convertido en guardia.
+
+    La tarjeta es UNA plantilla compartida por la portada, el índice, la búsqueda y el panel de
+    recientes, y cada uno armaba su consulta por su cuenta. El que añade una relación a la tarjeta no
+    tiene forma de saber cuántas consultas hay que tocar — por eso el arreglo fue un queryset único
+    (`para_tarjetas`) y por eso este presupuesto vigila que se siga usando.
+
+    Es un TECHO, no un número exacto: caza un salto de orden de magnitud, no un reordenamiento.
+    """
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    for numero in range(12):
+        _articulo(indice, titulo=f"Artículo {numero}", fecha=HOY - datetime.timedelta(days=numero))
+
+    cliente = Client()
+    cliente.get(indice.url)  # calienta cachés y conexión
+
+    with CaptureQueriesContext(connection) as capturadas:
+        assert cliente.get(indice.url).status_code == 200
+
+    assert len(capturadas) <= _PRESUPUESTO_INDICE, (
+        f"{len(capturadas)} consultas para 12 tarjetas — ¿se dejó de usar `para_tarjetas()`?"
+    )

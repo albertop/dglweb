@@ -183,7 +183,12 @@ listener de la pizarra en DEV-01, QA-01 y FE-01.
 
 ### Aceptados — prioridad baja
 
-- [ ] **DEV-03 + QA-03 + ARCH-01 [P3] — N+1 en las tarjetas de artículos.** Medido en `/articulos/`:
+- [x] **DEV-03 + QA-03 + ARCH-01 [P3] — N+1 en las tarjetas de artículos.** **Corregido
+      (2026-07-28): 40 → 18 consultas** en `/articulos/`; las 15 de `hashtag` y 11 de `imagen`
+      bajaron a 2 y 2. Nace `articles.para_tarjetas()`, un queryset único que usan la portada, el
+      índice, la búsqueda y el panel de recientes. El problema de fondo no era el número: era que
+      **compartían plantilla sin compartir política de carga**, así que el que añadía una relación a
+      la tarjeta no tenía forma de saber qué consultas tocar. Con presupuesto de consultas. Medido en `/articulos/`:
       **40 consultas, de las cuales 15 son `articles_hashtag` y 11 `wagtailimages_image`** — una por
       tarjeta. `articulos()` hace `select_related("categoria")` y ahí se queda, mientras la tarjeta
       lee `articulo.imagen` y `articulo.hashtags.all`.
@@ -195,7 +200,9 @@ listener de la pizarra en DEV-01, QA-01 y FE-01.
 
       Va con presupuesto de consultas, como el del perfil.
 
-- [ ] **DEV-02 + QA-02 [P3] — `%-I` no es portable a Windows.** `scoreboard._detalle()` usa
+- [x] **DEV-02 + QA-02 [P3] — `%-I` no es portable a Windows.** **Corregido (2026-07-28)**: nace
+      `_hora_corta()`, con `"%I:%M %p"` + `lstrip("0")`. Cinco pruebas, cuatro de ellas sobre las
+      horas de dos dígitos —10, 11, 12— que es lo único que el `lstrip` podría estropear. `scoreboard._detalle()` usa
       `strftime("%-I:%M %p")`. Comprobado en el Windows del proyecto: `ValueError: Invalid format
       string`.
 

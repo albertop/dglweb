@@ -5,7 +5,7 @@ marcador inventado es peor que ninguno—, y la otra es que no se marque como do
 lo sea: la autoridad es `dgl_master`, nunca el país que devuelva la API.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 import pytest
@@ -541,3 +541,40 @@ def test_the_browser_stops_asking_once_every_game_is_over(monkeypatch: pytest.Mo
     cache.clear()
     _instalar(monkeypatch, _Proxy([_juego(), _juego(estado="Live", detallado="In Progress")]))
     assert _armada().hay_vivos is True
+
+
+# ── La hora de un juego programado (DEV-02/QA-02 del review v9) ─────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("hora", "esperado"),
+    [
+        ((14, 5), "2:05 pm"),  # el caso normal: sin cero delante
+        ((10, 15), "10:15 am"),  # a las 10, 11 y 12 no hay cero que quitar
+        ((0, 30), "12:30 am"),  # medianoche es 12, no 0
+        ((12, 0), "12:00 pm"),  # y mediodía también es 12
+    ],
+)
+def test_la_hora_de_un_juego_programado(hora: tuple[int, int], esperado: str) -> None:
+    """Sin `%-I`, que es una extensión de glibc y en Windows levanta `ValueError`.
+
+    Hoy no rompe nada —el Python del proyecto corre siempre en el contenedor— pero una dependencia
+    del sistema operativo escondida en un formateador es una trampa para el día que alguien corra
+    algo fuera. Las cuatro filas cubren lo que el `lstrip` podría estropear: las horas de dos
+    dígitos, donde no hay cero que quitar.
+    """
+    from dglweb.stats.scoreboard import _hora_corta
+
+    assert _hora_corta(datetime(2026, 7, 28, *hora)) == esperado
+
+
+@pytest.mark.django_db
+def test_un_juego_programado_muestra_su_hora_y_no_revienta() -> None:
+    """El camino entero, desde el `gameDate` de la fuente hasta lo que se dibuja."""
+    from dglweb.stats.scoreboard import _detalle
+
+    juego = {"status": {"abstractGameState": "Preview"}, "gameDate": "2026-07-28T18:05:00Z"}
+
+    detalle = _detalle(juego, "PROGRAMADO")
+
+    assert detalle.endswith(("am", "pm")), detalle

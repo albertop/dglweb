@@ -33,7 +33,7 @@ página, con caché de un minuto: son tres llamadas por minuto para todo el siti
 
 import logging
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from django.conf import settings
@@ -144,9 +144,7 @@ class Juego:
         """
         if self.estado == PROGRAMADO:
             return self.abridor_nuestro
-        return self.estado in (FINAL, VIVO) and any(
-            nuestro.linea for lado in self.lados for nuestro in lado.nuestros
-        )
+        return self.estado in (FINAL, VIVO) and any(nuestro.linea for lado in self.lados for nuestro in lado.nuestros)
 
 
 @dataclass(frozen=True)
@@ -371,7 +369,22 @@ def _detalle(juego: dict[str, Any], estado: str) -> str:
     from django.utils.dateparse import parse_datetime
 
     momento = parse_datetime(str(empieza))
-    return timezone.localtime(momento).strftime("%-I:%M %p").lower() if momento else "Por definir"
+    return _hora_corta(timezone.localtime(momento)) if momento else "Por definir"
+
+
+def _hora_corta(momento: datetime) -> str:
+    """«2:05 pm» — la hora sin el cero de delante, sin depender del sistema operativo.
+
+    Decía `strftime("%-I:%M %p")`, y el `%-` es una extensión de glibc: en Windows levanta
+    `ValueError: Invalid format string` (comprobado). Hoy no rompe nada porque el Python de este
+    proyecto corre siempre en el contenedor —en el anfitrión ni siquiera está en el PATH— pero una
+    dependencia del sistema operativo escondida en un formateador es una trampa para el día que
+    alguien corra algo fuera. Del review v9 (DEV-02/QA-02).
+
+    `lstrip("0")` y no un `replace`: solo hay que quitar el cero inicial de la hora, y a las 10, 11 y
+    12 no hay ninguno que quitar.
+    """
+    return momento.strftime("%I:%M %p").lstrip("0").lower()
 
 
 def _lado(
