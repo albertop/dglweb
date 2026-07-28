@@ -15,9 +15,11 @@ Regla: lo que usen las dos pantallas vive acá y es público. Lo que use solo un
 y sigue privado.
 """
 
+from django.core.cache import cache
+
 from dglweb.profiles import columns
 from dglweb.stats import qualifier
-from dglweb.stats.models import QualifierDefault, QualifierSeasonOverride
+from dglweb.stats.models import Metric, QualifierDefault, QualifierSeasonOverride
 
 # Métricas descriptivas: miden un ESTILO, no un logro. Un GB% máximo de carrera no dice que el
 # pelotero mejoró en nada — su perfil de batazos se movió, y si eso lo ayuda depende de su velocidad,
@@ -97,8 +99,79 @@ def pretty_qualifier(formula: str) -> str:
     )
 
 
+# Cuánto viven en caché las tablas de referencia. Un día: las edita el dueño en el Backoffice unas
+# pocas veces al año, y una señal tira la entrada en cuanto lo hace (ver `conectar_senales`). El TTL
+# es la red por si alguien las cambia por SQL a mano, sin pasar por el ORM.
+SEGUNDOS = 60 * 60 * 24
+CLAVE_UMBRALES = "perfil:umbrales"
+CLAVE_METRICAS = "perfil:metricas"
+
+
 def qualifier_lookups() -> tuple[qualifier.Defaults, qualifier.Overrides]:
-    """La cascada de umbrales (piso por grupo + overrides por temporada), precargada de una vez."""
+    """La cascada de umbrales (piso por grupo + overrides por temporada), precargada de una vez.
+
+    POR QUÉ ESTÁ CACHEADA
+    ---------------------
+    El docstring decía «precargada de una vez» y era verdad a medias: se precargaba de una vez POR
+    LLAMADA, y la página de un jugador la llama una vez por tab. Medido el 2026-07-28 sobre el perfil
+    de Pedro Martínez, de sus 44 consultas había **cuatro** a `dgl_qualifier_default` —una tabla de
+    TRES filas— y otras cuatro a los overrides.
+
+    Son tablas de referencia: diminutas, iguales para todos los visitantes y que cambian cuando el
+    dueño toca el Backoffice. El caso exacto para el que existe una caché.
+
+    Esto es lo que se hizo EN VEZ de la carga diferida de los tabs (DEV-01). Diferir habría atacado
+    el síntoma equivocado —las consultas repetidas se repetirían dentro de cada petición diferida—
+    y de paso habría sacado del HTML el contenido de tres tabs, que es lo que indexa Google en las
+    ~970 páginas de jugador.
+    """
+    guardado: tuple[qualifier.Defaults, qualifier.Overrides] | None = cache.get(CLAVE_UMBRALES)
+    if guardado is not None:
+        return guardado
     defaults = {d.stat_group: (d.qualifier_season, d.qualifier_career) for d in QualifierDefault.objects.all()}
     overrides = {(o.stat_group, o.season): o.qualifier_season for o in QualifierSeasonOverride.objects.all()}
+    cache.set(CLAVE_UMBRALES, (defaults, overrides), SEGUNDOS)
     return defaults, overrides
+
+
+def metric_catalog(group: str) -> dict[str, Metric]:
+    """{columna: Metric} de un oficio — le da a cada columna su dirección de ranking y su umbral.
+
+    Cacheado por el mismo motivo que los umbrales: son 203 filas que no cambian entre visitas, y la
+    página de un jugador pedía el catálogo una vez por tab.
+
+    Se guardan los OBJETOS `Metric`, no sus ids: quien llama lee `metric.direction`, `metric.kind` y
+    `metric.qualifier_*`, así que devolver ids obligaría a una consulta por métrica — cambiar cuatro
+    consultas por doscientas.
+    """
+    guardado: dict[str, Metric] | None = cache.get(f"{CLAVE_METRICAS}:{group}")
+    if guardado is not None:
+        return guardado
+    catalogo = {metric.column: metric for metric in Metric.objects.filter(stat_group=group)}
+    cache.set(f"{CLAVE_METRICAS}:{group}", catalogo, SEGUNDOS)
+    return catalogo
+
+
+def _olvidar(**kwargs: object) -> None:
+    """Tira las dos cachés. La llaman las señales — ver abajo.
+
+    No mira QUÉ cambió: son cuatro entradas y recalcularlas cuesta cuatro consultas. Filtrar por
+    modelo sería más código para ahorrar algo que no duele, y el riesgo de afinar de más acá es
+    quedarse con un umbral viejo publicándose como bueno.
+    """
+    cache.delete(CLAVE_UMBRALES)
+    cache.delete_many([f"{CLAVE_METRICAS}:{grupo}" for grupo in ("batting", "pitching", "fielding")])
+
+
+def conectar_senales() -> None:
+    """Engancha el olvido a los tres modelos. La llama `ProfilesConfig.ready()`.
+
+    Sin esto, el dueño cambiaría un umbral en el Backoffice y el sitio seguiría publicando el viejo
+    hasta 24 horas, sin nada que lo dijera. Una caché sin invalidación no es una optimización: es un
+    fallo con retraso.
+    """
+    from django.db.models.signals import post_delete, post_save
+
+    for modelo in (Metric, QualifierDefault, QualifierSeasonOverride):
+        post_save.connect(_olvidar, sender=modelo, dispatch_uid=f"perfil-olvida-{modelo.__name__}")
+        post_delete.connect(_olvidar, sender=modelo, dispatch_uid=f"perfil-borra-{modelo.__name__}")

@@ -19,6 +19,7 @@ from dglweb.profiles import columns
 from dglweb.profiles.metric_layout import (
     DESCRIPTIVE_COLUMNS,
     divisions_for,
+    metric_catalog,
     pretty_qualifier,
     qualifier_lookups,
 )
@@ -77,8 +78,13 @@ _NOT_A_STAT = {"season", "stint", "age"}
 
 
 def _catalog(group: str) -> dict[str, Metric]:
-    """{column: Metric} for a stat group — gives each column its ranking direction (`+`/`-`)."""
-    return {metric.column: metric for metric in Metric.objects.filter(stat_group=group)}
+    """{column: Metric} for a stat group — gives each column its ranking direction (`+`/`-`).
+
+    Delega en la versión cacheada de `metric_layout`. Se queda como envoltorio porque lo usan varios
+    sitios del módulo y las pruebas lo llaman por nombre; el trabajo de verdad —y el porqué de la
+    caché— está allá.
+    """
+    return metric_catalog(group)
 
 
 def _qualifier_row(row: models.Model) -> dict[str, Any]:

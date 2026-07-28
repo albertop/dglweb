@@ -142,7 +142,7 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   render, fail-loud sigue en ingest).
 - [x] **SAB-03 — mejor marca personal sobre métricas descriptivas.** GB%, FB%, LD% y GB/FB no tienen
   "mejor": un extremo solo dice que cambió el perfil. **Corregido**: no se resaltan.
-- [ ] **DEV-01 — todos los tabs se calculan en cada request.** Cierto, pero **la magnitud del finding
+- [x] **DEV-01 — todos los tabs se calculan en cada request.** Cierto, pero **la magnitud del finding
   está sobrestimada**: medido son 25 queries / 415 ms para Pedro Martínez (dos tabs completos) contra
   16 / 221 ms para Ortiz (uno). El segundo tab cuesta 9 queries, no cientos, y ~340 ms de esos 415
   son latencia de red contra 10.0.0.39. No es urgente, pero cada tab nuevo cobra impuesto: con Fildeo
@@ -165,9 +165,28 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   un fallo subiendo el número en vez de mirar por qué creció. Verificado por mutación: con el techo
   viejo de 40 y el fixture realista, la prueba se cae en 45.
 
-  **Sigue pendiente la carga diferida**, que es la solución de fondo. No urge: 44 consultas contra
-  una base local son unos pocos milisegundos. Lo que urgía era que el crecimiento dejara de ser
-  invisible.
+  **La carga diferida NO se hará. Decisión del dueño (2026-07-28)**, tras medir de qué estaban hechas
+  esas 44 consultas. Cuatro razones:
+
+  1. **Se llevaría por delante el SEO, que es el activo del sitio.** Son ~970 páginas de jugador y
+     hoy los cuatro tabs están en el HTML. Diferir los saca del HTML inicial; conservarlos exigiría
+     darle URL propia a cada tab, que es otro proyecto.
+  2. **Rompe el «funciona sin JavaScript»** que el sitio respeta en todas partes: el buscador degrada
+     a formulario, los gráficos son SVG del servidor, la pizarra se ve sin script.
+  3. **La medición no la justifica.** Los 1.298 ms eran del entorno de dev: 9 ms de ida y vuelta por
+     consulta contra `10.0.0.39`. En producción la base va en el mismo VPS.
+  4. **Atacaba el síntoma equivocado.** De las 44 consultas, **trece eran las mismas tres tablas de
+     referencia pedidas una vez por tab** — `dgl_qualifier_default` tiene TRES filas. Diferir los
+     tabs no habría quitado ni una: se repetirían dentro de cada petición diferida.
+
+  **Lo que se hizo en su lugar (2026-07-28): cachear esas tablas**, con invalidación por señal cuando
+  el dueño las edita en el Backoffice. Una caché sin invalidación no es una optimización, es un fallo
+  con retraso — hay dos pruebas que lo fijan.
+
+  **Medido en perfiles reales: 44 → 33 consultas** (Pedro Martínez) y 34 → 26 (Ortiz, Soto, Sosa). Un
+  25% menos, sin tocar la arquitectura, sin perder SEO y sin JavaScript nuevo. El presupuesto del
+  test bajó de 48 a 36 — y quien avisó de que se había quedado grande fue la prueba del margen,
+  que es exactamente para lo que está.
 - [x] **DEV-03 — las tablas repiten listas de columnas a mano.** **Corregido** con el refactor declarativo que el propio finding proponía: `profiles/columns.py` define `Column(label, attr, fmt)` y las listas por división, y las plantillas rinden con partials comunes (`{% include "profiles/_season_head.html" with cols=… %}`). Hoy quedan CERO `<th>` escritos a mano en las tablas de bateo, pitcheo, fildeo y puestos. Fildeo se construyó ya sobre esto, que era justamente el plazo que el finding se ponía.
   ~~ Real y ya lo sufrimos: cada columna
   agregada (LOB, TotAvg, BsR, G, AB) obligó a editar encabezado + fila + total en varios bloques, y

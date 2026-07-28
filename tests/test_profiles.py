@@ -65,7 +65,11 @@ def _con_retrato(raiz: Any, player_id: int, tamano: int) -> Iterator[None]:
 # Historia: el review v3 (DEV-01) midió 25 consultas para un perfil de dos tabs. Entraron Fildeo y
 # Puestos y un perfil real llegó a 44 — y la prueba de presupuesto no se enteró, porque su fixture
 # seguía siendo de dos tabs. Por eso el número de acá se mide sobre el caso peor.
-_PRESUPUESTO_DE_CONSULTAS = 48
+#
+# 2026-07-28: bajó de 42 a 31 al cachear las tres tablas de referencia que cada tab volvía a pedir
+# (ver `metric_layout.qualifier_lookups`). El techo se ajustó detrás — y quien avisó de que se había
+# quedado grande fue la prueba del margen de aquí abajo, que es exactamente para lo que está.
+_PRESUPUESTO_DE_CONSULTAS = 36
 
 
 @contextmanager
@@ -314,9 +318,15 @@ def test_the_player_page_stays_within_its_query_budget() -> None:
     editar el test cada vez que una consulta se reordena.
     """
     player = _jugador_de_cuatro_tabs()
+    cliente = Client()
+    # Se mide con la caché CALIENTE, que es lo que recibe un visitante. Las tablas de referencia
+    # —métricas y umbrales— viven 24 horas y se invalidan por señal, así que la primera petición del
+    # día paga 8 consultas más y las demás no. Medir en frío daría un número que casi nadie ve, y
+    # ajustar el techo a él dejaría sitio de sobra para que el problema volviera a crecer.
+    cliente.get(reverse("player_detail", args=[player.slug]))
 
     with django_assert_num_queries_lte(_PRESUPUESTO_DE_CONSULTAS):
-        assert Client().get(reverse("player_detail", args=[player.slug])).status_code == 200
+        assert cliente.get(reverse("player_detail", args=[player.slug])).status_code == 200
 
 
 @pytest.mark.django_db
@@ -1019,3 +1029,60 @@ def test_con_una_sola_posicion_el_promedio_de_octubre_si_se_publica() -> None:
     assert columnas["fld_pct"] != "—"
     assert [t["label"] for t in datos["post_totals"]] == ["SS", "Total"]
     assert datos["post_totals"][-1]["seasons"] == 2, "dos octubres, aunque sean cuatro rondas"
+
+
+# ── La caché de las tablas de referencia (métricas y umbrales) ───────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_los_umbrales_se_piden_una_sola_vez_por_muchas_llamadas() -> None:
+    """La página los pedía una vez POR TAB: cuatro consultas a una tabla de tres filas."""
+    from dglweb.profiles.metric_layout import qualifier_lookups
+
+    qualifier_lookups()  # la primera llena la caché
+
+    with django_assert_num_queries_lte(0):
+        for _ in range(5):
+            qualifier_lookups()
+
+
+@pytest.mark.django_db
+def test_editar_un_umbral_lo_publica_de_inmediato() -> None:
+    """La otra mitad, y la que de verdad importa.
+
+    Una caché sin invalidación no es una optimización: es un fallo con retraso. El dueño cambia un
+    umbral en el Backoffice, la página sigue publicando el viejo hasta 24 horas y nada lo dice —
+    peor que la consulta de más que se quería ahorrar.
+    """
+    from dglweb.profiles.metric_layout import qualifier_lookups
+    from dglweb.stats.models import QualifierDefault
+
+    fila = QualifierDefault.objects.create(
+        stat_group="batting", qualifier_season="PA>=502", qualifier_career="PA>=3000"
+    )
+    assert qualifier_lookups()[0]["batting"][0] == "PA>=502"
+
+    fila.qualifier_season = "PA>=400"
+    fila.save()
+
+    assert qualifier_lookups()[0]["batting"][0] == "PA>=400", "la señal no tiró la caché"
+
+
+@pytest.mark.django_db
+def test_borrar_una_metrica_tambien_tira_la_cache() -> None:
+    """`post_delete` además de `post_save`: una métrica retirada tiene que desaparecer del catálogo,
+    o la página seguiría rankeando por una columna que ya nadie mantiene."""
+    from dglweb.profiles.metric_layout import metric_catalog
+
+    metrica = Metric.objects.create(
+        stat_group="batting",
+        column="inventada",
+        abbrev="XX",
+        kind=Metric.Kind.CUMULATIVE,
+        direction=Metric.Direction.HIGHER,
+    )
+    assert "inventada" in metric_catalog("batting")
+
+    metrica.delete()
+
+    assert "inventada" not in metric_catalog("batting")
