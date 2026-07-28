@@ -545,12 +545,16 @@ def test_the_rich_text_features_stay_narrow(indice: ArticleIndexPage) -> None:
 
     Este test es el que hace ruido el día que alguien la amplíe: no dice que ampliarla esté mal, dice
     que hay que volver a mirar los tres tests anteriores antes de hacerlo.
+
+    Ya cumplió una vez: se cayó al sumar `letra-chica` (2026-07-27). Se revisaron los tres y siguen
+    valiendo — `<small>` no lleva atributos, así que no abre ninguna vía que el filtro de enlaces
+    tenga que cerrar.
     """
     from dglweb.articles.blocks import CuerpoStreamBlock
 
     parrafo = CuerpoStreamBlock().child_blocks["parrafo"]
 
-    assert set(parrafo.features) == {"bold", "italic", "link", "ol", "ul"}
+    assert set(parrafo.features) == {"bold", "italic", "link", "ol", "ul", "letra-chica"}
 
 
 # ── SEC-02: la política de documentos del CMS ───────────────────────────────────────────────────
@@ -865,3 +869,44 @@ def test_with_one_page_there_is_no_navigation(indice: ArticleIndexPage) -> None:
     _muchos(indice, 3)
 
     assert "dgl-paginacion" not in Client().get(indice.url).content.decode()
+
+
+# ---------------------------------------------------------------------------------------------
+# «Letra chica»: el estilo propio del editor para fuentes, salvedades y créditos.
+# Ver `articles/wagtail_hooks.py`.
+# ---------------------------------------------------------------------------------------------
+
+
+def test_la_letra_chica_sobrevive_al_guardado() -> None:
+    """La mitad que se olvida al registrar una función de texto enriquecido.
+
+    Sin `register_converter_rule`, el botón aparece igual en la barra pero el limpiador de Wagtail
+    borra el `<small>` al guardar —tira todo lo que no esté declarado— y el texto vuelve a tamaño
+    normal solo, sin decir nada. El editor cree que lo hizo mal.
+    """
+    from wagtail.admin.rich_text.converters.contentstate import ContentstateConverter
+
+    from dglweb.articles.blocks import CuerpoStreamBlock
+
+    convertidor = ContentstateConverter(features=CuerpoStreamBlock().child_blocks["parrafo"].features)
+    ida = convertidor.from_database_format("<p>Cifras hasta el <small>15 de julio</small>.</p>")
+    assert "<small>15 de julio</small>" in convertidor.to_database_format(ida)
+
+
+def test_la_letra_chica_esta_ofrecida_en_el_parrafo() -> None:
+    """Un convertidor registrado que ningún bloque ofrece es una función que no existe."""
+    from dglweb.articles.blocks import CuerpoStreamBlock
+
+    assert "letra-chica" in CuerpoStreamBlock().child_blocks["parrafo"].features
+
+
+def test_la_letra_chica_llega_a_la_pagina(client: Client) -> None:
+    """Que el filtro de seguridad no se la coma.
+
+    `enlaces_seguros` reescribe el HTML del cuerpo con BeautifulSoup para matar los `javascript:`.
+    Cualquier etiqueta nueva pasa por ahí, así que hay que comprobar que sale por el otro lado.
+    """
+    from dglweb.articles.templatetags.articles_extras import enlaces_seguros
+
+    salida = enlaces_seguros("<p>Cifras hasta el <small>15 de julio</small>.</p>")
+    assert "<small>15 de julio</small>" in salida

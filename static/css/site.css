@@ -1236,3 +1236,16 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   font-size: 1.02rem; margin-bottom: 1.5rem;
 }
 .dgl-legal-hermanas { border-top: 1px solid #dde3ea; display: flex; gap: 1.5rem; font-size: .9rem; }
+
+/* La «letra chica» del cuerpo de un artículo: fuentes, salvedades, créditos. La marca el editor
+   desde la barra del texto enriquecido y se guarda como `<small>` — ver `articles/wagtail_hooks.py`.
+
+   El tamaño se define acá y NO en la base: lo que se guarda es la etiqueta. Si mañana cambia el
+   cuerpo del artículo, esto lo sigue solo en vez de obligar a reeditar los artículos viejos.
+
+   0.84em y no menos: por debajo de ~14px reales el serif empieza a costar en pantalla, y una nota
+   que no se lee no es una nota, es ruido. El gris tampoco baja más — el texto secundario también
+   tiene que pasar el contraste. */
+.dgl-articulo-cuerpo small {
+  font-size: .84em; line-height: 1.5; color: #4b5563;
+}

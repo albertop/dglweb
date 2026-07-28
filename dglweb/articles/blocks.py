@@ -279,7 +279,11 @@ class CuerpoStreamBlock(blocks.StreamBlock):
         icon="pilcrow",
         # Deliberadamente corto. Los títulos, las imágenes y las tablas tienen su propio bloque, así
         # que dejarlos también acá dentro daría dos maneras de hacer lo mismo con distinto estilo.
-        features=["bold", "italic", "link", "ol", "ul"],
+        #
+        # `letra-chica` es nuestra y sale de `articles/wagtail_hooks.py`: guarda un `<small>` para
+        # las salvedades, las fuentes y los créditos. Es la única excepción a la regla de arriba, y
+        # se gana el sitio porque no duplica ningún bloque — no hay otra forma de achicar un trozo.
+        features=["bold", "italic", "link", "ol", "ul", "letra-chica"],
         template="articles/blocks/_parrafo.html",
     )
     titulo = blocks.CharBlock(
