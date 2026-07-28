@@ -138,6 +138,68 @@ Lo que queda:
       alto fijo y agnósticos de proveedor. Falta pegar la etiqueta, que depende de elegir el ad
       server — y de añadir su dominio a la CSP, o no cargará y fallará en silencio.
 
+## Code review v9 — findings (2026-07-28)
+
+Ver `docs/reviews/code_review_v9.md`. Cuatro hallazgos nuevos, y **los cuatro se aceptan** — algo que
+no había pasado: en el v8 se rechazaron cuatro de quince. Este review no trajo ruido, y dos de los
+cuatro apuntan a código escrito ESE MISMO DÍA.
+
+Las seis personas reportan cuatro problemas, no once: `/ready` sale en SEC-01 y ARCH-02, y el
+listener de la pizarra en DEV-01, QA-01 y FE-01.
+
+### Aceptados — prioridad alta
+
+- [ ] **SEC-01 + ARCH-02 [P2] — `/ready` filtra detalles internos sin autenticación.** Verificado:
+      con la base caída devuelve `{"detalle": "OperationalError: connection to server at ..."}`, que
+      puede llevar host, puerto, usuario y nombre de base; y con migraciones pendientes las nombra.
+
+      **Lo que más pesa: el patrón correcto YA EXISTE en este repo, escrito el mismo día.**
+      `/health/pipeline` esconde su detalle detrás de `_puede_ver_el_detalle()` —staff o
+      `X-Monitor-Token`— justamente por esto, y `/ready` no lo aplicó. No es un descuido de diseño,
+      es una inconsistencia interna.
+
+      El arreglo: público solo `{"status": "error"}` con 503, y el detalle por el mismo guardia.
+
+- [ ] **DEV-01 + QA-01 + FE-01 [P2] — la pizarra acumula un listener global por refresco.**
+      Confirmado en `static/js/pizarra.js`: `preparar()` registra un
+      `document.addEventListener("click", …)` que cierra sobre el `raiz` de esa versión, y el
+      refresco en vivo llama `preparar(nuevo, false)` **cada minuto** tras reemplazar el
+      `outerHTML`.
+
+      O sea que una hora de juegos vivos deja **60 handlers**, 59 apuntando a nodos ya
+      desprendidos. No rompe la primera interacción —por eso pasa desapercibido— y degrada justo
+      cuando hay más tráfico.
+
+      El arreglo: registrar el listener UNA vez al cargar el módulo y resolver el banner dentro del
+      handler, o abortar con `AbortController` antes de reemplazar el HTML.
+
+### Aceptados — prioridad baja
+
+- [ ] **DEV-03 + QA-03 + ARCH-01 [P3] — N+1 en las tarjetas de artículos.** Medido en `/articulos/`:
+      **40 consultas, de las cuales 15 son `articles_hashtag` y 11 `wagtailimages_image`** — una por
+      tarjeta. `articulos()` hace `select_related("categoria")` y ahí se queda, mientras la tarjeta
+      lee `articulo.imagen` y `articulo.hashtags.all`.
+
+      Hoy no duele —12 por página— pero crece lineal con el contenido, y los artículos semilla están
+      en camino. El arreglo es un queryset «para tarjeta» reusable que centralice el `select_related`
+      y el `prefetch_related`, usado por portada, índice, búsqueda y recientes: hoy comparten
+      plantilla pero no política de carga, y esa asimetría es donde nacen los N+1.
+
+      Va con presupuesto de consultas, como el del perfil.
+
+- [ ] **DEV-02 + QA-02 [P3] — `%-I` no es portable a Windows.** `scoreboard._detalle()` usa
+      `strftime("%-I:%M %p")`. Comprobado en el Windows del proyecto: `ValueError: Invalid format
+      string`.
+
+      **Matiz honesto sobre el impacto:** el Python de este proyecto corre SIEMPRE en el contenedor
+      —en el anfitrión ni siquiera está en el PATH— así que hoy esa línea no se ejecuta nunca en
+      Windows y no hay fallo real. Se acepta igual porque la forma portable no cuesta nada
+      (`"%I:%M %p"` + `lstrip("0")`, verificado: da `2:05 pm`) y porque una dependencia del sistema
+      operativo escondida en una función de formato es una trampa para el día que alguien corra algo
+      fuera del contenedor.
+
+      Va con un test de `_detalle()` para un juego programado, que hoy no existe.
+
 ## Contenido
 
 - [ ] Escribir los 8–12 artículos semilla (cuello de botella — **ya no está bloqueado**: el CMS
