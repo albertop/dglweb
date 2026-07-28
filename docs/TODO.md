@@ -649,7 +649,7 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   retorna `None` en vez de un outs plausible-pero-falso. Fail-soft en ingest → sale como disparidad en
   paridad. Tests para `.3`/`.9`/`.25`/`abc`/`111.1.2`. (No re-ingesté: la fuente manda notación válida;
   si algún día se re-ingesta fildeo, un valor malo pasaría a NULL y saltaría en paridad.)
-- [ ] **DEV-05 — todos los tabs se calculan por request.** → **Es el mismo ítem que DEV-01 del v3**, que es donde se sigue con la medición.
+- [x] **DEV-05 — todos los tabs se calculan por request.** → Era el mismo ítem que **DEV-01 del v3**, **cerrado el 2026-07-28**: la carga diferida se descartó (SEO y «funciona sin JavaScript») y en su lugar se cachearon las tablas de referencia que cada tab volvía a pedir. 44 → 33 consultas.
   ~~ Ya conocido (v3 DEV-01). Carga diferida
   (HTMX/endpoints por tab) sigue pendiente; el test de presupuesto de queries es el guardarrail.
 - [x] **SAB-02 — panel de receptor sin CS%.** **Corregido**: columna **CS%** (property `cs_pct` en
@@ -811,7 +811,25 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 - [x] **QA-03 — el scheduler encadena por horario, no por workflow.** **Corregido** con `refresh_daily` — es el mismo ítem que QA-01 + ARCH-01 del v6, que es donde se sigue. Anotado tres veces en tres reviews; se cuenta una.
   ~~ Ya está en `MEJORAS_FUTURAS.md`
   como "A DISCUTIR". El review coincide.
-- [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.** → **Es el mismo ítem que SAB-01 del v6**, que trae además la fórmula propuesta (`PA >= 3.1 * team_games`).
+- [ ] **SAB-03 — la temporada en curso no tiene umbrales prorrateados.**
+
+      ⚠️ **El puntero que tenía acá estaba MAL y escondía el problema.** Decía «es el mismo ítem que
+      SAB-01 del v6», pero el SAB-01 del v6 era otra cosa —validar la cobertura por (temporada,
+      oficio)— y quedó corregido. O sea que esto llevaba contándose como duplicado, sin serlo.
+
+      **Verificado el 2026-07-28, y pasa AHORA MISMO en el sitio:** todos los tableros de tasa de
+      2026 están **vacíos**. AVG, OBP y OPS tienen 27 líderes cada uno en 2025 y **cero** en 2026;
+      wOBA y wRC+, 21 y cero; ERA, 13 y cero; WHIP, 8 y cero. El umbral es `PA>=502` —temporada
+      completa— y el dominicano con más apariciones lleva **464**. A finales de julio no califica
+      nadie, y en abril menos.
+
+      Peor que vacío: es **inconsistente**. Los coeficientes (GB%, FB%, LD%, PU%) sí publican para
+      2026 porque traen su propio umbral sobre batazos en juego, así que la página enseña unas tablas
+      llenas y otras vacías sin decir por qué.
+
+      La salida propuesta por el reviewer sigue siendo buena: prorratear contra los juegos del equipo
+      (`PA >= 3.1 * team_games`), que es la regla de MLB para los líderes en curso. Requiere saber
+      cuántos juegos lleva el equipo, que es dato que el proxy da.
   ~~ Mismo caso: ya identificado.
 - [x] **SEC-02 / SEC-03 — CDN sin SRI/CSP; Ofelia con socket.** **Cerrado (2026-07-27)**, en tres
   piezas y por caminos distintos:
