@@ -1,0 +1,13 @@
+{
+  "name": "dglweb-js",
+  "private": true,
+  "description": "Solo el corredor de pruebas del JavaScript del sitio. NO es un proyecto Node: no hay build, ni bundler, ni dependencias en tiempo de ejecucion. Los archivos de static/js/ se sirven tal cual, y esto existe unicamente para poder probarlos.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8"
+  }
+}

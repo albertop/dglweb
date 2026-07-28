@@ -415,10 +415,26 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   una consulta de un megabyte al endpoint público. El rate limiting completo NO se acepta por ahora:
   el costo por consulta es un `LIKE` sobre 984 filas, así que como vector de abuso rinde muy poco, y
   el throttle real necesita middleware y almacén compartido.
-- [ ] **FE-02 — tests de teclado del buscador (flechas, Enter, Escape, la fila "ver todos").** El
-  riesgo es real; el costo no son los tests sino **montar el corredor**, que trae Node a un gate que
-  hoy es solo Python. Se verificó a mano en navegador. Vale la pena cuando exista una segunda pieza
-  de JS: con una sola, el corredor cuesta más que lo que protege.
+- [x] **FE-02 — tests de teclado del buscador.** **Hecho (2026-07-28).** El aplazamiento traía su
+  propio disparador escrito —«vale la pena cuando exista una segunda pieza de JS»— y esa condición se
+  cumplió: hoy son **ocho archivos y ~860 líneas**, y varias se escribieron el 27-07 al sacar el
+  JavaScript en línea por la CSP. O sea que aquel trabajo movió comportamiento desde las plantillas
+  hasta archivos que ninguna prueba tocaba.
+
+  **vitest + jsdom**, no un navegador: lo que se prueba son decisiones de teclado y de DOM, no
+  pintado, y un navegador headless descargaría cientos de megas por corrida del CI para responder lo
+  mismo. Va en su propio trabajo del CI —no comparte nada con el de Python— y corre en paralelo, así
+  que el gate no tarda más. **No hace falta tener Node instalado**: `make testjs` lo levanta en un
+  contenedor, igual que el resto.
+
+  10 pruebas: las flechas dan la vuelta al final, solo una queda resaltada, la fila de «ver N más» NO
+  es navegable —no es un jugador—, Escape suelta el resaltado, y el debounce hace una petición por
+  pausa y no una por tecla.
+
+  **La que justifica todo:** `Enter` sin nada resaltado tiene que DEJAR PASAR la tecla para que el
+  formulario haga su GET. Verificado por mutación: al quitar el `&& activo >= 0` —un cambio de doce
+  caracteres— la prueba se cae sola. Sin ella, escribir un nombre y pulsar Enter dejaría de hacer
+  nada, con el buscador en pantalla como si funcionara.
 - [x] **ARCH-04 — `/ready` que valida DB y migraciones.** **Hecho (2026-07-27).** El argumento para
   aplazarlo era que nadie lo consumiría, y lo cambió un dato de esta misma sesión: el VPS ya tiene
   **nginx** y viene un pase a producción. Ahí hay alguien que puede preguntar.

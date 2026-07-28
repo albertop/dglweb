@@ -1291,3 +1291,10 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 .dgl-destacados-fecha {
   font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; color: #6b7280; white-space: nowrap;
 }
+
+/* PRUEBA (2026-07-27): el escudo del equipo entre la sigla y el retrato, no bajo el nombre.
+   El hueco se reserva siempre —`flex: 0 0`— aunque no haya logo: si colapsara, una fila sin escudo
+   correría el retrato y el nombre a la izquierda y las cajas dejarían de formar columnas. */
+.dgl-lider-escudo {
+  flex: 0 0 18px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+}

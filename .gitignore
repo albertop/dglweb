@@ -37,3 +37,7 @@ static/img/mugshots/**/*.jpg
 # tenga dónde montarse; los archivos NO: son contenido del sitio, no código, y viven en el volumen.
 media/*
 !media/.gitkeep
+
+# El corredor de pruebas del JavaScript. `package.json` y `package-lock.json` SÍ se versionan —el
+# lock es lo que hace reproducible la corrida del CI— pero las dependencias descargadas no.
+node_modules/

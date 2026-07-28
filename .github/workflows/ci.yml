@@ -53,3 +53,33 @@ jobs:
 
       - name: Pytest (tests)
         run: pytest
+
+  # ── El JavaScript, en su propio trabajo ────────────────────────────────────────────────────────
+  #
+  # Aparte y no dentro del anterior a propósito: no comparte NADA con él —ni Postgres, ni Python, ni
+  # dependencias— y juntarlos haría que un fallo del JS obligara a releer un log donde el 95% es de
+  # otra cosa. Además corren en paralelo, así que el gate no tarda más.
+  #
+  # Existe desde el 28-07 por FE-02 del review v6: el teclado del buscador no lo probaba nada. Se
+  # aplazó mientras hubo un solo archivo de JS —el corredor costaba más que lo que protegía— y esa
+  # condición dejó de cumplirse: hoy son ocho archivos y ~860 líneas, varias de ellas movidas desde
+  # las plantillas al poner la CSP.
+  javascript:
+    name: js (vitest + jsdom)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # `npm ci` y no `npm install`: instala exactamente lo que dice el lock y falla si el lock y el
+      # `package.json` no concuerdan, en vez de resolver por su cuenta versiones que nadie revisó.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Vitest
+        run: npm test
