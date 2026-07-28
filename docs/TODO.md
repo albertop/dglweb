@@ -17,6 +17,21 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 
 ## Antes de salir a producción
 
+- [ ] **Desplegar lo que ya está construido: van TRES versiones de atraso.** Lo que corre en el VPS
+      es la `1.2026.2`, y en `main` hay hasta la `1.2026.5`. Los pasos y las comprobaciones de cada
+      una están en `docs/PRUEBAS_DESPLIEGUE.md`; acá solo va el inventario de lo que falta subir:
+
+      - **1.2026.3** — la etiqueta `[PROD]`/`[DEV]` en los avisos de Telegram (hasta ahora los dos
+        entornos escribían al mismo grupo sin decir quién hablaba), P-ABR/P-REL en vez de SP/RP, y
+        el 984 en negritas.
+      - **1.2026.4** — todo el SEO (ver más abajo) y la casilla «fijado arriba» de los artículos.
+        **Trae migración** (`articles.0006`), así que `/ready` va a decir «migraciones pendientes»
+        hasta que corra `migrate`.
+      - **1.2026.5** — los seis arreglos del code review v10.
+      - **El retrato del biobox**, que no es código: hace falta añadir
+        `- /srv/dglweb-datos/mugshots:/app/static/img/mugshots:ro` al stack de producción. Las fotos
+        chicas se ven y las grandes no porque solo las chicas viajan dentro de la imagen.
+
 - [x] **Verificar que el usuario de Postgres pueda `CREATE EXTENSION unaccent`.** **HECHO (2026-07-28).** La crea el SUPERUSUARIO en el script de inicialización de la instancia, no la aplicación: el sitio se conecta con un rol propio (`dglweb`) que no puede instalar extensiones, y no le hace falta. Ver `/srv/postgres/init/10-dglweb.sh` en el VPS. El buscador de jugadores depende de esa extensión —es lo que hace que «nunez» encuentre a Núñez, y sin ella la mitad del maestro es inalcanzable—. No va en `requirements.txt` porque no es un paquete de Python: vive en la base. La migración `players/0005_unaccent.py` la crea sola al correr `migrate`, pero `CREATE EXTENSION` pide permisos elevados. En el Postgres actual funciona; en uno gestionado con usuario restringido, `migrate` fallaría ahí. **Comprobarlo antes de migrar**, no después.
 
 - [ ] **Rotar el token del bot de Telegram.** Quedó expuesto durante la configuración, así que conviene renovarlo antes de producción: @BotFather → `/mybots` → el bot → *API Token* → *Revoke current token*, y reemplazar `TELEGRAM_BOT_TOKEN` en `.env`. El bot y el grupo siguen siendo los mismos; solo cambia la llave.
@@ -114,6 +129,21 @@ muestra escritas a mano.
 - [x] **Restringir el Backoffice al rol *Administradores*.** Hecho el 2026-07-27. A un redactor no
       le aparece el menú siquiera, y no por una regla suelta sino porque no tiene permisos sobre esos
       modelos — Wagtail esconde lo que no se puede tocar.
+
+- [x] **Forzar qué artículo encabeza la portada.** **Hecho el 2026-07-28** (pedido del dueño): una
+      casilla **«fijado arriba»** en la ficha del artículo. Hasta ahora el hueco grande lo llenaba
+      siempre el más reciente, así que publicar cualquier cosa desplazaba lo que hubiera puesto.
+
+      Manda **el más reciente de los fijados**, y es una decisión, no una omisión: la alternativa
+      —que el sistema desmarque el anterior— hace que guardar un artículo modifique otro que nadie
+      estaba editando, y con varias manos en la redacción eso es de lo que más confunde. Así, marcar
+      uno nuevo desplaza al viejo por sí solo. El precio es el olvido: un fijado de hace meses sigue
+      arriba porque nadie lo quitó, y no hay caducidad automática a propósito.
+
+      La marca vale **también en `/articulos/`** (lo pidió el dueño después), y sale gratis: las dos
+      pantallas toman el primero de la misma lista, así que basta con `-fijado` delante de `-fecha`.
+      Lo que NO lo hereda es el panel «Lo más reciente» — se llama así, y un artículo de hace un mes
+      encabezándolo sería mentira.
 ## Fase 7 — lo que falta del plan de construcción (2026-07-28)
 
 **Por qué aparece recién ahora.** La Fase 7 vivía solo en `docs/BUILD_PLAN.md` y nunca se volcó acá,
@@ -164,6 +194,31 @@ Lo que queda:
 - [ ] **Zonas de anuncio: la etiqueta del proveedor.** Los huecos ya están en las plantillas, con
       alto fijo y agnósticos de proveedor. Falta pegar la etiqueta, que depende de elegir el ad
       server — y de añadir su dominio a la CSP, o no cargará y fallará en silencio.
+
+## SEO — hecho entero el 2026-07-28
+
+**Decisión del dueño**: «todo hay que hacerlo ahora, ¿qué ganamos dejándolo para después?». Y tenía
+razón en el orden: lo que se indexa mal el primer día se arrastra meses, porque reindexar no es
+instantáneo. Todo esto está en la `1.2026.4`, **todavía sin desplegar**.
+
+- [x] **`robots.txt` y `sitemap.xml`.** El mapa son cuatro: las fichas de jugador (excluyendo los
+      deshabilitados), la portada, las páginas legales y el árbol de Wagtail. **1.026 URLs medidas.**
+      El de Wagtail va aparte porque solo él sabe qué páginas están publicadas, y de paso ya excluye
+      las restringidas — que fue la pista de SEC-01 del review v10.
+
+      Van declarados ANTES del catch-all de Wagtail: si no, `/sitemap.xml` cae en su 404, que es un
+      404 con cara de página normal y Google lo registra como contenido.
+
+- [x] **Canónica en todas las páginas, sin la query string.** Lo que lo hacía obligatorio: la página
+      de líderes tiene **~21.000 combinaciones de URL** (146 métricas × 2 ámbitos × 72 temporadas).
+      Sin canónica, eso es contenido duplicado a escala industrial compitiendo consigo mismo.
+
+- [x] **Open Graph, `twitter:card` y JSON-LD.** Para que un enlace pegado en WhatsApp salga con foto,
+      titular y bajada en vez de una línea de texto pelada. Con `escapejs` en cada valor del JSON-LD:
+      un titular con comillas rompería el bloque entero y el buscador lo descarta sin avisar.
+
+- [x] **Imagen por defecto para compartir** (`static/img/og-default.png`, 1200×630), dibujada con las
+      fuentes del propio sitio. Sin ella, un artículo sin foto se comparte con un rectángulo vacío.
 
 ## Code review v10 — findings (2026-07-28)
 
@@ -338,21 +393,31 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
       invalida por señal. La primera versión puso todo en la base y salió peor: `/articulos/` pasó
       de 18 consultas a **133**.
 
-- [ ] **`--preload` en gunicorn.** Es lo que MÁS ahorra de toda la lista y es gratis: carga la
-      aplicación una vez antes de bifurcar, así los ~90 MB de código de Django y Wagtail quedan
-      compartidos entre workers en vez de duplicados. Con 3 workers son **~180 MB menos**.
+- [x] **`--preload` en gunicorn.** **Hecho (2026-07-28)**, en el `CMD` de `Dockerfile.prod`. Era lo
+      que MÁS ahorraba de toda la lista y era gratis: carga la aplicación una vez antes de bifurcar,
+      así los ~90 MB de código de Django y Wagtail quedan compartidos entre workers en vez de
+      duplicados. Con 3 workers son **~180 MB menos**. Seguía figurando como pendiente después de
+      estar escrito, que es exactamente el tipo de mentira que esta lista no se puede permitir.
 
-- [ ] **La imagen lleva 167 MB de dependencias de desarrollo.** El `Dockerfile` instala
-      `requirements-dev.txt`: mypy con su `.so` compilado (54 MB), faker (25 MB), pytest, ruff,
-      coverage. Es disco, no RAM, pero se paga en cada despliegue. **La imagen pasaría de 626 MB a
-      ~460.** Va con el ítem de «imagen prod separada», que ya lo pedía sin este número.
+- [x] **La imagen llevaba 167 MB de dependencias de desarrollo.** **Resuelto (2026-07-28)** con
+      `Dockerfile.prod`: dos etapas, y la de ejecución instala solo `requirements.txt`. Se fueron
+      mypy con su `.so` compilado (54 MB), faker (25 MB), pytest, ruff y coverage. **Medido en el
+      VPS: 298 MB contra los 626 de la imagen de desarrollo** — mejor incluso que los ~460 que
+      estimaba este ítem, porque la segunda etapa tampoco arrastra las herramientas de compilación.
 
-- [ ] **`pillow_heif`: 26 MB que nadie pide.** `Required-by` sale vacío y no lo usan ni Wagtail ni
-      Willow ni nuestro código. Da soporte a fotos de iPhone — puede interesar si los editores suben
-      desde el móvil, pero hoy entró de rebote. Decidir si se declara o se quita.
+- [x] **`pillow_heif`: 26 MB que nadie pide.** **Se resolvió solo con la imagen de producción, y
+      conviene saber por qué.** Comprobado el 2026-07-28: `Required-by` sale vacío, Willow solo pide
+      `defusedxml` y `filetype`, y **no está declarado en `requirements.txt`**. O sea que la etapa de
+      ejecución de `Dockerfile.prod`, que instala solo ese archivo, no lo copia. Sigue en la imagen
+      de desarrollo, donde 26 MB de disco dan igual.
 
-- [ ] **`--max-requests` con jitter.** No arregla ninguna fuga —no la hay, está medido— pero es el
-      cinturón estándar por si una dependencia gotea con los meses.
+      Queda una comprobación de una línea en el primer despliegue, por si me equivoco en la
+      deducción: `docker exec dglweb-web-live pip show pillow_heif` tiene que no encontrar nada.
+
+- [x] **`--max-requests` con jitter.** **Hecho (2026-07-28)**: 1.000 peticiones con 100 de jitter en
+      `Dockerfile.prod`. No arregla ninguna fuga —no la hay, está medido— pero es el cinturón
+      estándar por si una dependencia gotea con los meses. El jitter existe para que los tres workers
+      no se reciclen a la vez y dejen un hueco sin quién atienda.
 
 - [ ] **Revisar si la caché de métricas vale la pena.** Medido: la página de perfil hace **40
       consultas con ella y 44 sin ninguna caché**. O sea que la tabla, la migración, los dos backends
