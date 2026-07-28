@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load players_extras %}
 {% comment %}
 Índice de peloteros: buscador + la plantilla dominicana de la última temporada.
 
@@ -20,7 +21,7 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
         Sin fecha de inicio: el maestro incluye a los siete dominicanos de las Ligas Negras, que son
         anteriores a 1956 — poner ese año dejaría fuera, por escrito, a gente que sí está adentro.
       {% endcomment %}
-      Busca aquí a cualquiera de los {{ total_jugadores }} dominicanos que han jugado en Grandes
+      Busca aquí a cualquiera de los <b>{{ total_jugadores }}</b> dominicanos que han jugado en Grandes
       Ligas. Escribe un nombre o un apellido y elige de la lista para abrir su perfil, con sus
       números por temporada y de por vida.
     </p>
@@ -56,7 +57,7 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
     <ul class="list-unstyled dgl-resultados">
       {% for r in resultados %}
       <li><a href="{% url 'player_detail' r.slug %}">{{ r.name }}</a>
-        <span class="dgl-meta">{% if r.pos %}{{ r.pos }} · {% endif %}{{ r.span }}</span></li>
+        <span class="dgl-meta">{% if r.pos %}{{ r.pos|posicion }} · {% endif %}{{ r.span }}</span></li>
       {% endfor %}
     </ul>
     {% else %}
@@ -75,7 +76,7 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
       {% for jugador in activos %}
       <li><a href="{% url 'player_detail' jugador.slug %}">{{ jugador.full_name }}</a>{% if jugador.debutante %}<span
         class="dgl-debut" title="Debutó en Grandes Ligas esta temporada">*</span>{% endif %}{% if jugador.pos %}
-        <span class="dgl-meta">{{ jugador.pos }}</span>{% endif %}</li>
+        <span class="dgl-meta">{{ jugador.pos|posicion }}</span>{% endif %}</li>
       {% endfor %}
     </ul>
     <p class="dgl-meta mt-3">

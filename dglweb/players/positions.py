@@ -37,6 +37,25 @@ from django.db.models import Max, Sum
 from dglweb.players.models import Player
 from dglweb.stats.models import Fielding, Pitching
 
+# CÓMO SE ESCRIBEN LOS LANZADORES EN PANTALLA. Decisión del dueño (2026-07-28).
+#
+# `SP` y `RP` son las siglas de MLB y no dicen nada en español. El sitio ya traduce las posiciones de
+# lanzador en la ficha del jugador; esto lo saca de ahí para que el índice y cualquier otra pantalla
+# usen la MISMA nomenclatura, en vez de que cada plantilla decida.
+#
+# `P` a secas se queda igual: es el lanzador del que todavía no se sabe si abre o releva —le faltan
+# juegos para decidirlo— y «P» dice exactamente eso.
+#
+# Ojo con no extender esto a las ESTADÍSTICAS: ahí las siglas van en inglés por regla del sitio
+# (RBI, ER, AB, AVG…), y está escrito en `docs/AUTORIDAD.md`. Esto son posiciones, no métricas.
+EN_ESPANOL: dict[str, str] = {"SP": "P-ABR", "RP": "P-REL"}
+
+
+def como_se_lee(posicion: str | None) -> str:
+    """`RP` -> `P-REL`. Lo que no esté en la tabla sale tal cual: `SS` y `3B` se entienden solos."""
+    return EN_ESPANOL.get(posicion or "", posicion or "")
+
+
 # Cuántas temporadas mira para decidir «qué juega hoy».
 VENTANA = 3
 
@@ -76,9 +95,7 @@ def _mas_entradas(desde: int | None) -> dict[int, tuple[str, float]]:
         consulta = consulta.filter(season__gte=desde)
 
     mejor: dict[int, tuple[str, float]] = {}
-    for fila in (
-        consulta.values("player_id", "pos").annotate(outs=Sum("innings_outs")).order_by("player_id", "-outs")
-    ):
+    for fila in consulta.values("player_id", "pos").annotate(outs=Sum("innings_outs")).order_by("player_id", "-outs"):
         if fila["player_id"] not in mejor and fila["outs"]:
             mejor[fila["player_id"]] = (fila["pos"], fila["outs"] / 3)
     return mejor
@@ -113,8 +130,7 @@ def discrepancias(ventana: int = VENTANA, min_entradas: float = MIN_ENTRADAS) ->
     # El reciente manda; quien no jugó en la ventana —retirado— se juzga por su carrera, que ya no
     # va a cambiar.
     propuesta = {
-        pid: (*reciente.get(pid, datos), "reciente" if pid in reciente else "carrera")
-        for pid, datos in carrera.items()
+        pid: (*reciente.get(pid, datos), "reciente" if pid in reciente else "carrera") for pid, datos in carrera.items()
     }
 
     lanzadores = [pid for pid, (pos, _, _) in propuesta.items() if pos == "P"]

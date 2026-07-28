@@ -350,3 +350,22 @@ def test_a_query_longer_than_any_name_is_answered_without_touching_the_database(
 def test_a_query_exactly_as_long_as_a_name_still_searches(plantel: dict[str, Player]) -> None:
     """El corte va en el largo del campo, no uno antes: un nombre de 50 tiene que ser buscable."""
     assert search.buscar("a" * search.MAX_CARACTERES).total == 0  # consulta, y no encuentra nada
+
+
+def test_las_posiciones_de_lanzador_se_escriben_en_nuestra_nomenclatura() -> None:
+    """`SP`/`RP` son siglas de MLB y no dicen nada en español (dueño, 2026-07-28).
+
+    El filtro vive junto al código que DECIDE la posición, no en la plantilla: la ficha del jugador
+    y este índice tienen que escribirlo igual, y antes no lo hacían — la tabla estaba privada dentro
+    de las vistas del perfil y el índice publicaba las siglas en crudo.
+
+    `P` a secas NO se traduce: es el lanzador del que todavía no se sabe si abre o releva, y «P» dice
+    exactamente eso. Y las posiciones de jugador de campo tampoco: `SS` y `3B` se entienden solas.
+    """
+    from dglweb.players.templatetags.players_extras import posicion
+
+    assert posicion("SP") == "P-ABR"
+    assert posicion("RP") == "P-REL"
+    assert posicion("P") == "P"
+    assert posicion("SS") == "SS"
+    assert posicion(None) == ""

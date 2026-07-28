@@ -225,9 +225,14 @@ def test_bio_line_lists_every_field_it_has() -> None:
 
 @pytest.mark.django_db
 def test_bio_line_spells_out_the_pitcher_role() -> None:
-    """El maestro guarda el rol en el código de posición; el resto de posiciones pasa tal cual."""
-    assert "Posición: P-Abr" in bio_lines(_player(23, "r01", "Abridor", "SP"))[0]
-    assert "Posición: P-Rel" in bio_lines(_player(24, "r02", "Relevista", "RP"))[0]
+    """El maestro guarda el rol en el código de posición; el resto de posiciones pasa tal cual.
+
+    En MAYÚSCULAS desde el 2026-07-28 (decisión del dueño), y saliendo de `players.positions` para
+    que la ficha y el índice de jugadores no puedan escribirlo distinto — antes esta tabla vivía
+    privada dentro de las vistas y el índice ni la usaba: publicaba `SP` y `RP` en crudo.
+    """
+    assert "Posición: P-ABR" in bio_lines(_player(23, "r01", "Abridor", "SP"))[0]
+    assert "Posición: P-REL" in bio_lines(_player(24, "r02", "Relevista", "RP"))[0]
     assert "Posición: P" in bio_lines(_player(25, "r03", "Genérico", "P"))[0]
     assert "Posición: LF" in bio_lines(_player(26, "r04", "Jardinero", "LF"))[0]
 

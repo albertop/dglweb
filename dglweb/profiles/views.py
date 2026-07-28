@@ -7,7 +7,7 @@ from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.defaultfilters import date as format_date
 
-from dglweb.players import mugshots, search
+from dglweb.players import mugshots, positions, search
 from dglweb.players.models import Player
 from dglweb.profiles.tabs import tabs_for
 from dglweb.stats.models import BattingCareer, CareerLevel, PitchingCareer
@@ -16,11 +16,9 @@ from dglweb.stats.models import BattingCareer, CareerLevel, PitchingCareer
 # `S` (switch) and `B` (both) are the same thing in the source; 6 players carry `B`.
 _HANDS = {"R": "Der", "L": "Izq", "S": "Amb", "B": "Amb"}
 
+
 # The master stores the pitcher's role in the position code; spell it out. Everything else (1B, LF,
 # C, DH…) is already the code the reader expects, so it passes through untouched.
-_POSITIONS = {"SP": "P-Abr", "RP": "P-Rel"}
-
-
 def _birthplace(player: Player) -> str | None:
     """City and province, or just one when the record repeats it.
 
@@ -43,7 +41,7 @@ def bio_lines(player: Player) -> list[list[str]]:
     """
     play: list[str] = []
     if player.pos:
-        play.append(f"Posición: {_POSITIONS.get(player.pos, player.pos)}")
+        play.append(f"Posición: {positions.como_se_lee(player.pos)}")
     if player.bats:
         play.append(f"Batea: {_HANDS.get(player.bats, player.bats)}")
     if player.throws:

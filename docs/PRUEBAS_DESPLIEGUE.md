@@ -26,6 +26,32 @@ docker exec dglweb-web-live python manage.py telegram_check
 - [ ] Y desde tu Windows, el mismo comando llega como **`[DEV]`** — es la mitad que prueba que
       distingue de verdad y no que puso una etiqueta fija.
 
+### 1.2026.3 — nomenclatura de lanzadores y el retrato del biobox
+
+- [ ] En **/jugadores/**, los lanzadores dicen **`P-ABR`** y **`P-REL`**, no `SP` ni `RP`. La `P` a
+      secas se queda como está.
+- [ ] En la ficha de un lanzador, «Posición: P-ABR».
+- [ ] El total de la frase de arriba sale en **negritas**.
+
+### El retrato del biobox — ARREGLO DE PRODUCCIÓN
+
+El fallo: en producción la ficha no enseñaba la foto grande aunque el archivo estuviera. `existe()`
+mira el disco **dentro del contenedor**, y al desplegar movimos los retratos al anfitrión para que
+los sirviera nginx. Los pequeños sí salían porque esos se pintan siempre y se esconden con `onerror`.
+
+La ficha **no puede** usar ese truco: un tercio de los peloteros no tiene retrato, y dibujar la
+etiqueta para quitarla después haría que el nombre naciera corrido 120px y saltara a su sitio al
+volver el 404.
+
+El arreglo es un volumen más en el stack, de solo lectura:
+
+```yaml
+      - /srv/dglweb-datos/mugshots:/app/static/img/mugshots:ro
+```
+
+- [ ] La ficha de alguien **con** retrato lo enseña.
+- [ ] La ficha de alguien **sin** retrato no deja hueco ni imagen rota.
+
 ---
 
 ## La vuelta de siempre
