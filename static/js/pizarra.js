@@ -194,10 +194,6 @@
       tarjeta.focus();
     });
 
-    // Un toque fuera cierra. En el móvil no hay `mouseleave` que lo haga.
-    document.addEventListener("click", function (evento) {
-      if (!raiz.contains(evento.target)) ocultarDetalle(raiz);
-    });
 
     if (inicial) {
       // Se abre en los juegos de hoy: lo de ayer queda a la izquierda para quien lo busque.
@@ -209,6 +205,23 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     var raiz = banner();
+    // UN SOLO listener de documento, registrado acá y no dentro de `preparar()`.
+    //
+    // Estaba adentro, y `preparar()` se llama en CADA refresco en vivo —o sea una vez por minuto con
+    // juegos en marcha— después de reemplazar el `outerHTML` del banner. Cada pasada dejaba un
+    // handler global más, cerrado sobre el banner de esa versión: una hora de juegos vivos acumulaba
+    // sesenta, cincuenta y nueve de ellos apuntando a nodos ya desprendidos del documento.
+    //
+    // No rompía la primera interacción —por eso pasó desapercibido— pero degradaba con el tiempo y
+    // justo cuando hay más tráfico. Lo destapó el review v9 (DEV-01/QA-01/FE-01).
+    //
+    // Acá no hace falta desmontar nada: se resuelve el banner ACTUAL en cada clic, así que el
+    // reemplazo del HTML deja de importar.
+    document.addEventListener("click", function (evento) {
+      var actual = banner();
+      if (actual && !actual.contains(evento.target)) ocultarDetalle(actual);
+    });
+
     if (raiz) { preparar(raiz, true); }
     programar();
   });

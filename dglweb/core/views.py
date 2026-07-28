@@ -1,11 +1,15 @@
+import logging
 import secrets
 from datetime import timedelta
+from typing import Any
 
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 
 from dglweb.core import legal
+
+logger = logging.getLogger(__name__)
 
 # Cuántos artículos entran en la portada: uno grande arriba y tres en la fila de abajo, que es la
 # retícula que ya estaba dibujada. El corte vive acá y no en la plantilla para que el HTML no tenga
@@ -157,12 +161,28 @@ def ready(request: HttpRequest) -> JsonResponse:
         pendientes = ejecutor.migration_plan(ejecutor.loader.graph.leaf_nodes())
     # Se atrapa `Exception` a secas: acá cualquier fallo significa «no listo», sin matices.
     except Exception as error:
-        return JsonResponse({"status": "error", "detalle": f"{type(error).__name__}: {error}"}, status=503)
+        # El DETALLE solo para quien puede verlo. El mensaje de un fallo de conexión trae host,
+        # puerto, usuario y nombre de base — o sea el mapa de la infraestructura, servido a quien
+        # golpee la URL justo durante una caída, que es cuando menos se está mirando.
+        #
+        # El mismo guardia que `/health/pipeline`, y que existía desde el 2026-07-27: este endpoint
+        # nació al día siguiente y no lo aplicó. Lo destapó el review v9 (SEC-01).
+        logger.error("readiness: %s: %s", type(error).__name__, error)
+        cuerpo: dict[str, Any] = {"status": "error"}
+        if _puede_ver_el_detalle(request):
+            cuerpo["detalle"] = f"{type(error).__name__}: {error}"
+        return JsonResponse(cuerpo, status=503)
 
     if pendientes:
-        # Se nombran: «faltan 3 migraciones» manda a buscar cuáles, y saberlo es la mitad del arreglo.
-        faltan = [f"{migracion.app_label}.{migracion.name}" for migracion, _ in pendientes]
-        return JsonResponse({"status": "migraciones pendientes", "faltan": faltan[:20]}, status=503)
+        # Los NOMBRES también son detalle: dicen qué apps corren dentro y a qué ritmo se despliega.
+        # El número va público porque es el semáforo —un monitor necesita saber que falta algo— y no
+        # dice nada que la propia respuesta 503 no diga ya.
+        faltan: list[str] = [f"{migracion.app_label}.{migracion.name}" for migracion, _ in pendientes]
+        logger.error("readiness: %d migración(es) pendiente(s): %s", len(faltan), ", ".join(faltan[:20]))
+        detalle: dict[str, Any] = {"status": "migraciones pendientes", "pendientes": len(faltan)}
+        if _puede_ver_el_detalle(request):
+            detalle["faltan"] = faltan[:20]
+        return JsonResponse(detalle, status=503)
 
     return JsonResponse({"status": "ok"})
 

@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from typing import Any
 
 import pytest
+from django.conf import settings
 from django.core.cache import cache
 from django.db.utils import OperationalError
 from django.test import Client
@@ -352,7 +353,9 @@ def test_ready_avisa_de_las_migraciones_que_faltan(client: Client, monkeypatch: 
     primera página que toque la columna nueva. Un `SELECT 1` diría que todo está bien, y por eso el
     readiness mira el grafo de migraciones y no solo la conexión.
 
-    Y las NOMBRA: «faltan 3 migraciones» manda a buscar cuáles, y saberlo es la mitad del arreglo.
+    CUÁNTAS faltan es público —es el semáforo, y no dice nada que el 503 no diga ya—; CUÁLES es
+    detalle y va detrás del guardia: los nombres cuentan qué apps corren dentro y a qué ritmo se
+    despliega. Cambió con SEC-01 del review v9; antes salían para cualquiera.
     """
     from django.db.migrations.executor import MigrationExecutor
     from django.db.migrations.migration import Migration
@@ -363,7 +366,8 @@ def test_ready_avisa_de_las_migraciones_que_faltan(client: Client, monkeypatch: 
     respuesta = client.get("/ready")
 
     assert respuesta.status_code == 503
-    assert respuesta.json()["faltan"] == ["articles.0042_inventada"]
+    assert respuesta.json() == {"status": "migraciones pendientes", "pendientes": 1}
+    assert "0042_inventada" not in respuesta.content.decode(), "los nombres son detalle"
 
 
 @pytest.mark.django_db
@@ -379,7 +383,8 @@ def test_ready_devuelve_503_si_la_base_no_contesta(client: Client, monkeypatch: 
     respuesta = client.get("/ready")
 
     assert respuesta.status_code == 503
-    assert "connection refused" in respuesta.json()["detalle"]
+    # Solo el semáforo: el porqué va a los logs y al operador con token. Ver SEC-01 del review v9.
+    assert respuesta.json() == {"status": "error"}
 
 
 @pytest.mark.django_db
@@ -398,3 +403,44 @@ def test_health_no_toca_la_base(client: Client, monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(type(connections["default"]), "cursor", revienta)
 
     assert client.get("/health").status_code == 200
+
+
+# ── `/ready`: el semáforo es público, el diagnóstico no (SEC-01 del review v9) ───────────────────
+
+
+@pytest.mark.django_db
+def test_ready_no_le_cuenta_a_nadie_por_que_fallo(client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
+    """El mensaje de un fallo de conexión trae host, puerto, usuario y nombre de base.
+
+    O sea el mapa de la infraestructura, servido a quien golpee la URL justo durante una caída — que
+    es cuando menos se está mirando. El semáforo (503) basta para un monitor o un balanceador.
+    """
+
+    def revienta(*_: object, **__: object) -> None:
+        raise OperationalError('connection to server at "10.0.0.39", port 5432 failed: timeout')
+
+    monkeypatch.setattr("django.db.backends.utils.CursorWrapper.execute", revienta)
+
+    respuesta = client.get("/ready")
+
+    assert respuesta.status_code == 503
+    cuerpo = respuesta.json()
+    assert cuerpo == {"status": "error"}, "no puede salir nada más que el semáforo"
+    assert "10.0.0.39" not in respuesta.content.decode()
+
+
+@pytest.mark.django_db
+def test_ready_si_le_cuenta_al_que_trae_el_token(client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
+    """El mismo guardia que `/health/pipeline`, que existía desde el día anterior y este endpoint no
+    aplicó. Para el operador el detalle es la mitad del arreglo."""
+
+    def revienta(*_: object, **__: object) -> None:
+        raise OperationalError("no se pudo conectar")
+
+    monkeypatch.setattr("django.db.backends.utils.CursorWrapper.execute", revienta)
+    monkeypatch.setattr(settings, "PIPELINE_HEALTH_TOKEN", "un-token")
+
+    respuesta = client.get("/ready", headers={"X-Monitor-Token": "un-token"})
+
+    assert respuesta.status_code == 503
+    assert "no se pudo conectar" in respuesta.json()["detalle"]
