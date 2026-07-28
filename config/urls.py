@@ -13,11 +13,23 @@ from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
 
-from dglweb.core.views import contacto, documento_legal, health, home, pipeline_health, pizarra
+from dglweb.core.views import (
+    contacto,
+    documento_legal,
+    health,
+    home,
+    pipeline_health,
+    pizarra,
+    ready,
+)
 from dglweb.stats.staticdata import views as staticdata_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("health", health, name="health"),
+    # Readiness: ¿puede ATENDER, no solo si está encendido? Va aparte de `/health` a propósito — el
+    # porqué está en la vista. Lo consume el pase a producción y, más adelante, nginx o un
+    # orquestador para no mandar tráfico a un proceso al que le faltan migraciones.
+    path("ready", ready, name="ready"),
     # El semáforo del refresco diario, para un monitor externo. Va público a propósito: quien
     # tiene que verlo es un servicio de afuera, y lo único que expone es si el pipeline corrió.
     path("health/pipeline", pipeline_health, name="pipeline_health"),

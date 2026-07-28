@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 from django.core.cache import cache
+from django.db.utils import OperationalError
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
@@ -333,3 +334,69 @@ def test_a_cached_healthy_light_does_not_leak_detail(temporada: SeasonDates) -> 
     cuerpo = _pedir().json()
 
     assert cuerpo == {"status": "ok"}
+
+
+# ── /ready — readiness, que no es lo mismo que liveness ──────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_ready_responde_ok_con_la_base_al_dia(client: Client) -> None:
+    respuesta = client.get("/ready")
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"status": "ok"}
+
+
+@pytest.mark.django_db
+def test_ready_avisa_de_las_migraciones_que_faltan(client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
+    """El fallo que se gana el endpoint: imagen nueva y `migrate` que no corrió.
+
+    No se ve desde fuera. La base contesta, el proceso arranca, la portada carga — y revienta la
+    primera página que toque la columna nueva. Un `SELECT 1` diría que todo está bien, y por eso el
+    readiness mira el grafo de migraciones y no solo la conexión.
+
+    Y las NOMBRA: «faltan 3 migraciones» manda a buscar cuáles, y saberlo es la mitad del arreglo.
+    """
+    from django.db.migrations.executor import MigrationExecutor
+    from django.db.migrations.migration import Migration
+
+    falsa = Migration("0042_inventada", "articles")
+    monkeypatch.setattr(MigrationExecutor, "migration_plan", lambda self, targets, clean_start=False: [(falsa, False)])
+
+    respuesta = client.get("/ready")
+
+    assert respuesta.status_code == 503
+    assert respuesta.json()["faltan"] == ["articles.0042_inventada"]
+
+
+@pytest.mark.django_db
+def test_ready_devuelve_503_si_la_base_no_contesta(client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un proceso arriba con la base caída devuelve 500 en todas las páginas: no está listo."""
+    from django.db import connections
+
+    def revienta(self: object) -> None:
+        raise OperationalError("connection refused")
+
+    monkeypatch.setattr(type(connections["default"]), "cursor", revienta)
+
+    respuesta = client.get("/ready")
+
+    assert respuesta.status_code == 503
+    assert "connection refused" in respuesta.json()["detalle"]
+
+
+@pytest.mark.django_db
+def test_health_no_toca_la_base(client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
+    """La otra mitad del acuerdo, y la razón de que sean dos endpoints.
+
+    `/health` lo mira el healthcheck del contenedor. Si consultara la base, un parpadeo de Postgres
+    reiniciaría un proceso web sano — empeorar una caída de la base tirando además la aplicación.
+    Con la base rota a propósito, este tiene que seguir diciendo que sí.
+    """
+    from django.db import connections
+
+    def revienta(self: object) -> None:
+        raise OperationalError("connection refused")
+
+    monkeypatch.setattr(type(connections["default"]), "cursor", revienta)
+
+    assert client.get("/health").status_code == 200

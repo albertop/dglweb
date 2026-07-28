@@ -419,11 +419,20 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   riesgo es real; el costo no son los tests sino **montar el corredor**, que trae Node a un gate que
   hoy es solo Python. Se verificó a mano en navegador. Vale la pena cuando exista una segunda pieza
   de JS: con una sola, el corredor cuesta más que lo que protege.
-- [ ] **ARCH-04 — falta un `/ready` que valide DB y migraciones.** `/health` está bien como está: no
-  toca la DB **a propósito**, para que un parpadeo de Postgres no mate un proceso web sano. Lo que
-  falta es el readiness, y hoy **nadie lo consumiría** — no hay orquestador ni pool de instancias.
-  **Va con Fase 8**, junto al compose de producción: un endpoint de readiness que nadie consulta es
-  solo código.
+- [x] **ARCH-04 — `/ready` que valida DB y migraciones.** **Hecho (2026-07-27).** El argumento para
+  aplazarlo era que nadie lo consumiría, y lo cambió un dato de esta misma sesión: el VPS ya tiene
+  **nginx** y viene un pase a producción. Ahí hay alguien que puede preguntar.
+
+  `/health` se queda como está y esa es la mitad importante del acuerdo: **no toca la base a
+  propósito**, porque lo mira el healthcheck del contenedor y consultarla haría que un parpadeo de
+  Postgres reiniciara un proceso web sano — empeorar una caída de la base tirando además la
+  aplicación. Hay un test que lo fija, con la base rota adrede.
+
+  `/ready` responde la otra pregunta: si le mandara tráfico ahora, ¿lo serviría? Comprueba `SELECT 1`
+  y, sobre todo, **que no falten migraciones** — que es el fallo del despliegue (imagen nueva,
+  `migrate` que no corrió) y el que no se ve desde fuera: la base contesta, el proceso arranca, la
+  portada carga, y revienta la primera página que toque la columna nueva. Las migraciones que faltan
+  se nombran en la respuesta; «faltan 3» manda a buscar cuáles. 4 tests.
 
 ### Diferidos con disparador explícito
 

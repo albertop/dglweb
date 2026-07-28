@@ -120,6 +120,53 @@ def health(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"status": "ok"})
 
 
+def ready(request: HttpRequest) -> JsonResponse:
+    """Readiness: ¿este proceso puede ATENDER, o solo está encendido? 200 si sí, 503 si no.
+
+    LA DIFERENCIA CON `/health`, QUE ES TODA LA GRACIA
+    --------------------------------------------------
+    `/health` responde «el proceso vive» y **no toca la base a propósito**: es lo que mira el
+    healthcheck del contenedor, y si consultara la base, un parpadeo de Postgres reiniciaría un
+    proceso web perfectamente sano. Empeorar una caída de la base tirando además la aplicación es el
+    fallo clásico de mezclar las dos preguntas en un endpoint.
+
+    Esto responde la otra: si le mandara tráfico ahora mismo, ¿lo serviría? Y ahí sí hay que tocar la
+    base, porque un proceso arriba con la base caída devuelve 500 en todas las páginas.
+
+    QUÉ COMPRUEBA, Y POR QUÉ ESAS DOS COSAS
+    ---------------------------------------
+    1. **Que la base contesta.** Un `SELECT 1`, que es la comprobación más barata que existe.
+    2. **Que no faltan migraciones.** Este es el que de verdad se gana el endpoint: es el fallo del
+       despliegue —imagen nueva, `migrate` que no corrió— y no se ve desde fuera. La base contesta,
+       el proceso arranca, la portada carga… y revienta la primera página que toque la columna nueva.
+       Un `SELECT 1` diría que todo está bien.
+
+    NO SE CACHEA, y es deliberado: la respuesta cacheada de un readiness es una foto vieja, o sea
+    exactamente lo contrario de lo que se le pregunta.
+    """
+    from django.db import DEFAULT_DB_ALIAS, connections
+    from django.db.migrations.executor import MigrationExecutor
+
+    try:
+        conexion = connections[DEFAULT_DB_ALIAS]
+        with conexion.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        # `migration_plan` con los objetivos del grafo devuelve lo que FALTARÍA por aplicar. Vacío es
+        # estar al día; cualquier cosa dentro es una migración que este proceso necesita y no tiene.
+        ejecutor = MigrationExecutor(conexion)
+        pendientes = ejecutor.migration_plan(ejecutor.loader.graph.leaf_nodes())
+    # Se atrapa `Exception` a secas: acá cualquier fallo significa «no listo», sin matices.
+    except Exception as error:
+        return JsonResponse({"status": "error", "detalle": f"{type(error).__name__}: {error}"}, status=503)
+
+    if pendientes:
+        # Se nombran: «faltan 3 migraciones» manda a buscar cuáles, y saberlo es la mitad del arreglo.
+        faltan = [f"{migracion.app_label}.{migracion.name}" for migracion, _ in pendientes]
+        return JsonResponse({"status": "migraciones pendientes", "faltan": faltan[:20]}, status=503)
+
+    return JsonResponse({"status": "ok"})
+
+
 def pipeline_health(request: HttpRequest) -> JsonResponse:
     """¿El refresco diario está sano? 200 si sí, 503 si no. Pensado para un monitor EXTERNO.
 
