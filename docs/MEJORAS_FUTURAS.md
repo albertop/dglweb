@@ -66,23 +66,30 @@ Es una conversación de diseño, no un ticket. Retomar antes de dar por cerrado 
   no tienen sentido sumadas entre posiciones. Si se retoma, mostrar el detalle por (temporada, ronda,
   posición) SIN subtotales agregados, o decidir con el dueño una agregación por posición. Bajo valor;
   revisar si en algún momento hace sentido.
-- **Hueco de batazos en 2000 y 2001** (Fase 4c). En esas dos temporadas la fuente entregó los **outs**
-  por tipo completos pero casi ningún **hit** por tipo: 91 hits tipificados en 2000 y 113 en 2001,
-  contra ~5 100 hits reales (un 2%). En 1999 el match es exacto (4 957 = 4 957) y en 2003 casi
-  (6 001 de 6 013). Consecuencia: GB%/FB%/LD%/PU% de esos años cuentan casi solo outs, los cuatro
-  tipos suman ~67% en vez de 100%, y cada uno queda subestimado alrededor de un tercio.
-  Quedan **dentro** del piso de 1989 (`derive.FIRST_STATCAST_SEASON`), así que el corte por año no
-  las protege, y ahora los coeficientes alimentan tableros de líderes: un jugador con carrera corta
-  concentrada en 2000-2001 compite con ratios malos. Decisión del dueño: **dejarlo así por ahora**
-  para no agregar otra capa. Si se retoma, `available_from` no sirve (es un piso, no un hueco
-  intermedio) — habría que excluir esas dos temporadas explícitamente, o mejor, reintentar la
-  ingesta de esos años por si la fuente ya los corrigió.
+- ~~**Hueco de batazos en 2000 y 2001** (Fase 4c).~~ **RESUELTO en la Fase 4e (2026-07).** La fuente
+  entregaba el 2% de los hits tipificados de esos años; se cargaron los de Retrosheet y hoy están en
+  **88,6% y 89,1%** (medido el 2026-07-28). El propio documento sugería «reintentar la ingesta por si
+  la fuente ya los corrigió» — se hizo mejor: se trajeron de otra fuente.
+
+  Lo que queda de aquel problema son **siete temporadas de 1989-97** que siguen incompletas, y esas no
+  tienen arreglo: a Retrosheet le falta la trayectoria de ~10% de los hits de esos años y eso no lo
+  anotó nadie en su momento. Es el techo del registro histórico, no algo por hacer. **Se advierte en
+  la UI** desde el 2026-07-27 (SAB-03b): las celdas afectadas van subrayadas, y las que sí están
+  completas —los cinco conteos de outs por tipo— quedan limpias. Ver `derive.UNDERTYPED_COLUMNS`.
 
 ## Producción / hardening (del code review v1)
 
-- **FIX-10 — Ofelia socket.** Montar el socket de Docker de forma más segura en producción
-  (hoy `:ro` es suficiente para dev).
-- **FIX-11 — SRI / CSP.** Subresource Integrity y Content-Security-Policy para el front (Fase 8).
+- ~~**FIX-10 — Ofelia socket.**~~ **CERRADO como riesgo aceptado (dueño, 2026-07-27).** El montaje es
+  root en el anfitrión —el `:ro` protege el archivo, **no** la API, y conviene no olvidarlo— pero
+  explotarlo exige ejecutar código dentro del contenedor del scheduler primero, y esa vía se cerró
+  pinneando la imagen por digest. Las alternativas (un proxy del socket, o cambiar Ofelia por cron)
+  cuestan más de lo que compran en un VPS de un solo dueño. Ver `docs/TODO.md`, SEC-02/SEC-03.
+- ~~**FIX-11 — SRI / CSP.**~~ **HECHO (2026-07-27).** El SRI dejó de aplicar porque el CDN dejó de
+  existir: Bootstrap y las fuentes se sirven desde `static/vendor/`. La CSP está puesta en
+  `dglweb/core/csp.py`, estricta en el sitio público —`script-src 'self'`, sin inline— y más floja en
+  `/cms/`. Para que se cumpliera hubo que mudar doce enganches inline a archivos bajo `static/js/`.
+  Queda un pendiente vivo en `TODO.md`: añadir el dominio del ad server cuando se elija, o su etiqueta
+  no cargará.
 
 ## Scheduler
 

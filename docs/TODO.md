@@ -159,10 +159,23 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   rankean, pero llamarlos "mejor" implica un valor competitivo que no tienen. La corrección natural
   es de etiquetas ("Más alto / Más bajo") y vive en la UI de líderes, que **todavía no existe**
   (Fase 5). Cuando se construya, usar la misma marca de métrica descriptiva que ya usa SAB-03.
-- [ ] **SAB-01 — la cobertura Statcast se decide por año, no por completitud.** El reviewer llegó de
-  forma independiente al hueco de 2000-2001 que ya está documentado en `MEJORAS_FUTURAS.md`. Decisión
-  del dueño: dejarlo así por ahora. Su sugerencia extra —advertirlo en la UI, no solo en el backlog—
-  sigue disponible y es barata.
+- [x] **SAB-01 — la cobertura Statcast se decide por año, no por completitud.** **Cerrado
+  (2026-07-28).** El finding tenía tres partes y las tres están resueltas o justificadas:
+
+  1. **El ejemplo que lo motivó ya no existe.** El reviewer llegó por su cuenta al hueco de 2000-2001,
+     donde la fuente entregaba el **2%** de los hits tipificados. La Fase 4e cargó los de Retrosheet:
+     medido el 2026-07-28, hoy están en **88,6% y 89,1%**.
+  2. **Su sugerencia extra —advertirlo en la UI y no solo en el backlog— está hecha** (SAB-03b,
+     2026-07-27). Las celdas afectadas de las siete temporadas que siguen incompletas van subrayadas,
+     y las que sí están completas quedan limpias.
+  3. **El corte por año se queda, y no por inercia.** El hueco está en el NUMERADOR, así que un
+     umbral de volumen no lo caza: el caso medido es Rico Carty, con más de 2.507 batazos en juego y
+     solo el **19%** clasificados, saliendo «líder» de PU% con 1,3%. Tenía volumen de sobra. Solo un
+     piso por temporada lo arregla.
+
+  De paso se puso al día `MEJORAS_FUTURAS.md`, que describía el hueco de 2000-2001 como abierto —y de
+  paso FIX-10 y FIX-11, cerrados el 27-07—. Un documento que describe problemas resueltos manda a
+  arreglar lo que ya está bien, que es peor que no tenerlo.
 
 ## Incidente — el scheduler llevaba días sin correr (2026-07-26)
 
