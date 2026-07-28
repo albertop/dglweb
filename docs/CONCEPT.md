@@ -424,7 +424,9 @@ Cuatro roles contemplados:
   resumen de la jornada dominicana + cintillo. (Es lo que hace sentir el sitio "vivo".) **Deben
   ser season-aware** (no mostrar la última pizarra en off-season). **LIDOM y Spring Training NO
   van en el launch** → son fast-follow #1 y #2 (implica lanzar en temporada MLB).
-- **Auth social** (Google + Facebook) **disponible**, pero **SIN muro de registro en el launch**
+- ~~**Auth social** (Google + Facebook) **disponible**, pero **SIN muro de registro en el launch**~~
+  ⚠️ **APARCADO el 2026-07-28** (dueño): no se implementa hasta que exista una función que justifique
+  registrarse. El botón «Entrar» se quitó del encabezado. Ver `docs/TODO.md`.
   (ver decisión abajo): el registro existe (opcional), el sitio abre 100% público.
 - **Zonas de anuncio agnósticas** presentes en el layout (aunque arranquen con house ads).
 - **Diseño** sobrio + responsive sobre librería UI, **pulido**.
@@ -445,6 +447,12 @@ Cuatro roles contemplados:
 - Ad server sofisticado (arrancar simple: house ads o un anunciante directo vía plataforma hosted).
 
 ### Decisión del launch — muro de registro
+
+> ⚠️ **2026-07-28:** la decisión de abajo (lanzar abierto) SIGUE EN PIE y se refuerza — pero además
+> **el login social se aparcó del todo**, no solo el muro. Sin muro no había nada detrás de la
+> puerta, y abrirla obliga a tratar datos personales: reescribir privacidad y cookies, credenciales
+> con verificación de negocio, y decidir qué pasa cuando dos proveedores traen el mismo correo. El
+> disparador para retomarlo está en `docs/TODO.md`.
 
 - **✅ DECIDIDO: lanzar 100% abierto; el muro de registro se activa DESPUÉS.** Maximiza viewers e
   indexación de Google al arranque y evita fricción temprana. El registro social existe como

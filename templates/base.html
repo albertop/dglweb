@@ -101,7 +101,20 @@
           {% if indice_articulos %}
             <li class="nav-item"><a class="nav-link dgl-navlink" href="{{ indice_articulos }}">Artículos</a></li>
           {% endif %}
-          <li class="nav-item ms-lg-2"><a class="btn btn-sm btn-outline-light" href="#">Entrar</a></li>
+          {% comment %}
+            Acá estuvo el botón «Entrar», apuntando a `#` desde la Fase 1. Se quitó el 2026-07-28,
+            por decisión del dueño y tras poner sobre la mesa lo que costaba de verdad:
+
+            El sitio se lee entero sin cuenta —eso está decidido desde el CONCEPT— así que no había
+            NADA detrás de esa puerta. Y abrirla no es gratis: en cuanto el sitio guarda cuentas pasa
+            a tratar datos personales, y hay que reescribir privacidad y cookies, conseguir
+            credenciales de Google y Facebook —con verificación de negocio de por medio— y decidir
+            qué se hace cuando dos proveedores traen el mismo correo.
+
+            Un botón que no lleva a ninguna parte es peor que no tenerlo: promete algo. Cuando haya
+            una razón real para registrarse —comentarios, seguir peloteros, boletín— vuelve, y el
+            plan de lo que hace falta está en `docs/TODO.md`.
+          {% endcomment %}
         </ul>
       </div>
     </div>

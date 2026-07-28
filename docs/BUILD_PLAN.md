@@ -329,6 +329,15 @@
 - **Done when:** el sitio completo (anónimo) navegable en staging; login social funciona; el
   buscador de jugadores lleva a la página correcta.
 
+> ⚠️ **ACTUALIZACIÓN 2026-07-28 — el login social queda APARCADO** por decisión del dueño, y el
+> botón «Entrar» se quitó del encabezado. Las otras dos entregas de esta fase ya están hechas por
+> otro camino: el buscador de jugadores y la landing. Queda la etiqueta del ad server, que depende
+> de elegir proveedor.
+>
+> El motivo: sin muro, no hay nada detrás de la puerta, y abrirla obliga a reescribir privacidad y
+> cookies, a conseguir credenciales con verificación de negocio y a decidir la política de unión de
+> cuentas. El detalle y el disparador para retomarlo, en `docs/TODO.md`.
+
 ## Fase 8 — Endurecimiento para producción
 
 - **Meta:** listo y resiliente para el mundo.

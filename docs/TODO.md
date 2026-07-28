@@ -127,13 +127,35 @@ a planificar:
 
 Lo que queda:
 
-- [ ] **Login social con `django-allauth`** (Google/Facebook, **sin muro**: el sitio se lee entero
-      sin cuenta). **El botón «Entrar» de la barra apunta a `#`** hoy, en todas las páginas del
-      sitio — es lo más visible que queda sin hacer.
+- [ ] **Login social — APARCADO, y el botón «Entrar» se quitó del encabezado (dueño, 2026-07-28).**
 
-      Ojo con lo que arrastra: cuentas de usuario significan datos personales, así que la política de
-      privacidad —que hoy presume de no pedir nada— hay que reescribirla EN EL MISMO commit. Ver
-      `dglweb/core/legal.py` y la regla que ya está escrita ahí.
+      **No se implementa hasta que haya una razón para registrarse.** El sitio se lee entero sin
+      cuenta —decidido desde el CONCEPT— así que hoy no hay NADA detrás de esa puerta, y el botón
+      llevaba desde la Fase 1 apuntando a `#`. Un botón que no lleva a ninguna parte es peor que no
+      tenerlo: promete algo.
+
+      **Lo que cuesta abrirla, que es la razón de aparcarlo.** En cuanto el sitio guarda cuentas pasa
+      a tratar datos personales:
+
+      1. **Reescribir privacidad y cookies, en el mismo commit.** Hoy la de cookies dice literalmente
+         «navegando por este sitio no recibes ninguna cookie», y hay una prueba que lo sostiene
+         (`test_el_sitio_publico_no_pone_cookies`). La de privacidad presume de no pedir nada. Con
+         cuentas hay que declarar qué llega de cada proveedor, para qué, cuánto dura y cómo se borra.
+         *(La buena noticia: las cookies de sesión son estrictamente necesarias, así que **seguiría
+         sin hacer falta el cartel de consentimiento**.)*
+      2. **Credenciales OAuth, con fricción real.** Google pide pantalla de consentimiento y
+         verificación para producción; Facebook pide verificación del negocio y URL pública de
+         política de privacidad. Las dos piden el dominio de producción, así que esto **se ata al
+         despliegue**.
+      3. **Dos decisiones de seguridad del dueño.** ¿Se unen cuentas cuando dos proveedores traen el
+         mismo correo? (Recomendación: **no** — es la vía clásica de robo de cuenta si un proveedor
+         no verifica el correo.) Y separar explícitamente el acceso de lectores del acceso al CMS,
+         con pruebas: hoy hay **un** usuario y es staff.
+
+      **Disparador para retomarlo:** que exista la función que lo justifique — comentarios, seguir
+      peloteros, boletín. Sin eso es construir una puerta a un cuarto vacío y pagar el alquiler del
+      cuarto.
+
 - [ ] **Zonas de anuncio: la etiqueta del proveedor.** Los huecos ya están en las plantillas, con
       alto fijo y agnósticos de proveedor. Falta pegar la etiqueta, que depende de elegir el ad
       server — y de añadir su dominio a la CSP, o no cargará y fallará en silencio.
