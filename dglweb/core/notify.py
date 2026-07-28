@@ -19,6 +19,7 @@ fuente externa; no vale la pena escaparlos para poner una palabra en negrita.
 """
 
 import logging
+import os
 
 import httpx
 from django.conf import settings
@@ -29,6 +30,31 @@ logger = logging.getLogger(__name__)
 # aviso se pierde y el job sigue — al revés sería sostener el pipeline por un mensaje.
 _TIMEOUT = 5.0
 _API = "https://api.telegram.org/bot{token}/sendMessage"
+
+
+def entorno() -> str:
+    """`DEV` o `PROD`, para encabezar el aviso. Del módulo de settings, no de una variable aparte.
+
+    POR QUÉ HACE FALTA
+    ------------------
+    Desde que el sitio está en producción (2026-07-28) hay DOS schedulers avisando al mismo chat: el
+    de la máquina del dueño y el del VPS. El primer aviso que llegó después de publicar —96
+    posiciones sin cuadrar— podía venir de cualquiera de los dos, y no había forma de saberlo. Un
+    canal donde no se sabe quién habla obliga a comprobar a mano cada vez, que es justo el trabajo
+    que el aviso venía a ahorrar.
+
+    POR QUÉ DEL MÓDULO DE SETTINGS
+    ------------------------------
+    Se podría leer de una variable de entorno propia, pero entonces se puede olvidar — y un aviso mal
+    etiquetado es peor que uno sin etiqueta, porque manda a mirar la máquina equivocada. El módulo de
+    settings es lo que YA distingue los dos entornos y no se puede olvidar: sin él el proceso ni
+    arranca.
+
+    Si alguien corre los settings de producción en su portátil, dirá PROD — y es correcto: está
+    tocando la configuración de producción.
+    """
+    modulo = os.environ.get("DJANGO_SETTINGS_MODULE", "")
+    return "PROD" if modulo.endswith(".prod") else "DEV"
 
 
 def configurado() -> bool:
@@ -48,7 +74,14 @@ def enviar(texto: str) -> bool:
     try:
         respuesta = httpx.post(
             _API.format(token=settings.TELEGRAM_BOT_TOKEN),
-            json={"chat_id": settings.TELEGRAM_CHAT_ID, "text": texto, "disable_web_page_preview": True},
+            json={
+                "chat_id": settings.TELEGRAM_CHAT_ID,
+                # La etiqueta va DELANTE y no al final: en la notificación del teléfono se ve la
+                # primera línea, y si el entorno estuviera al final habría que abrir el mensaje para
+                # saber si hay que preocuparse.
+                "text": f"[{entorno()}] {texto}",
+                "disable_web_page_preview": True,
+            },
             timeout=_TIMEOUT,
         )
         respuesta.raise_for_status()

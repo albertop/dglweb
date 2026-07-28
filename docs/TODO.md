@@ -812,7 +812,9 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
 
   **Que haya que tocarlo a mano es la garantía, no el estorbo:** ese archivo es la lista, en un solo
   sitio, de a quién se le permite ejecutar código en el sitio.
-- [ ] Dónde/ cuándo se activa el muro de registro (post-launch).
+- [x] ~~Dónde/cuándo se activa el muro de registro (post-launch).~~ **NO SE HARÁ. Decisión del dueño
+  (2026-07-28): el sitio no va a tener login.** Y con eso se cae también la mitad de auth social de
+  la Fase 7 — ver más abajo.
 
 ## Code review v4 — findings (2026-07-24)
 
@@ -1362,7 +1364,27 @@ falso). Los archivos viven en el volumen `dglweb_media`.
       - El límite de subida por defecto de nginx es **1 MB**, y una foto de artículo lo pasa sin
         esfuerzo. Sale como un 413 seco en mitad del formulario de Wagtail y **no deja rastro en los
         logs de Django**, porque el que corta es nginx.
-- [ ] **Respaldar los datos de producción.** Sigue pendiente, y es lo más urgente del sitio ya
+- [x] **Respaldar los datos de producción.** **HECHO (2026-07-28)**: `deploy/respaldo.sh`.
+
+      Respalda la base con `pg_dump -Fc` —consistente por diseño, porque trabaja dentro de una
+      transacción; copiar los archivos de Postgres en caliente daría una copia rota— y `media/` en un
+      tar. **Los retratos NO entran**: son 1.970 archivos reproducibles con el script de descarga del
+      dueño, y meterlos multiplicaría por seis el tamaño para guardar algo que se puede rehacer.
+
+      **Y VERIFICA, que es la mitad que casi siempre falta.** Lee el índice del volcado con
+      `pg_restore -l` y cuenta las tablas; si salen menos de 50, avisa por Telegram y sale con
+      error. Un respaldo que no se puede leer no es un respaldo, y eso solo se sabe intentándolo —
+      no el día que haga falta.
+
+      Retención de 30 días, configurable con `DIAS`.
+
+      **Pendiente de ti**: colgarlo del cron del VPS y —lo que de verdad cierra esto— **probar una
+      restauración completa una vez**. Un respaldo que nunca se restauró es una suposición.
+
+- [ ] **~~Respaldar los datos de producción~~ → probar la restauración.** El script corre y verifica
+      que el archivo se puede leer, pero eso no es lo mismo que haberlo restaurado. Hacerlo una vez
+      contra una base descartable, cronometrarlo, y anotar acá cuánto tardó: el día del incidente esa
+      cifra es lo que decide si se restaura o se improvisa. Sigue pendiente, y es lo más urgente del sitio ya
       publicado: **si se pierde el VPS hoy, los artículos y sus fotos no se recuperan de ningún
       sitio.** La base de estadísticas sí —se puede reconstruir desde 10.0.0.39 o desde el proxy—
       pero lo que escribió una persona en el CMS solo existe allá.

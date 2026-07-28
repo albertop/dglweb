@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 import pytest
 from django.core.management import call_command
+from django.test import override_settings
 from django.utils import timezone
 
 from dglweb.core import notify
@@ -61,7 +62,9 @@ def test_it_posts_the_text_as_plain_text(configurado: None, monkeypatch: pytest.
     monkeypatch.setattr("httpx.post", falso_post)
 
     assert notify.enviar("Debut de Juan_Soto") is True
-    assert enviados[0]["json"]["text"] == "Debut de Juan_Soto"
+    # El guion bajo llega INTACTO: eso es lo que prueba este test. La etiqueta de entorno que lo
+    # precede desde el 2026-07-28 tiene su propia prueba más abajo.
+    assert enviados[0]["json"]["text"].endswith("Debut de Juan_Soto")
     assert "parse_mode" not in enviados[0]["json"]
     assert "123:abc" in enviados[0]["url"]
 
@@ -314,3 +317,47 @@ def test_the_checker_names_the_bot_and_says_what_is_missing(
     salida = capsys.readouterr().out
     assert "dglweb_avisos_bot" in salida
     assert "no puede escribir primero" in salida  # la explicación del paso que nadie adivina
+
+
+# ── La etiqueta de entorno (2026-07-28) ─────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("modulo", "esperado"),
+    [
+        ("config.settings.prod", "PROD"),
+        ("config.settings.dev", "DEV"),
+        ("config.settings.test", "DEV"),
+        ("", "DEV"),  # sin variable: se asume lo de menos riesgo
+    ],
+)
+def test_el_entorno_sale_del_modulo_de_settings(modulo: str, esperado: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No de una variable propia, que se puede olvidar — y un aviso MAL etiquetado es peor que uno
+    sin etiqueta, porque manda a mirar la máquina equivocada."""
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", modulo)
+    assert notify.entorno() == esperado
+
+
+def test_el_aviso_sale_encabezado_por_el_entorno(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Delante y no al final: en la notificación del teléfono se ve la primera línea, y con el
+    entorno al final habría que abrir el mensaje para saber si hay que preocuparse.
+
+    Existe porque desde que hay producción son DOS schedulers avisando al mismo chat, y el primer
+    aviso tras publicar —96 posiciones sin cuadrar— podía venir de cualquiera de los dos.
+    """
+    enviados: list[dict[str, Any]] = []
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "config.settings.prod")
+
+    class _Respuesta:
+        def raise_for_status(self) -> None:
+            return None
+
+    def _post(url: str, json: dict[str, Any], timeout: float) -> _Respuesta:
+        enviados.append(json)
+        return _Respuesta()
+
+    monkeypatch.setattr("httpx.post", _post)
+    with override_settings(TELEGRAM_BOT_TOKEN="t", TELEGRAM_CHAT_ID="1"):
+        assert notify.enviar("algo se rompió") is True
+
+    assert enviados[0]["text"] == "[PROD] algo se rompió"
