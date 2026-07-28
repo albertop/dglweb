@@ -33,6 +33,25 @@ docker exec dglweb-web-live python manage.py telegram_check
 - [ ] En la ficha de un lanzador, «Posición: P-ABR».
 - [ ] El total de la frase de arriba sale en **negritas**.
 
+### 1.2026.4 — SEO y el artículo fijado
+
+**Trae una MIGRACIÓN** (`articles.0006`), así que `/ready` va a decir «migraciones pendientes» hasta
+que corra `migrate`. No es un fallo: es el endpoint haciendo su trabajo.
+
+```bash
+docker exec dglweb-web-live python manage.py migrate
+curl -s https://dominicanosengrandesligas.com/robots.txt
+curl -s https://dominicanosengrandesligas.com/sitemap.xml | grep -o "<loc>" | wc -l
+```
+
+- [ ] `robots.txt` responde y su `Sitemap:` apunta al **dominio real**, no a localhost.
+- [ ] El mapa trae **~990 URLs** — las fichas más los dos artículos reales y las páginas fijas.
+- [ ] **Que NO aparezca ningún artículo de prueba en el mapa.** Los de desarrollo no están en la base
+      de producción, pero conviene mirarlo: es justo lo que no se quiere anunciar.
+- [ ] Pegar un enlace de un artículo en WhatsApp y ver que sale con foto, titular y bajada.
+- [ ] Marcar un artículo como **«fijado arriba»** en el CMS y comprobar que encabeza la portada y el
+      índice, aunque no sea el más reciente.
+
 ### El retrato del biobox — ARREGLO DE PRODUCCIÓN
 
 El fallo: en producción la ficha no enseñaba la foto grande aunque el archivo estuviera. `existe()`

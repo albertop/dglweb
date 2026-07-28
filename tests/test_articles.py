@@ -942,3 +942,58 @@ def test_el_indice_no_hace_una_consulta_por_tarjeta(indice: ArticleIndexPage) ->
     assert len(capturadas) <= _PRESUPUESTO_INDICE, (
         f"{len(capturadas)} consultas para 12 tarjetas — ¿se dejó de usar `para_tarjetas()`?"
     )
+
+
+# ── El artículo fijado (2026-07-28) ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_un_articulo_fijado_encabeza_el_indice(indice: ArticleIndexPage) -> None:
+    """Sin esto, el hueco grande lo llena siempre el más reciente y escribir algo nuevo lo desplaza.
+
+    Se prueba fijando el MÁS VIEJO a propósito: si la prueba fijara el más reciente pasaría igual sin
+    que el campo hiciera nada.
+    """
+    _articulo(indice, "El viejo", fecha=HOY - datetime.timedelta(days=30), fijado=True)
+    _articulo(indice, "El nuevo", fecha=HOY)
+
+    assert [a.title for a in indice.articulos()][:2] == ["El viejo", "El nuevo"]
+
+
+@pytest.mark.django_db
+def test_el_fijado_encabeza_tambien_la_portada(indice: ArticleIndexPage, client: Client) -> None:
+    """La portada y el índice comparten el mismo orden a propósito: son la misma decisión editorial
+    y tenerlas en dos sitios distintos es cómo se despegan."""
+    _articulo(indice, "El viejo fijado", fecha=HOY - datetime.timedelta(days=30), fijado=True)
+    _articulo(indice, "El nuevo sin fijar", fecha=HOY)
+
+    html = client.get("/").content.decode()
+
+    assert html.index("El viejo fijado") < html.index("El nuevo sin fijar")
+
+
+@pytest.mark.django_db
+def test_entre_dos_fijados_manda_el_mas_reciente(indice: ArticleIndexPage) -> None:
+    """La decisión del dueño, y la razón por la que el sistema no desmarca nada solo: marcar uno
+    nuevo desplaza al viejo por sí mismo, sin que guardar un artículo modifique otro que nadie
+    estaba editando."""
+    _articulo(indice, "Fijado viejo", fecha=HOY - datetime.timedelta(days=10), fijado=True)
+    _articulo(indice, "Fijado nuevo", fecha=HOY, fijado=True)
+
+    primero = indice.articulos().first()
+    assert primero is not None
+    assert primero.title == "Fijado nuevo"
+
+
+@pytest.mark.django_db
+def test_lo_mas_reciente_ignora_al_fijado(indice: ArticleIndexPage, client: Client) -> None:
+    """El panel se llama «Lo más reciente»: un artículo de hace un mes encabezándolo sería mentira.
+
+    El fijado manda en la retícula de al lado, que es donde esa decisión editorial tiene sentido.
+    """
+    _articulo(indice, "El viejo fijado", fecha=HOY - datetime.timedelta(days=30), fijado=True)
+    _articulo(indice, "El nuevo sin fijar", fecha=HOY)
+
+    panel = client.get(indice.url).content.decode().split("<aside")[1]
+
+    assert panel.index("El nuevo sin fijar") < panel.index("El viejo fijado")

@@ -43,7 +43,9 @@ def home(request: HttpRequest) -> HttpResponse:
     cuantos = PORTADA_DESTACADO + PORTADA_RESTO
     # `para_tarjetas` y no un `select_related` propio: la portada usa la misma plantilla de tarjeta
     # que el índice, así que tiene que traer lo mismo. Ver su docstring.
-    articulos = list(para_tarjetas(ArticlePage.objects.live()).order_by("-fecha", "-pk")[:cuantos])
+    # `-fijado` primero, igual que el índice: es lo que deja al dueño elegir qué encabeza la portada
+    # sin tener que retocar la fecha del artículo. Ver `ArticlePage.fijado`.
+    articulos = list(para_tarjetas(ArticlePage.objects.live()).order_by("-fijado", "-fecha", "-pk")[:cuantos])
     return render(
         request,
         "home.html",

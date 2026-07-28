@@ -202,7 +202,10 @@ class ArticleIndexPage(Page):
         return (
             para_tarjetas(ArticlePage.objects.child_of(self).live())
             # El `pk` desempata: dos artículos del mismo día tienen orden.
-            .order_by("-fecha", "-pk")
+            # `-fijado` primero: en Postgres `True` va antes que `False`. Cambiar SOLO acá hace que
+            # el artículo fijado encabece la portada Y el índice, porque los dos toman el primero de
+            # esta misma lista. El panel «Lo más reciente» NO usa este orden — ver `get_context`.
+            .order_by("-fijado", "-fecha", "-pk")
         )
 
     def get_context(
@@ -267,7 +270,10 @@ class ArticleIndexPage(Page):
             contexto["resto"] = en_pagina[INICIALES:]
             # Para el panel de la derecha. Sale de lo publicado sin filtrar: si filtrara con la
             # retícula repetiría exactamente lo mismo dos veces en la misma pantalla.
-            contexto["recientes"] = self.articulos()[:10]
+            # Cronológico de verdad, sin el fijado arriba: el panel se llama «Lo más reciente» y un
+            # artículo de hace tres semanas encabezándolo sería mentira. El fijado ya manda en la
+            # retícula de al lado, que es donde esa decisión editorial tiene sentido.
+            contexto["recientes"] = self.articulos().order_by("-fecha", "-pk")[:10]
         else:
             contexto["destacado"] = None
             contexto["resto"] = en_pagina
@@ -304,6 +310,24 @@ class ArticlePage(Page):
     )
     hashtags = ClusterTaggableManager(through=HashtagDeArticulo, blank=True)
     autor = models.CharField(max_length=80, blank=True, help_text="Como se firma: «A. Perdomo».")
+    # Fijar un artículo arriba, en la portada y en el índice, sin depender de su fecha.
+    #
+    # POR QUÉ GANA EL MÁS RECIENTE DE LOS FIJADOS, y no «solo uno puede estarlo». Decisión del dueño
+    # (2026-07-28): así marcar uno nuevo desplaza al viejo por sí solo, sin que el sistema desmarque
+    # nada a espaldas del editor. Guardar un artículo NO puede modificar otro que nadie estaba
+    # editando — en una redacción con varias manos, eso es de lo que más confunde.
+    #
+    # El precio de esa decisión es olvidarse: un fijado de hace meses sigue arriba porque nadie lo
+    # quitó. No hay caducidad automática a propósito, para no añadir una regla más; queda en la
+    # disciplina de quien publica.
+    fijado = models.BooleanField(
+        "fijado arriba",
+        default=False,
+        help_text=(
+            "Lo pone de primero en la portada y en el índice, sin importar su fecha. Si hay varios "
+            "fijados manda el más reciente, así que para cambiarlo basta con marcar el nuevo."
+        ),
+    )
     fecha = models.DateField("fecha de publicación")
     cuerpo = StreamField(CuerpoStreamBlock(), blank=True)
 
@@ -314,7 +338,13 @@ class ArticlePage(Page):
             heading="La tarjeta",
         ),
         MultiFieldPanel(
-            [FieldPanel("categoria"), FieldPanel("hashtags"), FieldPanel("autor"), FieldPanel("fecha")],
+            [
+                FieldPanel("categoria"),
+                FieldPanel("hashtags"),
+                FieldPanel("autor"),
+                FieldPanel("fecha"),
+                FieldPanel("fijado"),
+            ],
             heading="Ficha",
         ),
         FieldPanel("cuerpo"),
