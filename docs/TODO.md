@@ -148,6 +148,26 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   son latencia de red contra 10.0.0.39. No es urgente, pero cada tab nuevo cobra impuesto: con Fildeo
   real y luego Splits/Game Logs sí se nota. Agregado un test de presupuesto de queries para que no
   crezca en silencio; la carga diferida (HTMX o endpoints por tab) queda pendiente.
+
+  **Revisado el 2026-07-28, y el impuesto se cobró:** Pedro Martínez pasó de 25 consultas a **44**
+  (+76%) al entrar Fildeo y Puestos. Los milisegundos engañan —1.298 ms hoy contra 415 antes— porque
+  la base de dev está en `10.0.0.39` a **9 ms de ida y vuelta por consulta**: 44 × 9 = 398 ms que son
+  solo red. En producción la base va en el mismo VPS, así que **el número que importa es el conteo,
+  no el tiempo**.
+
+  **Y el guardia que puse para esto no lo cazó.** El test de presupuesto medía un pelotero sintético
+  de DOS tabs con el techo en 40, mientras un perfil real llegaba a 44 — por encima del propio techo—
+  sin que nada se cayera. Un presupuesto medido sobre un fixture que no se parece a la realidad no
+  protege: da tranquilidad, que es peor que no dar nada.
+
+  **Corregido (2026-07-28).** El fixture enciende ahora los cuatro tabs, el techo es 48 sobre 42
+  medidas, y hay una segunda prueba que exige que el margen no pase de 8 — para que nadie «arregle»
+  un fallo subiendo el número en vez de mirar por qué creció. Verificado por mutación: con el techo
+  viejo de 40 y el fixture realista, la prueba se cae en 45.
+
+  **Sigue pendiente la carga diferida**, que es la solución de fondo. No urge: 44 consultas contra
+  una base local son unos pocos milisegundos. Lo que urgía era que el crecimiento dejara de ser
+  invisible.
 - [x] **DEV-03 — las tablas repiten listas de columnas a mano.** **Corregido** con el refactor declarativo que el propio finding proponía: `profiles/columns.py` define `Column(label, attr, fmt)` y las listas por división, y las plantillas rinden con partials comunes (`{% include "profiles/_season_head.html" with cols=… %}`). Hoy quedan CERO `<th>` escritos a mano en las tablas de bateo, pitcheo, fildeo y puestos. Fildeo se construyó ya sobre esto, que era justamente el plazo que el finding se ponía.
   ~~ Real y ya lo sufrimos: cada columna
   agregada (LOB, TotAvg, BsR, G, AB) obligó a editar encabezado + fila + total en varios bloques, y

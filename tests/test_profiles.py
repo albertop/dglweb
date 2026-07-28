@@ -58,6 +58,16 @@ def _con_retrato(raiz: Any, player_id: int, tamano: int) -> Iterator[None]:
         yield
 
 
+# El techo de consultas de una página de perfil con los CUATRO tabs encendidos. Medido, no elegido:
+# ver `test_el_presupuesto_esta_ajustado_y_no_es_un_numero_generoso`, que se cae si alguien lo sube
+# para silenciar un fallo en vez de mirar por qué creció.
+#
+# Historia: el review v3 (DEV-01) midió 25 consultas para un perfil de dos tabs. Entraron Fildeo y
+# Puestos y un perfil real llegó a 44 — y la prueba de presupuesto no se enteró, porque su fixture
+# seguía siendo de dos tabs. Por eso el número de acá se mide sobre el caso peor.
+_PRESUPUESTO_DE_CONSULTAS = 48
+
+
 @contextmanager
 def django_assert_num_queries_lte(limit: int) -> Iterator[None]:
     """Un techo, no un número exacto: el punto es cazar un salto de orden de magnitud, no obligar a
@@ -260,18 +270,72 @@ def test_filters_render_a_dash_instead_of_exploding(junk: object) -> None:
     assert innings(junk) == "—"
 
 
-@pytest.mark.django_db
-def test_the_player_page_stays_within_its_query_budget() -> None:
-    """La página calcula TODOS los tabs, no solo el activo. Hoy son pocas queries, pero cada tab
-    nuevo cobra impuesto: este presupuesto hace ruidoso el crecimiento en vez de silencioso."""
-    player = _player(28, "q01", "Doble Tabla", "SP")
+def _jugador_de_cuatro_tabs() -> Player:
+    """Un pelotero con TODOS los tabs encendidos: Bateo, Pitcheo, Fildeo y Puestos.
+
+    Cada tab se enciende por su cuenta —`applies_to` mira una tabla distinta— así que hay que darle
+    de comer a las cuatro: la carrera de bateo y la de pitcheo, una línea de fildeo que no sea DH, y
+    un liderazgo para que Puestos tenga algo que enseñar.
+    """
+    player = _player(28, "q01", "Cuatro Tablas", "SP")
     BattingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
     PitchingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
+    FieldingCareer.objects.create(player=player, level=CareerLevel.TOTAL, sort_order=300)
     Batting.objects.create(player=player, season=2019, stint=1, team="BOS", pa=80, hr=1)
     Pitching.objects.create(player=player, season=2019, stint=1, team="BOS", outs=600, w=15)
+    Fielding.objects.create(player=player, season=2019, team="BOS", pos="P", gp=30, po=10)
+    metrica = Metric.objects.create(
+        stat_group="pitching",
+        column="w",
+        abbrev="W",
+        kind=Metric.Kind.CUMULATIVE,
+        direction=Metric.Direction.HIGHER,
+        best_season=True,
+    )
+    Leader.objects.create(player=player, metric=metrica, board=Leader.Board.BEST_SEASON, season=2019, rank=1, value=15)
+    return player
 
-    with django_assert_num_queries_lte(40):
+
+@pytest.mark.django_db
+def test_the_player_page_stays_within_its_query_budget() -> None:
+    """La página calcula TODOS los tabs, no solo el activo (DEV-01 del review v3).
+
+    EL FIXTURE ES LA MITAD DE LA PRUEBA, y la primera versión lo tenía mal. Medía un pelotero con dos
+    tabs y ponía el techo en 40; mientras tanto entraron Fildeo y Puestos, y un perfil real pasó de
+    25 consultas a 44 — por encima del propio techo— sin que esta prueba dijera nada. O sea que el
+    guardia puesto para que el crecimiento fuera ruidoso lo dejó pasar en silencio, que es
+    exactamente lo que existía para impedir.
+
+    De ahí que ahora mida el caso PEOR —los cuatro tabs— y no uno cómodo. Un presupuesto medido sobre
+    un fixture que no se parece a la realidad no protege nada: da tranquilidad, que es peor que no
+    dar nada.
+
+    Es un TECHO y no un número exacto: el punto es cazar un salto de orden de magnitud, no obligar a
+    editar el test cada vez que una consulta se reordena.
+    """
+    player = _jugador_de_cuatro_tabs()
+
+    with django_assert_num_queries_lte(_PRESUPUESTO_DE_CONSULTAS):
         assert Client().get(reverse("player_detail", args=[player.slug])).status_code == 200
+
+
+@pytest.mark.django_db
+def test_el_presupuesto_esta_ajustado_y_no_es_un_numero_generoso() -> None:
+    """Un techo tres veces por encima de lo real no caza nada: deja sitio para que el problema crezca.
+
+    Esta prueba mide lo que de verdad cuesta la página y exige que el presupuesto no le saque más de
+    un puñado de consultas de margen. Si alguien sube el techo para «arreglar» un fallo del test de
+    arriba en vez de mirar por qué creció, esta se cae.
+    """
+    player = _jugador_de_cuatro_tabs()
+    cliente = Client()
+    cliente.get(reverse("player_detail", args=[player.slug]))  # calienta cachés y conexión
+
+    with CaptureQueriesContext(connection) as capturadas:
+        cliente.get(reverse("player_detail", args=[player.slug]))
+
+    margen = _PRESUPUESTO_DE_CONSULTAS - len(capturadas)
+    assert 0 <= margen <= 8, f"{len(capturadas)} consultas contra un techo de {_PRESUPUESTO_DE_CONSULTAS}"
 
 
 def test_pct_filter_shows_percentage_number() -> None:
