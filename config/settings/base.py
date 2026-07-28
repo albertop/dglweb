@@ -125,6 +125,49 @@ USE_TZ = True
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
 
+# --- Caché: DOS, y cada una donde tiene sentido ---
+#
+# La primera versión de esto puso TODO en la base y salió peor: `/articulos/` pasó de 18 consultas a
+# 133. El culpable estaba medido — Wagtail lee su caché constantemente: 23 veces por petición la
+# clave `wagtail_site_root_paths` (una por cada URL de página que resuelve) y 4 por cada recorte de
+# imagen. Eso es exactamente para lo que existe una caché en memoria, y mandarlo a la base convierte
+# cada lectura en una consulta.
+#
+# Así que van dos.
+#
+# `default` — EN MEMORIA, por proceso. La usa Wagtail para sus lecturas diminutas y constantes. Que
+# cada worker tenga la suya no molesta: las raíces del sitio cambian una vez en la vida, y un recorte
+# de imagen cacheado de más solo significa volver a mirarlo, no un dato viejo publicado.
+#
+# `compartida` — EN LA BASE, la ven TODOS los workers. Solo para lo que se invalida por SEÑAL, que es
+# donde `LocMemCache` deja de ser una optimización y pasa a ser un fallo:
+#
+#   El dueño cambia un umbral en el Backoffice. La señal que tira la caché
+#   (`profiles.metric_layout._olvidar`) corre EN EL WORKER que atendió ese guardado. Los demás
+#   seguirían sirviendo el valor viejo hasta que expire — y su TTL es de 24 HORAS.
+#
+# Lo mismo con la URL del índice de artículos. Las que dependen de un TTL corto —la pizarra, el
+# cintillo, el semáforo del pipeline— se curan solas y se quedan en memoria.
+#
+# POR QUÉ LA BASE Y NO REDIS. Redis sería más rápido, pero suma un servicio que mantener, vigilar y
+# reiniciar, y el principio #0 del proyecto es resiliencia sobre features. Lo que va a la compartida
+# son 34 KB medidos, leídos un puñado de veces por petición.
+#
+# La tabla la crea `core.0002`, así que no hay un paso manual que olvidar al desplegar — y si
+# faltara, `/ready` lo diría con un 503 antes de recibir tráfico.
+COMPARTIDA = "compartida"
+
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    COMPARTIDA: {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "dgl_cache",
+        # 300 es el defecto y se queda corto en cuanto entren más entradas compartidas. Mil de este
+        # tamaño son unos pocos megas en una tabla que se limpia sola.
+        "OPTIONS": {"MAX_ENTRIES": 1000},
+    },
+}
+
 # --- Static files (served by WhiteNoise in prod) ---
 # Leading slash so assets resolve from the site root on nested paths (e.g. /cms/login/).
 STATIC_URL = "/static/"

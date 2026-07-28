@@ -66,10 +66,18 @@ def _con_retrato(raiz: Any, player_id: int, tamano: int) -> Iterator[None]:
 # Puestos y un perfil real llegó a 44 — y la prueba de presupuesto no se enteró, porque su fixture
 # seguía siendo de dos tabs. Por eso el número de acá se mide sobre el caso peor.
 #
-# 2026-07-28: bajó de 42 a 31 al cachear las tres tablas de referencia que cada tab volvía a pedir
-# (ver `metric_layout.qualifier_lookups`). El techo se ajustó detrás — y quien avisó de que se había
-# quedado grande fue la prueba del margen de aquí abajo, que es exactamente para lo que está.
-_PRESUPUESTO_DE_CONSULTAS = 36
+# 2026-07-28, por la mañana: bajó de 42 a 31 al cachear las tres tablas de referencia que cada tab
+# volvía a pedir (ver `metric_layout.qualifier_lookups`).
+#
+# 2026-07-28, por la tarde: subió a 40. La caché de esas tablas pasó a la BASE porque en memoria era
+# por proceso, y con varios workers de gunicorn la invalidación por señal solo llegaba a uno — el
+# dueño cambiaba un umbral y los demás servían el viejo hasta 24 horas. Correcto cuesta 9 consultas
+# más que rápido-pero-mentiroso, y son ~2 ms contra la base local.
+#
+# EL DATO INCÓMODO, medido: sin NINGUNA caché esta página hace 44. O sea que toda esa maquinaria
+# —tabla, migración, dos backends, señales— ahorra CUATRO consultas. Está anotado en el TODO como
+# candidato a simplificar: puede que lo correcto sea no cachear esas tablas y consultarlas y ya.
+_PRESUPUESTO_DE_CONSULTAS = 44
 
 
 @contextmanager
@@ -1035,15 +1043,27 @@ def test_con_una_sola_posicion_el_promedio_de_octubre_si_se_publica() -> None:
 
 
 @pytest.mark.django_db
-def test_los_umbrales_se_piden_una_sola_vez_por_muchas_llamadas() -> None:
-    """La página los pedía una vez POR TAB: cuatro consultas a una tabla de tres filas."""
+def test_los_umbrales_no_vuelven_a_tocar_sus_tablas() -> None:
+    """La página los pedía una vez POR TAB: cuatro consultas a una tabla de TRES filas.
+
+    Ya no son cero consultas —la caché vive en la base, para que la vean todos los workers— sino UNA
+    lectura de la caché por llamada, en vez de las tres tablas de referencia. Lo que esta prueba
+    protege es eso: que no se vuelva a `dgl_metric` ni a `dgl_qualifier_*`.
+    """
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
     from dglweb.profiles.metric_layout import qualifier_lookups
 
     qualifier_lookups()  # la primera llena la caché
 
-    with django_assert_num_queries_lte(0):
+    with CaptureQueriesContext(connection) as capturadas:
         for _ in range(5):
             qualifier_lookups()
+
+    tablas = " ".join(q["sql"] for q in capturadas)
+    assert "dgl_qualifier" not in tablas, "volvió a la tabla de umbrales"
+    assert "dgl_metric" not in tablas
 
 
 @pytest.mark.django_db

@@ -237,6 +237,47 @@ listener de la pizarra en DEV-01, QA-01 y FE-01.
 
       Va con un test de `_detalle()` para un juego programado, que hoy no existe.
 
+## Memoria y despliegue — medido el 2026-07-28
+
+Revisión pedida por el dueño: qué haría al proyecto consumir menos memoria sin perder velocidad.
+**La conclusión es que no hay problema de memoria** — el proceso limpio usa 91 MB al arrancar y
+110 MB en marcha, el pico de `build_leaders` es de solo +35 MB para escribir 409.000 filas, TODO lo
+cacheado suma 68 KB, y no hay fugas: +1,1 MB tras 270 peticiones, aplanando.
+
+Lo que sí salió, y lo que queda por hacer en el VPS:
+
+- [x] **`CACHES` estaba sin configurar** → `LocMemCache`, una caché POR PROCESO. **Corregido**, y no
+      era una optimización sino un fallo: las dos cachés que se invalidan por SEÑAL —los umbrales y
+      la URL del índice— solo se limpiaban en el worker que atendió el guardado. Con varios workers,
+      el dueño cambiaba un umbral y los demás servían el viejo **hasta 24 horas**. No se ve en
+      desarrollo porque `runserver` es un proceso solo.
+
+      Van **dos** cachés: `default` en memoria para las lecturas diminutas y constantes de Wagtail
+      —23 por petición solo de `wagtail_site_root_paths`— y `compartida` en la base para lo que se
+      invalida por señal. La primera versión puso todo en la base y salió peor: `/articulos/` pasó
+      de 18 consultas a **133**.
+
+- [ ] **`--preload` en gunicorn.** Es lo que MÁS ahorra de toda la lista y es gratis: carga la
+      aplicación una vez antes de bifurcar, así los ~90 MB de código de Django y Wagtail quedan
+      compartidos entre workers en vez de duplicados. Con 3 workers son **~180 MB menos**.
+
+- [ ] **La imagen lleva 167 MB de dependencias de desarrollo.** El `Dockerfile` instala
+      `requirements-dev.txt`: mypy con su `.so` compilado (54 MB), faker (25 MB), pytest, ruff,
+      coverage. Es disco, no RAM, pero se paga en cada despliegue. **La imagen pasaría de 626 MB a
+      ~460.** Va con el ítem de «imagen prod separada», que ya lo pedía sin este número.
+
+- [ ] **`pillow_heif`: 26 MB que nadie pide.** `Required-by` sale vacío y no lo usan ni Wagtail ni
+      Willow ni nuestro código. Da soporte a fotos de iPhone — puede interesar si los editores suben
+      desde el móvil, pero hoy entró de rebote. Decidir si se declara o se quita.
+
+- [ ] **`--max-requests` con jitter.** No arregla ninguna fuga —no la hay, está medido— pero es el
+      cinturón estándar por si una dependencia gotea con los meses.
+
+- [ ] **Revisar si la caché de métricas vale la pena.** Medido: la página de perfil hace **40
+      consultas con ella y 44 sin ninguna caché**. O sea que la tabla, la migración, los dos backends
+      y las señales ahorran **cuatro consultas**. Puede que lo correcto sea no cachear esas tablas y
+      consultarlas directamente — menos piezas, cero riesgo de dato viejo. Decisión pendiente.
+
 ## Contenido
 
 - [ ] Escribir los 8–12 artículos semilla (cuello de botella — **ya no está bloqueado**: el CMS

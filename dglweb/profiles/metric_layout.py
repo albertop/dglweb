@@ -15,7 +15,7 @@ Regla: lo que usen las dos pantallas vive acá y es público. Lo que use solo un
 y sigue privado.
 """
 
-from django.core.cache import cache
+from django.core.cache import BaseCache, caches
 
 from dglweb.profiles import columns
 from dglweb.stats import qualifier
@@ -33,6 +33,17 @@ from dglweb.stats.models import Metric, QualifierDefault, QualifierSeasonOverrid
 # Antes se leía como que una palomita era un out casi automático —mala para el bateador, buena para el
 # lanzador— y quedaba con direcciones opuestas por grupo; ahora no juzga en ninguno de los dos.
 DESCRIPTIVE_COLUMNS: frozenset[str] = frozenset({"gb_pct", "fb_pct", "ld_pct", "gb_fb", "pu_pct"})
+
+
+def _compartida() -> BaseCache:
+    """La caché que ven TODOS los workers, no la del proceso. El porqué está en `settings.CACHES`.
+
+    Se resuelve en cada llamada y no al importar: `caches` es perezoso a propósito, y agarrarlo en
+    una constante de módulo rompería `override_settings` en las pruebas.
+    """
+    from django.conf import settings
+
+    return caches[settings.COMPARTIDA]
 
 
 def _insert_after(columns_: list[str], anchor: str, value: str) -> list[str]:
@@ -125,12 +136,12 @@ def qualifier_lookups() -> tuple[qualifier.Defaults, qualifier.Overrides]:
     y de paso habría sacado del HTML el contenido de tres tabs, que es lo que indexa Google en las
     ~970 páginas de jugador.
     """
-    guardado: tuple[qualifier.Defaults, qualifier.Overrides] | None = cache.get(CLAVE_UMBRALES)
+    guardado: tuple[qualifier.Defaults, qualifier.Overrides] | None = _compartida().get(CLAVE_UMBRALES)
     if guardado is not None:
         return guardado
     defaults = {d.stat_group: (d.qualifier_season, d.qualifier_career) for d in QualifierDefault.objects.all()}
     overrides = {(o.stat_group, o.season): o.qualifier_season for o in QualifierSeasonOverride.objects.all()}
-    cache.set(CLAVE_UMBRALES, (defaults, overrides), SEGUNDOS)
+    _compartida().set(CLAVE_UMBRALES, (defaults, overrides), SEGUNDOS)
     return defaults, overrides
 
 
@@ -144,11 +155,11 @@ def metric_catalog(group: str) -> dict[str, Metric]:
     `metric.qualifier_*`, así que devolver ids obligaría a una consulta por métrica — cambiar cuatro
     consultas por doscientas.
     """
-    guardado: dict[str, Metric] | None = cache.get(f"{CLAVE_METRICAS}:{group}")
+    guardado: dict[str, Metric] | None = _compartida().get(f"{CLAVE_METRICAS}:{group}")
     if guardado is not None:
         return guardado
     catalogo = {metric.column: metric for metric in Metric.objects.filter(stat_group=group)}
-    cache.set(f"{CLAVE_METRICAS}:{group}", catalogo, SEGUNDOS)
+    _compartida().set(f"{CLAVE_METRICAS}:{group}", catalogo, SEGUNDOS)
     return catalogo
 
 
@@ -159,8 +170,8 @@ def _olvidar(**kwargs: object) -> None:
     modelo sería más código para ahorrar algo que no duele, y el riesgo de afinar de más acá es
     quedarse con un umbral viejo publicándose como bueno.
     """
-    cache.delete(CLAVE_UMBRALES)
-    cache.delete_many([f"{CLAVE_METRICAS}:{grupo}" for grupo in ("batting", "pitching", "fielding")])
+    _compartida().delete(CLAVE_UMBRALES)
+    _compartida().delete_many([f"{CLAVE_METRICAS}:{grupo}" for grupo in ("batting", "pitching", "fielding")])
 
 
 def conectar_senales() -> None:

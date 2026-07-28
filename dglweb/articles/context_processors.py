@@ -22,13 +22,24 @@ hasta 24 horas.
 
 from typing import Any
 
-from django.core.cache import cache
+from django.core.cache import BaseCache, caches
 from django.http import HttpRequest
 
 # Un día. La página índice se mueve una vez cada nunca; lo que se evita con esto es una consulta por
 # visita en un sitio entero, y el precio de equivocarse es un menú desactualizado hasta mañana.
 SEGUNDOS = 60 * 60 * 24
 CLAVE = "articles:indice"
+
+
+def _compartida() -> BaseCache:
+    """La caché que ven TODOS los workers, no la del proceso. El porqué está en `settings.CACHES`.
+
+    Se resuelve en cada llamada y no al importar: `caches` es perezoso a propósito, y agarrarlo en
+    una constante de módulo rompería `override_settings` en las pruebas.
+    """
+    from django.conf import settings
+
+    return caches[settings.COMPARTIDA]
 
 
 def indice(request: HttpRequest) -> dict[str, Any]:
@@ -39,11 +50,11 @@ def indice(request: HttpRequest) -> dict[str, Any]:
     """
     from dglweb.articles.models import ArticleIndexPage
 
-    url = cache.get(CLAVE)
+    url = _compartida().get(CLAVE)
     if url is None:
         pagina = ArticleIndexPage.objects.live().first()
         url = pagina.url if pagina else ""
-        cache.set(CLAVE, url, SEGUNDOS)
+        _compartida().set(CLAVE, url, SEGUNDOS)
     return {"indice_articulos": url}
 
 
@@ -53,7 +64,7 @@ def _olvidar(**kwargs: Any) -> None:  # noqa: ANN401 — la firma es la de las s
     No comprueba QUÉ página se movió: es una sola entrada de caché y recalcularla cuesta una
     consulta. Filtrar por tipo de página sería más código para ahorrar algo que no duele.
     """
-    cache.delete(CLAVE)
+    _compartida().delete(CLAVE)
 
 
 def conectar_senales() -> None:
