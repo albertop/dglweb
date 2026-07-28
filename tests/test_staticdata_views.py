@@ -4,7 +4,7 @@ Es la pieza que reemplaza tablas enteras, así que lo que se prueba acá no es q
 feliz sino que los caminos infelices NO terminen en 500 ni en una carga aplicada por error.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -38,6 +38,16 @@ def _admin_client() -> Client:
     client = Client()
     client.force_login(user)
     return client
+
+
+def _confirmar(client: Any, dataset: StaticDataset) -> Any:
+    """Confirma como lo hace el navegador: devolviendo la huella del borrador que está en sesión.
+
+    Existe desde que `confirm` exige esa huella (2026-07-28). Sin ella, la vista devuelve a la
+    comparación en vez de escribir — que es justo lo que protege del caso de las dos pestañas.
+    """
+    huella = client.session["staticdata_upload"]["huella"]
+    return client.post(reverse("staticdata_confirm", args=[dataset.pk]), {"huella": huella})
 
 
 def _subir(
@@ -162,7 +172,7 @@ def test_confirming_launches_the_rebuild_and_says_so(dataset: StaticDataset, mon
 
     client = _admin_client()
     _subir(client, dataset, CSV_BUENO)  # deja el CSV validado en sesión
-    response = client.post(reverse("staticdata_confirm", args=[dataset.pk]))
+    response = _confirmar(client, dataset)
 
     assert response.status_code == 200
     assert lanzados == ["dgl_batted_ball_hits"]

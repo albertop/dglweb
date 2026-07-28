@@ -7,6 +7,8 @@ Un truncate a ciegas es irreversible y silencioso — si el CSV vino corto, la t
 nadie se entera hasta que alguien mira una página meses después. Ver `docs/DATOS_DE_APOYO.md`.
 """
 
+import hashlib
+
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import AbstractBaseUser, AnonymousUser
 from django.http import HttpRequest, HttpResponse
@@ -105,8 +107,17 @@ def upload(request: HttpRequest, pk: int) -> HttpResponse:
     comparison = engine.compare(loader, rows, dataset.key_columns, problems, truncating=truncating)
 
     # El CSV queda en sesión, no en la base: es un borrador de un solo uso y no hay que limpiarlo.
-    request.session[_SESSION] = {"pk": pk, "csv": raw.decode("utf-8-sig")}
-    return render(request, "staticdata/compare.html", {"dataset": dataset, "c": comparison})
+    #
+    # La HUELLA del archivo viaja además a la pantalla, y vuelve al confirmar. El borrador es UNA
+    # llave de sesión, así que subir un CSV nuevo pisa el anterior — y con el mismo dataset abierto en
+    # dos pestañas eso deja una pantalla enseñando números que ya no son los del borrador guardado.
+    # Sin la huella, confirmar ahí aplicaría el segundo archivo mientras se miran las cifras del
+    # primero, que es justo lo que la pantalla de comparación existe para impedir.
+    #
+    # No hace falta que sea criptográfica: solo tiene que cambiar si el archivo cambió.
+    huella = hashlib.sha256(raw).hexdigest()[:16]
+    request.session[_SESSION] = {"pk": pk, "csv": raw.decode("utf-8-sig"), "huella": huella}
+    return render(request, "staticdata/compare.html", {"dataset": dataset, "c": comparison, "huella": huella})
 
 
 @user_passes_test(_is_admin, login_url="wagtailadmin_login")
@@ -117,6 +128,11 @@ def confirm(request: HttpRequest, pk: int) -> HttpResponse:
     guardado = request.session.get(_SESSION)
     loader = engine.REGISTRY.get(dataset.table)
     if loader is None or not guardado or guardado.get("pk") != pk:
+        return redirect("staticdata_upload", pk=pk)
+    # La pantalla desde la que se confirma tiene que ser la del borrador vigente. Si no coinciden, se
+    # subió otro archivo por el medio —otra pestaña— y lo correcto es devolver a la comparación en vez
+    # de escribir algo que nadie miró. Ver el comentario de `upload`.
+    if request.POST.get("huella") != guardado.get("huella"):
         return redirect("staticdata_upload", pk=pk)
 
     rows, problems = engine.validate(loader, engine.read(guardado["csv"].encode("utf-8")), dataset.key_columns)

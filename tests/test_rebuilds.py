@@ -132,7 +132,9 @@ def test_the_background_launch_returns_before_the_work_is_done(
     arrancó = threading.Event()
     soltar = threading.Event()
 
-    def lento(nombres: Any) -> None:
+    # Recibe también el id de la fila padre: desde QA-02, `run_in_background` deja constancia ANTES
+    # de lanzar el hilo y le pasa ese id para que la cierre al terminar.
+    def lento(nombres: Any, padre: int | None = None) -> None:
         arrancó.set()
         soltar.wait(timeout=10)
 

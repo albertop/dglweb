@@ -7,6 +7,7 @@ ningún dataset, y un test que dependa del dataset real no probaría eso.
 from typing import Any, ClassVar
 
 import pytest
+from django.urls import reverse
 
 from dglweb.players.models import Player
 from dglweb.stats.models import BattedBallHits
@@ -350,3 +351,104 @@ def test_post_apply_avisa_de_los_batazos_imposibles_pero_nunca_corta(caplog: Any
 
     assert "por encima de BIP" in caplog.text
     assert Pitching.objects.get().ground_hits == 2, "la carga tiene que haber entrado igual"
+
+
+# ── QA-02: el rebuild deja constancia ANTES de lanzarse ─────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_el_rebuild_deja_constancia_antes_de_lanzar_el_hilo() -> None:
+    """La ventana que el review v6 señaló: el hilo puede morir antes de registrar nada.
+
+    Sin la fila padre, una carga aplicada cuyo rebuild murió al instante es INDISTINGUIBLE de una
+    cuyo rebuild nunca se lanzó. Y no es teórico: con el scheduler pasó exactamente eso — 27 corridas
+    fallidas y el log de ingesta limpio, porque ninguna llegó a arrancar.
+
+    Se comprueba lo que importa: que la fila exista tras anotar y ANTES de que corra nada.
+    """
+    from dglweb.stats import rebuilds
+    from dglweb.stats.models import IngestRun
+
+    padre = rebuilds.anotar_lanzamiento(("build_career_totals", "build_leaders"))
+    assert padre is not None
+
+    fila = IngestRun.objects.get(pk=padre)
+    assert fila.command == rebuilds.PADRE
+    assert fila.status == IngestRun.Status.RUNNING
+    assert fila.scope == "build_career_totals+build_leaders"
+    assert fila.finished_at is None, "una corrida en RUNNING de hace horas es justo la señal buscada"
+
+
+@pytest.mark.django_db
+def test_sin_nada_que_reconstruir_no_se_anota_nada() -> None:
+    """Un dataset sin derivados no ensucia el log con una fila que no representa trabajo."""
+    from dglweb.stats import rebuilds
+    from dglweb.stats.models import IngestRun
+
+    assert rebuilds.anotar_lanzamiento(()) is None
+    assert not IngestRun.objects.filter(command=rebuilds.PADRE).exists()
+
+
+@pytest.mark.django_db
+def test_la_fila_padre_se_cierra_al_terminar(monkeypatch: pytest.MonkeyPatch) -> None:
+    from dglweb.stats import rebuilds
+    from dglweb.stats.models import IngestRun
+
+    padre = rebuilds.anotar_lanzamiento(("build_career_totals",))
+    assert padre is not None
+    monkeypatch.setattr("django.core.management.call_command", lambda *a, **k: None)
+
+    rebuilds.run(("build_career_totals",), padre)
+
+    fila = IngestRun.objects.get(pk=padre)
+    assert fila.status == IngestRun.Status.SUCCESS
+    assert fila.finished_at is not None
+
+
+@pytest.mark.django_db
+def test_si_el_rebuild_revienta_la_fila_padre_lo_dice(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Que quede en FAILED y con el porqué: el rebuild corre en un hilo, así que esta fila es lo
+    único que va a ver quien investigue mañana."""
+    from dglweb.stats import rebuilds
+    from dglweb.stats.models import IngestRun
+
+    def revienta(*a: object, **k: object) -> None:
+        raise RuntimeError("la base se cayó")
+
+    padre = rebuilds.anotar_lanzamiento(("build_career_totals",))
+    assert padre is not None
+    monkeypatch.setattr("django.core.management.call_command", revienta)
+
+    with pytest.raises(RuntimeError):
+        rebuilds.run(("build_career_totals",), padre)
+
+    fila = IngestRun.objects.get(pk=padre)
+    assert fila.status == IngestRun.Status.FAILED
+    assert "la base se cayó" in fila.detail
+
+
+# ── El borrador y la pantalla tienen que ser el mismo archivo ────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_confirmar_desde_una_pantalla_vieja_no_escribe(admin_client: Any) -> None:
+    """El caso de las dos pestañas, que NO necesita dos administradores.
+
+    El borrador vive en una sola llave de sesión: subir un CSV nuevo pisa el anterior. Con el mismo
+    dataset abierto dos veces —subes, ves algo raro, regeneras el archivo, subes de nuevo— la pestaña
+    vieja sigue enseñando las cifras del primero. Confirmar ahí aplicaría el segundo mientras se
+    miran los números del primero, que es exactamente lo que la pantalla de comparación existe para
+    impedir.
+
+    El escenario de DOS admins que levantaba el review quedó descartado por el dueño (2026-07-28): no
+    va a haber un segundo administrador. Este no depende de eso.
+    """
+    from dglweb.stats.models import StaticDataset
+
+    dataset = StaticDataset.objects.filter(table="seasons_dates").first()
+    assert dataset is not None
+
+    respuesta = admin_client.post(reverse("staticdata_confirm", args=[dataset.pk]), {"huella": "unaqueno-existe"})
+
+    assert respuesta.status_code == 302
+    assert respuesta.url == reverse("staticdata_upload", args=[dataset.pk])

@@ -61,6 +61,13 @@ que un CSV corto salte a la vista ANTES de que reemplace la tabla.
   {% endif %}
 
   <form method="post" action="{% url 'staticdata_confirm' dataset.pk %}" style="margin-top:1.5rem">{% csrf_token %}
+    {% comment %}
+      La huella del archivo que produjo ESTA pantalla. El borrador vive en una sola llave de sesión,
+      así que subir otro CSV la pisa; con el mismo dataset abierto en dos pestañas, la vieja seguiría
+      enseñando cifras que ya no son las del borrador guardado. Al confirmar, la vista compara y
+      devuelve a la comparación en vez de escribir algo que nadie miró.
+    {% endcomment %}
+    <input type="hidden" name="huella" value="{{ huella }}">
     {% if c.can_apply %}
       <button type="submit" class="button">Confirmar y reemplazar</button>
     {% endif %}

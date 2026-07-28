@@ -255,6 +255,11 @@ def compare(
     )
 
 
+# Cuántas filas por sentencia. Postgres tiene un tope de parámetros por consulta (65.535) y una tabla
+# ancha con miles de filas lo alcanza; el lote lo mantiene lejos sin pedirle a nadie que lo calcule.
+_LOTE = 1000
+
+
 @transaction.atomic
 def apply(loader: Loader, rows: list[dict[str, Any]], key_columns: list[str], *, truncating: bool) -> int:
     """Escribe. Atómico: o queda la tabla nueva completa, o la vieja intacta — nunca a medias."""
@@ -264,11 +269,24 @@ def apply(loader: Loader, rows: list[dict[str, Any]], key_columns: list[str], *,
     limpias = [{k: v for k, v in row.items() if not k.startswith("__")} for row in rows]
     if truncating:
         manager.all().delete()
-        manager.bulk_create([loader.model(**row) for row in limpias])
+        manager.bulk_create([loader.model(**row) for row in limpias], batch_size=_LOTE)
     else:
-        for row in limpias:
-            clave = {column: row[column] for column in key_columns}
-            manager.update_or_create(**clave, defaults={k: v for k, v in row.items() if k not in clave})
+        # UN upsert por lote, no uno por fila (DEV-02/DEV-04 del review v4). `update_or_create` hace
+        # un SELECT y luego un INSERT o UPDATE por cada fila: con 1.500 filas son 3.000 idas y vueltas
+        # a la base. `bulk_create` con `update_conflicts` lo resuelve en un `INSERT ... ON CONFLICT DO
+        # UPDATE` por lote, que es lo mismo que ya hace `build_team_games`.
+        #
+        # Las columnas a actualizar son TODAS menos la clave natural: la clave identifica la fila y
+        # pisarla consigo misma no cambia nada, pero Postgres rechaza un `DO UPDATE` que toque una
+        # columna del índice del conflicto.
+        actualizables = [columna for columna in limpias[0] if columna not in key_columns] if limpias else []
+        manager.bulk_create(
+            [loader.model(**row) for row in limpias],
+            batch_size=_LOTE,
+            update_conflicts=True,
+            unique_fields=key_columns,
+            update_fields=actualizables,
+        )
     loader.post_apply(rows)
     return len(limpias)
 

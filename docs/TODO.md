@@ -460,13 +460,20 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   encadenar por reloj.
   **Por qué P2 y no P1**: el rebuild es completo y no incremental, así que un día malo se cura solo a
   la mañana siguiente. Es un problema de calidad de dato temporal, no de integridad permanente.
-- [ ] **QA-02 + ARCH-02 — el rebuild de Backoffice puede no dejar rastro.** El hilo daemon fue
-  decisión consciente (ver `rebuilds.py`) y el cron de la mañana es su red de seguridad. Pero hay una
-  ventana real que no estaba cubierta: **si el hilo muere antes de que el comando cree su
-  `IngestRun`, la carga queda aplicada sin ninguna evidencia de su rebuild**. Son milisegundos, pero
-  el resultado es indistinguible de "nunca se lanzó".
-  **Forma mínima aceptada**: crear la fila padre ANTES de lanzar el hilo y mostrar su estado en la
-  pantalla de carga. La cola con retry es rediseño y no entra antes del lanzamiento.
+- [x] **QA-02 + ARCH-02 — el rebuild de Backoffice puede no dejar rastro.** **Hecho (2026-07-28).**
+  El hilo suelto sigue siendo la decisión correcta —no hay worker y sostener la respuesta HTTP un
+  minuto es pedirle al proxy que la corte— pero la ventana estaba: si el hilo moría antes de que el
+  primer comando creara su fila, la carga quedaba aplicada sin ninguna evidencia de su rebuild, y eso
+  es indistinguible de «nunca se lanzó».
+
+  No era teórico en este proyecto: con el scheduler pasó exactamente eso — 27 corridas fallidas y el
+  log de ingesta limpio, porque ninguna llegó a arrancar. Un canal de auditoría que solo registra lo
+  que empieza no sirve para investigar lo que no empezó.
+
+  `rebuilds.anotar_lanzamiento()` crea la fila padre `rebuild_derivados` **en el hilo de la
+  petición**, antes de lanzar nada: si se escribió, se escribió. `run` la cierra al terminar, en
+  SUCCESS o en FAILED con el porqué. Si nadie la cierra queda en RUNNING — y una corrida en RUNNING
+  de hace horas es justo la señal que faltaba. 4 pruebas.
 
 ### P3 — cuando haya qué lo justifique
 
@@ -744,13 +751,24 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
 
 ### Aceptados, menor prioridad
 
-- [ ] **ARCH-02 — el borrador vive en sesión, no en staging auditable.** Buen señalamiento: sin id de
-  revisión ni hash, dos admins pueden confirmar en orden cruzado. Es rediseño, no parche.
-  **Decisión del dueño (2026-07-26): prioridad muy baja, no entra antes del lanzamiento.** El
-  escenario que arregla exige DOS administradores cargando el mismo dataset a la vez, y hoy carga una
-  sola persona una o dos veces al año. La parte urgente del finding —un CSV enorme decodificado
-  entero en memoria— ya se cerró en SEC-01. Sube de prioridad el día que entre otra persona a cargar
-  datos.
+- [x] ~~**ARCH-02 — el borrador vive en sesión, no en staging auditable.**~~ **NO SE HARÁ. Decisión
+  del dueño (2026-07-28): no ve un segundo administrador ni a corto ni a medio ni a largo plazo.**
+
+  El escenario que el finding arreglaba —dos admins confirmando en orden cruzado— deja de ser
+  improbable para ser imposible, y un pendiente cuyo disparador nunca se va a cumplir no es deuda: es
+  ruido que alarga la lista y le quita credibilidad.
+
+  Además estaba medio resuelto sin que el apunte lo dijera: `confirm()` ya comprobaba
+  `guardado["pk"] != pk` y **revalida el CSV entero** antes de escribir, así que confirmar en una
+  pantalla lo preparado en otra nunca pudo aplicar el dataset equivocado.
+
+  **Lo que SÍ quedaba y no necesitaba dos personas, hecho el mismo día:** el borrador vive en UNA
+  llave de sesión, así que subir un CSV nuevo pisa el anterior. Con el mismo dataset en dos pestañas
+  —subes, ves algo raro, regeneras el archivo, subes otra vez, vuelves a la pestaña vieja y
+  confirmas— se aplicaba el segundo archivo mientras se miraban las cifras del primero. La pantalla
+  lleva ahora la huella del archivo en un campo oculto y `confirm` la compara; si no coincide,
+  devuelve a la comparación en vez de escribir algo que nadie miró.
+
 - [x] **ARCH-03 — `leaderboards.py` importa helpers privados de `tabs.py`.** **Corregido**: nace `profiles/metric_layout.py`, público, con lo que las dos pantallas comparten — `DESCRIPTIVE_COLUMNS`, `divisions_for()`, `pretty_qualifier()` y `qualifier_lookups()`. Ya no hay imports de nombres privados entre módulos de `profiles`. Con tests propios que fijan el acuerdo (ninguna métrica en dos divisiones, el umbral se escribe igual en las dos pantallas).
   ~~ Cierto y lo sufrí al
   agregar fildeo. Mover el layout de métricas y el formato de umbrales a un módulo público.
