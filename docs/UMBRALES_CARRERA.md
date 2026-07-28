@@ -68,6 +68,21 @@ postemporada (`docs/UMBRALES_POSTEMPORADA.md`).
 ## Dónde vive esto en el código
 
 `_QUALIFIER` en `dglweb/stats/management/commands/seed_metrics.py`, que siembra
-`QualifierDefault` — el nivel 1 de la cascada. Una métrica puede sobrescribirlo (nivel 2,
-`Metric.qualifier_*`, que es lo que hacen los coeficientes) y una temporada corta también
-(nivel 3, `QualifierSeasonOverride`).
+`QualifierDefault` — el nivel 1 de la cascada.
+
+**La cascada de TEMPORADA tiene cuatro niveles desde el 2026-07-28**, de lo más específico a lo más
+general:
+
+    override del dueño  ->  el de la métrica  ->  3,1 x juegos  ->  el fijo del oficio
+      (QualifierSeason      (Metric.qualifier_    (la regla, desde    (QualifierDefault,
+       Override)             season)               dgl_team_season_    la red si no se
+                                                   games)              saben los juegos)
+
+**Las temporadas cortas ya NO se corrigen con overrides**: las calcula la regla. Los 24 que había
+—1956-60, 1981, 1994, 2020— se borraron ese día porque eran la misma cuenta hecha a mano, y peor: un
+solo número para toda la temporada, cuando en 1981 los equipos jugaron entre 103 y 111 juegos y ese
+número era incorrecto para 23 de los 26. El mecanismo de override **se queda** para una excepción de
+verdad, y sigue ganando.
+
+**La de CARRERA no se prorratea** y son dos niveles: el de la métrica y el del oficio. Un umbral de
+por vida no depende de los juegos de un año.

@@ -231,8 +231,12 @@
     Pedro San, Néstor Lambertus, Julio Báez — 6 de ellos en el Salón de la Fama dominicano)
     tienen 22 filas, sin WAR ni wOBA ni conteo de lanzamientos. Lo que MLB les reconoce es una
     astilla de su carrera real → sus páginas necesitan una nota de contexto.
-  - **Decisión pendiente del dueño:** el valor del umbral (o hacerlo configurable en backoffice).
-- **4e — Datos de apoyo desde DGL (📋 diseñado, sin construir).** El sitio se alimenta del proxy de
+  - ~~**Decisión pendiente del dueño:** el valor del umbral.~~ **RESUELTO.** Es configurable en el
+    Backoffice (`QualifierDefault`, `Metric.qualifier_*`) y desde el 2026-07-28 la temporada se
+    **prorratea por juegos** en vez de llevar un número fijo. Ver `docs/UMBRALES_CARRERA.md`.
+- **4e — Datos de apoyo desde DGL — ✅ CONSTRUIDA.** El motor está en `stats/staticdata/` con su
+  pantalla de carga y comparación en el Backoffice, y `dgl_batted_ball_hits` tiene 4.799 filas
+  cargadas (medido el 2026-07-28). El sitio se alimenta del proxy de
   MLB y así se queda; pero salarios, transacciones y los tipos de batazo en los hits solo existen en
   DGL. Son casi estáticos —una o dos cargas al año— así que van por una vía manual: `static_data/`
   con un PowerShell por dataset → CSV → página de carga en el Backoffice → **pantalla de comparación
@@ -284,10 +288,12 @@
   sin un solo permiso.
 
 ### Lo que falta para cerrar la fase
-- [ ] **Buscador de artículos** (pedido del dueño). Wagtail ya indexa título, entradilla y cuerpo.
-- [ ] **Paginación del índice** — hoy se dibujan hasta 24 y el botón los descubre de seis en seis.
+- [x] ~~**Buscador de artículos.**~~ **HECHO (2026-07-27).** Con configuración de búsqueda propia de
+      Postgres (`espanol_sin_tildes`) para que «grafico» encuentre «gráfico».
+- [x] ~~**Paginación del índice.**~~ **HECHO (2026-07-27).** Doce por página, con enlaces de verdad
+      que arrastran la búsqueda y la categoría.
 - [ ] **Servir `/media/` desde el proxy en producción.** WhiteNoise no sirve medios. Y respaldar el
-      volumen: si se pierde, se van las fotos de todos los artículos.
+      volumen: si se pierde, se van las fotos de todos los artículos. **Es lo único que queda.**
 
 ## Fase 6 — Módulos vivos: pizarra MLB + resumen jornada + ticker (season-aware) — ✅ COMPLETADA (2026-07-27)
 

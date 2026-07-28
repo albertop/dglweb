@@ -73,9 +73,28 @@ temporada, `PA≥3000` / `IP≥1000` para carrera.
 Campo resultante de carrera: ~85 bateadores y ~27 lanzadores (comparable a los 74 con PA≥3000 y 29 con
 IP≥1000). Números redondos, anclados al estándar que ya usa el sitio.
 
+## Los pisos de temporada SE PRORRATEAN (2026-07-28)
+
+Los cuatro números de la columna «Temporada» están anclados a `PA>=502` / `IP>=162`, o sea a una
+temporada **de 162 juegos**. En una más corta dejan de tener sentido: en 2020, con 60 juegos, ningún
+bateador llegaba a 300 bolas en juego y los tableros de coeficientes salían **vacíos**.
+
+Estuvo escondido años porque los overrides de temporada del dueño ganaban por estar más arriba en la
+cascada y rescataban estos umbrales de rebote. Al borrarlos salió: 251 puestos de 2020 desaparecieron
+de golpe, y en las cortas SIN override —1972, 1995— llevaban vacíos desde siempre.
+
+Ahora se escalan por `juegos / 162`, que es coherente con su propia derivación: si el ancla baja de
+502 a 332 apariciones, lo que se midió sobre ese ancla tiene que bajar en la misma proporción. En 60
+juegos, `BIP>=300` pasa a `BIP>=111` y `swings>=750` a `swings>=278`. Una temporada completa devuelve
+el número escrito, que es el caso neutro.
+
+**Los de CARRERA no se tocan**: no dependen de los juegos de un año.
+
 ## Implementación
 
-- Viven en `seed_metrics._OWN_QUALIFIER` como `(temporada, carrera)` por `(grupo, columna)`. El motor de
+- Viven en `seed_metrics._OWN_QUALIFIER` como `(temporada, carrera)` por `(grupo, columna)`.
+- El escalado por temporada lo hace `qualifier.escalar()`; respeta el campo y el operador y solo
+  cambia el número. El motor de
   líderes recompone la tasa de carrera desde los componentes sumados y aplica `qualifier_career`.
 - Editables en el Backoffice (`Metric.qualifier_season` / `qualifier_career`).
 - Cambiar el umbral de carrera **cambia quién califica**, así que hay que reconstruir `dgl_leader`

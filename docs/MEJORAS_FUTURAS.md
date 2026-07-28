@@ -30,10 +30,14 @@ Es una conversación de diseño, no un ticket. Retomar antes de dar por cerrado 
   recargarlas (un intento, guardado por el marcador; si sigue mal → PARTIAL en bitácora, no reintenta).
   El candado anti-loop ya estaría hecho; solo se le agrega la acción de escritura.
 
-- **Tabla de games (temporada en curso).** Para los umbrales de tasa en la temporada viva hay que
-  prorratear por juegos jugados. Los **conteos** en curso ya funcionan (acumulación simple, sin
-  umbral). Falta la tabla `games` (temporada → juegos del equipo, actualizada a diario) que el dueño
-  proveerá; el motor consultaría esos juegos para prorratear el qualifier. Ver `stats/qualifier.py`.
+- ~~**Tabla de games (temporada en curso).**~~ **HECHO (2026-07-28).** Es `dgl_team_season_games`,
+  con grano (temporada, liga, equipo), y **no hizo falta que el dueño la proveyera**: sale de
+  `/api/v1/standings` del proxy, que cubre desde 1956. 1.856 filas en 23 segundos, y la temporada en
+  curso se refresca sola como primer paso del refresco diario.
+
+  El prorrateo llega a los tres niveles: el umbral del oficio (`3,1 x juegos`), el propio de cada
+  métrica (los coeficientes) y el fijo como red. Motivo: con 107 juegos jugados, 2026 publicaba CERO
+  líderes de AVG, OBP, OPS, wOBA, wRC+, ERA y WHIP. Ver `stats/qualifier.py` y SAB-03 en `TODO.md`.
 
 - **Sabermetría de carrera exacta (WAR, wOBA, wRC+, ERA-…).** Hoy se **prorratean** (promedio
   ponderado por playing-time) porque no tienen suma limpia y **el proxy no da sabermetría de carrera**
@@ -48,9 +52,9 @@ Es una conversación de diseño, no un ticket. Retomar antes de dar por cerrado 
   (el sitio viejo lo tenía en `dgl_lideres_seasons_resumen`). Diferido: es feature de UI, el foco fue
   el engine. Derivable de `dgl_leader`.
 
-- **Boards de postemporada** (DEV-03). El flag `Metric.postseason` ya se guarda pero `build_leaders`
-  no genera líderes de postemporada. Falta extender el motor para leer `BattingPost/PitchingPost/
-  FieldingPost` y añadir la dimensión regular-vs-post a `Leader` sin mezclar contextos.
+- ~~**Boards de postemporada** (DEV-03).~~ **HECHO.** `build_leaders` genera los tableros de octubre
+  —9.382 filas medidas el 2026-07-28— con su propia dimensión en `Leader.postseason` y sus pisos
+  fijos, que NO pasan por la cascada. El porqué está en `docs/UMBRALES_POSTEMPORADA.md`.
 - **`parity_career`: refinar la comparación de `g`** (Fase 4). El proxy `career` reporta un `g` que
   no cuadra con su propio `yearByYear` para pitchers (cuenta juegos-lanzados en la línea de hitting),
   generando ~298 falsos positivos. Quitar `g` de las columnas comparadas o comparar contra el
@@ -93,7 +97,8 @@ Es una conversación de diseño, no un ticket. Retomar antes de dar por cerrado 
 
 ## Scheduler
 
-- **Wire `parity_career` al scheduler** (semanal) una vez construido, junto a `build_leaders`.
+- ~~**Wire `parity_career` al scheduler**~~ **HECHO.** Corre los domingos a las 8:00
+  (`parity-career-weekly` en `ofelia/config.ini`).
 
 ## Jugadores deshabilitados
 
@@ -104,5 +109,7 @@ Ver `docs/JUGADORES_DESHABILITADOS.md` para el diseño completo. Lo que quedó p
   pisa. Pero eso es un accidente feliz e invisible: si alguien suma la columna al extract, la baja se
   revierte sola y en silencio. Merece un test que lo fije. **Prioridad baja** — el maestro
   prácticamente no se vuelve a importar.
-- **La búsqueda todavía no existe** (el input del header es un placeholder). Cuando se construya,
-  tiene que partir de `Player.objects`, que ya filtra.
+- ~~**La búsqueda todavía no existe.**~~ **HECHO.** El buscador del encabezado sugiere mientras se
+  escribe (`static/js/buscador.js`), degrada a un GET normal sin JavaScript, ignora tildes y eñes vía
+  `unaccent`, y parte de `Player.objects` — que ya filtra a los deshabilitados. Su teclado tiene
+  pruebas propias desde el 2026-07-28 (`tests/js/buscador.test.js`).

@@ -435,15 +435,21 @@ CSV de Retrosheet **no va a dar exacto**, por dos razones que no son errores:
    sobre las cuatro categorías y también sobre HR (569 contra 515). Es diferencia de población.
 
 Por eso el PowerShell exporta **dos** totales, `h_typed` (hits con trayectoria) y `h_all` (todos).
-Falta decidir:
 
-- [ ] ¿Contra cuál compara el loader? `h_typed` hace la prueba exacta pero solo verifica coherencia
-      interna del CSV. `h_all` compara contra la realidad pero nunca dará cero.
-- [ ] Si es `h_all`, ¿con qué tolerancia? Un 3% dejaría pasar el ruido normal y seguiría atajando un
-      export cortado a la mitad, que es lo que la prueba tiene que cazar.
-- [ ] Qué se hace con el ~2,5% sin trayectoria: se ignora (los coeficientes quedan levemente
-      subestimados, mucho menos que hoy) o se reparte proporcionalmente.
+**RESUELTO — las tres preguntas se contestaron construyendo, y la respuesta fue «los dos».**
 
-Hasta que se decida, `BattedBallHitsLoader.checks()` compara contra el `__h` que le llegue — hoy
-mapeado a la columna `h`, que este CSV ya no trae con ese nombre. **Hay que ajustarlo antes de la
-primera carga real.**
+- [x] **¿Contra cuál compara el loader?** Contra los **dos**, en granos distintos. Fila por fila y
+      EXACTA contra `h_typed`: los cuatro tipos son una partición de los hits que se repartieron
+      entre ellos, así que cualquier diferencia es un error de armado del CSV. Y por (temporada,
+      oficio) contra `h_all`, para medir qué fracción trae trayectoria.
+- [x] **¿Con qué tolerancia?** `_COBERTURA_MINIMA = 0.80` por temporada Y OFICIO, no por fila. Medirlo
+      por fila era un error: con 7 hits, uno sin tipificar da 57% y eso es ruido de muestra chica. Lo
+      que la prueba tiene que cazar es una temporada entera caída — cuando la fuente de MLB entregó
+      2000 incompleto, dio 1,8%. El piso va en 80% porque ~90% es el suelo histórico legítimo de los
+      primeros años, no un síntoma.
+- [x] **¿Qué se hace con el ~2,5% sin trayectoria?** Se ignora, y **se avisa en la UI**: las celdas
+      afectadas del perfil van subrayadas y las completas quedan limpias (SAB-03b, 2026-07-27). Ver
+      `derive.UNDERTYPED_COLUMNS`.
+
+El aviso de que había que ajustar `checks()` antes de la primera carga real quedó atendido: hoy lee
+`__h_typed` y `__h_all`, no el `__h` que ya no viene.
