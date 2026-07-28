@@ -1404,6 +1404,27 @@ falso). Los archivos viven en el volumen `dglweb_media`.
       son la base y `media/`. Con retención y, sobre todo, **una restauración probada**: un respaldo
       que nunca se restauró no se sabe si sirve.
 
+## pgAdmin detrás de nginx — ✅ HECHO (2026-07-28)
+
+En `pgadmin.prdm0.com`, con el mismo esquema que Portainer: escucha solo en `127.0.0.1:5050`, nginx
+es la única puerta, TLS de Let's Encrypt y **lista blanca a la IP de casa del dueño** — que es
+dinámica y la actualiza su script `change_nginx_ip.sh`, ya extendido para cubrir los dos sitios.
+
+⚠️ **`Referrer-Policy: no-referrer` NO puede ir en ese `server`.** Costó una hora encontrarlo y el
+síntoma no apunta a la causa: el login funciona —devuelve 302— la página carga, y todas las llamadas
+internas devuelven **401**. Resultado: pantalla en blanco después de un acceso correcto, sin ningún
+error visible.
+
+pgAdmin valida el `Referer` en sus peticiones internas y esa cabecera hace que el navegador no lo
+mande. Las otras tres —HSTS, `nosniff` y `X-Frame-Options`— se quedan.
+
+**Y `X-Frame-Options` tiene que ser `SAMEORIGIN`, no `DENY`.** Con `DENY` la interfaz tampoco carga:
+pgAdmin monta sus paneles en iframes del mismo origen, y `DENY` bloquea incluso eso. Ese fue el
+primer síntoma, y esconde al segundo — al arreglarlo aparece el de los 401.
+
+Si algún día alguien «unifica» esta configuración con la de Portainer para que se parezcan, vuelve a
+romperse por los dos motivos.
+
 ## Despliegue a producción — ✅ HECHO (2026-07-28)
 
 **https://dominicanosengrandesligas.com está en vivo.** Lo que sigue es el registro de cómo quedó,
