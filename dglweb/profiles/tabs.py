@@ -817,7 +817,14 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
 
     def cell(key: _PuestoKey, board_value: str, season: int | None, rank: int | None) -> dict[str, Any]:
         metric_pk, pos = key
-        return {"rank": rank, "tied": rank is not None and (metric_pk, board_value, season, pos, rank) in tied}
+        return {
+            "rank": rank,
+            "tied": rank is not None and (metric_pk, board_value, season, pos, rank) in tied,
+            # La celda lleva SU temporada para que la plantilla pueda marcar la columna en curso sin
+            # contar posiciones del bucle. La primera versión lo hacía con `slice:forloop.counter0` y
+            # no marcaba nada: el filtro `slice` espera una cadena tipo «:2», no un índice.
+            "season": season,
+        }
 
     ordered_seasons = sorted(seasons)
 
@@ -883,7 +890,35 @@ def _puestos_grid(player: Player, group: str, *, postseason: bool) -> dict[str, 
         "fielding": {"season": pretty_qualifier(fielding_q[0]), "career": pretty_qualifier(fielding_q[1])},
         "coefficients": {"season": coef_season, "career": coef_career},
     }
-    return {"seasons": ordered_seasons, "sections": sections, "qualifiers": qualifiers}
+    # LA TEMPORADA EN CURSO, para marcar su columna entera (decisión del dueño, 2026-07-28).
+    #
+    # Un «#2» de 2026 y un «#2» de 2015 se leen igual y no valen lo mismo: uno está cerrado y el otro
+    # puede ser #7 el viernes. Y hay un caso peor que el puesto que se mueve — en abril, con quince
+    # juegos jugados, casi nadie califica, así que la columna puede estar vacía en marzo, llenarse en
+    # mayo y seguir moviéndose. Sin marca, eso se lee como un dato que aparece y desaparece.
+    #
+    # Se marca la COLUMNA y no cada celda porque es una propiedad de la temporada, no de cada puesto:
+    # repetir el aviso en catorce celdas dice lo mismo catorce veces y ensucia la rejilla.
+    #
+    # Se quitó de la mesa retirar la columna: es justo lo que un lector viene a buscar en julio —que
+    # su pelotero va segundo AHORA— y además acaba de llenarse con el umbral prorrateado, que hasta
+    # esta mañana la dejaba casi vacía.
+    from dglweb.stats.models import SeasonDates
+
+    en_curso = (
+        SeasonDates.objects.filter(sports_id=SeasonDates.MLB, is_active=True)
+        .order_by("-season")
+        .values_list("season", flat=True)
+        .first()
+    )
+    return {
+        "seasons": ordered_seasons,
+        "sections": sections,
+        "qualifiers": qualifiers,
+        # `None` si la temporada marcada como activa no está en la rejilla — un pelotero retirado no
+        # tiene puestos de este año, y entonces no hay nada que advertir.
+        "en_curso": en_curso if en_curso in ordered_seasons else None,
+    }
 
 
 def _puestos_context(player: Player) -> dict[str, Any]:

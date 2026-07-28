@@ -249,21 +249,27 @@ def traer(client: MlbProxyClient, hasta: date, dias: int = DIAS) -> list[Movimie
     return movimientos
 
 
-# Cuántos movimientos entran en el cintillo y cuánto hacia atrás mira.
-#
-# TRES DÍAS, no una semana. Con la semana entraban noticias de seis días atrás —el dueño las vio— y
-# un cintillo de movimientos que enseña lo de la semana pasada deja de ser noticia y pasa a ser
-# archivo. Con unos cuatro o cinco movimientos nuestros por día, tres días dan una docena larga de
-# entradas: suficiente para que la tira no dé vueltas cortas y todo lo que pasa es reciente.
-#
-# El tope de 25 casi nunca muerde con esa ventana; está para el día raro de muchos movimientos
-# —cierre de cambios, primeros de temporada— en que la tira se haría interminable.
+# Cuántos movimientos entran en el cintillo. El tope casi nunca muerde; está para el día raro de
+# muchos movimientos —cierre de cambios, primeros de temporada— en que la tira se haría interminable.
 EN_CINTILLO = 25
-VENTANA_CINTILLO = 3
+
+# Cuántas JORNADAS entran: la última con movimientos y la anterior a ella.
+#
+# Antes era una ventana de calendario de tres días contados desde hoy, y eso tenía un fallo que el
+# dueño vio en pantalla: el 28 de julio seguía saliendo una noticia del 25. Contar días desde hoy
+# mezcla lo que pasó con cuándo se mira, así que un fin de semana flojo o un lunes sin movimientos
+# arrastran hacia el cintillo cosas de tres días atrás — que ya no son noticia, son archivo.
+#
+# La regla es la misma que la del widget de destacados, y por la misma razón: se ancla en el DATO y
+# no en el reloj. La fecha más alta que haya es «hoy» del cintillo, y la anterior es su «ayer».
+JORNADAS_CINTILLO = 2
 
 
 def portada() -> list[RosterMove]:
-    """Los movimientos para el cintillo. Dos filtros, y los dos son reglas del sitio.
+    """Los movimientos para el cintillo: las DOS últimas jornadas con movimientos publicables.
+
+    La ventana se ancla en el dato y no en el reloj — ver `JORNADAS_CINTILLO`. Tres filtros, y los
+    tres son reglas del sitio.
 
     **Solo los que tienen ficha en `dgl_master`** — decisión del dueño (2026-07-27). Se guardan
     igual los de `dom_players` que aún no llegaron a las mayores, porque el dato es bueno y algún día
@@ -274,12 +280,18 @@ def portada() -> list[RosterMove]:
     **Solo los que se pudieron traducir.** Lo que ningún patrón reconoció no sale: el sitio no enseña
     inglés.
     """
-    from django.utils import timezone
+    publicables = RosterMove.objects.filter(player__isnull=False).exclude(texto="")
 
-    desde = timezone.localdate() - timedelta(days=VENTANA_CINTILLO)
+    # La referencia sale de los movimientos PUBLICABLES, no de todos. Si el día más reciente solo
+    # trajera firmas de ligas menores —que se guardan pero no salen— esa fecha marcaría la ventana y
+    # el cintillo quedaría vacío teniendo material del día anterior.
+    ultima = publicables.order_by("-fecha").values_list("fecha", flat=True).first()
+    if ultima is None:
+        return []
+
+    desde = ultima - timedelta(days=JORNADAS_CINTILLO - 1)
     return list(
-        RosterMove.objects.filter(fecha__gte=desde, player__isnull=False)
-        .exclude(texto="")
+        publicables.filter(fecha__gte=desde)
         .select_related("player")
         .order_by("-fecha", "-transaction_id")[:EN_CINTILLO]
     )

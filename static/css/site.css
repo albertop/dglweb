@@ -1298,3 +1298,24 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 .dgl-lider-escudo {
   flex: 0 0 18px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
 }
+
+/* La columna de la temporada en curso, en la rejilla de Puestos. Un «#2» de este año y uno de 2015
+   se leen igual y no valen lo mismo: el segundo está cerrado y el primero puede ser #7 el viernes.
+
+   Un fondo tenue y no un color de texto: el color del texto ya lo usan las marcas de líder —vino de
+   temporada, azul de carrera— y una celda puede ser líder Y de la temporada en curso a la vez. El
+   fondo se pone debajo y no se pelea con ninguna.
+
+   SOLO LAS CELDAS, NO EL ENCABEZADO. La primera versión pintaba también el `<th>`, que va sobre la
+   barra azul marino: quedaba crema sobre marino con texto blanco encima, o sea el año casi ilegible
+   —justo la columna que se quería destacar—. El encabezado se queda como los demás y la marca la
+   lleva el asterisco. */
+.dgl-stats-table td.dgl-en-curso {
+  background: #fff7e6;
+}
+/* El asterisco del encabezado va sobre marino, así que no puede usar el rojo de `dgl-partial`, que
+   está pensado para fondo claro. */
+.dgl-puestos-head .dgl-en-curso-marca {
+  color: #ffd166;
+  font-weight: 700;
+}

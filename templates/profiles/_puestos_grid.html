@@ -16,13 +16,23 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
         <tr><td colspan="{{ grid.seasons|length|add:2 }}" class="ps-3 dgl-div-band">{{ section.label }}</td></tr>
         <tr class="dgl-puestos-head">
           <th class="ps-3">Métrica</th>
-          {% for season in grid.seasons %}<th class="dgl-mid">{{ season }}</th>{% endfor %}
+          {% comment %}
+            La temporada en curso lleva su columna marcada entera. Un «#2» de este año y uno de 2015
+            se leen igual y no valen lo mismo: el segundo está cerrado y el primero puede ser #7 el
+            viernes. Se marca la COLUMNA y no cada celda porque es una propiedad de la temporada, no
+            de cada puesto — repetirlo en catorce celdas dice lo mismo catorce veces.
+          {% endcomment %}
+          {% for season in grid.seasons %}
+            <th class="dgl-mid"
+                {% if season == grid.en_curso %}title="Temporada en curso: estos puestos pueden cambiar"{% endif %}
+            >{{ season }}{% if season == grid.en_curso %} <span class="dgl-en-curso-marca">*</span>{% endif %}</th>
+          {% endfor %}
           <th class="dgl-mid pe-3" style="border-left:2px solid var(--dgl-navy)">De por vida</th>
         </tr>
         {% for row in section.rows %}
         <tr>
           <td class="ps-3"><span class="dgl-meta">[{{ row.abbrev }}]</span> {{ row.name }} <span class="dgl-meta" title="{% if row.descriptive %}{% if row.direction == '+' %}ordena de más alto a más bajo (perfil, no mejor/peor){% else %}ordena de más bajo a más alto (perfil, no mejor/peor){% endif %}{% elif row.direction == '+' %}más es mejor{% else %}menos es mejor{% endif %}">{{ row.direction }}</span></td>
-          {% for cell in row.cells %}<td class="dgl-mid{% if cell.rank == 1 %} lead-season{% endif %}">{{ cell.rank|default_if_none:"" }}{% if cell.tied %}*{% endif %}</td>{% endfor %}
+          {% for cell in row.cells %}<td class="dgl-mid{% if cell.rank == 1 %} lead-season{% endif %}{% if cell.season == grid.en_curso %} dgl-en-curso{% endif %}">{{ cell.rank|default_if_none:"" }}{% if cell.tied %}*{% endif %}</td>{% endfor %}
           <td class="dgl-mid pe-3{% if row.career.rank == 1 %} lead-career{% endif %}" style="border-left:2px solid var(--dgl-navy)">{{ row.career.rank|default_if_none:"" }}{% if row.career.tied %}*{% endif %}</td>
         </tr>
         {% endfor %}
@@ -36,6 +46,7 @@ La usan los dos pills de Puestos (Serie Regular y Postemporada) — la única di
     El signo junto a la métrica indica hacia dónde manda: + más es mejor, - menos es mejor.<br>
     Un * marca un puesto compartido (empate).
     {% if grid.qualifiers.season or grid.qualifiers.career %}<br>Umbrales de calificación: temporada {{ grid.qualifiers.season }}, carrera {{ grid.qualifiers.career }}.{% endif %}
+    {% if grid.en_curso %}<br><span class="dgl-partial">*</span> La temporada {{ grid.en_curso }} está en curso: esos puestos pueden cambiar hasta que termine.{% endif %}
     {% if grid.qualifiers.fielding.season %}<br>En fildeo se mide por juegos en la posición: temporada {{ grid.qualifiers.fielding.season }}, carrera {{ grid.qualifiers.fielding.career }}.{% endif %}{% if grid.qualifiers.coefficients.season %}<br>Coeficientes: temporada {{ grid.qualifiers.coefficients.season|join:" o " }}{% if grid.qualifiers.coefficients.career %}, carrera {{ grid.qualifiers.coefficients.career|join:" o " }}{% endif %}.{% endif %}
   </div>
 </section>

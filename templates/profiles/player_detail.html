@@ -42,8 +42,11 @@
           <div class="dgl-statbox"><div class="v">{{ pit_total.w|num }}</div><div class="k">W</div></div>
           <div class="dgl-statbox"><div class="v">{{ pit_total.l|num }}</div><div class="k">L</div></div>
           <div class="dgl-statbox"><div class="v">{{ pit_total.era|dec:2 }}</div><div class="k">ERA</div></div>
-          <div class="dgl-statbox"><div class="v">{{ pit_total.g|num }}</div><div class="k">G</div></div>
-          <div class="dgl-statbox"><div class="v">{{ pit_total.gs|num }}</div><div class="k">GS</div></div>
+          {% comment %}
+            G y GS fuera (dueño, 2026-07-28): la carrera de un lanzador se lee por W-L, ERA, IP,
+            ponches y salvados. Cuántas VECES salió al montículo dice poco al lado de eso, y las dos
+            cajas gastaban un tercio de la fila.
+          {% endcomment %}
           <div class="dgl-statbox"><div class="v">{{ pit_total.sv|num }}</div><div class="k">SV</div></div>
           {# IP no se almacena: sale de `outs`, y el `.1`/`.2` cuenta outs, no décimas. #}
           <div class="dgl-statbox"><div class="v">{{ pit_total.outs|innings }}</div><div class="k">IP</div></div>

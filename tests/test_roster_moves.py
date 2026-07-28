@@ -8,7 +8,7 @@ Los patrones se prueban contra frases REALES de MLB, copiadas del feed. Inventar
 nuestras regex se entienden a sí mismas.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -246,26 +246,25 @@ def test_the_ticker_leaves_out_what_could_not_be_translated() -> None:
 
 @pytest.mark.django_db
 def test_the_ticker_does_not_show_stale_moves() -> None:
-    """Una semana hacia atrás. En invierno hay días sin nada, y con dos días la cintilla
-    desaparecería media temporada; con un mes mostraría noticias viejas como si fueran de hoy."""
-    from datetime import timedelta
+    """Lo viejo no entra. Lo que cambió (2026-07-28) es CÓMO se decide qué es viejo.
 
-    from django.utils import timezone
+    Era una ventana de calendario de tres días desde hoy, y el fallo se vio en pantalla: el 28 de
+    julio seguía saliendo una noticia del 25. Ahora son las dos últimas jornadas CON movimientos, así
+    que la ventana se ancla al dato — ver `roster_moves.JORNADAS_CINTILLO`.
+    """
+    jugador = _jugador()
+    for numero, dias in enumerate((0, 4)):
+        RosterMove.objects.create(
+            transaction_id=900020 + numero,
+            mlb_id=665742,
+            player=jugador,
+            fecha=date(2026, 7, 28) - timedelta(days=dias),
+            texto=f"Movimiento de hace {dias} días",
+        )
 
-    Player.objects.create(**_other_player(player_id=665742, dgl_id="s01", full_name="Juan Soto", pos="LF"))
-    RosterMove.objects.create(
-        transaction_id=900020,
-        mlb_id=665742,
-        player_id=665742,
-        nombre="Juan Soto",
-        fecha=timezone.localdate() - timedelta(days=roster_moves.VENTANA_CINTILLO + 1),
-        type_code="SC",
-        type_desc="Status Change",
-        descripcion="viejo",
-        texto="Esto es de hace rato",
-    )
+    textos = [m.texto for m in roster_moves.portada()]
 
-    assert roster_moves.portada() == []
+    assert textos == ["Movimiento de hace 0 días"], "el de hace cuatro días no es noticia"
 
 
 @pytest.mark.django_db
@@ -424,3 +423,65 @@ def test_a_payload_that_is_not_a_list_does_not_explode(monkeypatch: pytest.Monke
     for payload in ({}, {"transactions": None}, {"transactions": {"raro": 1}}, {"transactions": ["texto suelto"]}):
         falso = cast("MlbProxyClient", _ClienteFalso(payload))
         assert roster_moves.traer(falso, date(2026, 7, 20)) == []
+
+
+# ── La ventana del cintillo: dos jornadas, ancladas al dato ─────────────────────────────────────
+
+
+def _jugador() -> Player:
+    return Player.objects.create(**_other_player(player_id=665742, dgl_id="s01", full_name="Juan Soto", pos="LF"))
+
+
+@pytest.mark.django_db
+def test_el_cintillo_muestra_las_dos_ultimas_jornadas_con_movimientos() -> None:
+    """La ventana se ancla en el DATO, no en el reloj (dueño, 2026-07-28).
+
+    Antes eran tres días de calendario contados desde hoy, y el fallo se vio en pantalla: el 28 de
+    julio seguía saliendo una noticia del 25. Contar desde hoy mezcla lo que pasó con cuándo se mira,
+    así que un fin de semana flojo arrastra al cintillo cosas de tres días atrás — que ya no son
+    noticia, son archivo.
+    """
+    jugador = _jugador()
+    for dias in (0, 1, 2, 5):
+        RosterMove.objects.create(
+            transaction_id=1000 + dias,
+            mlb_id=jugador.player_id,
+            fecha=date(2026, 7, 28) - timedelta(days=dias),
+            player=jugador,
+            texto=f"Movimiento de hace {dias} días",
+        )
+
+    fechas = sorted({m.fecha for m in roster_moves.portada()}, reverse=True)
+
+    assert fechas == [date(2026, 7, 28), date(2026, 7, 27)]
+
+
+@pytest.mark.django_db
+def test_si_el_dia_mas_reciente_solo_trae_cosas_que_no_se_publican_no_gasta_la_ventana() -> None:
+    """La referencia sale de los PUBLICABLES, no de todos.
+
+    Si el día más reciente solo trajera firmas de ligas menores —que se guardan pero no salen— esa
+    fecha marcaría la ventana y el cintillo quedaría vacío teniendo material del día anterior.
+    """
+    jugador = _jugador()
+    # Hoy: solo un movimiento sin ficha en el maestro, que no se publica.
+    RosterMove.objects.create(
+        transaction_id=1, mlb_id=999999, fecha=date(2026, 7, 28), player=None, texto="Firmó alguien"
+    )
+    RosterMove.objects.create(
+        transaction_id=2,
+        mlb_id=jugador.player_id,
+        fecha=date(2026, 7, 27),
+        player=jugador,
+        texto="Subido al roster",
+    )
+
+    movimientos = roster_moves.portada()
+
+    assert [m.texto for m in movimientos] == ["Subido al roster"]
+
+
+@pytest.mark.django_db
+def test_sin_nada_publicable_el_cintillo_va_vacio_en_vez_de_reventar() -> None:
+    """En invierno no hay movimientos, y la plantilla esconde la tira entera si la lista viene vacía."""
+    assert roster_moves.portada() == []
