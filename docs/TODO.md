@@ -1295,10 +1295,15 @@ el derecho y no en el izquierdo, Polanco en segunda.
   * **`PH`, `PR`, `DH` y `OF` no se tocan nunca.** Son roles, no posiciones, y alguien los puso a
     propósito — 71 jugadores. Decisión del dueño.
 
-- [ ] **Aplicar las 96 correcciones en el DGL de SQL Server.** El comando escribe en Postgres, pero
-  la fuente de verdad es `dbo.dglMaster`: si solo se corrige acá, la próxima carga lo revierte.
-  Generado `static_data/csv/posiciones_update.sql` con las 96 sentencias, cada una comentada con el
-  nombre, el cambio, las entradas y —en los lanzadores— las aperturas sobre juegos.
+- [x] **Aplicar las 96 correcciones en el DGL de SQL Server.** **HECHO por el dueño (2026-07-28).**
+  Se aplicaron en `dbo.dglMaster`, que es la fuente de verdad — corregir solo en Postgres no habría
+  servido: la siguiente carga del maestro lo revierte. El archivo que se usó,
+  `static_data/csv/posiciones_update.sql`, queda en el repositorio como registro de qué cambió y por
+  qué (cada sentencia lleva el nombre, el cambio, las entradas y, en los lanzadores, las aperturas
+  sobre juegos).
+
+  Sigue corriendo `check_positions` los domingos, que es lo que evita que la columna vuelva a
+  envejecer en silencio: informa y no escribe.
 
 ## La ficha del jugador debe llevar su foto
 
