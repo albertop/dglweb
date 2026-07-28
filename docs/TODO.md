@@ -519,10 +519,28 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
 
 ### Diferidos con disparador explícito
 
-- [ ] **DEV-02 + ARCH-03 — upsert fila por fila y metadatos de política en el `Loader`.** El
-  diagnóstico es correcto, pero hoy hay **un** dataset en upsert con **70 filas**. **Disparador: el
-  segundo dataset en upsert, o el primero con miles de filas** — ahí se hace antes de su primera
-  carga, y con dos casos reales que comparar el diseño sale del uso y no de la especulación.
+- [ ] **DEV-02 + ARCH-03 — metadatos de política en el `Loader`.** (La mitad del upsert quedó
+  cerrada el 2026-07-28 — ver abajo.)
+
+  **El apunte anterior estaba desactualizado y hay que decirlo:** afirmaba «hoy hay UN dataset en
+  upsert con 70 filas». Medido el 2026-07-28 son **cuatro** datasets con **15.388 filas**:
+
+  | Dataset | Filas | Modo |
+  |---|---:|---|
+  | `dom_players` | 9.133 | truncate |
+  | `dgl_batted_ball_hits` | 4.799 | truncate |
+  | `dom_salaries` | 1.385 | truncate |
+  | `seasons_dates` | 71 | **upsert** |
+
+  O sea que el disparador —«el segundo dataset en upsert, o el primero con miles de filas»— está a
+  medias: hay datasets grandes, pero sigue habiendo uno solo en upsert. Y lo que ese disparador
+  vigilaba (el upsert fila por fila) **ya se resolvió**: `bulk_create` con `update_conflicts` en
+  lotes de mil, o sea un `INSERT ... ON CONFLICT DO UPDATE` por lote en vez de dos consultas por fila.
+
+  **Lo que queda es el refactor de forma**: la política está partida entre la base —modo y clave
+  natural, que el dueño edita en el Backoffice— y el código del `Loader` —qué columnas, qué
+  reconstruir después—. No tiene síntoma medible: nadie ha tropezado con ello. **Disparador: cuando
+  añadir un dataset obligue a tocar las dos mitades para la misma decisión.**
 
 ## Por decidir (traído del CONCEPT)
 
@@ -810,9 +828,20 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   filas y coincide con el modo de fallo real. **Lo tolerado se cuenta aunque no se liste**: que el
   contador salte de 1 a 800 es la señal de una carga mal armada, y sin ese renglón la tolerancia
   sería una venda en vez de un umbral.
-- [ ] **DEV-03 / DEV-04 — `compare()` carga todo en memoria; el upsert hace una query por fila.**
-  Ciertos. Con 1.500 filas no se nota; el propio review dice que es tolerable. Documentar el límite
-  del motor y volver si aparece un dataset grande.
+- [ ] **DEV-03 — `compare()` carga todo en memoria.** (DEV-04, el upsert fila por fila, quedó
+  **corregido el 2026-07-28**: `bulk_create` con `update_conflicts` en lotes de mil.)
+
+  **Medido el 2026-07-28 sobre el dataset mayor**, `dom_players` con 9.133 filas: **761 ms y 8,1 MB
+  de pico**. Sigue siendo tolerable, y lo será hasta bastante más arriba — la pantalla de comparación
+  la abre una persona una o dos veces al año, no es una vista de tráfico.
+
+  Cuesta la memoria porque tiene que decir **qué desaparece**, que es lo más importante que muestra:
+  un export cortado a la mitad se ve ahí y en ningún otro lado. Para eso hay que tener las claves
+  viejas y las nuevas a la vez. Hacerlo en la base sería un `LEFT JOIN` contra una tabla temporal —
+  más piezas, y el motor deja de ser legible de una sentada.
+
+  **Disparador: un dataset por encima de ~50.000 filas**, que es donde los 761 ms se convierten en
+  varios segundos y los 8 MB en decenas. Hoy el mayor está seis veces por debajo.
 - [x] **FE-02 — falta ARIA básico en nav/tabs/pills.** **Corregido**: cabecera (nav con nombre, `role="search"` + label del buscador, hamburguesa con `aria-label`/`aria-expanded`/`aria-controls`), pestañas del perfil con el juego completo (`aria-selected`, `aria-controls`↔`aria-labelledby`, `role="presentation"` en los `<li>`) y los cinco tablists con nombre propio. En Líderes NO se pusieron roles de pestaña a propósito: son enlaces que recargan, así que van en `<nav>` con nombre y `aria-current="page"`. Con tests (`tests/test_accessibility.py`) que fijan el acuerdo, incluido que cada tablist anuncie exactamente una seleccionada.
   ~~ Cierto y barato.
 
