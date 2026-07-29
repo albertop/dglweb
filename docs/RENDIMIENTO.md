@@ -49,44 +49,39 @@ Hoy no se nota porque el sitio no tiene tráfico. Por eso no aparece en ninguna 
 
 ## Plan, por orden de lo que más suma
 
-### 1. Que nginx sirva los estáticos — LA GRANDE
+### 1. Que nginx sirva los estáticos — LA GRANDE ✅ HECHO 2026-07-29
 
 Quita **164 de 210 peticiones** de gunicorn y las pasa a nginx, que para servir archivos es lo que
 es. Los workers quedan libres para lo único que solo ellos pueden hacer: generar HTML.
 
-El comentario que hay hoy en el `server` dice que no se hace porque «obligaría a exponer
-`STATIC_ROOT` y a acordarse de recolectarlo fuera del build». Lo segundo ya no aplica:
-`Dockerfile.prod` corre `collectstatic` **en la construcción**, así que los archivos existen en
-`/app/staticfiles` con sus nombres con hash. Solo hay que sacarlos.
+Vive en dos archivos del repositorio, no solo en el servidor: `deploy/nginx-dglweb.conf` y
+`deploy/estaticos.sh`.
 
-**En el despliegue**, una línea después de levantar el stack:
+**Medido después del cambio**, sobre producción:
 
-```bash
-docker cp dglweb-web-live:/app/staticfiles/. /srv/dglweb-datos/static/
-```
+| | Antes | Después |
+|---|---|---|
+| `site.css` lo sirve | gunicorn (WhiteNoise) | **nginx** |
+| Peso en el cable | 80.701 B | **25.901 B** (`gzip_static`) |
+| Escudos de equipo | gunicorn | **nginx**, comprimidos |
 
-**En nginx**, antes del `location /`:
+`gzip_static on` no comprime en cada petición: WhiteNoise ya dejó los `.gz` al lado de cada archivo
+durante `collectstatic`, y nginx los manda tal cual.
 
-```nginx
-    location /static/ {
-        alias /srv/dglweb-datos/static/;
-        # WhiteNoise deja los `.gz` y `.br` ya generados al lado de cada archivo. `gzip_static`
-        # hace que nginx los sirva tal cual en vez de comprimir en cada petición.
-        gzip_static on;
-        # Un año e inmutable: los nombres llevan hash, así que un archivo con el mismo nombre es
-        # literalmente el mismo archivo. Cambiarlo genera un nombre nuevo.
-        expires 1y;
-        add_header Cache-Control "public, immutable" always;
-        access_log off;
-    }
-```
+**Ojo con el orden en el despliegue**: los estáticos se copian **después** de recrear el contenedor.
+Al revés, el HTML nuevo pediría hashes que no están en disco — 404 en el CSS, sitio sin estilos.
 
-`/static/img/mugshots/` ya tiene su propio bloque y **debe quedarse**: gana por ser el prefijo más
-largo, y esos archivos viven fuera de la imagen.
+> **Un defecto que se coló y salió en la comprobación.** La primera versión de este bloque ponía
+> `expires 1y;` **y** `add_header Cache-Control "public, immutable"`. Las dos directivas escriben la
+> misma cabecera, así que la respuesta salía con **dos `Cache-Control` distintas**. Los navegadores
+> las combinan, pero una respuesta con dos cabeceras de caché contradictorias es ambigua por
+> definición. Ahora hay **una sola directiva por bloque**. Nada avisó: `nginx -t` daba correcto y la
+> página cargaba bien — solo apareció al mirar las cabeceras con `get_all` en vez de `get`.
 
-**Ojo con el orden en el despliegue**: hay que copiar los estáticos **después** de recrear el
-contenedor y **antes** de que llegue tráfico, o durante unos segundos el HTML nuevo pedirá archivos
-con hashes que aún no están en disco — 404 en el CSS, sitio sin estilos.
+> **Y una decisión aparte para los retratos: 30 días, no un año.** Esos 1.970 archivos **no llevan
+> hash** en el nombre; el script de descarga del dueño los sobrescribe con el mismo nombre. Con caché
+> de un año, quien ya vio a un pelotero se quedaría con el retrato viejo hasta el año siguiente. El
+> resto de los estáticos sí lleva hash, y por eso ahí el año e `immutable` sí es correcto.
 
 ### 2. gunicorn: de `sync` a `gthread`
 
