@@ -1,7 +1,7 @@
 import logging
 import secrets
 from datetime import timedelta
-from typing import Any
+from typing import Any, Protocol
 
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -332,6 +332,110 @@ def pipeline_health(request: HttpRequest) -> JsonResponse:
     )
 
 
+# Cuánto vive un cerrojo de sondeo. Más que el tope de 5 s de la petición saliente, para que no
+# caduque con el sondeo todavía en marcha y entren dos a la vez. Y corto, para que un proceso que se
+# muera a mitad no deje el semáforo congelado más de unos segundos.
+SEGUNDOS_CERROJO = 10
+
+# El ÚLTIMO estado conocido, para poder contestar sin sondear cuando otro ya está sondeando. Quince
+# minutos: lo bastante para cubrir cualquier racha de peticiones, y lo bastante poco para que un dato
+# viejo no sobreviva a una tarde entera.
+SEGUNDOS_ULTIMO = 900
+
+
+def _semaforo_cacheado(clave: str, detallado: bool) -> JsonResponse | None:
+    """El estado guardado si sirve, o `None` si hay que salir a sondear.
+
+    LO QUE ESTO ARREGLA, Y POR QUÉ NO BASTABA CON CACHEAR
+    ------------------------------------------------------
+    El patrón anterior era `cache.get` → petición saliente de hasta 5 s → `cache.set`. Entre el fallo
+    de caché y el `set` no había nada: **todas las peticiones que llegaran durante esos 5 segundos
+    veían el mismo hueco y abrían su propia conexión**. Y la caché era la `default`, que es
+    `LocMemCache`, o sea **una por proceso**: los cuatro workers ni siquiera compartían el resultado.
+
+    Con el upstream caído —que es justo cuando esto importa— cada sondeo tarda los 5 segundos
+    enteros. Un cliente anónimo golpeando esta ruta podía dejar los 16 hilos de gunicorn esperando al
+    servicio que se estaba intentando diagnosticar. Una caída parcial de la publicidad se convertía
+    en una caída total del sitio. Lo destapó el review v12 (SEC-01).
+
+    Medido antes de arreglarlo: 16 peticiones simultáneas con el upstream tardando 200 ms produjeron
+    **3 llamadas salientes** —no las 16 que decía el review, pero tampoco la única que debería ser—.
+    Y eso dentro de UN proceso: en producción hay cuatro, cada uno con su caché.
+
+    LAS DOS MITADES, Y NINGUNA SIRVE SOLA
+    --------------------------------------
+    1. **La caché compartida** (en la base) hace que los cuatro workers vean el mismo estado. Por sí
+       sola no arregla nada: la carrera seguiría, solo que entre procesos en vez de dentro de uno.
+    2. **El cerrojo** (`add`, que es atómico) hace que sondee UNO. Por sí solo tampoco basta, porque
+       sin caché compartida habría un cerrojo por proceso.
+
+    Quien pierde el cerrojo no se queda esperando ni miente: devuelve **el último estado conocido**.
+    Eso es lo correcto para un semáforo — la alternativa sería bloquear, que es el problema original.
+
+    El que trae el token se salta todo esto: es una persona mirando qué se rompió y necesita el
+    estado de AHORA, no el de hace medio minuto. Y al estar detrás de un token no puede provocar una
+    avalancha.
+    """
+    if detallado:
+        return None
+
+    from django.conf import settings
+    from django.core.cache import caches
+
+    compartida = caches[settings.COMPARTIDA]
+
+    guardado = compartida.get(clave)
+    if guardado is not None:
+        estado, codigo = guardado
+        return JsonResponse({"status": estado}, status=codigo)
+
+    # Nadie tiene un estado fresco. Que sondee uno solo.
+    if compartida.add(f"{clave}:sondeando", 1, SEGUNDOS_CERROJO):
+        return None
+
+    ultimo = compartida.get(f"{clave}:ultimo")
+    if ultimo is not None:
+        estado, codigo = ultimo
+        return JsonResponse({"status": estado}, status=codigo)
+
+    # Ni fresco, ni cerrojo, ni último. Solo pasa en los primeros segundos después de un despliegue,
+    # y con varias peticiones a la vez. Un 200 sería mentir en verde y un 503, dar una falsa alarma:
+    # se dice lo que hay, y la siguiente consulta del monitor traerá la respuesta de verdad.
+    return JsonResponse({"status": "sondeando"}, status=200)
+
+
+class _Semaforo(Protocol):
+    """La firma de `respuesta(...)`.
+
+    Va como `Protocol` y no como `Callable`: hace falta expresar un argumento con valor por defecto y
+    `**detalle`, y `Callable[...]` no sabe describir eso. Con `Any` mypy dejaba de comprobar el tipo
+    de retorno de las dos vistas que lo usan — que es justo lo que uno quiere que vigile.
+    """
+
+    def __call__(self, estado: str, codigo: int = 200, **detalle: object) -> JsonResponse: ...
+
+
+def _guardar_semaforo(clave: str, detallado: bool) -> _Semaforo:
+    """Arma el `respuesta(...)` de cada semáforo: guarda el estado y suelta el cerrojo.
+
+    El cerrojo se suelta SIEMPRE que se llega acá, incluso al devolver un error: si no, un upstream
+    caído dejaría el cerrojo puesto sus diez segundos y las peticiones de ese rato contestarían con un
+    estado más viejo del necesario.
+    """
+    from django.conf import settings
+    from django.core.cache import caches
+
+    def respuesta(estado: str, codigo: int = 200, **detalle: object) -> JsonResponse:
+        if not detallado:
+            compartida = caches[settings.COMPARTIDA]
+            compartida.set(clave, (estado, codigo), SEGUNDOS_SEMAFORO)
+            compartida.set(f"{clave}:ultimo", (estado, codigo), SEGUNDOS_ULTIMO)
+            compartida.delete(f"{clave}:sondeando")
+        return JsonResponse({"status": estado, **(detalle if detallado else {})}, status=codigo)
+
+    return respuesta
+
+
 def proxy_health(request: HttpRequest) -> HttpResponse:
     """¿Puede EL SITIO hablar con el proxy de MLB? Para un monitor externo.
 
@@ -358,23 +462,13 @@ def proxy_health(request: HttpRequest) -> HttpResponse:
     """
     import httpx
     from django.conf import settings
-    from django.core.cache import cache
 
     detallado = _puede_ver_el_detalle(request)
+    fresco = _semaforo_cacheado(CLAVE_PROXY, detallado)
+    if fresco is not None:
+        return fresco
 
-    # Se cachea el semáforo anónimo por lo mismo que el otro: un monitor que pregunta cada minuto no
-    # tiene que abrir una conexión al proxy cada vez, y quien pide el detalle es una persona mirando
-    # qué se rompió y necesita el estado de AHORA.
-    if not detallado:
-        cacheada = cache.get(CLAVE_PROXY)
-        if cacheada is not None:
-            estado, codigo = cacheada
-            return JsonResponse({"status": estado}, status=codigo)
-
-    def respuesta(estado: str, codigo: int = 200, **detalle: object) -> JsonResponse:
-        if not detallado:
-            cache.set(CLAVE_PROXY, (estado, codigo), SEGUNDOS_SEMAFORO)
-        return JsonResponse({"status": estado, **(detalle if detallado else {})}, status=codigo)
+    respuesta = _guardar_semaforo(CLAVE_PROXY, detallado)
 
     url = f"{settings.MLB_PROXY_URL.rstrip('/')}/live"
     try:
@@ -386,7 +480,29 @@ def proxy_health(request: HttpRequest) -> HttpResponse:
 
     if con_que.status_code != 200:
         return respuesta("error", 503, detalle=f"El proxy respondió {con_que.status_code}.", url=url)
-    return respuesta("ok", detalle="El proxy responde.", version=con_que.json().get("version", ""))
+
+    # UN 200 NO BASTA, y por eso el cuerpo se lee acá dentro y no de pasada.
+    #
+    # Hasta el 2026-07-29 esto era `con_que.json().get("version", "")` a pelo, fuera de cualquier
+    # protección. Un 200 cuyo cuerpo no fuera JSON —una página de error de nginx, el HTML de un portal
+    # cautivo, un proxy intermedio contestando por su cuenta— reventaba con `ValueError` y el endpoint
+    # devolvía **500**. O sea que el que existe para diagnosticar se convertía en el que hay que
+    # diagnosticar, y encima rompía su contrato: un upstream enfermo tiene que dar 503, no 500.
+    #
+    # Lo destapó el review v12 (QA-01) y se reprodujo antes de arreglarlo.
+    #
+    # El `isinstance` no sobra: un JSON válido que sea una lista —`[]`— pasa el `json()` y revienta
+    # después en el `.get()`. Es el mismo fallo un renglón más tarde.
+    try:
+        cuerpo = con_que.json()
+    except ValueError as error:
+        return respuesta("error", 503, detalle=f"El proxy respondió 200 pero no con JSON: {error}", url=url)
+    if not isinstance(cuerpo, dict):
+        return respuesta("error", 503, detalle=f"El proxy respondió 200 con un {type(cuerpo).__name__}.", url=url)
+
+    # La versión es accesoria: si no viene, el proxy sigue estando vivo. Nunca puede decidir el
+    # semáforo — ese fue precisamente el error.
+    return respuesta("ok", detalle="El proxy responde.", version=cuerpo.get("version", ""))
 
 
 def adserver_health(request: HttpRequest) -> HttpResponse:
@@ -426,22 +542,15 @@ def adserver_health(request: HttpRequest) -> HttpResponse:
     """
     import httpx
     from django.conf import settings
-    from django.core.cache import cache
 
     from dglweb.core.notify import entorno
 
     detallado = _puede_ver_el_detalle(request)
+    fresco = _semaforo_cacheado(CLAVE_ADSERVER, detallado)
+    if fresco is not None:
+        return fresco
 
-    if not detallado:
-        cacheada = cache.get(CLAVE_ADSERVER)
-        if cacheada is not None:
-            estado, codigo = cacheada
-            return JsonResponse({"status": estado}, status=codigo)
-
-    def respuesta(estado: str, codigo: int = 200, **detalle: object) -> JsonResponse:
-        if not detallado:
-            cache.set(CLAVE_ADSERVER, (estado, codigo), SEGUNDOS_SEMAFORO)
-        return JsonResponse({"status": estado, **(detalle if detallado else {})}, status=codigo)
+    respuesta = _guardar_semaforo(CLAVE_ADSERVER, detallado)
 
     origen = (settings.ADSERVER_URL or "").rstrip("/")
     if not origen:

@@ -738,3 +738,154 @@ def test_en_produccion_sin_adserver_si_es_un_fallo(monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "config.settings.prod")
 
     assert Client().get(reverse("adserver_health")).status_code == 503
+
+
+# ── Un 200 con un cuerpo raro — QA-01 del review v12 ────────────────────────────────────────────
+#
+# El endpoint que existe para diagnosticar no puede ser el que hay que diagnosticar. Antes del
+# 2026-07-29, `con_que.json()` estaba fuera de toda protección: un 200 cuyo cuerpo no fuera JSON
+# reventaba con `ValueError` y salía un **500**, rompiendo el contrato de dar 503 cuando la
+# dependencia está enferma.
+
+
+class _Roto:
+    """Un 200 cuyo cuerpo no es JSON. Lo que devuelve una página de error de nginx, por ejemplo."""
+
+    status_code = 200
+    text = "<html>upstream error</html>"
+
+    def json(self) -> Any:
+        raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+
+class _ListaJson:
+    """Un 200 con JSON VÁLIDO que no es un objeto. Pasa el `json()` y revienta en el `.get()`."""
+
+    status_code = 200
+    text = "[]"
+
+    def json(self) -> Any:
+        return []
+
+
+@pytest.mark.django_db
+def test_un_200_con_html_da_503_y_no_500(monkeypatch: pytest.MonkeyPatch) -> None:
+    _proxy(monkeypatch, respuesta=_Roto())
+
+    assert Client().get(reverse("proxy_health")).status_code == 503
+
+
+@pytest.mark.django_db
+def test_un_200_con_una_lista_json_tambien_da_503(monkeypatch: pytest.MonkeyPatch) -> None:
+    """El mismo fallo un renglón más tarde: `[].get(...)` no existe."""
+    _proxy(monkeypatch, respuesta=_ListaJson())
+
+    assert Client().get(reverse("proxy_health")).status_code == 503
+
+
+@pytest.mark.django_db
+def test_un_proxy_sano_sin_version_sigue_verde(monkeypatch: pytest.MonkeyPatch) -> None:
+    """La versión es accesoria y NUNCA puede decidir el semáforo — ese fue justo el error.
+
+    Un proxy que responde 200 con un JSON sin `version` está vivo. Que falte un campo informativo no
+    lo pone enfermo.
+    """
+    _proxy(monkeypatch, respuesta=_Respuesta(200, {"status": "alive"}))
+
+    assert Client().get(reverse("proxy_health")).status_code == 200
+
+
+# ── Una sola llamada aunque lleguen muchas a la vez — SEC-01 del review v12 ──────────────────────
+#
+# El patrón anterior era `cache.get` → petición saliente de hasta 5 s → `cache.set`, sin nada en
+# medio. Todas las peticiones que llegaran durante esos 5 segundos veían el mismo hueco y abrían su
+# propia conexión. Con el upstream CAÍDO —que es cuando esto importa— cada una tardaba los 5 segundos
+# enteros, así que un cliente anónimo podía dejar los 16 hilos de gunicorn esperando al servicio que
+# se intentaba diagnosticar.
+#
+# Medido antes de arreglarlo: 16 peticiones simultáneas produjeron 3 llamadas salientes. Menos de las
+# 16 que decía el review, pero más de la única que debería ser. Y eso dentro de UN proceso: en
+# producción hay cuatro, cada uno con su `LocMemCache`.
+
+
+@pytest.mark.django_db(transaction=True)
+def test_muchas_peticiones_a_la_vez_hacen_una_sola_llamada(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`transaction=True` porque cada hilo necesita su propia conexión de verdad.
+
+    El cerrojo se apoya en `cache.add()` sobre la caché de la BASE, que es atómico porque la clave es
+    la primaria: el segundo `INSERT` choca y Django devuelve `False`. Sin conexiones reales, los
+    hilos compartirían la transacción de la prueba y el cerrojo no probaría nada.
+    """
+    import threading
+    import time
+
+    from django.conf import settings
+    from django.core.cache import caches
+
+    llamadas: list[str] = []
+    cerrojo = threading.Lock()
+
+    def lento(url: str, timeout: float = 0) -> Any:
+        with cerrojo:
+            llamadas.append(url)
+        time.sleep(0.3)  # el upstream tarda: es la ventana donde antes entraban todas
+        return _Respuesta(200, {"status": "alive", "version": "1.0"})
+
+    import httpx
+
+    monkeypatch.setattr(httpx, "get", lento)
+
+    compartida = caches[settings.COMPARTIDA]
+    for sufijo in ("", ":ultimo", ":sondeando"):
+        compartida.delete(f"health:proxy{sufijo}")
+
+    def pedir() -> None:
+        """Cierra su conexión al terminar, y NO es un detalle de limpieza.
+
+        Django abre una conexión por hilo y no la cierra sola cuando el hilo muere. Sin esto, las 16
+        quedan vivas y el desmontaje de la base falla con «is being accessed by other users» — que es
+        justo el `idle in transaction` que impidió al review v12 correr la suite completa.
+        """
+        from django.db import connection
+
+        try:
+            Client().get(reverse("proxy_health"))
+        finally:
+            connection.close()
+
+    hilos = [threading.Thread(target=pedir) for _ in range(16)]
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join()
+
+    assert len(llamadas) == 1, f"salieron {len(llamadas)} llamadas al upstream; debería ser 1"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_el_que_pierde_el_cerrojo_recibe_el_ultimo_estado_conocido(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No se queda esperando ni inventa: contesta lo último que se supo.
+
+    Es lo correcto para un semáforo. La alternativa —bloquear hasta que el otro termine— es
+    exactamente el problema que se venía a arreglar.
+    """
+    from django.conf import settings
+    from django.core.cache import caches
+
+    compartida = caches[settings.COMPARTIDA]
+    compartida.delete("health:proxy")
+    # Alguien está sondeando ahora mismo, y hay un estado anterior guardado.
+    compartida.set("health:proxy:sondeando", 1, 10)
+    compartida.set("health:proxy:ultimo", ("error", 503), 900)
+
+    def no_deberia_llamarse(url: str, timeout: float = 0) -> Any:
+        raise AssertionError("no debería salir al upstream: otro tiene el cerrojo")
+
+    import httpx
+
+    monkeypatch.setattr(httpx, "get", no_deberia_llamarse)
+
+    respuesta = Client().get(reverse("proxy_health"))
+
+    assert respuesta.status_code == 503
+    assert respuesta.json() == {"status": "error"}
