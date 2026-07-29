@@ -576,3 +576,74 @@ def test_con_el_cintillo_atrasado_la_pagina_no_lo_dibuja(client: Client) -> None
 
     assert "Algo de hace diez días" not in html
     assert 'aria-label="Movimientos de roster"' not in html
+
+
+# ── Las repetidas que manda MLB (2026-07-28) ────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_el_mismo_movimiento_repetido_por_mlb_sale_una_sola_vez() -> None:
+    """La repetición NO la genera nuestra traducción: viene del feed.
+
+    Comprobado sobre datos reales: «Toronto Blue Jays sent RF Jesús Sánchez on a rehab assignment to
+    Buffalo Bisons» llegó **tres veces** el 2026-07-28 con `id` distinto y la descripción en inglés
+    idéntica carácter por carácter. En el cintillo se leía la misma noticia tres veces seguidas.
+    """
+    jugador = _jugador()
+    for numero, identificador in enumerate((931981, 931989, 932016)):
+        RosterMove.objects.create(
+            transaction_id=identificador,
+            mlb_id=jugador.player_id,
+            player=jugador,
+            fecha=timezone.localdate(),
+            descripcion="Toronto Blue Jays sent RF Juan Soto on a rehab assignment to Buffalo Bisons.",
+            texto="Juan Soto salió a rehabilitación con Buffalo Bisons",
+        )
+        assert numero < 3
+
+    assert [m.texto for m in roster_moves.portada()] == ["Juan Soto salió a rehabilitación con Buffalo Bisons"]
+
+
+@pytest.mark.django_db
+def test_el_mismo_texto_en_dos_dias_distintos_si_sale_dos_veces() -> None:
+    """La otra mitad, y por eso la clave lleva la fecha.
+
+    Un movimiento idéntico en dos jornadas seguidas es noticia las dos veces: una lesión que se
+    alarga, una asignación que cambia de filial. Colapsarlo por el texto a secas escondería la
+    segunda, que es justo la que informa de algo nuevo.
+    """
+    jugador = _jugador()
+    for numero, dias in enumerate((0, 1)):
+        RosterMove.objects.create(
+            transaction_id=3000 + numero,
+            mlb_id=jugador.player_id,
+            player=jugador,
+            fecha=timezone.localdate() - timedelta(days=dias),
+            texto="Juan Soto salió a rehabilitación con Buffalo Bisons",
+        )
+
+    assert len(roster_moves.portada()) == 2
+
+
+@pytest.mark.django_db
+def test_las_repetidas_no_gastan_huecos_del_cintillo() -> None:
+    """Por qué el corte a 25 va DESPUÉS de colapsar y no en la consulta.
+
+    Recortando antes, tres copias de la misma noticia se llevarían tres de los veinticinco huecos y
+    el cintillo saldría más corto de lo que debe — con material de sobra esperando fuera.
+    """
+    jugador = _jugador()
+    identificador = 4000
+    # Diez noticias distintas, cada una duplicada: 20 filas para 25 huecos.
+    for n in range(10):
+        for _ in range(2):
+            identificador += 1
+            RosterMove.objects.create(
+                transaction_id=identificador,
+                mlb_id=jugador.player_id,
+                player=jugador,
+                fecha=timezone.localdate(),
+                texto=f"Movimiento número {n}",
+            )
+
+    assert len(roster_moves.portada()) == 10

@@ -252,7 +252,16 @@
     </div>
     <hr style="border-color:#25406b">
     {# El aviso de Retrosheet estuvo acá y vive ahora solo en los términos. Ver `core/legal.py`. #}
-    <div class="small text-center dgl-copyright">© 2026 dominicanosengrandesligas.com</div>
+    {% comment %}
+      El año se calcula, y acá SÍ corresponde — al revés que la fecha de «última actualización» de
+      los avisos legales, que es una constante escrita a mano a propósito (ver `core/legal.py`).
+      La diferencia: aquella afirma que alguien revisó el texto ese día, y moverla sola sería mentir;
+      esta solo dice en qué año estamos.
+
+      Estaba escrito «2026» a mano, así que el 1 de enero el pie del sitio entero habría quedado
+      viejo — de esos fallos que nadie reporta porque nadie mira el pie.
+    {% endcomment %}
+    <div class="small text-center dgl-copyright">© {% now "Y" %} dominicanosengrandesligas.com</div>
   </div>
 </footer>
 

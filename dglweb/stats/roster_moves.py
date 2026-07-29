@@ -322,11 +322,37 @@ def portada() -> list[RosterMove]:
         return []
 
     desde = ultima - timedelta(days=JORNADAS_CINTILLO - 1)
-    return list(
-        publicables.filter(fecha__gte=desde)
-        .select_related("player")
-        .order_by("-fecha", "-transaction_id")[:EN_CINTILLO]
-    )
+    filas = publicables.filter(fecha__gte=desde).select_related("player").order_by("-fecha", "-transaction_id")
+
+    # SE COLAPSAN LAS REPETIDAS, Y LA REPETICIÓN LA MANDA MLB.
+    #
+    # El mismo movimiento llega varias veces con `id` distinto y la descripción en inglés IDÉNTICA
+    # carácter por carácter. Comprobado el 2026-07-28: «Toronto Blue Jays sent RF Jesús Sánchez on a
+    # rehab assignment to Buffalo Bisons» entró tres veces (931981, 931989, 932016) y la del 23 de
+    # julio, dos. En el cintillo se leía la misma noticia repetida seguida, que parece un fallo
+    # nuestro aunque el dato esté bien guardado.
+    #
+    # SE FILTRA AL MOSTRAR Y NO AL GUARDAR, a propósito: son transacciones distintas para MLB y su
+    # `id` es la clave de la tabla. Descartarlas al escribir perdería el registro, y si mañana MLB
+    # corrige una de las tres habría que reimportar para enterarse. Acá abajo la decisión se puede
+    # cambiar sin tocar lo que ya está guardado.
+    #
+    # La clave lleva la FECHA además del texto: el mismo movimiento repetido dos días seguidos sí es
+    # noticia dos veces —una lesión que se alarga, una asignación que cambia de filial— y colapsarlo
+    # escondería la segunda.
+    vistas: set[tuple[date, int | None, str]] = set()
+    unicas: list[RosterMove] = []
+    for fila in filas:
+        clave = (fila.fecha, fila.player_id, fila.texto)
+        if clave in vistas:
+            continue
+        vistas.add(clave)
+        unicas.append(fila)
+        # El corte va acá y no en la consulta: recortando antes, tres copias de la misma noticia
+        # gastarían tres de los veinticinco huecos y el cintillo saldría más corto de lo que debe.
+        if len(unicas) == EN_CINTILLO:
+            break
+    return unicas
 
 
 def guardar(movimientos: list[Movimiento]) -> int:
