@@ -107,6 +107,44 @@ WSGI_APPLICATION = "config.wsgi.application"
 # --- Database (from DATABASE_URL) ---
 DATABASES = {"default": env.db("DATABASE_URL")}
 
+# CONEXIONES PERSISTENTES. Sale de una medición en producción del 2026-07-29, no de una costumbre:
+#
+#   resolver el nombre  ...   0,8 ms
+#   abrir el socket TCP ...   1,2 ms
+#   la conexión ENTERA  ...  32,9 ms
+#
+# O sea que 31 de esos 33 ms no son red. Se descartó el TLS —Postgres tiene `ssl` apagado, y conectar
+# con `sslmode=disable` da lo mismo (30,1 contra 30,9 ms)—. Lo que queda son las dos cosas que no se
+# pueden quitar: `scram-sha-256` derivando la clave con 4.096 iteraciones a los dos lados, y Postgres
+# BIFURCANDO UN PROCESO NUEVO por cada conexión.
+#
+# Con el valor de fábrica —0— eso se pagaba en CADA petición: 33 ms sobre los 274 de la portada, un
+# 12% del tiempo, gastado en volver a presentarse ante una base que está en el mismo servidor.
+#
+# 60 segundos y no `None` (para siempre): así una conexión que se quedó rara se recicla sola cada
+# minuto sin que nadie tenga que darse cuenta.
+#
+# LAS CUENTAS DE POSTGRES, que es lo que haría que esto fuera peligroso: con 4 workers y 4 hilos son
+# como mucho 16 conexiones vivas —Django guarda una POR HILO—, contra las 100 de `max_connections`.
+# Hoy se usan 9 en todo el servidor, contando pgAdmin y Revive. Sobra sitio.
+DATABASES["default"]["CONN_MAX_AGE"] = 60
+
+# EL COMPAÑERO OBLIGATORIO DEL DE ARRIBA. Sin esto, una conexión guardada que la base cerró por su
+# cuenta —un reinicio de Postgres, un despliegue del stack— se descubre rota cuando alguien la usa, y
+# el visitante se lleva un 500. Con esto Django la comprueba al empezar cada petición y, si está
+# muerta, abre otra sin que nadie se entere.
+#
+# Cuesta una consulta trivial por petición: ~2 ms medidos en producción, contra los 33 que ahorra.
+# Es exactamente el principio #0 del proyecto —resiliencia sobre features— cobrando su precio, y es
+# barato.
+#
+# VA DENTRO DE `DATABASES`, no suelto en el módulo. Es POR BASE DE DATOS: Django lo lee de
+# `settings_dict["CONN_HEALTH_CHECKS"]` y un `CONN_HEALTH_CHECKS = True` a nivel de módulo lo IGNORA
+# en silencio —sin aviso, sin error de configuración, y con `settings.CONN_HEALTH_CHECKS` devolviendo
+# `True` tan tranquilo—. Así estuvo escrito primero acá, y solo se descubrió matando una conexión a
+# propósito desde el servidor. Lo cubre `test_conexiones_persistentes.py`.
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
+
 # --- Password validation ---
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

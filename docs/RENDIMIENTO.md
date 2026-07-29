@@ -115,6 +115,53 @@ ganar.
 > serían hasta 16 conexiones persistentes, holgado contra las 100 de `max_connections` (hoy se usan
 > 9).
 
+### 2b. Conexiones persistentes a Postgres — HECHO 2026-07-29
+
+Salió de perseguir un número que no cuadraba. Abrir una conexión a Postgres, **en producción**,
+costaba 32,9 ms. Para una base que está en el mismo servidor eso es absurdo, así que se partió en
+tres:
+
+| | |
+|---|---|
+| resolver el nombre | 0,8 ms |
+| abrir el socket TCP | 1,2 ms |
+| **la conexión entera** | **32,9 ms** |
+
+O sea que **31 de los 33 ms no son red**. Se descartó el TLS —Postgres tiene `ssl` apagado, y
+conectar con `sslmode=disable` da lo mismo: 30,1 contra 30,9 ms—. Lo que queda son las dos cosas que
+no se pueden quitar: `scram-sha-256` derivando la clave con 4.096 iteraciones a los dos lados, y
+**Postgres bifurcando un proceso nuevo por cada conexión**. Es literalmente la razón por la que
+existen los pools de conexiones.
+
+Con `CONN_MAX_AGE = 0` —el valor de fábrica— eso se pagaba **en cada petición**: 33 ms sobre los 274
+de la portada, un 12% del tiempo, gastado en volver a presentarse.
+
+```python
+DATABASES["default"]["CONN_MAX_AGE"] = 60
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
+```
+
+**Las cuentas de Postgres**: con 4 workers y 4 hilos son como mucho 16 conexiones vivas —Django
+guarda una por hilo—, contra las 100 de `max_connections`. Hoy se usan 9 en todo el servidor
+contando pgAdmin y Revive.
+
+> **Se descartó escribir la IP a mano** en vez del nombre `postgres`. Ahorraba 0,8 ms —el 2,4% del
+> coste— a cambio de que el sitio dejara de conectar el día que Docker le asigne otra IP al
+> contenedor, cosa que pasa al recrear el stack o al reiniciar el servidor. Y con las conexiones
+> persistentes el nombre se resuelve como mucho 16 veces por minuto en vez de una por visita, así
+> que esos 0,8 ms desaparecen igual.
+
+> **El error que casi se despliega, y por qué había que probarlo.** `CONN_HEALTH_CHECKS` se escribió
+> primero suelto en el módulo de settings. Django **lo ignora en silencio** —es por base de datos, va
+> DENTRO de `DATABASES`— y mientras tanto `settings.CONN_HEALTH_CHECKS` devuelve `True` tan
+> tranquilo. Sin él, `CONN_MAX_AGE` cambia un problema de velocidad por uno de caídas: la conexión
+> guardada sobrevive en Django pero no en Postgres, y el primer visitante después de un reinicio de
+> la base se lleva un 500.
+>
+> No lo detectó ninguna herramienta. Se detectó **matando una conexión a propósito** desde el
+> servidor con `pg_terminate_backend` y volviendo a consultar: `OperationalError: terminating
+> connection due to administrator command`. Eso es ahora `tests/test_conexiones_persistentes.py`.
+
 ### 3. Postgres, que corre con la configuración de fábrica
 
 Los valores por defecto de Postgres están pensados para arrancar en cualquier máquina, no para
