@@ -42,49 +42,75 @@ _LIMITE = 8000
 # jornadas flojas (un 1-4 con sencillo) y el segundo lanzador hasta **46**, que en la escala de Tango
 # está por DEBAJO del promedio. Llamarle destacado a eso contradice la propia métrica.
 #
-# Los dos números son estándares, no inventos:
+# CADA UNO ES EL PERCENTIL 80 DE SU OFICIO EN TODA LA MLB (calibrado el 2026-07-29, decisión del
+# dueño). O sea: para salir en el widget hay que estar entre el **20% mejor de las mayores** ese día,
+# no entre lo mejor que hicieron los dominicanos.
 #
-#   - **1,0 en bateo** es una carrera producida por encima de lo que habría dado un bateador
-#     promedio en esas mismas apariciones. La unidad sale de la propia matriz de pesos lineales.
-#     Deja fuera el 1-4 con sencillo y deja dentro el 2-4 con jonrón.
-#   - **50 en pitcheo** es, por definición, la salida promedio en Game Score v2.
+# Se calcula sobre TODA la liga a propósito. Con el universo dominicano la muestra son 331 y 119
+# actuaciones en catorce días; con la liga entera son **3.141 y 1.307**. Y se comprobó antes de
+# hacerlo que los dos grupos son la misma distribución —media de bateo -0,025 en MLB contra +0,005 en
+# dominicanos, desviación 0,833 contra 0,811— así que el corte de la liga cae donde debe. Si fueran
+# grupos distintos, calibrar con MLB estaría midiendo otra cosa.
 #
-# Con estos pisos se llenan 1,9 de los 3 huecos de bateo y 1,0 de los 2 de pitcheo al día. Que a
-# veces queden vacíos es la respuesta correcta: hubo jornadas en las que nadie destacó.
+# POR QUÉ DOS NÚMEROS DISTINTOS SI LA UNIDAD ES LA MISMA
+# ------------------------------------------------------
+# Parece contradecir todo el trabajo de poner los dos oficios en carreras, y no lo contradice: son
+# dos preguntas distintas.
+#
+#   - **El ORDEN** usa el valor crudo. Ahí «una carrera es una carrera», y eso queda intacto.
+#   - **El PISO** pregunta otra cosa: ¿fue esto NOTABLE? Y notable es relativo a lo normal en tu
+#     oficio.
+#
+# Las dos distribuciones no tienen la misma forma. Mediana de bateo -0,14 contra +0,33 en pitcheo;
+# desviación 0,83 contra 1,31. Un lanzador suma +0,27 por cada out, así que acumula valor por durar;
+# un bateador solo tiene cuatro turnos.
+#
+# Con un solo número eso se rompe: un corte único de 0,70 publicaría bateadores del p84 y **lanzadores
+# del p68**, que es un inning limpio con un ponche — el día normal de un relevista, no un destacado.
+#
+# LOS NÚMEROS, Y LO QUE LLENAN
+# -----------------------------
+# Al p80 salen **6,3 dominicanos al día**, que es justo lo que enseña el widget (`VISIBLES`). Con el
+# piso anterior —1,0 para los dos— salían 3,8: la portada mostraba cuatro de seis huecos.
+#
+# Ojo con la meseta del pitcheo: entre el p70 y el p82 el corte es siempre ~0,81, porque muchísimas
+# actuaciones son exactamente «un inning limpio». Mover el percentil ahí dentro no cambia nada.
+#
+# ESTOS NÚMEROS CADUCAN. Salen de catorce días de julio de 2026. Sirven para arrancar, pero antes de
+# dar por buena una temporada conviene recalcularlos con el año completo — el entorno de carreras
+# cambia, y con él los percentiles.
 #
 # El piso se aplica al MOSTRAR, no al guardar. La tabla es el registro de la jornada y se queda con
 # todos los que jugaron — cambiar el umbral no puede exigir volver a pedirle nada al proxy.
-PISO_BATEO = 1.0
-PISO_PITCHEO = 50.0
+PISO_BATEO = 0.58
+PISO_PITCHEO = 0.82
 
 # LA ESCALA COMÚN, para poder ordenar las dos listas juntas (decisión del dueño, 2026-07-27).
 #
 # Durante mucho tiempo acá NO se comparaban: dos listas separadas, porque un 3-4 y siete entradas de
 # una carrera no están en la misma unidad. El dueño decidió mezclarlas, y para eso hay que traducir.
 #
-# La traducción NO necesita ninguna constante inventada: sale de la propia fórmula de Game Score v2.
+# YA NO HAY NINGUNA TRADUCCIÓN, y ese es el arreglo (SAB-02 del review v12, 2026-07-29). Los dos
+# oficios se puntúan con **la misma matriz de pesos lineales**, leída desde cada lado: el bateador
+# suma lo que produjo, el lanzador resta lo que permitió. Están en la misma unidad **por
+# construcción**, no por una equivalencia afirmada.
 #
-#   - El término `-3R` dice que **una carrera cuesta 3 puntos**.
-#   - **50 es, por definición, la salida promedio.**
+# LO QUE HABÍA ANTES, ANOTADO PARA NO REPETIRLO. Se traducía el Game Score con `(GS - 50) / 3`,
+# razonando que el término `-3R` fija el precio de una carrera en tres puntos y que 50 es la salida
+# promedio. No funcionaba, y se pudo enseñar con números:
 #
-# Luego `(GS - 50) / 3` son carreras por encima de una salida promedio — exactamente la unidad en la
-# que ya está el bateo, que son carreras producidas por encima del bateador promedio.
+#   - Game Score tiene SEIS términos, y dividir el total entre tres los divide todos. Cada uno
+#     heredaba una escala para la que no fue calibrado: un out salía a +0,67 carreras cuando la
+#     matriz dice +0,27; un jonrón a -3,00 cuando la matriz dice -1,39. **Al doble en casi todo.**
+#   - Un relevista que retiraba el inning en orden con un ponche valía **-1,0 carreras**, como si le
+#     hubiera costado una a su equipo. Porque 50 es el promedio de un ABRIDOR, y un relevista no
+#     puede acercarse: entra con la resta puesta por no lanzar siete entradas.
+#   - Un juego sin hits con 12 ponches daba **+18,7 carreras**. Las mejores actuaciones de una
+#     temporada rondan las +4.
 #
-# Lo que sale de ahí es defendible aunque sorprenda: en las jornadas con buen pitcheo, los lanzadores
-# encabezan. Medido, una salida de 5.2 entradas sin carreras vale +6,7 y un juego de 2 jonrones
-# +2,2. En valor de carreras eso es correcto: evitar carreras rinde más que producirlas, y esa es
-# justamente la afirmación que hace la métrica.
-GS_PROMEDIO = 50.0
-PUNTOS_POR_CARRERA = 3.0
-
-
-def en_carreras(grupo: str, valor: float) -> float:
-    """El valor de una actuación en carreras sobre el promedio, venga del oficio que venga.
-
-    Es lo único que permite ordenar las dos listas juntas sin inventarse una equivalencia. El bateo
-    ya viene en esta unidad; el pitcheo se traduce desde Game Score — ver arriba.
-    """
-    return valor if grupo == "bateo" else (valor - GS_PROMEDIO) / PUNTOS_POR_CARRERA
+# En la portada eso significaba que un 5-5 con tres jonrones (+5,1) perdía contra una apertura buena
+# pero corriente (+9,0). El comentario que había acá lo notó y lo defendió —«evitar carreras rinde
+# más que producirlas»— pero eso no era la métrica descubriendo nada: era la escala al doble.
 
 
 # Cómo se puntúa y cómo se describe una jornada. Van tipados en vez de `Any` para que agregar un
@@ -107,6 +133,14 @@ PESOS: dict[str, float] = {
     "hr": 1.3890765661634175,
     "sb": 0.1730862402850167,
     "cs": -0.42172462878318934,
+    # Estos dos solo los usa el pitcheo. Son del mismo archivo y de la misma columna, y entran porque
+    # son cosa EXCLUSIVA del lanzador: nadie más lanza un wild pitch ni comete un balk.
+    #
+    # No se incluye el «Passed ball» (+0,2535), que se le parece y también está en la matriz: ese es
+    # del receptor. Ni el «Error» (+0,4438), que es de la defensa. Cargárselos al lanzador sería
+    # cobrarle el trabajo de otro.
+    "wp": 0.25720554229406084,
+    "bk": 0.25981152454177203,
 }
 
 
@@ -156,6 +190,76 @@ def valor_de_bateo(stat: dict[str, Any]) -> float:
         + outs_en_juego * PESOS["out"]
         + _numero(stat, "SB") * PESOS["sb"]
         + _numero(stat, "CS") * PESOS["cs"]
+    )
+
+
+def valor_de_pitcheo(stat: dict[str, Any]) -> float:
+    """El valor en carreras de la jornada del lanzador — **la misma matriz que el bateo, negada**.
+
+    POR QUÉ ASÍ Y NO CON GAME SCORE (SAB-02 del review v12)
+    --------------------------------------------------------
+    La portada mezcla bateadores y lanzadores en una sola lista, así que hay que ponerlos en la misma
+    unidad. Hasta el 2026-07-29 eso se hacía traduciendo Game Score con `(GS - 50) / 3`, apoyándose en
+    que el término `-3R` dice que una carrera cuesta tres puntos.
+
+    **No funcionaba, y se puede enseñar con números.** Game Score tiene seis términos y dividir el
+    total entre tres los divide todos, así que cada uno hereda una escala para la que no fue
+    calibrado. Comparado con esta misma matriz:
+
+        un out        la conversión decía +0,67 carreras · la matriz dice +0,27
+        un boleto                        -0,67                            -0,33
+        un jonrón                        -3,00                            -1,39
+
+    Al doble en casi todo. Y con dos consecuencias visibles: un relevista que retiraba el inning en
+    orden con un ponche salía valorado en **-1,0 carreras** —como si le hubiera costado una a su
+    equipo— porque 50 es el promedio de un ABRIDOR y un relevista nunca puede acercarse. Y un juego
+    sin hits con 12 ponches daba **+18,7 carreras**, cuando las mejores actuaciones de una temporada
+    rondan las +4.
+
+    En la portada eso se traducía en que un 5-5 con tres jonrones (+5,1) perdía contra una apertura
+    buena pero corriente (+9,0).
+
+    Acá no hay ninguna traducción ni ninguna constante: se usa **la misma matriz de pesos lineales**,
+    leída desde el otro lado. El valor del lanzador es el valor de bateo de lo que permitió, con el
+    signo cambiado — por eso el `-(...)` envuelve toda la suma en vez de repartirse término a término.
+    Así los dos oficios están en la misma unidad **por construcción**, no por una afirmación.
+
+    LOS OUTS SALEN DE `outsPitched` y no de `AB - H - K`, que es como los deduce el bateo: acá el dato
+    autoritativo existe, y además recoge outs que no son turnos al bate —un corredor eliminado
+    robando, un pisa y corre— que la resta perdería.
+
+    LO QUE NO SE CUENTA, Y ES A PROPÓSITO: las bases robadas y los atrapados robando. La matriz las
+    tiene y el bateo las usa, pero cargárselas al lanzador sería cobrarle el brazo del receptor. Se
+    prefiere la omisión declarada a una atribución que no se sostiene. Lo mismo con el passed ball,
+    que es del receptor, y con el error, que es de la defensa.
+
+    LO QUE SÍ ENTRA Y NO ESTABA EN LA PRIMERA VERSIÓN: el **wild pitch** y el **balk**. Los dejé fuera
+    escribiendo que no estaban en la matriz, y era falso — están los dos, en la misma columna
+    `average` del mismo archivo. Son además las dos únicas jugadas del listado que son cosa
+    exclusivamente del lanzador: nadie más las comete.
+    """
+    hits = _numero(stat, "H")
+    dobles, triples, jonrones = _numero(stat, "X2B"), _numero(stat, "X3B"), _numero(stat, "HR")
+    sencillos = hits - dobles - triples - jonrones
+    boletos, intencionales = _numero(stat, "BB"), _numero(stat, "IBB")
+    ponches = _numero(stat, "K")
+    outs = _numero(stat, "outsPitched") or _numero(stat, "Outs")
+    # Los ponches ya van con su propio peso, así que el resto de los outs son los que se convirtieron
+    # en juego. Nunca negativo: un dato raro de la API no puede regalar carreras.
+    outs_en_juego = max(outs - ponches, 0.0)
+
+    return -(
+        sencillos * PESOS["1b"]
+        + dobles * PESOS["2b"]
+        + triples * PESOS["3b"]
+        + jonrones * PESOS["hr"]
+        + (boletos - intencionales) * PESOS["bb"]
+        + intencionales * PESOS["ibb"]
+        + _numero(stat, "HBP") * PESOS["hbp"]
+        + _numero(stat, "WP") * PESOS["wp"]
+        + _numero(stat, "BK") * PESOS["bk"]
+        + ponches * PESOS["k"]
+        + outs_en_juego * PESOS["out"]
     )
 
 
@@ -274,7 +378,7 @@ def destacados(client: MlbProxyClient, dia: date, universo: set[int]) -> dict[st
     codigos = fetch_team_codes(client, dia.year)
     return {
         "bateo": _actuaciones(client, "hitting", dia, universo, codigos, valor_de_bateo, linea_de_bateo),
-        "pitcheo": _actuaciones(client, "pitching", dia, universo, codigos, game_score, linea_de_pitcheo),
+        "pitcheo": _actuaciones(client, "pitching", dia, universo, codigos, valor_de_pitcheo, linea_de_pitcheo),
     }
 
 
@@ -505,7 +609,11 @@ def portada() -> dict[str, Any] | None:
             )
             for fila in elegidas
         ),
-        key=lambda d: (d.fecha.toordinal() if d.fecha else 0, en_carreras(d.grupo, d.valor)),
+        # `valor` a secas, sin traducir. Desde el 2026-07-29 los dos oficios se puntúan con la misma
+        # matriz de pesos lineales, así que ya vienen en carreras los dos — ver `valor_de_pitcheo`.
+        # Antes acá había un `en_carreras(grupo, valor)` que convertía el Game Score, y esa conversión
+        # era el problema: metía a los lanzadores en una escala del doble que la de los bateadores.
+        key=lambda d: (d.fecha.toordinal() if d.fecha else 0, d.valor),
         reverse=True,
     )[:MAXIMO]
 

@@ -151,22 +151,120 @@ def test_los_boletos_intencionales_tambien_cuentan(db: None) -> None:
 
 
 @pytest.mark.django_db
-def test_una_salida_corta_con_boletos_deja_de_publicarse(db: None) -> None:
-    """LA FILA REAL que se estaba publicando: `2.2 IP, 0 K, 1 ER` puntuaba 51 y salía en portada.
+def test_un_boleto_le_cuesta_al_lanzador_lo_que_dice_la_matriz(db: None) -> None:
+    """El equivalente de la prueba de arriba, pero en el modelo que SÍ ordena la portada.
 
-    Ocho outs, un hit y una carrera: `40 + 16 - 2 - 3 = 51`, justo por encima del piso de 50. Dos
-    boletos la bajan a 47 y deja de publicarse, que es lo correcto — dos entradas y dos tercios con
-    dos boletos no es una actuación destacada de nadie.
-
-    Las dos afirmaciones son necesarias: sin la primera, la prueba pasaría también con la fórmula
-    vieja si los números elegidos ya estuvieran por debajo del piso por su cuenta. Es el error que
-    tuvo la primera versión de esta prueba.
+    Desde el 2026-07-29 el pitcheo no se puntúa con Game Score sino con la misma matriz de pesos
+    lineales que el bateo (SAB-02). Acá se comprueba que el boleto le cuesta al lanzador exactamente
+    lo que la matriz le regala al bateador — ni más ni menos, que es lo que hace que las dos listas
+    se puedan comparar.
     """
-    sin_boletos = daily.game_score(_pitcheo(outsPitched=8, K=0, H=1, R=1))
-    con_boletos = daily.game_score(_pitcheo(outsPitched=8, K=0, H=1, R=1, BB=2))
+    limpio = daily.valor_de_pitcheo(_pitcheo(outsPitched=18))
+    con_uno = daily.valor_de_pitcheo(_pitcheo(outsPitched=18, BB=1))
 
-    assert sin_boletos >= daily.PISO_PITCHEO, "la fila real puntuaba 51 y por eso se publicaba"
-    assert con_boletos < daily.PISO_PITCHEO, "con los boletos contados ya no debería publicarse"
+    assert limpio - con_uno == pytest.approx(daily.PESOS["bb"])
+
+
+@pytest.mark.django_db
+def test_un_inning_perfecto_vale_positivo(db: None) -> None:
+    """LA PRUEBA QUE FIJA EL FALLO DE SAB-02, y la más fácil de contarle a alguien.
+
+    Con la conversión vieja —`(GS - 50) / 3`— un relevista que retiraba el inning en orden con un
+    ponche salía valorado en **-1,0 carreras**: el sitio afirmaba que le había COSTADO una carrera a
+    su equipo por lanzar un inning perfecto.
+
+    Pasaba porque 50 es el promedio de un ABRIDOR, y un relevista no puede acercarse: entra con la
+    resta ya puesta por no lanzar siete entradas. Con la matriz de pesos lineales no hay ningún ancla
+    que suponga un rol — cada out suma lo que vale un out.
+    """
+    assert daily.valor_de_pitcheo(_pitcheo(outsPitched=3, K=1)) > 0
+
+
+@pytest.mark.django_db
+def test_el_mejor_dia_de_un_bateador_le_gana_a_una_apertura_buena(db: None) -> None:
+    """La consecuencia que se veía en la portada, y el motivo de todo el cambio.
+
+    Con la escala vieja, una apertura de 7 entradas y una carrera valía +9,0 y un 5-5 con tres
+    jonrones +5,1: el día de la vida de un bateador perdía contra una apertura buena pero corriente.
+    No era la métrica descubriendo nada — era que la escala del pitcheo estaba al doble.
+
+    Con la matriz esa misma apertura vale +3,8 y el bateador sigue en +5,1.
+    """
+    apertura = daily.valor_de_pitcheo(_pitcheo(outsPitched=21, K=6, H=4, R=1))
+    bateador = daily.valor_de_bateo(_bateo(AB=5, H=5, HR=3))
+
+    assert bateador > apertura
+
+
+@pytest.mark.django_db
+def test_la_escala_del_pitcheo_no_se_dispara(db: None) -> None:
+    """Un techo de cordura. Con la conversión vieja un juego sin hits y 12 ponches daba **+18,7
+    carreras**, cuando las mejores actuaciones de una temporada entera rondan las +4 o +5.
+
+    No se fija un valor exacto para no atar la prueba a los decimales de la matriz —que el dueño
+    puede actualizar—, sino el orden de magnitud, que es lo que estaba mal.
+    """
+    joya = daily.valor_de_pitcheo(_pitcheo(outsPitched=27, K=12))
+
+    assert 5 < joya < 10
+
+
+@pytest.mark.django_db
+def test_el_wild_pitch_y_el_balk_le_cuestan_al_lanzador(db: None) -> None:
+    """Los dos estaban en la matriz y yo los había dejado fuera diciendo que no estaban.
+
+    Son las únicas jugadas del listado que son cosa EXCLUSIVA del lanzador. El passed ball, que se
+    les parece y también está en la matriz, es del receptor y por eso no entra.
+    """
+    limpio = daily.valor_de_pitcheo(_pitcheo(outsPitched=9))
+
+    assert daily.valor_de_pitcheo(_pitcheo(outsPitched=9, WP=1)) < limpio
+    assert daily.valor_de_pitcheo(_pitcheo(outsPitched=9, BK=1)) < limpio
+
+
+@pytest.mark.django_db
+def test_una_apertura_desastrosa_es_negativa(db: None) -> None:
+    """El otro extremo: cuatro entradas con nueve hits y dos jonrones tiene que hundir.
+
+    Con Game Score también lo hacía, pero conviene fijarlo en el modelo nuevo: si los outs pesaran
+    demasiado, una salida larga y mala podría acabar en positivo solo por durar.
+    """
+    assert daily.valor_de_pitcheo(_pitcheo(outsPitched=12, K=2, H=9, R=6, HR=2)) < 0
+
+
+@pytest.mark.django_db
+def test_los_dos_pisos_son_distintos_y_el_de_pitcheo_es_mas_alto(db: None) -> None:
+    """PARECE UNA INCONSISTENCIA Y NO LO ES. Esta prueba existe para que nadie la «arregle».
+
+    Los dos oficios están en la misma unidad —carreras— así que la tentación es ponerles el mismo
+    piso. Sería un error, y se puede enseñar con números: las dos distribuciones no tienen la misma
+    forma. Mediana de bateo -0,14 contra +0,33 en pitcheo, desviación 0,83 contra 1,31, porque un
+    lanzador suma valor con cada out y un bateador solo tiene cuatro turnos.
+
+    Con un corte único de 0,70 entrarían bateadores del percentil 84 y lanzadores del **68**, que es
+    un inning limpio con un ponche: el día normal de un relevista.
+
+    Cada piso es el percentil 80 de SU oficio en toda la MLB. El orden sigue usando el valor crudo
+    —ahí una carrera es una carrera— pero «notable» es relativo a lo normal en cada puesto.
+    """
+    assert daily.PISO_PITCHEO > daily.PISO_BATEO, (
+        "el piso de pitcheo tiene que ser MÁS ALTO: su distribución está corrida hacia arriba porque "
+        "cada out suma. Igualarlos publicaría relevistas con un inning corriente."
+    )
+
+
+@pytest.mark.django_db
+def test_un_inning_limpio_de_relevo_no_alcanza_para_publicarse(db: None) -> None:
+    """La consecuencia concreta del piso de pitcheo, y lo que se rompería al bajarlo.
+
+    Un relevista que retira el inning en orden con un ponche vale +0,81 — positivo, como debe ser
+    desde que se quitó la conversión de Game Score, pero **por debajo del piso**. Es el día normal de
+    un relevista, no un destacado.
+    """
+    inning_limpio = daily.valor_de_pitcheo(_pitcheo(outsPitched=3, K=1))
+
+    assert inning_limpio > 0, "un inning perfecto nunca puede valer negativo"
+    assert inning_limpio < daily.PISO_PITCHEO, "pero tampoco alcanza para llamarse destacado"
 
 
 @pytest.mark.django_db
@@ -326,13 +424,10 @@ def test_la_lista_no_crece_sin_fin(temporada: SeasonDates) -> None:
 @pytest.mark.django_db
 def test_los_dos_oficios_se_ordenan_en_una_misma_unidad(temporada: SeasonDates) -> None:
     """El sitio llevaba dos listas separadas porque un 3-4 y siete entradas no se comparan. El dueño
-    decidió mezclarlas (2026-07-27), y eso obliga a traducir en vez de a intercalar.
+    decidió mezclarlas (2026-07-27), y hasta el 2026-07-29 eso se hacía TRADUCIENDO Game Score.
 
-    La traducción no inventa nada: en Game Score v2 una carrera cuesta 3 puntos y 50 es la salida
-    promedio, así que `(GS-50)/3` son carreras sobre el promedio — la unidad del bateo.
-
-    Acá el lanzador vale +5 carreras y el bateador +2, así que va primero. Sin traducir, el 65 del
-    Game Score habría ganado por ser un número más grande, que es comparar centímetros con kilos.
+    Ya no hay traducción: los dos oficios se puntúan con la misma matriz, así que `valor` se compara
+    tal cual. Esta prueba fija justo eso — que nadie vuelva a meter una conversión en el medio.
     """
     bateador = _jugador(400)
     lanzador = _jugador(401)
@@ -340,26 +435,25 @@ def test_los_dos_oficios_se_ordenan_en_una_misma_unidad(temporada: SeasonDates) 
         fecha=AYER, grupo=DailyStandout.Grupo.BATEO, player=bateador, linea="3-4, HR", valor=2.0
     )
     DailyStandout.objects.create(
-        fecha=AYER, grupo=DailyStandout.Grupo.PITCHEO, player=lanzador, linea="7.0 IP, 0 ER", valor=65.0
+        fecha=AYER, grupo=DailyStandout.Grupo.PITCHEO, player=lanzador, linea="7.0 IP, 0 ER", valor=3.8
     )
 
     datos = daily.portada()
 
     assert datos is not None
-    assert daily.en_carreras("pitcheo", 65.0) == 5.0
     assert [d.player.player_id for d in datos["destacados"]] == [401, 400]
 
 
 @pytest.mark.django_db
 def test_un_bateador_le_gana_a_un_lanzador_que_valio_menos(temporada: SeasonDates) -> None:
-    """El reverso, que es el que prueba que la traducción manda y no el oficio."""
+    """El reverso, que es el que prueba que manda el valor y no el oficio."""
     bateador = _jugador(402)
     lanzador = _jugador(403)
     DailyStandout.objects.create(
         fecha=AYER, grupo=DailyStandout.Grupo.BATEO, player=bateador, linea="3-4, 2 HR", valor=2.5
     )
     DailyStandout.objects.create(
-        fecha=AYER, grupo=DailyStandout.Grupo.PITCHEO, player=lanzador, linea="5.0 IP, 2 ER", valor=54.0
+        fecha=AYER, grupo=DailyStandout.Grupo.PITCHEO, player=lanzador, linea="5.0 IP, 2 ER", valor=1.4
     )
 
     datos = daily.portada()

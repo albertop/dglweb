@@ -1703,23 +1703,20 @@ class DailyStandout(models.Model):
     widget sigue teniendo de dónde sacar la última jornada— que un tope de «los últimos N días»
     dejaría en blanco si N fuera corto.
 
-    `valor` GUARDA LA UNIDAD DE SU OFICIO, Y HAY QUE MIRAR `grupo` PARA LEERLO
-    --------------------------------------------------------------------------
-    En bateo son carreras por pesos lineales, donde 0 es una jornada del montón. En pitcheo es Game
-    Score, que ronda 40-60. Un 2.1 de bateo y un 48 de pitcheo no se comparan crudos: ordenar la
-    tabla por `valor` a secas pondría a todos los lanzadores por encima de todos los bateadores.
+    `valor` ESTÁ EN CARRERAS EN LOS DOS OFICIOS (desde el 2026-07-29)
+    -----------------------------------------------------------------
+    Carreras sobre el promedio, donde 0 es una jornada del montón: el bateador suma lo que produjo y
+    el lanzador lo que evitó, los dos con **la misma matriz de pesos lineales**. Así que `valor` SÍ
+    se puede ordenar crudo, y el widget lo hace.
 
-    Se guarda crudo a propósito, y no ya convertido: es el número que salió del cálculo, y la
-    conversión es una decisión de presentación que puede cambiar sin que haya que reescribir la
-    tabla.
+    Antes no era así: el pitcheo se guardaba en Game Score —que ronda 40-60— y el widget lo traducía
+    con `(GS - 50) / 3`. Esa traducción era el problema, no la solución. Metía a los lanzadores en una
+    escala del doble: un relevista con un inning perfecto salía en -1,0 carreras y un juego sin hits
+    en +18,7. Lo destapó el review v12 (SAB-02) y el porqué completo está en `stats/daily.py`.
 
-    QUIEN SÍ LOS MEZCLA ES EL WIDGET, y lo hace bien
-    -------------------------------------------------
-    `daily.en_carreras()` traduce el Game Score a carreras sobre el promedio, y con las dos cifras en
-    la misma unidad el widget ordena UNA sola lista con los dos oficios. Acá decía que no se podían
-    comparar «y por eso el widget muestra dos listas y no una» — se quedó viejo cuando el widget pasó
-    a mezclarlos, y el review v10 (SAB-02) lo encontró argumentando en contra de lo que hace el
-    código. Un comentario así no es ruido: es el que hace que alguien «arregle» lo que funciona.
+    OJO CON LAS FILAS VIEJAS. Las jornadas guardadas ANTES de ese cambio tienen el `valor` de pitcheo
+    en Game Score, así que un 48 y un 2,1 conviven en la misma columna sin que nada lo distinga.
+    Reprocesar la jornada con `build_daily_standouts --fecha` la reescribe entera.
 
     Ver `stats/daily.py`.
     """
