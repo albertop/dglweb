@@ -68,8 +68,6 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
       prueba. *Matomo* pesa como para no querer administrarlo. *GoatCounter* es gratis y ligerísimo
       pero su plan libre es para uso NO comercial, y este sitio va a llevar publicidad.
 
-- [ ] **Rotar el token del bot de Telegram.** Quedó expuesto durante la configuración, así que conviene renovarlo antes de producción: @BotFather → `/mybots` → el bot → *API Token* → *Revoke current token*, y reemplazar `TELEGRAM_BOT_TOKEN` en `.env`. El bot y el grupo siguen siendo los mismos; solo cambia la llave.
-
 - [ ] **Montar monitoreo propio en 10.0.0.39, con software libre.** **Decisión del dueño
   (2026-07-28): no se paga por monitoreo.** Nada de servicios contratados; se autoaloja en su
   servidor de datos y desde ahí se vigila el VPS.
@@ -1447,7 +1445,6 @@ Con guardián: `tests/test_no_avisar_en_tests.py` comprueba que la suite no tien
   nada, esto deja una forma de comprobar que el canal sí funciona.
   El mensaje empieza por «TEST» y dice de dónde salió — es la única vez que el sitio manda algo a
   propósito desde los tests y tiene que ser imposible confundirlo con una alerta.
-  **Correrlo después de rotar el token**, que es el pendiente de arriba.
 
 ## Self-healing de `dgl_master.pos` (2026-07-27)
 
