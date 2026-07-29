@@ -431,8 +431,8 @@ def test_cada_hueco_pide_la_zona_que_le_toca(settings: Any) -> None:
 
     settings.ADSERVER_URL = ANUNCIOS
 
-    assert "zoneid=12" in anuncio(12, 300, 600)["url"]
-    assert anuncio(1, 970, 90)["url"] != anuncio(4, 970, 90)["url"]
+    assert "zoneid=4" in anuncio(4, 300, 600)["url"]
+    assert anuncio(1, 970, 90)["url"] != anuncio(2, 970, 90)["url"]
 
 
 @pytest.mark.django_db
@@ -440,23 +440,35 @@ def test_dos_huecos_de_la_misma_pagina_no_repiten_zona(client: Client, settings:
     """La cabecera y el pie de la portada son zonas distintas: la de arriba se ve sin bajar y vale
     más, así que se venden por separado.
 
-    LOS NÚMEROS CAMBIARON EL 2026-07-29 y esta prueba fue la que lo cantó. Antes toda la web
-    compartía las zonas 1 y 2, así que un anuncio vendido para la portada se entregaba también en
-    artículos, en jugadores y en el perfil. Ahora cada página tiene su decena:
+    CADA PÁGINA TIENE AHORA SUS PROPIAS ZONAS (2026-07-29). Antes toda la web compartía la 1 y la 2,
+    así que un anuncio vendido para la portada se entregaba también en artículos, en jugadores y en el
+    perfil, y el informe del anunciante mezclaba páginas que no compró:
 
-        1-4    portada        11-13  líderes       21-22  jugadores
-        31-32  índice art.    41-42  artículo      51-52  perfil
+        1  portada top          2  portada bottom     3  portada recuadro superior
+        4  líderes torre        5  portada recuadro inferior
+        6  líderes top          7  líderes bottom
+        8  jugadores top        9  jugadores bottom
+        10 artículos top       11  artículos bottom
+        12 artículo top        13  artículo bottom
+        14 perfil top          15  perfil bottom
 
-    Acá se comprueban la 1 (arriba) y la 4 (abajo), que son las dos que existen en una base de
-    pruebas vacía: las otras dos de la portada viven dentro del bloque de artículos y no se dibujan
-    sin contenido publicado.
+    Los números NO son elección nuestra: los asigna Revive por autoincremento y las plantillas se
+    ajustaron a ellos. Por eso salen desordenados respecto a la página — la 3 y la 5 son las dos
+    laterales de la portada y la 4 es la torre de líderes, porque así se crearon.
+
+    Acá se comprueban la 1 y la 2, las únicas que se dibujan en una base de pruebas vacía: las dos
+    laterales viven dentro del bloque de artículos y sin contenido publicado no salen.
     """
     settings.ADSERVER_URL = ANUNCIOS
 
     zonas = re.findall(r"zoneid=(\d+)", client.get("/").content.decode())
 
-    assert zonas == sorted(set(zonas)), f"hay una zona repetida en la portada: {zonas}"
-    assert {"1", "4"} <= set(zonas), f"faltan la cabecera o el pie: {zonas}"
+    # Se cuenta, no se ordena. La versión anterior comparaba contra `sorted(set(zonas))`, que exige
+    # además que aparezcan EN ORDEN — y en la portada no aparecen: el pie es la 2 y los laterales la
+    # 3 y la 5, así que con artículos publicados el orden del HTML es 1, 3, 5, 2. La prueba pasaba
+    # solo porque la base de pruebas está vacía y nunca se dibujaban los cuatro.
+    assert len(zonas) == len(set(zonas)), f"hay una zona repetida en la portada: {zonas}"
+    assert {"1", "2"} <= set(zonas), f"faltan la cabecera o el pie: {zonas}"
 
 
 @pytest.mark.django_db

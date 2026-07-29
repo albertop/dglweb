@@ -50,7 +50,7 @@
     {% endcomment %}
     <div class="col-lg-8">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}</div>
     <div class="col-lg-4">
-      {% anuncio 2 300 250 "dgl-ad-alto h-100" %}
+      {% anuncio 3 300 250 "dgl-ad-alto h-100" %}
     </div>
   </div>
 
@@ -76,7 +76,7 @@
       {% endfor %}
       <div class="col-md-6 col-lg-4">
         {# `h-100` como el de la fila del destacado: iguala su alto al de las tarjetas de al lado. #}
-        {% anuncio 3 300 250 "dgl-ad-alto h-100" %}
+        {% anuncio 5 300 250 "dgl-ad-alto h-100" %}
       </div>
     </div>
   {% endif %}
@@ -88,7 +88,7 @@
   {% endif %}
   {% endif %}
 
-  {% anuncio 4 970 90 "dgl-ad-leader" %}
+  {% anuncio 2 970 90 "dgl-ad-leader" %}
 </main>
 {% endblock %}
 
