@@ -75,6 +75,30 @@ docker exec dglweb-web-live python manage.py build_daily_standouts --fecha-hoy
       implementa `inert`—: abrir un clip, pulsar Tab cinco o seis veces y comprobar que el foco no se
       escapa a los enlaces de detrás. Cerrar con Escape y ver que vuelve al botón que lo abrió.
 
+### 1.2026.8 — SIN DESPLEGAR (se acumula a propósito)
+
+**Decisión del dueño (2026-07-28): no se despliega por cada detalle.** Los cambios se juntan acá y
+suben todos en la misma imagen cuando haya algo que lo justifique. La 1.2026.7 queda congelada y es
+exactamente lo que corre en el VPS.
+
+Lo que lleva acumulado:
+
+- **La lámina de compartir**, ahora solo con el logotipo — sin la bajada ni la barra roja.
+- **`core.W001`**, el aviso de arranque cuando el sitio corre en producción con el canal de Telegram
+  apagado. Ya no hace falta para el problema que lo motivó —las credenciales están puestas— pero
+  evita que vuelva a pasar en silencio.
+- **El cintillo se esconde** cuando los movimientos que muestra tienen más de un día de atraso.
+- **Las dos bandas** para tarjetas de artículo sin foto (`static_data/banners/`). No son código: se
+  suben desde el CMS cuando el editor las necesite, así que no dependen de este despliegue.
+
+Al desplegar:
+
+- [ ] Pegar un enlace del sitio en Telegram y ver que la lámina sale **solo con el logotipo**. Ojo:
+      Telegram y WhatsApp **cachean la lámina por URL durante días**, así que puede seguir saliendo la
+      vieja un rato aunque el despliegue esté bien. No es un fallo.
+- [ ] `docker exec dglweb-web-live python manage.py check` no debe sacar `core.W001`. Si sale, el
+      canal de avisos se quedó sin credenciales en el stack.
+
 ### 1.2026.6 y .7 — tarjetas y analítica
 
 **La .7 no mide nada hasta tocar DOS SITIOS en Portainer**, y las dos mitades hacen falta. Es la
