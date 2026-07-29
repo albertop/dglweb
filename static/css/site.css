@@ -377,7 +377,7 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 @media (max-width: 991.98px) {
   .dgl-ad-leader { height: 50px; }
 }
-/* LA COLUMNA DE UN RECTÁNGULO DE 300, que mide lo que el anuncio y no lo que la rejilla.
+/* LA COLUMNA DE UN ANUNCIO DE 300 DE ANCHO, que mide lo que el anuncio y no lo que la rejilla.
 
    Un `col-lg-4` sobre el contenedor de 1320 da 440px de ancho, y el anuncio 300: sobraban 140px a un
    lado, y con el artículo de al lado ocupando su columna entera la fila se veía descuadrada. Es el
@@ -387,16 +387,9 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    La canaleta se suma porque las columnas de Bootstrap llevan `box-sizing: border-box` y su relleno
    saldría del mismo ancho. */
 @media (min-width: 992px) {
-  .dgl-col-rect { flex: 0 0 auto; width: calc(300px + var(--bs-gutter-x, 1.5rem)); }
+  .dgl-col-300 { flex: 0 0 auto; width: calc(300px + var(--bs-gutter-x, 1.5rem)); }
 }
 
-/* Los dos rectángulos de la portada. 250px EXACTOS, y ahí está la corrección del 2026-07-29.
-   Existía además `.dgl-ad-alto`, con `min-height: 250px`, que junto a `h-100` estiraba el marco al
-   alto de la tarjeta de artículo (300px). La intención era que el hueco midiera siempre lo mismo,
-   pero el efecto era el contrario: el marco pasaba a 300×300 y la creatividad de 250 se quedaba
-   arriba, con 50px de blanco por debajo DENTRO del anuncio. Se veía como un banner roto.
-   Sin estirar, el hueco es siempre 300×250 y el sobrante queda fuera, en la fila. */
-.dgl-ad-rect { height: 250px; }
 /* El que cierra la página: `margin-top: auto` se come el espacio que sobre y lo deja pegado al pie,
    en vez de dejarlo colgando debajo de una tabla corta con un vacío por delante. */
 .dgl-ad-pie { margin-top: auto; }

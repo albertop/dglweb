@@ -28,14 +28,6 @@
   </div>
 
   {% comment %}
-    El destacado y su anuncio van en su propia fila para que el anuncio quede alineado con el borde
-    superior del artículo y no flotando a media altura.
-
-    Acá decía que era «para que el anuncio pueda alcanzar la altura del artículo». Se quedó viejo el
-    2026-07-29: el anuncio ya NO se estira — mide 300×250 exactos, que es su formato — y lo que la
-    fila propia resuelve ahora es solo la alineación. Ver el comentario de dentro.
-  {% endcomment %}
-  {% comment %}
     Desde la Fase 5 los artículos son páginas de Wagtail y no las tarjetas de muestra que había acá
     escritas a mano. Cuántos entran lo decide la vista (`PORTADA_DESTACADO` y `PORTADA_RESTO`); la
     plantilla solo los coloca.
@@ -44,59 +36,54 @@
     como un sitio roto, y el visitante no tiene por qué saber que el CMS está recién estrenado.
   {% endcomment %}
   {% if articulo %}
+  {% comment %}
+    UNA COLUMNA LATERAL QUE ABARCA LAS DOS FILAS (2026-07-29), y la forma la decidió una medición.
+
+    Antes había DOS anuncios de 300×250, uno por fila. El problema era vertical: la tarjeta del
+    destacado mide 300px de alto y el anuncio 250, así que quedaban 150px de aire debajo de cada uno
+    —el hueco que el dueño señaló como «horrible»—. Y no se arreglaba estirando el anuncio: eso
+    convertía el hueco en un 300×300 que no es un formato vendible.
+
+    Medido: la fila del destacado son 324px y la de «Últimos artículos» con su título 336. **Las dos
+    juntas, 660.** Un 300×600 no cabe en una —sobresaldría 276px— pero cabe en las dos con 60 de
+    sobra. Así que el formato pide la maquetación: un carril lateral, como en cualquier revista.
+
+    Lo que se gana además de cerrar el hueco: **el 300×600 (media página) se vende más caro que dos
+    300×250**, y ahora el carril acompaña al lector durante todo el bloque editorial en vez de
+    desaparecer al pasar el destacado.
+
+    LA ZONA 5 SALE DE LA PORTADA. Sigue existiendo en Revive —«Portada - recuadro inferior»— pero ya
+    no la pide nadie. Se deja creada a propósito: si algún día vuelve un hueco acá, está lista.
+  {% endcomment %}
   <div class="row g-4 mb-4">
+    <div class="col-12 col-lg">
+      {% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}
+
+      {% if articulos %}
+        <h2 class="dgl-section-title mt-4">Últimos artículos</h2>
+        {% comment %}
+          Dos artículos y no tres: el carril se queda con 324px del contenedor, así que acá entran dos
+          celdas de ~300px justas. Con tres, el último caería solo en una segunda fila.
+        {% endcomment %}
+        <div class="row g-3">
+          {% for otro in articulos %}
+            <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
     {% comment %}
-      EL ANUNCIO MIDE 300×250 EXACTOS Y NO SE ESTIRA (2026-07-29).
+      `align-self-start` para que el carril no se estire si el contenido de al lado crece: el anuncio
+      mide 300×600 exactos y lo que sobre queda fuera, como aire de la fila.
 
-      Antes llevaba `h-100` y una clase `dgl-ad-alto` para igualar el alto de la tarjeta, que mide 300px. La
-      intención era buena —«un formato que no mide siempre igual no se puede vender»— pero conseguía
-      lo contrario: el marco pasaba a 300×300 y la creatividad, que mide 250, se quedaba arriba con
-      **50px de blanco por debajo, dentro del anuncio**. Se veía como un banner roto.
-
-      Sin estirar, el hueco es SIEMPRE 300×250 —que es justo lo que la intención pedía— y el sobrante
-      queda fuera, en la fila, donde se lee como aire y no como defecto.
-
-      `align-self-start` es lo que impide que la columna crezca al alto de la fila y arrastre al
-      marco otra vez.
+      `dgl-ad-pegado` lo deja pegajoso: el bloque editorial puede ser más alto que la pantalla, y así
+      el anuncio sigue a la vista mientras se baja en vez de perderse arriba.
     {% endcomment %}
-    <div class="col-12 col-lg">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}</div>
-    <div class="col-12 dgl-col-rect align-self-start">
-      {% anuncio 3 300 250 "dgl-ad-rect" %}
+    <div class="col-12 dgl-col-300 align-self-start">
+      {% anuncio 3 300 600 "dgl-ad-torre dgl-ad-pegado" %}
     </div>
   </div>
-
-  {% if articulos %}
-    <h2 class="dgl-section-title">Últimos artículos</h2>
-    {% comment %}
-      La fila son TRES celdas en pantalla grande, y la tercera es un anuncio (zona 5, 300×250).
-
-      Por eso la vista trae dos artículos acá y no tres: si trajera tres, el anuncio empujaría al
-      último a una segunda fila él solo, y una fila con una tarjeta y dos huecos se lee como un
-      error de maquetación.
-
-      El anuncio va DENTRO de este `if`, no fuera: sin artículos publicados el bloque entero
-      desaparece —incluido el encabezado— y un anuncio suelto bajo un título ausente no tendría
-      dónde apoyarse.
-
-      En móvil la rejilla es de dos columnas (`col-md-6`), así que el anuncio cae solo en la segunda
-      fila. Es lo correcto: queda debajo del contenido, no antes.
-
-      `ms-lg-auto` LO PEGA AL BORDE DERECHO, y hace falta porque la vista no siempre trae dos
-      artículos: con uno solo publicado, el anuncio caía en la celda del medio y quedaba desalineado
-      del de la fila de arriba, con la tercera columna vacía al lado. El margen automático se come el
-      espacio que sobre y lo empuja a la derecha, así los dos anuncios de la portada quedan siempre en
-      la misma columna.
-    {% endcomment %}
-    <div class="row g-3">
-      {% for otro in articulos %}
-        <div class="col-md-6 col-lg-4">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
-      {% endfor %}
-      <div class="col-md-6 dgl-col-rect align-self-start ms-lg-auto">
-        {# 300×250 exactos, sin estirar — ver el comentario de la fila del destacado. #}
-        {% anuncio 5 300 250 "dgl-ad-rect" %}
-      </div>
-    </div>
-  {% endif %}
 
   {% if indice %}
     <div class="text-center my-4">
