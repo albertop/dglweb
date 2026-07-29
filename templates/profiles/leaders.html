@@ -81,6 +81,23 @@ muda y el usuario vuelve a hacer clic.
     <div class="col-lg-6">{% include "widgets/_lideres.html" %}</div>
   </div>
 
+  {% comment %}
+    SOLO EN MÓVIL, entre el widget del top 10 y los controles del tablero. Apilado, el lector se come
+    las pestañas de oficio y el widget completo antes de llegar a elegir métrica, y ahí es donde el
+    anuncio tiene sitio. En pantalla ancha no hace falta: el carril de la derecha ya acompaña al
+    tablero.
+
+    El rango va en la etiqueta y no solo en `d-xl-none`: un marco oculto con CSS carga igual, así que
+    sin el rango este contaría una impresión en cada visita de escritorio.
+
+    HASTA 1199 y no hasta 991: tiene que ser COMPLEMENTARIO del rango de la torre, que empieza en 1200.
+    Con 991 quedaría una franja de 992 a 1199 sin ningún anuncio — el CSS enseñaría este hueco y el
+    script lo quitaría por estar fuera de rango.
+  {% endcomment %}
+  <div class="d-xl-none mb-4">
+    {% anuncio_rango 41 320 50 maximo=1199 clase="dgl-ad-leader" %}
+  </div>
+
   {% if empty %}
   {% comment %}
   Sin métricas activas no hay tablero. Las pestañas de oficio ya están arriba y son lo único
@@ -187,13 +204,18 @@ muda y el usuario vuelve a hacer clic.
     CENTRADO VERTICAL, para que quede entre los mismos márgenes que el tablero. Medido lado a lado: el
     tablero son 736px y el anuncio 600, así que sobran 160 — repartidos, 80 arriba y 80 abajo.
 
-    Se quitó . Prometía que «el tablero puede tener quince filas y el anuncio se queda
+    Se quitó `dgl-ad-pegado`. Prometía que «el tablero puede tener quince filas y el anuncio se queda
     a la vista mientras se baja», y con el tablero más corto —jonrones, diez filas— el recorrido son
     esos 160px: no alcanza para que se note. En un tablero largo sí ayudaría, así que esto es una
     decisión de estética sobre función, tomada a propósito: el dueño prefiere el carril alineado.
+
+    Y SOLO DESDE 1200px, que es donde `.dgl-col-torre` la pone al lado del tablero. **El número tiene
+    que ser EL MISMO que el del CSS**: con 992 en la etiqueta, entre 992 y 1199 el CSS la escondería y
+    el script la cargaría igual — una impresión fantasma en cada visita de portátil pequeño. Un
+    `iframe` oculto con CSS SÍ CARGA su documento, comprobado en el navegador.
   {% endcomment %}
-  <div class="col-12 dgl-col-torre d-flex align-items-center">
-    {% anuncio 4 300 600 "dgl-ad-torre" %}
+  <div class="col-12 dgl-col-torre d-none d-xl-flex align-items-center">
+    {% anuncio_rango 4 300 600 minimo=1200 clase="dgl-ad-torre" %}
   </div>
   </div>
   {% endwith %}
