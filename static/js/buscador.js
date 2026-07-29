@@ -61,6 +61,13 @@
       caja.setAttribute("aria-expanded", "false");
       caja.removeAttribute("aria-activedescendant");
       activo = -1;
+      // ESTA LÍNEA ES LA QUE EVITA QUE LA LISTA SE REABRA SOLA. Sin ella, una respuesta que ya venía
+      // en camino cuando el usuario cerró seguía pasando el `enVuelo === mio` de abajo, y volvía a
+      // pintar sugerencias de la búsqueda anterior — con la caja YA VACÍA y `aria-expanded` puesto
+      // otra vez en `true`. Comprobado con una promesa resuelta a mano; ver `buscador.test.js`.
+      //
+      // El `debounce` no lo cubría: no hay espera que alcance a una respuesta que ya salió.
+      enVuelo = null;
     }
 
     function ir(i) {

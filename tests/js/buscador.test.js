@@ -208,3 +208,94 @@ describe("lo que se le pide al servidor", () => {
     expect(global.fetch.mock.calls[0][0]).toContain("q=soto");
   });
 });
+
+describe("las respuestas que llegan tarde — FE-01 del review v11", () => {
+  /* EL FALLO, TAL COMO LO VIVE UN USUARIO
+   * --------------------------------------
+   * Escribe «so», la petición sale, y antes de que responda borra la caja. La lista se cierra, como
+   * debe. Un instante después llega la respuesta y **la lista se reabre sola**, con sugerencias de
+   * una búsqueda que ya no existe y con la caja vacía.
+   *
+   * El `debounce` no lo cubre y nunca podría: retrasa el DISPARO de la petición, pero no hay espera
+   * que alcance a una respuesta que ya salió. La única defensa es invalidar el testigo al cerrar.
+   *
+   * Medido antes del arreglo: `lista oculta = false`, `aria-expanded = true`, 1 sugerencia pintada,
+   * con la caja en «».
+   *
+   * CÓMO SE PRUEBA UNA CARRERA
+   * ---------------------------
+   * Con un `fetch` que devuelve una promesa que NO se resuelve sola: se guarda su `resolve` y se
+   * llama a mano después de cerrar. Es la única forma de poner el «tarde» dentro de una prueba
+   * determinista — con temporizadores el orden dependería de la máquina.
+   */
+  async function conRespuestaAplazada() {
+    document.body.innerHTML = `
+      <form action="/jugadores/">
+        <div class="position-relative">
+          <input id="buscar" name="q" data-buscador="/api/sugerencias/" data-minimo="2">
+        </div>
+      </form>`;
+
+    let responder;
+    const aplazada = new Promise((r) => {
+      responder = r;
+    });
+    global.fetch = vi.fn(() => aplazada);
+    new Function(FUENTE)();
+
+    const caja = document.getElementById("buscar");
+    caja.value = "so";
+    caja.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(200);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    const lista = document.querySelector(".dgl-sugerencias");
+    return {
+      caja,
+      lista,
+      // Deja llegar la respuesta vieja.
+      llega: async () => {
+        responder({ json: () => Promise.resolve(RESPUESTA) });
+        await vi.advanceTimersByTimeAsync(50);
+      },
+    };
+  }
+
+  it("borrar la caja mantiene la lista cerrada aunque la respuesta llegue después", async () => {
+    const { caja, lista, llega } = await conRespuestaAplazada();
+
+    caja.value = "";
+    caja.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(200);
+
+    await llega();
+
+    expect(lista.classList.contains("d-none")).toBe(true);
+    expect(lista.children.length).toBe(0);
+    // El estado ARIA importa tanto como lo visible: con `aria-expanded="true"` sobre una lista
+    // vacía, un lector de pantalla anuncia sugerencias que no existen.
+    expect(caja.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("una búsqueda NUEVA sigue pintando lo suyo — el arreglo no puede romper el caso normal", async () => {
+    const { caja, lista, llega } = await conRespuestaAplazada();
+
+    caja.value = "";
+    caja.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(200);
+
+    // El usuario escribe otra cosa y ESTA sí tiene que salir.
+    global.fetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve(RESPUESTA) }));
+    caja.value = "pedro";
+    caja.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(lista.classList.contains("d-none")).toBe(false);
+    expect(lista.children.length).toBe(RESPUESTA.results.length);
+
+    // Y que llegue ahora la vieja no puede pisar a la nueva.
+    await llega();
+    expect(lista.children.length).toBe(RESPUESTA.results.length);
+    expect(lista.classList.contains("d-none")).toBe(false);
+  });
+});
