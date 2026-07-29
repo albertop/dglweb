@@ -32,20 +32,29 @@ optimiza desde acá.
 
 **La portada referencia 210 recursos estáticos. De esos, 164 los sirve WhiteNoise — o sea, gunicorn.**
 
-```
-  mugshots (nginx, desde disco)     44
-  resto (WhiteNoise → gunicorn)    164   ← de los cuales 153 son imágenes
-```
+Y gunicorn corre con **3 workers síncronos**. Un worker síncrono atiende **una petición a la vez**,
+así que esas peticiones ocupan uno de esos tres huecos cada una. Eso es lo que se cae el día del
+lanzamiento — no la base, que va sobrada, ni el CPU, que está ocioso.
 
-Y gunicorn corre con **3 workers síncronos**. Un worker síncrono atiende **una petición a la vez**.
-
-Así que **una sola visita a la portada genera 164 peticiones que ocupan uno de esos tres workers cada
-una**. Diez visitantes simultáneos son 1.640 peticiones peleándose por tres huecos. Eso es lo que se
-cae el día del lanzamiento — no la base, que va sobrada, ni el CPU, que está ocioso.
-
-Hoy no se nota porque el sitio no tiene tráfico. Por eso no aparece en ninguna medición de arriba.
-
----
+> ### CORRECCIÓN (2026-07-29): ese 210 estaba mal contado, y el error era mío
+>
+> **210 eran REFERENCIAS en el HTML, no peticiones.** La bandera dominicana aparece 19 veces y el
+> escudo de Miami 15, pero el navegador pide cada URL **una sola vez**. Contados como los pide un
+> navegador:
+>
+> | | |
+> |---|---|
+> | referencias en el HTML | 212 |
+> | **archivos distintos** | **68** |
+> | peso total, comprimido | **313,8 KB** |
+> | HTML | 125,2 KB |
+>
+> O sea que **la página ya era ligera**, y el reparto real era 24 por nginx y 44 por gunicorn, no 44
+> y 164.
+>
+> **Lo que NO cambia**: 44 peticiones por visitante contra 3 workers seguía siendo un problema real
+> de concurrencia, y pasarlas a nginx seguía siendo lo correcto. Lo que cambia es el tamaño del
+> susto, y sobre todo el punto 4 del plan, que se cae entero.
 
 ## Plan, por orden de lo que más suma
 
@@ -180,15 +189,23 @@ sí convienen en SSD.
 
 No es urgente —la base responde en 36-56 ms— pero es lo que sostiene el crecimiento.
 
-### 4. Reducir los 210 recursos
+### 4. Reducir los recursos — DESCARTADO 2026-07-29, con números
 
-Lo anterior hace que 210 peticiones dejen de doler. Esto las quita de en medio:
+Este punto existía por el error de conteo de arriba. Con la medición correcta **no hay nada que
+hacer acá**, y vale más cerrarlo que dejarlo abierto dando mala conciencia:
 
-- **153 son imágenes**: retratos de peloteros y escudos de equipo. Los escudos son 30 SVG que se
-  repiten en toda la página; un sprite los deja en uno.
-- **`loading="lazy"`** en los retratos que caen bajo el pliegue.
+- **El sprite de escudos no compensa.** Son 32 SVG distintos y **57,6 KB en total ya comprimidos**.
+  Por HTTP/2 van multiplexados por la misma conexión y se cachean un año. Juntarlos en un sprite
+  ahorra 31 peticiones baratas a cambio de complicar las plantillas de verdad.
 
-Es trabajo de plantillas y no de infraestructura, así que va después.
+- **El `loading="lazy"` ya está donde tiene que estar.** De las 198 `<img>` de la portada, 44 lo
+  llevan y son **exactamente los retratos**. Las 154 que no lo llevan son **iconos de 20×20 y
+  banderitas de 17×11**: ponerles `lazy` sería contraproducente —le da trabajo al navegador y
+  provoca saltos de maquetación— para ahorrar unos pocos KB.
+
+Lo más pesado que queda es Bootstrap: 30,1 KB de CSS y 23,1 KB de JS, o sea **53 de los 314 KB**.
+Recortar lo que no se usa se puede, pero es un cambio con riesgo de romper estilos por todo el sitio
+a cambio de unos KB en una página que ya es ligera. **No antes del lanzamiento.**
 
 ---
 
@@ -209,17 +226,27 @@ Más el CMS cerrado por IP (2026-07-29) y el panel de anuncios igual.
 
 **Lo que falta:**
 
-- [ ] **Límites de peticiones.** dglweb **no tiene ninguno**, al revés que pgAdmin, Portainer y
-      sabertables. Con tráfico de lanzamiento eso es tanto un asunto de seguridad como de
-      estabilidad: un rastreador agresivo o un pico puede tumbar el sitio sin mala intención.
+- [x] **Límites de peticiones — HECHO 2026-07-29.** dglweb no tenía ninguno, al revés que pgAdmin,
+      Portainer y sabertables. Están en `deploy/nginx-limites.conf` (las zonas, contexto `http`) y se
+      aplican en `deploy/nginx-dglweb.conf`.
 
-      Se monta con `limit_req_dry_run on` primero —evalúa y registra sin bloquear— y se ajusta con
-      tráfico real. Poner un número a ojo antes de tener visitantes es la forma segura de estrangular
-      a los primeros.
+      | zona | ritmo | arranque | dónde |
+      |---|---|---|---|
+      | `dgl_html` | 20/s | 40 | `location /` — las caras, las que ocupan un hilo |
+      | `dgl_estaticos` | 300/s | 600 | `/static/`, `/media/`, retratos |
 
-      **Y el límite NO puede ser uniforme**: la portada referencia 210 recursos, así que un visitante
-      normal hace 210 peticiones en dos segundos. Un límite pensado para páginas HTML mataría a
-      cualquiera. Va por zonas: una para el HTML y otra, mucho más holgada, para `/static/`.
+      **Por qué tan altos, y no es pereza.** Una visita pide 68 archivos y por HTTP/2 llegan casi de
+      golpe. Y sobre todo: **CGNAT**. En República Dominicana muchísimos usuarios móviles comparten
+      una IP pública, así que un límite ajustado no bloquea a un atacante — bloquea a medio Claro.
+      Estos números están para parar UN cliente que se vuelve loco, no para regular a la gente.
+
+      **El CMS queda fuera a propósito**: ya está cerrado por IP, y el panel de Wagtail dispara
+      muchas llamadas seguidas al guardar. Limitar al único usuario autorizado es estorbar sin
+      proteger.
+
+      **Y devuelven 429, no el 503 de fábrica.** No es un detalle: 429 significa «vas muy rápido,
+      vuelve» y Googlebot baja el ritmo. 503 significa «el servidor está roto», y repetido hace que
+      Google saque páginas del índice — un pico de tráfico podría costar posiciones de búsqueda.
 
 - [ ] **`includeSubDomains` en la HSTS.** Hoy falta. Añadirlo cubre también
       `promo.dominicanosengrandesligas.com`, que ya va por HTTPS. Es una decisión con vuelta atrás
