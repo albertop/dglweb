@@ -75,6 +75,27 @@ docker exec dglweb-web-live python manage.py build_daily_standouts --fecha-hoy
       implementa `inert`—: abrir un clip, pulsar Tab cinco o seis veces y comprobar que el foco no se
       escapa a los enlaces de detrás. Cerrar con Escape y ver que vuelve al botón que lo abrió.
 
+### 1.2026.6 y .7 — tarjetas y analítica
+
+**La .7 no funciona sin tocar el `.env` de producción.** Sin estas dos líneas el sitio sale sin medir
+nada y sin quejarse — es un default apagado a propósito, así que no hay error que buscar:
+
+```
+ANALITICA_URL=https://cloud.umami.is
+ANALITICA_ID=bcd6507e-fac9-498b-9bff-1b42afad448f
+```
+
+- [ ] En el HTML de la portada aparece el `<script defer src="https://cloud.umami.is/script.js">`.
+- [ ] En la consola del navegador **no hay ningún error de CSP**. Si lo hay, el dominio no llegó a la
+      cabecera: comprobar que las DOS variables están puestas, porque la política se arma al arrancar
+      el proceso y solo incluye la analítica si hay identificador.
+- [ ] **En el panel de Umami se ve la visita.** Es la comprobación que importa: el script puede cargar
+      perfectamente y no contar nada si `connect-src` bloquea el envío, y eso no deja ni un mensaje.
+- [ ] `/legal/cookies/` y `/legal/privacidad/` cargan y la de privacidad nombra a Umami.
+- [ ] Los titulares de las tarjetas llegan a **tres líneas** cuando hace falta.
+- [ ] En `/articulos/` **solo la tarjeta grande de arriba** tiene el titular grande. Si las de la
+      retícula también, el `only` de los `{% include %}` se perdió.
+
 ### El retrato del biobox — ARREGLO DE PRODUCCIÓN
 
 El fallo: en producción la ficha no enseñaba la foto grande aunque el archivo estuviera. `existe()`

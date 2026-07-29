@@ -17,8 +17,8 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 
 ## Antes de salir a producción
 
-- [ ] **Desplegar lo que ya está construido: van TRES versiones de atraso.** Lo que corre en el VPS
-      es la `1.2026.2`, y en `main` hay hasta la `1.2026.5`. Los pasos y las comprobaciones de cada
+- [ ] **Desplegar lo que ya está construido: van CINCO versiones de atraso.** Lo que corre en el VPS
+      es la `1.2026.2`, y en `main` hay hasta la `1.2026.7`. Los pasos y las comprobaciones de cada
       una están en `docs/PRUEBAS_DESPLIEGUE.md`; acá solo va el inventario de lo que falta subir:
 
       - **1.2026.3** — la etiqueta `[PROD]`/`[DEV]` en los avisos de Telegram (hasta ahora los dos
@@ -28,6 +28,10 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
         **Trae migración** (`articles.0006`), así que `/ready` va a decir «migraciones pendientes»
         hasta que corra `migrate`.
       - **1.2026.5** — los seis arreglos del code review v10.
+      - **1.2026.6** — tres líneas de titular en las tarjetas, y el arreglo de que TODA la retícula de
+        `/articulos/` se dibujaba como el destacado.
+      - **1.2026.7** — la analítica de Umami. **Hay que añadir sus dos variables al `.env` de
+        producción**, o el sitio sale sin medir nada y sin decir una palabra al respecto.
       - **El retrato del biobox**, que no es código: hace falta añadir
         `- /srv/dglweb-datos/mugshots:/app/static/img/mugshots:ro` al stack de producción. Las fotos
         chicas se ven y las grandes no porque solo las chicas viajan dentro de la imagen.
@@ -59,41 +63,11 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
       «fuera de la República Dominicana», que es seguro; el país concreto no lo pongo porque no lo sé,
       y un aviso legal que se inventa una jurisdicción es peor que uno que no la nombra.
 
-- [ ] ~~**PRÓXIMO PASO — montar analítica de visitas, sin Google Analytics.**~~ Pedido del dueño
-      (2026-07-28): una buena y gratis, al menos para tráfico bajo.
-
-      **Recomendación: Umami.** Es código abierto, no usa cookies y no guarda datos personales, y
-      tiene las dos puertas abiertas: se empieza con su nube gratis y el día que moleste el tope se
-      mueve a **autoalojado en el mismo VPS**, que encaja con lo que ya hay — una sola instancia de
-      Postgres, Portainer, y nginx delante. O sea que la salida no cuesta una migración de datos ni
-      cambiar de herramienta, solo apuntar el script a otro dominio. Confirmar el tope del plan
-      gratis al registrarse: cambia, y no lo doy por sabido.
-
-      **Alternativa si se prefiere cero infraestructura: Cloudflare Web Analytics.** Gratis sin tope
-      de visitas y sin cookies, pero más básica —visitas, referentes, rutas, países— y sin eventos ni
-      objetivos. Buena si lo único que se quiere es «cuánta gente entró y por dónde llegó».
-
-      **Descartadas y por qué**, para no volver a evaluarlas: *Plausible* es la misma idea que Umami
-      pero su nube no tiene plan gratis, solo prueba de 30 días (autoalojada sí es libre). *Matomo*
-      es potente pero pesa como para no querer administrarlo. *GoatCounter* es gratis y ligerísimo,
+      **Descartadas y por qué**, para no volver a evaluarlas: *Cloudflare Web Analytics* era la
+      alternativa seria —gratis sin tope y sin cookies— pero más básica: sin eventos ni objetivos.
+      *Plausible* es la misma idea que Umami y su nube ya no tiene plan gratis, solo 30 días de
+      prueba. *Matomo* pesa como para no querer administrarlo. *GoatCounter* es gratis y ligerísimo
       pero su plan libre es para uso NO comercial, y este sitio va a llevar publicidad.
-
-      **LO QUE HAY QUE TOCAR ADEMÁS DEL SCRIPT, y no es menor:**
-
-      1. **La CSP.** Hay que añadir el dominio de la analítica o el navegador bloquea el script sin
-         decir nada visible. Es la misma tarea pendiente que con el ad server.
-      2. **Las páginas legales.** Hoy la política de cookies dice, con todas sus letras, que quien
-         solo navega no recibe ninguna cookie, y la de privacidad que la visita no se le anuncia a
-         nadie. Con una herramienta sin cookies la primera sigue siendo verdad; **la segunda no**.
-         Hay que reescribirla diciendo qué se recoge y quién lo procesa.
-      3. **Dos pruebas se van a caer, y a propósito.** `test_el_sitio_publico_no_pide_nada_a_terceros`
-         prohíbe cargar cualquier cosa de fuera, y es justo lo que la analítica hace. **La respuesta
-         correcta NO es relajarla en silencio**: es dejarla exigiendo que el ÚNICO tercero sea el
-         declarado en los documentos legales, para que el día que entre un cuarto script alguien se
-         entere. Ver la cabecera de `tests/test_legal.py`, que explica por qué esas pruebas existen.
-
-      Nada de esto bloquea el lanzamiento: se puede montar el mismo día que salga a producción o la
-      semana siguiente, y lo único que se pierde es no saber cuánta gente entró los primeros días.
 
 - [ ] **Rotar el token del bot de Telegram.** Quedó expuesto durante la configuración, así que conviene renovarlo antes de producción: @BotFather → `/mybots` → el bot → *API Token* → *Revoke current token*, y reemplazar `TELEGRAM_BOT_TOKEN` en `.env`. El bot y el grupo siguen siendo los mismos; solo cambia la llave.
 
