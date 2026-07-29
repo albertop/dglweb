@@ -109,45 +109,18 @@ def test_a_sacrifice_counts_as_an_out_even_though_it_is_not_an_at_bat(db: None) 
 
 @pytest.mark.django_db
 def test_a_seven_inning_start_beats_a_clean_inning_of_relief(db: None) -> None:
-    """El problema que Game Score resuelve solo: los outs pesan.
+    """Que los outs pesen es lo que impide que un relevista desplace a un abridor.
 
-    Siete entradas de una carrera (74) contra un inning perfecto con un ponche (47). Ordenar por
-    efectividad del día pondría al relevista arriba con su 0.00.
+    Ordenar por efectividad del día pondría al relevista arriba con su 0.00. Acá siete entradas de
+    una carrera valen +3,8 y un inning perfecto +0,8, porque cada out suma lo que vale un out.
+
+    Antes esto probaba `game_score()`. Se conserva la comparación —es la propiedad que hay que
+    proteger— pero contra la función que ordena de verdad.
     """
-    apertura = daily.game_score(_pitcheo(outsPitched=21, K=6, H=4, R=1))
-    relevo = daily.game_score(_pitcheo(outsPitched=3, K=1, H=0, R=0))
+    apertura = daily.valor_de_pitcheo(_pitcheo(outsPitched=21, K=6, H=4, R=1))
+    relevo = daily.valor_de_pitcheo(_pitcheo(outsPitched=3, K=1, H=0, R=0))
 
     assert apertura > relevo
-
-
-@pytest.mark.django_db
-def test_cada_boleto_cuesta_exactamente_dos_puntos(db: None) -> None:
-    """El término que FALTABA en la fórmula hasta el 2026-07-29 (SAB-01 del review v12).
-
-    Dos salidas idénticas salvo por los boletos. Sin el `-2*BB`, las dos daban lo mismo, y el sesgo
-    no era neutral: la fórmula favorecía justo a los lanzadores con peor control, que son los que
-    Game Score está pensado para castigar.
-
-    Se comprueba el VALOR EXACTO y no solo que uno sea menor: un `-1*BB` o un `-3*BB` también harían
-    pasar una comparación de «menor que», y entonces la prueba no diría que es la fórmula de Tango.
-    """
-    limpio = daily.game_score(_pitcheo(outsPitched=18, K=6, H=4, R=1))
-    con_tres = daily.game_score(_pitcheo(outsPitched=18, K=6, H=4, R=1, BB=3))
-
-    assert limpio - con_tres == 6.0
-
-
-@pytest.mark.django_db
-def test_los_boletos_intencionales_tambien_cuentan(db: None) -> None:
-    """Tango dice «walks», y `BB` en las estadísticas de MLB ya incluye los intencionales.
-
-    `valor_de_bateo()` sí los separa, y por eso conviene fijar acá que este NO lo hace: son dos
-    modelos distintos, y quien lea los dos podría creer que uno de los dos está mal.
-    """
-    sin_restar = daily.game_score(_pitcheo(outsPitched=18, BB=2, IBB=2))
-    igual = daily.game_score(_pitcheo(outsPitched=18, BB=2))
-
-    assert sin_restar == igual
 
 
 @pytest.mark.django_db
@@ -320,10 +293,25 @@ def test_el_doble_play_cuenta_como_dos_outs_y_queda_declarado(db: None) -> None:
 
 @pytest.mark.django_db
 def test_a_home_run_costs_more_than_a_hit(db: None) -> None:
-    con_jonron = daily.game_score(_pitcheo(outsPitched=18, H=3, R=1, HR=1))
-    sin_jonron = daily.game_score(_pitcheo(outsPitched=18, H=3, R=1))
+    con_jonron = daily.valor_de_pitcheo(_pitcheo(outsPitched=18, H=3, HR=1))
+    sin_jonron = daily.valor_de_pitcheo(_pitcheo(outsPitched=18, H=3))
 
     assert con_jonron < sin_jonron
+
+
+@pytest.mark.django_db
+def test_el_boleto_intencional_le_cuesta_menos_al_lanzador(db: None) -> None:
+    """LA AFIRMACIÓN SE INVIRTIÓ al cambiar de modelo, y por eso conviene fijarla.
+
+    Con Game Score los dos boletos valían igual: la fórmula de Tango dice «walks» a secas. Con pesos
+    lineales el intencional vale menos —0,21 contra 0,33— porque no lo ganó el bateador, lo regaló el
+    manager. Es el mismo trato que ya le daba `valor_de_bateo()`, que es justo lo que se busca: los
+    dos oficios leyendo la misma matriz.
+    """
+    ganado = daily.valor_de_pitcheo(_pitcheo(outsPitched=9, BB=1))
+    regalado = daily.valor_de_pitcheo(_pitcheo(outsPitched=9, BB=1, IBB=1))
+
+    assert regalado > ganado
 
 
 # ── Cómo se lee ─────────────────────────────────────────────────────────────────────────────────

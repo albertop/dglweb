@@ -25,8 +25,16 @@ dueño (columna `average`). Sumar la jornada da el valor en carreras que el pelo
 misma lógica que hay detrás del wOBA, aplicada a un juego. Se prefiere a ordenar por remolcadas o
 anotadas porque esas dependen de quién estaba en base: premian la oportunidad, no la actuación.
 
-**Pitcheo: Game Score v2 de Tango.** `40 + 2*outs + K - 2*BB - 2*H - 3*R - 6*HR`. Resuelve solo el
-problema de que un relevista de un inning no desplace a un abridor de siete, porque los outs pesan.
+**Pitcheo: LA MISMA MATRIZ, leída desde el otro lado.** El lanzador resta lo que permitió y suma lo
+que retiró, con los mismos pesos. Así los dos oficios quedan en la misma unidad por construcción y la
+lista mezclada se ordena sin traducir nada.
+
+Hasta el 2026-07-29 el pitcheo se puntuaba con **Game Score v2 de Tango** y se traducía a carreras
+con `(GS - 50) / 3`. Esa traducción metía a los lanzadores en una escala del doble —un relevista con
+un inning perfecto salía en -1,0 carreras— y por eso se quitó. `game_score()` se eliminó con ella: se
+quedó sin ningún consumidor, y una función que solo llaman sus propias pruebas es código que envejece
+sin que nadie lo note. Está en el historial si algún día se quiere ENSEÑAR el Game Score, que es otra
+cosa que ordenar con él.
 """
 
 from collections.abc import Callable
@@ -291,34 +299,6 @@ def valor_de_pitcheo(stat: dict[str, Any]) -> float:
         + atrapados * PESOS["cs"]
         + ponches * PESOS["k"]
         + outs_en_juego * PESOS["out"]
-    )
-
-
-def game_score(stat: dict[str, Any]) -> float:
-    """Game Score v2 de Tango: `40 + 2*outs + K - 2*BB - 2*H - 3*R - 6*HR`.
-
-    Carreras totales y no limpias, como manda la fórmula: al lector le importa cuántas cruzaron el
-    plato, y repartir la culpa con la defensa es otra discusión.
-
-    EL `-2*BB` FALTABA HASTA EL 2026-07-29, y lo destapó el review v12. Sin él la fórmula no era Game
-    Score v2 aunque se llamara así, y el sesgo no era neutral: **favorecía justo a los lanzadores con
-    peor control**, que son los que la métrica está pensada para castigar. Medido sobre los datos que
-    había guardados, 2 de 8 salidas publicables se caían del piso de 50 con un solo boleto — entre
-    ellas una de `2.2 IP, 0 K, 1 ER` que se estaba publicando como actuación destacada.
-
-    Boletos totales y no solo los no intencionales: la fórmula de Tango dice «walks», y `BB` en las
-    estadísticas de MLB ya incluye los intencionales. `valor_de_bateo()` sí los separa, pero eso es
-    otra cosa — allí se usan pesos lineales, donde un intencional vale distinto porque lo regalan.
-    """
-    outs = _numero(stat, "outsPitched") or _numero(stat, "Outs")
-    return (
-        40
-        + 2 * outs
-        + _numero(stat, "K")
-        - 2 * _numero(stat, "BB")
-        - 2 * _numero(stat, "H")
-        - 3 * _numero(stat, "R")
-        - 6 * _numero(stat, "HR")
     )
 
 
