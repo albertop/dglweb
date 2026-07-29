@@ -1,8 +1,15 @@
 """La actuación del día: quién de los nuestros hizo algo digno de contarse ayer.
 
-Alimenta el widget «Destacados de la jornada» de la portada. Dos listas separadas —bateadores y
-lanzadores— porque comparar un 3-4 con siete entradas de una carrera exige una escala común que no
-existe, y forzarla produciría un orden que nadie podría defender.
+Alimenta el widget «Destacados de la jornada» de la portada, en **una sola lista** con los dos
+oficios mezclados (decisión del dueño, 2026-07-27).
+
+Acá decía que iban en dos listas separadas «porque comparar un 3-4 con siete entradas de una carrera
+exige una escala común que no existe». Se quedó viejo dos veces: el widget las mezcla desde julio, y
+desde el 2026-07-29 la escala común **sí existe** — los dos oficios se puntúan con la misma matriz de
+pesos lineales, el bateador sumando lo que produjo y el lanzador restando lo que permitió. Ver
+`valor_de_pitcheo`.
+
+Un encabezado así no es ruido: es el que hace que alguien «arregle» lo que funciona.
 
 CÓMO SE SACA EL DATO
 --------------------
@@ -228,25 +235,45 @@ def valor_de_pitcheo(stat: dict[str, Any]) -> float:
     autoritativo existe, y además recoge outs que no son turnos al bate —un corredor eliminado
     robando, un pisa y corre— que la resta perdería.
 
-    LO QUE NO SE CUENTA, Y ES A PROPÓSITO: las bases robadas y los atrapados robando. La matriz las
-    tiene y el bateo las usa, pero cargárselas al lanzador sería cobrarle el brazo del receptor. Se
-    prefiere la omisión declarada a una atribución que no se sostiene. Lo mismo con el passed ball,
-    que es del receptor, y con el error, que es de la defensa.
+    EL JUEGO DE CORREDORES SÍ ENTRA, y la primera versión de esto decía lo contrario. Yo había
+    escrito que las bases robadas y los atrapados robando se omitían «para no cobrarle al lanzador el
+    brazo del receptor». **El código no hacía eso**, y el review v12 lo destapó: `outsPitched` cuenta
+    TODOS los outs de la entrada, así que el atrapado robando ya entraba —disfrazado de out
+    cualquiera, a +0,27 en vez de a +0,42—. La documentación afirmaba una cosa y el código hacía otra.
 
-    LO QUE SÍ ENTRA Y NO ESTABA EN LA PRIMERA VERSIÓN: el **wild pitch** y el **balk**. Los dejé fuera
-    escribiendo que no estaban en la matriz, y era falso — están los dos, en la misma columna
-    `average` del mismo archivo. Son además las dos únicas jugadas del listado que son cosa
-    exclusivamente del lanzador: nadie más las comete.
+    De las tres salidas posibles —omitirlos, dejarlos como out genérico, o darles su peso— se eligió
+    la tercera, y no por la magnitud (medido: cambia el 15,9% de las salidas, mediana 0,173 carreras,
+    y solo 7 de 1.307 cruzan el piso). Se eligió porque **es la única que hace cierta la frase de
+    arriba**: el bateo cuenta SB y CS, así que si el pitcheo no los contara, los dos oficios no
+    estarían mirando los mismos eventos y toda la comparación se apoyaría en una afirmación falsa.
+
+    LO QUE SIGUE FUERA: el passed ball, que es del receptor, y el error, que es de la defensa. Los dos
+    están en la matriz y los dos se dejan a propósito.
+
+    Y UNA APROXIMACIÓN QUE QUEDA DECLARADA: el segundo out de un doble play y los corredores
+    sorprendidos fuera de base cuentan como outs genéricos. Un doble play vale más que dos outs
+    sueltos, pero **la matriz no trae un peso para él** —ni de este lado ni del otro— y el split
+    tampoco manda los pickoffs. Inventarles un número rompería justo lo que hace comparables a las
+    dos listas. Pasa en el 13,3% de las salidas.
+
+    LO QUE TAMBIÉN FALTABA: el **wild pitch** y el **balk**. Los dejé fuera escribiendo que no estaban
+    en la matriz, y era falso — están los dos, en la misma columna `average` del mismo archivo.
     """
     hits = _numero(stat, "H")
     dobles, triples, jonrones = _numero(stat, "X2B"), _numero(stat, "X3B"), _numero(stat, "HR")
     sencillos = hits - dobles - triples - jonrones
     boletos, intencionales = _numero(stat, "BB"), _numero(stat, "IBB")
     ponches = _numero(stat, "K")
+    atrapados = _numero(stat, "CS")
     outs = _numero(stat, "outsPitched") or _numero(stat, "Outs")
-    # Los ponches ya van con su propio peso, así que el resto de los outs son los que se convirtieron
-    # en juego. Nunca negativo: un dato raro de la API no puede regalar carreras.
-    outs_en_juego = max(outs - ponches, 0.0)
+    # `outsPitched` CUENTA TODOS LOS OUTS DE LA ENTRADA, no solo los de bateadores: comprobado contra
+    # el proxy, una salida de 1.0 IP con un atrapado robando trae `outsPitched=3` habiendo retirado a
+    # dos bateadores. Así que el atrapado se saca de acá y entra abajo con SU peso, que es +0,42 para
+    # la defensa y no los +0,27 de un out cualquiera.
+    #
+    # Los ponches también salen, porque ya van con el suyo. Nunca negativo: un dato raro de la API no
+    # puede regalar carreras.
+    outs_en_juego = max(outs - ponches - atrapados, 0.0)
 
     return -(
         sencillos * PESOS["1b"]
@@ -258,6 +285,10 @@ def valor_de_pitcheo(stat: dict[str, Any]) -> float:
         + _numero(stat, "HBP") * PESOS["hbp"]
         + _numero(stat, "WP") * PESOS["wp"]
         + _numero(stat, "BK") * PESOS["bk"]
+        # El juego de corredores, con los mismos pesos que usa el bateo. Ver el docstring: incluirlos
+        # es lo que hace CIERTA la afirmación de que los dos oficios miran los mismos eventos.
+        + _numero(stat, "SB") * PESOS["sb"]
+        + atrapados * PESOS["cs"]
         + ponches * PESOS["k"]
         + outs_en_juego * PESOS["out"]
     )
@@ -428,9 +459,14 @@ class Destacado:
     team: str
     linea: str
     clips: tuple[Any, ...]  # `videos.Clip`
-    # `grupo` y `valor` NO se muestran: están para poder ordenar la lista mezclada en una misma
-    # unidad (`en_carreras`). Sin ellos habría que llevar dos listas paralelas —una para pintar y
-    # otra para ordenar— y basta con que se desincronicen una vez para publicar un orden falso.
+    # `grupo` y `valor` NO se muestran: están para poder ordenar la lista mezclada. Sin ellos habría
+    # que llevar dos listas paralelas —una para pintar y otra para ordenar— y basta con que se
+    # desincronicen una vez para publicar un orden falso.
+    #
+    # Acá decía «en una misma unidad (`en_carreras`)». Esa función ya no existe: desde el 2026-07-29
+    # los dos oficios se calculan con la misma matriz, así que `valor` YA está en carreras venga de
+    # donde venga y no hay nada que convertir. `grupo` sigue haciendo falta para el piso, que sí es
+    # distinto en cada oficio — ver `PISO_BATEO` y `PISO_PITCHEO`.
     grupo: str = "bateo"
     valor: float = 0.0
     fecha: date | None = None

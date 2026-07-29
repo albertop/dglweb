@@ -268,6 +268,57 @@ def test_un_inning_limpio_de_relevo_no_alcanza_para_publicarse(db: None) -> None
 
 
 @pytest.mark.django_db
+def test_un_atrapado_robando_no_es_un_out_cualquiera(db: None) -> None:
+    """`outsPitched` CUENTA LOS OUTS DE CORREDORES, y eso rompía la documentación.
+
+    Comprobado contra el proxy: una salida de 1.0 IP con un atrapado robando trae `outsPitched=3`
+    habiendo retirado a DOS bateadores. Así que el atrapado ya entraba al cálculo disfrazado de out
+    cualquiera, a +0,27, mientras el docstring afirmaba que se omitía para no cobrarle al lanzador el
+    brazo del receptor.
+
+    Ahora entra con su peso de la matriz, +0,42, que es más que un out normal — y tiene sentido:
+    borrar a un corredor de segunda vale más que retirar a un bateador.
+    """
+    con_atrapado = daily.valor_de_pitcheo(_pitcheo(outsPitched=3, K=0, CS=1))
+    tres_outs_normales = daily.valor_de_pitcheo(_pitcheo(outsPitched=3, K=0))
+
+    assert con_atrapado > tres_outs_normales
+    # El valor exacto: dos outs de bateador más el atrapado con SU peso.
+    esperado = 2 * -daily.PESOS["out"] + -daily.PESOS["cs"]
+    assert con_atrapado == pytest.approx(esperado)
+
+
+@pytest.mark.django_db
+def test_una_base_robada_le_cuesta_al_lanzador(db: None) -> None:
+    """El otro lado del juego de corredores, y el que hace honesta la simetría.
+
+    Contar solo los atrapados sería quedarse con la mitad buena: el lanzador cobraría por sacar
+    corredores y no pagaría por dejarlos correr. El bateo cuenta las dos, así que el pitcheo también.
+    """
+    con_robo = daily.valor_de_pitcheo(_pitcheo(outsPitched=9, SB=2))
+    sin_robo = daily.valor_de_pitcheo(_pitcheo(outsPitched=9))
+
+    assert con_robo < sin_robo
+    assert sin_robo - con_robo == pytest.approx(2 * daily.PESOS["sb"])
+
+
+@pytest.mark.django_db
+def test_el_doble_play_cuenta_como_dos_outs_y_queda_declarado(db: None) -> None:
+    """UNA APROXIMACIÓN A PROPÓSITO, fijada para que se sepa que lo es.
+
+    Un doble play vale más que dos outs sueltos, pero **la matriz no trae un peso para él** —ni de
+    este lado ni del otro— y el split tampoco manda los pickoffs. Inventarles un número rompería lo
+    que hace comparables a las dos listas, así que el segundo out entra como out genérico.
+
+    Si algún día la matriz trae el peso del doble play, esta prueba es la que hay que cambiar.
+    """
+    con_doble_play = daily.valor_de_pitcheo(_pitcheo(outsPitched=2, K=0, GIDP=1))
+    dos_outs_sueltos = daily.valor_de_pitcheo(_pitcheo(outsPitched=2, K=0))
+
+    assert con_doble_play == dos_outs_sueltos
+
+
+@pytest.mark.django_db
 def test_a_home_run_costs_more_than_a_hit(db: None) -> None:
     con_jonron = daily.game_score(_pitcheo(outsPitched=18, H=3, R=1, HR=1))
     sin_jonron = daily.game_score(_pitcheo(outsPitched=18, H=3, R=1))
