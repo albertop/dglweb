@@ -51,12 +51,11 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
       `settings.ANALITICA_URL`. El día que entre un ad server se cae y obliga a pasar por los
       documentos legales.
 
-      **Falta ponerlo en producción** (va en el mismo despliegue, ver arriba):
-
-      ```
-      ANALITICA_URL=https://cloud.umami.is
-      ANALITICA_ID=bcd6507e-fac9-498b-9bff-1b42afad448f
-      ```
+      **Falta ponerlo en producción** (va en el mismo despliegue, ver arriba). En el VPS las variables
+      entran **por Portainer, no por `.env`**, y eso son DOS sitios: declararlas en el bloque
+      `environment:` del compose y darles valor en las «Environment variables» del stack. Con solo lo
+      segundo no llegan al contenedor — es la trampa que ya costó un despliegue. Los pasos exactos
+      están en `docs/PRUEBAS_DESPLIEGUE.md`.
 
       Y **dos datos que solo el dueño puede confirmar**, marcados `# ← confirmar` en `core/legal.py`:
       la razón social exacta del proveedor y **en qué región guarda los datos**. Hoy el aviso dice

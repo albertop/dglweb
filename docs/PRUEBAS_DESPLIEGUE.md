@@ -77,13 +77,32 @@ docker exec dglweb-web-live python manage.py build_daily_standouts --fecha-hoy
 
 ### 1.2026.6 y .7 — tarjetas y analítica
 
-**La .7 no funciona sin tocar el `.env` de producción.** Sin estas dos líneas el sitio sale sin medir
-nada y sin quejarse — es un default apagado a propósito, así que no hay error que buscar:
+**La .7 no mide nada hasta tocar DOS SITIOS en Portainer**, y las dos mitades hacen falta. Es la
+trampa de siempre: las «Environment variables» de Portainer no llegan al contenedor, solo sustituyen
+`${VAR}` dentro del compose (ver la tabla de síntomas al final).
+
+**1) En el compose del stack**, dentro de `environment:` del servicio `web`:
+
+```yaml
+      ANALITICA_URL: ${ANALITICA_URL:-}
+      ANALITICA_ID: ${ANALITICA_ID:-}
+```
+
+**2) En «Environment variables» del stack**, dos pares:
 
 ```
-ANALITICA_URL=https://cloud.umami.is
-ANALITICA_ID=bcd6507e-fac9-498b-9bff-1b42afad448f
+ANALITICA_URL = https://cloud.umami.is
+ANALITICA_ID  = bcd6507e-fac9-498b-9bff-1b42afad448f
 ```
+
+**ESTE FALLA MÁS CALLADO QUE LOS OTROS.** Que falte `DJANGO_SECRET_KEY` revienta el arranque y se ve;
+que falten estas dos no rompe nada — el sitio levanta perfecto, sirve todas las páginas y
+sencillamente no cuenta ni una visita, porque el default es apagado a propósito. No hay error en el
+log ni en la consola del navegador. **La única señal es el panel de Umami vacío**, así que la
+comprobación de abajo no es opcional.
+
+Los `:-` del compose son a propósito: sin ellos, un stack sin esas variables definidas ni siquiera
+levanta, y la analítica no puede ser la razón de que el sitio no arranque.
 
 - [ ] En el HTML de la portada aparece el `<script defer src="https://cloud.umami.is/script.js">`.
 - [ ] En la consola del navegador **no hay ningún error de CSP**. Si lo hay, el dominio no llegó a la
