@@ -277,6 +277,26 @@ y eso es lo correcto, no un error**.
 - Si algún día se quita `userns-remap` del `daemon.json`, **hay que deshacer estos `chown`** o el
   problema vuelve al revés.
 
+### El `chown` sobrevive a todo… menos a tres cosas
+
+Es metadato del disco, así que aguanta reiniciar Docker, reiniciar el servidor, recrear el contenedor
+y redesplegar el stack. No hay que repetirlo. Lo que sí lo deshace:
+
+1. **Restaurar el respaldo sin `--numeric-owner`.** `tar` restauraría por nombre de usuario, y el uid
+   101000 no tiene nombre en este sistema. Por eso `deploy/respaldo.sh` guarda con esa bandera, y hay
+   que restaurar con ella:
+
+   ```bash
+   tar xzf media-AAAAMMDD.tgz --numeric-owner -C /srv/dglweb-datos
+   ```
+
+   Después, comprobar: `docker exec dglweb-web-live ls -ldn /app/media` tiene que decir `1000 999`.
+
+2. **Que cambie el gid de `appuser` en la imagen.** Va clavado en 999 en el `Dockerfile.prod`
+   justamente por esto; antes lo elegía `useradd` solo y podía moverse con la imagen base.
+
+3. **Montar una carpeta nueva.** Nace de root en el anfitrión y el contenedor la ve como `nobody`.
+
 ---
 
 ## Volver atrás

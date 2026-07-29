@@ -38,7 +38,18 @@ RUN mkdir -p /app/uploads /app/media
 
 COPY . .
 
-RUN useradd -r -u 1000 -m appuser && chown -R appuser:appuser /app
+# EL uid Y EL gid VAN FIJOS LOS DOS, y el gid no lo estaba: `useradd -r` elegía el que hubiera libre
+# en la imagen base y salió 999 de casualidad. Se clava en 999 —el valor que ya está en producción—
+# para que una actualización de la imagen base no lo mueva.
+#
+# Por qué importa tanto un número que parece interno: el VPS corre Docker con `userns-remap`, así que
+# las carpetas de datos del anfitrión están chowneadas a `100000+1000 : 100000+999`. Si el gid se
+# corriera a 998 en un rebuild, subir imágenes desde el CMS volvería a fallar con «Permission
+# denied» — y el despliegue que lo rompiera no tendría NADA que ver con el cambio que lo causó. Ver
+# `docs/PRUEBAS_DESPLIEGUE.md`, sección del remapeo de usuarios.
+RUN groupadd -r -g 999 appuser \
+    && useradd -r -u 1000 -g 999 -m appuser \
+    && chown -R appuser:appuser /app
 USER appuser
 
 # `collectstatic` EN EL BUILD y no al arrancar. Tres razones: el arranque no debe escribir en disco,

@@ -32,7 +32,16 @@ docker cp "$CONTENEDOR_DB:/tmp/respaldo.dump" "$DESTINO/dglweb-$FECHA.dump"
 docker exec "$CONTENEDOR_DB" rm -f /tmp/respaldo.dump
 
 # 2. Lo que subió el editor.
-tar czf "$DESTINO/media-$FECHA.tgz" -C /srv/dglweb-datos media
+#
+# `--numeric-owner` NO es un detalle. Este VPS corre Docker con `userns-remap`, así que estas carpetas
+# pertenecen al uid 101000 —el `appuser` del contenedor visto desde el anfitrión— y ESE uid no tiene
+# entrada en `/etc/passwd`. Sin la bandera, `tar` guarda y restaura por NOMBRE de usuario, y al
+# restaurar un dueño sin nombre el resultado depende de la versión: puede acabar en root.
+#
+# Y si acaba en root, los archivos vuelven pero el CMS no puede subir ni borrar ninguna imagen —el
+# fallo que costó una tarde el 2026-07-28— justo el día que uno restaura, que es el peor día para
+# descubrirlo. **Al restaurar hay que usar la misma bandera**: ver `docs/PRUEBAS_DESPLIEGUE.md`.
+tar czf "$DESTINO/media-$FECHA.tgz" --numeric-owner -C /srv/dglweb-datos media
 
 # 3. Podar. `-mtime` cuenta días completos; con 30 se guarda un mes.
 find "$DESTINO" -name "dglweb-*.dump" -mtime "+$DIAS" -delete
