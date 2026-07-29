@@ -292,8 +292,10 @@
       Postgres (`espanol_sin_tildes`) para que «grafico» encuentre «gráfico».
 - [x] ~~**Paginación del índice.**~~ **HECHO (2026-07-27).** Doce por página, con enlaces de verdad
       que arrastran la búsqueda y la categoría.
-- [ ] **Servir `/media/` desde el proxy en producción.** WhiteNoise no sirve medios. Y respaldar el
-      volumen: si se pierde, se van las fotos de todos los artículos. **Es lo único que queda.**
+- [x] ~~**Servir `/media/` desde el proxy en producción.**~~ **HECHO (2026-07-28).** `location /media/`
+      en nginx, con los archivos en `/srv/dglweb-datos/media` — fuera de `/var/lib/docker`, que nginx no
+      puede atravesar. El respaldo existe (`deploy/respaldo.sh`) pero **se guarda en el mismo VPS**, que
+      no es lo que pedía la Fase 8; ver el pendiente en `docs/TODO.md`.
 
 ## Fase 6 — Módulos vivos: pizarra MLB + resumen jornada + ticker (season-aware) — ✅ COMPLETADA (2026-07-27)
 

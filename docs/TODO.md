@@ -526,6 +526,36 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
       y las señales ahorran **cuatro consultas**. Puede que lo correcto sea no cachear esas tablas y
       consultarlas directamente — menos piezas, cero riesgo de dato viejo. Decisión pendiente.
 
+## Del plan de fases — lo que el TODO no tenía (revisado el 2026-07-28)
+
+Al cotejar `BUILD_PLAN.md` contra la realidad aparecieron tres entregas comprometidas que no estaban
+en esta lista. Ninguna bloquea el lanzamiento; las tres son de la Fase 8 y la 9.
+
+- [ ] **El respaldo se guarda en el MISMO VPS.** `deploy/respaldo.sh` escribe en `/srv/respaldos`, y la
+      Fase 8 pide respaldos **fuera del servidor**. Tal como está protege del error humano —borrar una
+      tabla, un artículo que se fue— pero **no del fallo que se supone que cubre**: si el VPS muere, se
+      lleva la base y sus copias. Son 8 MB comprimidos, así que sacarlos es barato: `rsync` a 10.0.0.39,
+      que ya está encendido y es de la casa, o cualquier almacenamiento externo.
+
+      Va junto con lo otro que falta del respaldo: colgarlo del cron y **probar una restauración**.
+
+- [ ] **Cloudflare, que está en la Fase 8 y nunca se tocó.** Aportaría caché de estáticos, protección
+      básica ante picos y TLS en el borde. **No es urgente y conviene decidirlo con datos**: hoy el
+      sitio no tiene tráfico que justifique una capa más, y mete un intermediario entre el visitante y
+      nginx que hay que entender el día que algo falle. Reevaluar cuando la analítica diga que hay
+      volumen — que es justo lo que Umami empezó a medir hoy.
+
+- [ ] **No hay staging.** La Fase 8 pide «staging = réplica de prod» y la Fase 9 «QA end-to-end en
+      staging». Lo que hay es desarrollo local contra la base de dev, que **no es una réplica**: otra
+      imagen (dev, no `Dockerfile.prod`), sin nginx delante, sin `userns-remap` y sin gunicorn.
+
+      Y esa diferencia ya costó: **las tres averías del 2026-07-28 —imágenes que no subían, jobs
+      horarios mudos, permisos del socket— eran invisibles en dev por definición**, porque nacían de
+      cosas que dev no tiene. Un staging de verdad las habría cazado antes de producción.
+
+      No se monta ahora: duplica el coste del VPS y la disciplina de mantenerlo igual. Queda anotado
+      como la deuda que es, con su motivo escrito.
+
 ## Contenido
 
 - [ ] Escribir los 8–12 artículos semilla (cuello de botella — **ya no está bloqueado**: el CMS
