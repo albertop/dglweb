@@ -17,21 +17,14 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 
 ## Antes de salir a producción
 
-- [ ] **Desplegar lo que ya está construido: van CINCO versiones de atraso.** Lo que corre en el VPS
-      es la `1.2026.2`, y en `main` hay hasta la `1.2026.7`. Los pasos y las comprobaciones de cada
-      una están en `docs/PRUEBAS_DESPLIEGUE.md`; acá solo va el inventario de lo que falta subir:
+- [x] **Desplegar lo que estaba construido.** **HECHO (2026-07-28)**: producción pasó de la
+      `1.2026.2` a la **`1.2026.7`**, con la migración `articles.0006` aplicada. Comprobado desde
+      fuera: `/health` y `/ready` en 200, 995 URLs en el mapa del sitio, la analítica cargando y el
+      dominio de Umami en la CSP.
 
-      - **1.2026.3** — la etiqueta `[PROD]`/`[DEV]` en los avisos de Telegram (hasta ahora los dos
-        entornos escribían al mismo grupo sin decir quién hablaba), P-ABR/P-REL en vez de SP/RP, y
-        el 984 en negritas.
-      - **1.2026.4** — todo el SEO (ver más abajo) y la casilla «fijado arriba» de los artículos.
-        **Trae migración** (`articles.0006`), así que `/ready` va a decir «migraciones pendientes»
-        hasta que corra `migrate`.
-      - **1.2026.5** — los seis arreglos del code review v10.
-      - **1.2026.6** — tres líneas de titular en las tarjetas, y el arreglo de que TODA la retícula de
-        `/articulos/` se dibujaba como el destacado.
-      - **1.2026.7** — la analítica de Umami. **Hay que añadir sus dos variables al `.env` de
-        producción**, o el sitio sale sin medir nada y sin decir una palabra al respecto.
+      Lo que se acumula ahora en la **`1.2026.8`** —sin desplegar, por decisión del dueño de no
+      cambiar de versión por cada detalle— está inventariado con sus comprobaciones en
+      `docs/PRUEBAS_DESPLIEGUE.md`.
 
 - [x] **Verificar que el usuario de Postgres pueda `CREATE EXTENSION unaccent`.** **HECHO (2026-07-28).** La crea el SUPERUSUARIO en el script de inicialización de la instancia, no la aplicación: el sitio se conecta con un rol propio (`dglweb`) que no puede instalar extensiones, y no le hace falta. Ver `/srv/postgres/init/10-dglweb.sh` en el VPS. El buscador de jugadores depende de esa extensión —es lo que hace que «nunez» encuentre a Núñez, y sin ella la mitad del maestro es inalcanzable—. No va en `requirements.txt` porque no es un paquete de Python: vive en la base. La migración `players/0005_unaccent.py` la crea sola al correr `migrate`, pero `CREATE EXTENSION` pide permisos elevados. En el Postgres actual funciona; en uno gestionado con usuario restringido, `migrate` fallaría ahí. **Comprobarlo antes de migrar**, no después.
 
