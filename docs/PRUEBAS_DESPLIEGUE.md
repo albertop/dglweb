@@ -104,6 +104,18 @@ Al desplegar:
       `frame-src` — y el hueco se queda vacío sin más pista que esa línea.
 - [ ] En el panel de Revive, **Estadísticas**: las impresiones tienen que empezar a subir. Si el
       `iframe` carga pero no cuenta, mirar `mod_remoteip` antes que nada.
+- [ ] **Crear el monitor del proxy en Kuma**, que hasta ahora no se podía porque el endpoint no
+      existía en producción (404). Con la `1.2026.8` arriba, `/health/proxy` responde 200:
+
+      - Monitor Type: **HTTP(s) - Keyword** · Friendly Name: `dglweb — proxy MLB`
+      - URL: `https://dominicanosengrandesligas.com/health/proxy`
+      - Keyword: `"status":"ok"` — **compacto, sin espacios**: Kuma no compara contra el cuerpo que
+        llega sino contra su propio `JSON.stringify()`, y una clave copiada del navegador no coincide
+        nunca.
+      - Accepted Status Codes: `200-599` — con `200-299`, un 503 se vuelve error de petición antes de
+        que Kuma mire el cuerpo, y se pierde el detalle de qué falló.
+      - Headers: `{ "X-Monitor-Token": "…" }` · Intervalo `300` · Reintentos `2`
+
 - [ ] Pegar un enlace del sitio en Telegram y ver que la lámina sale **solo con el logotipo**. Ojo:
       Telegram y WhatsApp **cachean la lámina por URL durante días**, así que puede seguir saliendo la
       vieja un rato aunque el despliegue esté bien. No es un fallo.
