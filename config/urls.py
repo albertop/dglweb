@@ -23,6 +23,7 @@ from dglweb.core.views import (
     home,
     pipeline_health,
     pizarra,
+    proxy_health,
     ready,
     robots,
 )
@@ -46,6 +47,10 @@ urlpatterns: list[URLPattern | URLResolver] = [
     # El semáforo del refresco diario, para un monitor externo. Va público a propósito: quien
     # tiene que verlo es un servicio de afuera, y lo único que expone es si el pipeline corrió.
     path("health/pipeline", pipeline_health, name="pipeline_health"),
+    # ¿Puede el SITIO hablar con el proxy de MLB? También público, y por el mismo motivo. Existe
+    # porque en producción el proxy escucha solo en `127.0.0.1` y un monitor externo no lo alcanza —
+    # y porque preguntándoselo al sitio se vigila el camino de verdad. Ver la vista.
+    path("health/proxy", proxy_health, name="proxy_health"),
     path("django-admin/", admin.site.urls),
     # Las pantallas de carga de datos de apoyo cuelgan del Backoffice y van ANTES del include de
     # Wagtail, que se queda con todo lo demás bajo /cms/.

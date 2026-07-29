@@ -541,3 +541,100 @@ def test_solo_los_destacados_aceptan_un_salto_como_sano() -> None:
     con_permiso = {job.comando for job in HORARIOS if IngestRun.Status.SKIPPED in job.sanos}
 
     assert con_permiso == {"build_daily_standouts"}
+
+
+# ── `/health/proxy`: ¿puede el sitio hablar con el proxy? (2026-07-29) ──────────────────────────
+#
+# Nace del incidente: el proxy de dev llevaba horas caído —cinco reinicios del servidor sin política
+# que lo levantara— y el fallo apareció en el correo del refresco de la mañana. Un monitor lo habría
+# dicho a los cinco minutos.
+
+
+def _proxy(monkeypatch: pytest.MonkeyPatch, *, respuesta: Any = None, error: Exception | None = None) -> None:
+    """Sustituye la llamada al proxy. En los tests no se sale a la red."""
+    import httpx
+
+    def falso(url: str, timeout: float = 0) -> Any:
+        if error is not None:
+            raise error
+        return respuesta
+
+    monkeypatch.setattr(httpx, "get", falso)
+
+
+class _Respuesta:
+    def __init__(self, codigo: int, cuerpo: dict[str, Any] | None = None) -> None:
+        self.status_code = codigo
+        self._cuerpo = cuerpo or {}
+
+    def json(self) -> dict[str, Any]:
+        return self._cuerpo
+
+
+@pytest.mark.django_db
+def test_con_el_proxy_vivo_el_semaforo_esta_verde(monkeypatch: pytest.MonkeyPatch) -> None:
+    _proxy(monkeypatch, respuesta=_Respuesta(200, {"status": "alive", "version": "1.2026.12"}))
+
+    respuesta = Client().get(reverse("proxy_health"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"status": "ok"}
+
+
+@pytest.mark.django_db
+def test_si_el_proxy_no_responde_el_semaforo_se_pone_rojo(monkeypatch: pytest.MonkeyPatch) -> None:
+    """El caso real del 2026-07-29: el contenedor parado y nada escuchando en el puerto."""
+    import httpx
+
+    _proxy(monkeypatch, error=httpx.ConnectError("Connection refused"))
+
+    assert Client().get(reverse("proxy_health")).status_code == 503
+
+
+@pytest.mark.django_db
+def test_un_proxy_que_contesta_mal_tambien_cuenta_como_roto(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Responder no es estar sano: un 502 del propio proxy es tan inútil como no responder."""
+    _proxy(monkeypatch, respuesta=_Respuesta(502))
+
+    assert Client().get(reverse("proxy_health")).status_code == 503
+
+
+@pytest.mark.django_db
+def test_el_detalle_no_es_para_cualquiera(monkeypatch: pytest.MonkeyPatch, settings: Any) -> None:
+    """Mismo trato que `/health/pipeline`: el semáforo es público, el detalle no.
+
+    El detalle lleva la URL interna del proxy — nombre de contenedor y puerto — que es
+    reconocimiento operativo gratis para quien pregunte cada minuto.
+    """
+    import httpx
+
+    _proxy(monkeypatch, error=httpx.ConnectError("Connection refused"))
+
+    anonimo = Client().get(reverse("proxy_health"))
+    assert anonimo.json() == {"status": "error"}
+
+    settings.PIPELINE_HEALTH_TOKEN = TOKEN
+    con_token = Client().get(reverse("proxy_health"), headers={"x-monitor-token": TOKEN})
+    assert "No se pudo alcanzar el proxy" in con_token.json()["detalle"]
+
+
+@pytest.mark.django_db
+def test_se_pregunta_por_live_y_no_por_health(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`/health` del proxy va a la API de MLB en CADA llamada.
+
+    Un monitor cada minuto serían 1.440 peticiones diarias a MLB solo para saber si un contenedor
+    está vivo — y encima se pondría rojo durante un corte de MLB, que ni podemos arreglar ni tiene
+    que despertar a nadie. `/live` no sale a la red.
+    """
+    import httpx
+
+    pedidas: list[str] = []
+
+    def falso(url: str, timeout: float = 0) -> Any:
+        pedidas.append(url)
+        return _Respuesta(200, {"status": "alive"})
+
+    monkeypatch.setattr(httpx, "get", falso)
+    Client().get(reverse("proxy_health"))
+
+    assert pedidas and pedidas[0].endswith("/live"), pedidas

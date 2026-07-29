@@ -569,7 +569,21 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
       **En producción es lo mismo y pesa más**: ahí el semáforo del pipeline avisaría a las tres
       horas, pero enterarse de un fallo evitable no es lo mismo que no tenerlo.
 
-- [ ] **Vigilar 10.0.0.39 desde Kuma.** Kuma corre EN esa máquina y vigila el VPS, pero **no vigila
+- [x] **Vigilar el proxy desde Kuma.** **Endpoint hecho (2026-07-29)**: `/health/proxy` en el
+      sitio, pendiente de desplegar con la `1.2026.8` y de crear el monitor.
+
+      **Se pregunta al SITIO y no al proxy**, por dos razones. En producción el proxy escucha solo en
+      `127.0.0.1:3003` y desde fuera no se alcanza; pero la razón buena es otra: **nginx y el sitio
+      llegan al proxy por caminos distintos** —el anfitrión y la red de Docker—, así que un monitor
+      vía nginx diría que todo va bien mientras el sitio es incapaz de pedir un dato. Preguntándoselo
+      al sitio se vigila el camino de verdad, con la misma URL, clave y red que usa el pipeline.
+
+      **Y se pregunta por `/live` del proxy, no por su `/health`.** El `/health` va a la API de MLB en
+      cada llamada: un monitor cada minuto son **1.440 peticiones diarias a MLB** solo para saber si
+      un contenedor está vivo, y encima se pondría rojo durante un corte de MLB — algo que ni podemos
+      arreglar ni tiene que despertar a nadie.
+
+- [ ] **Vigilar la propia 10.0.0.39 desde Kuma.** Kuma corre EN esa máquina y vigila el VPS, pero **no vigila
       la máquina donde vive**. Este fallo lo habría dicho a los cinco minutos en vez de aparecer en el
       correo del refresco de la mañana. Un monitor HTTP contra `http://10.0.0.39:3002/health`.
 

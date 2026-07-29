@@ -31,6 +31,7 @@ HORARIOS = jobs.HORARIOS
 # petición pública toca la base. La respuesta detallada no se cachea — ver la vista.
 SEGUNDOS_SEMAFORO = 30
 CLAVE_SEMAFORO = "health:pipeline"
+CLAVE_PROXY = "health:proxy"
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -325,6 +326,63 @@ def pipeline_health(request: HttpRequest) -> JsonResponse:
         filas=ultima.rows_affected,
         hace_horas=round((timezone.now() - ultima.started_at).total_seconds() / 3600, 1),
     )
+
+
+def proxy_health(request: HttpRequest) -> HttpResponse:
+    """¿Puede EL SITIO hablar con el proxy de MLB? Para un monitor externo.
+
+    POR QUÉ ESTE ENDPOINT Y NO APUNTAR EL MONITOR AL PROXY
+    -------------------------------------------------------
+    En producción el proxy está atado a `127.0.0.1:3003`, así que desde fuera no se alcanza — y
+    abrirlo para que lo vigilen sería publicar un servicio interno solo para poder mirarlo.
+
+    Pero hay una razón mejor que la comodidad: **nginx y el sitio llegan al proxy por caminos
+    distintos**. nginx lo alcanzaría por el `127.0.0.1` del anfitrión; el sitio, por la red de Docker
+    y por nombre de contenedor. Un monitor que pasara por nginx diría que todo está bien mientras el
+    sitio es incapaz de pedir un dato. Preguntándoselo al sitio se vigila **el camino que importa**,
+    con la misma URL, la misma clave y la misma red que usa el pipeline de verdad.
+
+    SE PREGUNTA POR `/live` Y NO POR `/health`, y la diferencia es cara: el `/health` del proxy va a
+    la API de MLB en CADA llamada. Un monitor cada minuto son 1.440 peticiones diarias a MLB solo
+    para comprobar que un contenedor está vivo. `/live` no sale a la red.
+
+    Y además `/health` se pondría rojo cuando MLB tenga un corte — algo que ni podemos arreglar ni
+    tiene que despertar a nadie, y que el proxy sigue sobreviviendo sirviendo desde su caché. Lo que
+    esta alerta debe cazar es que el proxy no esté, que es lo que pasó el 2026-07-29.
+
+    Mismo trato que `/health/pipeline`: el semáforo es público y el detalle solo con el token.
+    """
+    import httpx
+    from django.conf import settings
+    from django.core.cache import cache
+
+    detallado = _puede_ver_el_detalle(request)
+
+    # Se cachea el semáforo anónimo por lo mismo que el otro: un monitor que pregunta cada minuto no
+    # tiene que abrir una conexión al proxy cada vez, y quien pide el detalle es una persona mirando
+    # qué se rompió y necesita el estado de AHORA.
+    if not detallado:
+        cacheada = cache.get(CLAVE_PROXY)
+        if cacheada is not None:
+            estado, codigo = cacheada
+            return JsonResponse({"status": estado}, status=codigo)
+
+    def respuesta(estado: str, codigo: int = 200, **detalle: object) -> JsonResponse:
+        if not detallado:
+            cache.set(CLAVE_PROXY, (estado, codigo), SEGUNDOS_SEMAFORO)
+        return JsonResponse({"status": estado, **(detalle if detallado else {})}, status=codigo)
+
+    url = f"{settings.MLB_PROXY_URL.rstrip('/')}/live"
+    try:
+        # Tope corto y propio: el del pipeline son 20 segundos, que para un monitor es una eternidad
+        # —el sondeo se agota antes— y acá solo se pregunta si hay alguien al otro lado.
+        con_que = httpx.get(url, timeout=5.0)
+    except httpx.HTTPError as error:
+        return respuesta("error", 503, detalle=f"No se pudo alcanzar el proxy: {error}", url=url)
+
+    if con_que.status_code != 200:
+        return respuesta("error", 503, detalle=f"El proxy respondió {con_que.status_code}.", url=url)
+    return respuesta("ok", detalle="El proxy responde.", version=con_que.json().get("version", ""))
 
 
 def _horarios_atrasados() -> list[str]:
