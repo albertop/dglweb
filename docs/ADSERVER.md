@@ -49,10 +49,10 @@ Dos cosas, y ninguna es menor:
 ```
 navegador ──► nginx (VPS)
                 │
-                ├── promo.dominicanosengrandesligas.com/<entrega>/   PÚBLICO
+                ├── ads.dominicanosengrandesligas.com/<entrega>/   PÚBLICO
                 │        └──► revive (php-fpm) ──► mariadb
                 │
-                └── promo.dominicanosengrandesligas.com/<panel>/     LISTA BLANCA DE IP
+                └── ads.dominicanosengrandesligas.com/<panel>/     LISTA BLANCA DE IP
                          └──► revive (php-fpm)
 ```
 
@@ -60,16 +60,24 @@ Los dos contenedores atados a `127.0.0.1`, como todo lo demás del VPS: quien en
 
 ### Decisión 1 — subdominio del sitio, no de `prdm0.com`
 
-`promo.dominicanosengrandesligas.com` y no un dominio aparte, **y no es cosmético**: es lo que hace
+`ads.dominicanosengrandesligas.com` y no un dominio aparte, **y no es cosmético**: es lo que hace
 que los anuncios sean *first-party*. Servidos desde otro dominio serían terceros para el navegador —
 justo lo que cortan los bloqueadores, y lo que obligaría a abrir la CSP de par en par y a reescribir
 la página de privacidad.
 
-### Decisión 2 — `promo` y no `ads`
+### Decisión 2 — el subdominio se llama `ads`, y el nombre casi da igual
 
-`ad`, `ads`, `adserver`, `banner` y `doubleclick` están en las listas de bloqueo **por sí solas**,
-como nombres de subdominio. No es paranoia: **a los clientes se les factura por impresiones**, y cada
-impresión bloqueada es dinero que no se cobra.
+**Esto empezó siendo un aviso equivocado y quedó corregido con datos.** La recomendación inicial fue
+evitar `ads`, `adserver`, `banner` y `doubleclick` porque «están en las listas de bloqueo por sí
+solas». **Se comprobó y es falso.**
+
+Medido el 2026-07-28 contra EasyList (84.414 reglas) y EasyPrivacy (56.397): las 21 reglas que
+empiezan por `||ads.` apuntan **todas a empresas concretas** —`ads.linkedin.com`, `ads.samsung.com`,
+`ads.sportradar.com`— y **no existe ninguna regla genérica** que case con un `ads.` cualquiera. Un
+subdominio nuevo no coincide con ninguna.
+
+Lo que **sí** es genérico son las rutas, y de eso se ocupa la decisión 5. El riesgo estaba en otro
+sitio del que se creía.
 
 ### Decisión 3 — nginx partido en dos, y esto es lo que más importa acertar
 
@@ -91,17 +99,30 @@ Se construye la imagen desde el paquete oficial de Revive sobre una imagen ofici
 trabajo, y es la única forma defendible para la pieza que sirve código a cada visitante. Es además el
 mismo camino que ya sigue el sitio con `Dockerfile.prod`.
 
-### Decisión 5 — renombrar las rutas de entrega
+### Decisión 5 — renombrar las rutas de entrega. ESTO ES LO QUE DE VERDAD IMPORTA
 
-Las rutas por defecto —`/www/delivery/ajs.php`, `afr.php` y compañía— llevan **en las listas de
-bloqueo desde los tiempos de OpenX**. Se renombran durante la instalación. Si se dejan de fábrica,
-una parte de las impresiones no se sirve, y con ellas se va la facturación.
+Las rutas por defecto de Revive están en las listas **por su ruta, sin mirar el dominio**. Extraídas
+de EasyList el 2026-07-28, tal cual:
+
+```
+/www/delivery/*     $script,subdocument
+/ajs.php?           $script
+/afr.php?           $~xmlhttprequest
+/adserver.
+/delivery/ag.php  /delivery/apu.php  /delivery/avw.php  /delivery/fc.php  /delivery/lg.php
+```
+
+O sea que **da igual el subdominio y da igual que sea first-party**: con la instalación de fábrica,
+cualquier visitante con un bloqueador no ve el anuncio. Y **a los clientes se les factura por
+impresiones**, así que cada una bloqueada es dinero que no se cobra.
+
+Se renombran durante la instalación. Es el único punto de este documento que no admite atajo.
 
 ---
 
 ## Los pasos
 
-- [ ] **1. Subdominio y DNS.** `promo.dominicanosengrandesligas.com` → A → IP del VPS.
+- [x] **1. Subdominio y DNS.** **HECHO (2026-07-28)**: `ads.dominicanosengrandesligas.com` → A → IP del VPS.
 - [ ] **2. La imagen.** `Dockerfile` propio: PHP oficial + el paquete de Revive, con las extensiones
       que pide (`mysqli`, `gd`, `zip`, `openssl`).
 - [ ] **3. El stack en Portainer.** Revive + MariaDB, atados a `127.0.0.1`, con volumen para la base y
@@ -117,7 +138,7 @@ una parte de las impresiones no se sirve, y con ellas se va la facturación.
 ## Lo que hay que recordar cuando esté funcionando
 
 **La CSP lo va a bloquear en silencio.** El sitio manda `script-src 'self'` desde el 2026-07-27, así
-que hasta que `promo.dominicanosengrandesligas.com` esté en esa lista, la etiqueta no carga: el hueco
+que hasta que `ads.dominicanosengrandesligas.com` esté en esa lista, la etiqueta no carga: el hueco
 se queda vacío y el único sitio donde se explica es la consola del navegador. Ver `core/csp.py`.
 
 **Las páginas legales cambian.** Hoy la política de cookies dice que quien solo navega no recibe
