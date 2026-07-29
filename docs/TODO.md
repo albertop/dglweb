@@ -68,6 +68,24 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
       prueba. *Matomo* pesa como para no querer administrarlo. *GoatCounter* es gratis y ligerísimo
       pero su plan libre es para uso NO comercial, y este sitio va a llevar publicidad.
 
+- [ ] **PRODUCCIÓN ESTÁ MUDA: no tiene las credenciales de Telegram.** Descubierto el 2026-07-28 al
+      montar el monitor. Ni `dglweb-web-live` ni `ofelia` tienen `TELEGRAM_BOT_TOKEN` ni
+      `TELEGRAM_CHAT_ID`, así que **el refresco diario puede fallar todas las noches sin que nada lo
+      diga**. Todos los avisos que se han recibido salieron de desarrollo.
+
+      **Y la ausencia es silenciosa por diseño**: `notify.configurado()` devuelve falso si falta
+      cualquiera de las dos, y `enviar()` escribe una línea en nivel DEBUG y se va. No hay error, no
+      hay aviso, no hay nada — es el «un aviso que no llega no avisa de que no llegó» de este mismo
+      archivo, cumpliéndose.
+
+      Se arregla poniendo las dos variables en el stack de producción, con **las dos mitades** que
+      pide Portainer: declararlas en el bloque `environment:` del compose y darles valor en las
+      «Environment variables» del stack. Los valores se sacan con `manage.py telegram_check --buscar`.
+
+      **No es urgente y por eso no bloquea nada**: Uptime Kuma vigila `/health/pipeline` desde otra
+      máquina, así que un refresco fallido se nota igual. Lo que da el token en producción es el
+      detalle de QUÉ paso falló, que el 503 del monitor no puede decir.
+
 - [ ] **Montar monitoreo propio en 10.0.0.39, con software libre.** **Decisión del dueño
   (2026-07-28): no se paga por monitoreo.** Nada de servicios contratados; se autoaloja en su
   servidor de datos y desde ahí se vigila el VPS.
