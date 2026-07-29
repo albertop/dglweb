@@ -15,6 +15,51 @@ un TODO que describe trabajo ya hecho es peor que uno incompleto, porque se lee 
 y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé priorizar deuda técnica
 "antes de Fildeo" — que ya había pasado.
 
+## Lo que queda para el lanzamiento (2026-07-29)
+
+Los dos puntos que el dueño quiere apuntados. Los dos son de RESILIENCIA, no de features, y por eso
+van juntos: el sitio ya funciona, lo que falta es que siga funcionando cuando algo salga mal.
+
+### fail2ban sobre los registros de nginx
+
+**Qué resuelve.** Hoy hay límites de peticiones por IP (`deploy/nginx-limites.conf`), y eso frena el
+ritmo pero no aparta a nadie: un escáner que prueba mil rutas inexistentes sigue llegando a nginx mil
+veces, y cada 429 se atiende igual. fail2ban lee los registros, ve el patrón y lo corta **en el
+cortafuegos**, antes de que gaste nada.
+
+**Lo que hay que decidir antes de montarlo**, y es lo que lo hace más trabajo de lo que parece:
+
+- **Qué patrón cuenta como ataque.** Los 404 no valen por sí solos: un navegador con la página vieja
+  en pantalla pide estáticos con hashes que ya no existen, y eso es normal. Y los 429 tampoco, por lo
+  del CGNAT — en República Dominicana muchos usuarios móviles comparten una IP pública, así que
+  banear por 429 puede dejar fuera a medio Claro.
+- **Qué NO se puede banear nunca**: la IP del dueño (el CMS está cerrado a ella), Uptime Kuma en
+  10.0.0.39, y el propio VPS.
+- **Empezar en modo aviso.** Igual que se hizo con los límites: ver a quién habría baneado durante
+  unos días antes de dejarlo banear de verdad.
+
+### La estrategia de respaldo, entera
+
+Hoy existe `deploy/respaldo.sh` y **corre a mano**. Lo que falta son las tres cosas que convierten un
+script en una estrategia:
+
+1. **Colgarlo del cron.** Un respaldo que depende de que alguien se acuerde no es un respaldo.
+2. **Sacarlo del VPS.** Escribe en `/srv/respaldos`, o sea en el mismo disco que protege. Eso cubre el
+   error humano —borrar una tabla— y no cubre nada de lo que de verdad se teme: que el servidor se
+   pierda. Y como Postgres ahora lo comparten dglweb y Revive, en el mismo golpe se irían las
+   campañas y las creatividades que subió Adcio.
+3. **PROBAR UNA RESTAURACIÓN COMPLETA.** Es el punto que más se salta y el único que demuestra algo.
+   Un respaldo que nunca se restauró es una suposición, y se descubre falsa el peor día posible. Hay
+   que levantar la base en otro sitio desde el volcado y comprobar que el sitio arranca contra ella.
+
+**Y hay algo que ya no está en el respaldo y debería**: las 41 zonas de Revive y sus enlaces con las
+creatividades se crearon con SQL directo sobre la base `revive`. El SQL está en el historial de git
+—los commits de las zonas— pero los banners subidos viven en el volumen `revive_images`, y eso no lo
+respalda nadie. Una creatividad que un cliente mandó por correo hace ocho meses no se puede
+reconstruir.
+
+---
+
 ## Antes de salir a producción
 
 - [x] **Desplegar lo que estaba construido.** **HECHO (2026-07-28)**: producción pasó de la
