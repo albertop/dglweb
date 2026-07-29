@@ -177,8 +177,42 @@ Se renombran durante la instalación. Es el único punto de este documento que n
       pantalla de instalación con la base llena de campañas— y `www/images/` son las creatividades que
       sube Adcio, **lo único irreemplazable del montaje**.
 
-- [ ] **4. nginx.** Certificado TLS para el subdominio y el `server` partido en dos por ruta.
-- [ ] **5. Instalación.** El asistente de Revive, el renombrado de rutas y la cuenta de administrador.
+- [x] **4. nginx.** **HECHO (2026-07-28)**: `deploy/adserver/nginx-promo.conf`, con certificado de
+      Let's Encrypt y el `server` partido por ruta. Tres cosas que costaron y quedan escritas en el
+      propio archivo: `X-Frame-Options SAMEORIGIN` a nivel de servidor **rompe la entrega** —los
+      anuncios van en un `iframe` y `promo.` es otro origen—, hace falta `proxy_redirect` porque
+      Revive sin instalar devuelve `Location:` en `http://` y eso da un bucle de redirecciones, y el
+      `http2 on;` moderno **no existe** en el nginx del VPS: usarlo tumbó `nginx -t` y dejó una
+      configuración inválida en disco que habría impedido arrancar en el siguiente reinicio.
+
+- [x] **5. Instalación y renombrado de rutas.** **HECHO (2026-07-28).** Instalado contra el Postgres
+      existente, con la zona horaria dominicana para que los informes que se facturan cuadren con el
+      calendario del anunciante.
+
+      **El renombrado, que era el punto sin atajo, se midió en vez de suponerse.** Contra EasyList
+      (84.414 reglas) y EasyPrivacy (56.397): de las **17 rutas de entrega, 16 estaban bloqueadas**;
+      con los nombres nuevos, **ninguna**. Comprobado en producción: las nuevas responden 200 y las
+      viejas dan 404.
+
+      Tres hallazgos que no se habrían adivinado:
+
+      1. **`.php?zoneid=` es una regla por sí sola.** Renombrar carpeta y ficheros NO bastaba: el
+         parámetro también está fichado. Se resuelve poniendo `cb` delante en la etiqueta — que es el
+         parámetro anti-caché que Revive ya usa en las suyas. Su formato, no un truco.
+      2. **Los nombres cortos son peores que los de fábrica.** `s.php`, `a.js` y similares aparecen
+         como subcadena dentro de montones de reglas ajenas. De ahí el prefijo `dgl-`.
+      3. **La carpeta va a `www/pauta` y no a `/pauta`.** Los scripts hacen
+         `define('MAX_PATH', __DIR__.'/../..')`: asumen estar exactamente dos niveles bajo la raíz, y
+         subirlos uno los rompe en ejecución.
+
+      Los atajos de OpenX de la raíz (`adjs.php`, `adframe.php`…) se **borran**, no se renombran: son
+      puentes de compatibilidad de hace quince años, están todos fichados, y dejarlos mantendría
+      abierta la puerta que se acababa de cerrar.
+
+      **La imagen y el fichero de configuración tienen que cuadrar.** El `Dockerfile` renombra los
+      ficheros en disco y la sección `[file]` de `var/*.conf.php` declara esos mismos nombres. Si
+      alguien toca uno sin el otro, Revive genera etiquetas hacia ficheros que no existen.
+
 - [ ] **6. Enganchar el sitio.** El dominio en `dglweb/core/csp.py` y la etiqueta en las zonas de
       anuncio, que ya están maquetadas con alto fijo.
 
