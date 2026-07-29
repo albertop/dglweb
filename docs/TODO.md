@@ -113,6 +113,19 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
     petición antes de que Kuma mire el cuerpo— y manda `X-Monitor-Token`, que es lo que abre el
     detalle.
 
+  **LA PALABRA CLAVE VA EN JSON COMPACTO: `"status":"ok"`, SIN ESPACIOS.** Costó media hora de
+  rojo falso. Kuma no compara contra el cuerpo que devuelve el servidor: axios se lo entrega ya
+  parseado como objeto y Kuma lo vuelve a serializar con `JSON.stringify()` antes de buscar. Django
+  sirve `{"status": "ok"}` con espacio y Kuma compara contra `{"status":"ok"}` sin él, así que
+  la clave copiada del navegador **no coincide nunca** y el monitor se queda rojo para siempre — con
+  el pipeline sano. Un falso positivo permanente, que es lo que estropea un sistema de alertas.
+
+  Vale para cualquier monitor Keyword sobre JSON, no solo para este.
+
+  **Y un detalle de la interfaz que confunde**: la tabla de *Events* del monitor registra solo los
+  CAMBIOS de estado, no cada comprobación. Que no aparezcan filas nuevas no significa que Kuma dejó
+  de mirar; los latidos están en la barra de puntos de arriba.
+
   **Y se ganó el sueldo en la primera hora.** Con el monitor recién encendido salió un 503 real: los
   tres jobs horarios llevaban **seis horas fallando** con «permission denied» sobre el socket de
   Docker, por el `userns-remap` del VPS, desde el redespliegue de esa tarde. Doce ejecuciones
