@@ -1,0 +1,35 @@
+{% comment %}
+Un hueco horizontal que se adapta: **un solo marco**, y `static/js/anuncios.js` le pone la zona que
+corresponde al ancho de la pantalla. Lo pone `{% anuncio_horizontal z970 z728 z320 %}`.
+
+POR QUÉ SALE SIN `src`
+----------------------
+Un `iframe` sin `src` no pide nada. La primera versión de esto dibujaba los TRES tamaños y ocultaba
+dos con `display: none`, dando por hecho que un marco oculto no carga — **y es falso, se comprobó en
+el navegador: los tres pidieron su anuncio**. Habrían sido tres impresiones por cada anuncio visto, o
+sea el informe del anunciante inflado al triple.
+
+El alto lo reserva el CSS (`.dgl-ad-leader`, 90px y 50 en móvil), así que el hueco nace con su medida
+y la página no da un salto cuando el script elige.
+
+NO SE USA `_anuncio.html`, y esta vez la duplicación está justificada: ese otro es un marco con `src`
+puesto por el servidor, y este nace vacío a propósito. Compartir plantilla obligaría a un `{% if %}`
+que haría dudar de cuál de los dos comportamientos aplica en cada sitio.
+{% endcomment %}
+{% if hay_servidor %}
+  {% comment %}
+    Sin `sandbox` a propósito: el marco tiene que poder navegar al hacer clic —ese clic es lo que se le
+    factura al anunciante— y `sandbox` sin `allow-top-navigation-by-user-activation` lo rompería. Quien
+    sirve ese marco es nuestro propio servidor, no un tercero.
+  {% endcomment %}
+  <iframe class="dgl-ad-marco dgl-ad-leader {{ clase }}"
+          data-anuncio="{{ opciones }}"
+          frameborder="0" scrolling="no" loading="lazy"
+          title="Publicidad"></iframe>
+{% else %}
+  {% comment %}
+    Sin servidor de anuncios, el recuadro de maqueta. Mide igual que el marco real —el alto lo fija el
+    mismo CSS— así que el diseño se prueba en desarrollo con las medidas de producción.
+  {% endcomment %}
+  <div class="dgl-ad dgl-ad-leader {{ clase }}">Espacio publicitario</div>
+{% endif %}

@@ -355,6 +355,22 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    estrecha pero la imagen de dentro sigue midiendo 970. La solución de verdad es una zona aparte con
    formato de móvil (320×50 o 300×250) y enseñar una u otra por CSS. Queda pendiente y anotado. */
 .dgl-ad-marco { max-width: 100%; }
+
+/* `middle` y no la línea base de fábrica: un elemento *inline* reserva sitio para los trazos que
+   bajan de la línea —la cola de una «p»— y eso dejaba **6 px de aire** debajo de cada anuncio.
+   Medido en producción: el marco 90, su contenedor 96. Existía desde el principio. */
+.dgl-ad-marco { vertical-align: middle; }
+
+/* EL ALTO DEL HUECO HORIZONTAL LO FIJA EL CSS, no el atributo del `iframe`, y por una razón concreta:
+   el tamaño del anuncio lo elige `anuncios.js` cuando la página ya cargó. Si el alto viniera del
+   atributo, la página daría un salto en móvil al pasar de 90 a 50 px justo cuando el lector empieza a
+   leer. Reservándolo aquí, el hueco nace con la medida correcta.
+
+   El corte en 992 sale de medir el `.container` de Bootstrap en el sitio real: por debajo de ahí mide
+   720 o menos, así que no cabe ni el de 728. */
+@media (max-width: 991.98px) {
+  .dgl-ad-leader { height: 50px; }
+}
 .dgl-ad-rect { height: 250px; }
 /* El que acompaña al artículo destacado: se estira a lo que mida su fila —con `h-100`— en vez de
    quedarse en 250px y dejar un hueco al lado del artículo. El mínimo es el 300×250 de siempre, que

@@ -279,6 +279,11 @@
   `src`, y salió por la CSP: con `script-src 'self'` el navegador no ejecuta scripts inline. Ver
   `core/csp.py` y la prueba que impide que vuelvan.
 {% endcomment %}
+{% comment %}
+  Elige el tamaño del hueco horizontal de publicidad. El marco nace sin `src` a propósito —ver
+  `widgets/_anuncio_horizontal.html`— así que SIN ESTE SCRIPT NO SALE NINGÚN ANUNCIO horizontal.
+{% endcomment %}
+<script src="{% static 'js/anuncios.js' %}?v=1" defer></script>
 <script src="{% static 'js/site.js' %}?v=2" defer></script>
 {% block extra_js %}{% endblock %}
 </body>

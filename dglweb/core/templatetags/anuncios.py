@@ -34,6 +34,7 @@ No es un truco: `cb` es el parámetro que Revive usa en sus propias etiquetas pa
 cachee el anuncio. Acá simplemente va en el orden que además esquiva la regla.
 """
 
+import json
 import secrets
 from typing import Any
 
@@ -62,5 +63,73 @@ def anuncio(zona: int, ancho: int, alto: int, clase: str = "") -> dict[str, Any]
         "url": f"{origen}/www/pauta/dgl-m.php?cb={secrets.token_hex(6)}&zoneid={zona}",
         "ancho": ancho,
         "alto": alto,
+        "clase": clase,
+    }
+
+
+# Los tres tamaños de un hueco horizontal, con la pantalla mínima a la que cada uno cabe. Sale de
+# medir el `.container` de Bootstrap en el sitio real, no del manual:
+#
+#     pantalla      contenedor    cabe 970    cabe 728
+#     >= 1200          1140          sí          sí
+#     992-1199          960          NO          sí
+#     768-991           720          no          no (por 8 px)
+#     < 768          fluido          no          no
+#
+# Por eso el corte del 970 está en 1200 y no en 994: entre 992 y 1199 el contenedor mide 960 y un
+# banner de 970 se saldría. Con un solo par 970/320, TODO portátil de menos de 1200 px se llevaría el
+# banner de teléfono — que es la franja de los portátiles de 13 pulgadas.
+#
+# El tercer valor de cada fila es esa pantalla mínima.
+TAMANOS_HORIZONTALES = (
+    (970, 90, 1200),
+    (728, 90, 992),
+    (320, 50, 0),
+)
+
+
+@register.inclusion_tag("widgets/_anuncio_horizontal.html")
+def anuncio_horizontal(z970: int, z728: int, z320: int, clase: str = "") -> dict[str, Any]:
+    """Un hueco horizontal que se adapta: UN marco, y el navegador elige de qué tamaño.
+
+    UN SOLO `iframe`, Y ESO NO ES UNA OPTIMIZACIÓN — ES LO QUE HACE HONESTAS LAS CUENTAS
+    -----------------------------------------------------------------------------------
+    La primera versión de esto dibujaba los TRES marcos y ocultaba dos con `display: none`, dando por
+    hecho que un marco oculto no carga. **Es falso, y se comprobó en el navegador**: los tres pidieron
+    su anuncio, con `loading="lazy"` puesto y todo.
+
+    Eso habría hecho que Revive contara **tres impresiones por cada anuncio realmente visto**. El
+    informe de Adcio saldría inflado al triple, con dos tercios de impresiones de anuncios que nadie
+    vio. En venta directa eso no es un defecto técnico: es facturar aire.
+
+    Así que el marco sale **sin `src`** —un `iframe` sin `src` no pide nada— y `static/js/anuncios.js`
+    le pone el de la zona que corresponde al ancho disponible. Un marco, una petición, una impresión.
+
+    QUÉ PASA SIN JAVASCRIPT: el hueco se queda vacío. Se acepta a conciencia — son cuatro gatos, y la
+    alternativa era contar impresiones falsas para todos los demás.
+
+    POR QUÉ NO SE DECIDE EN EL SERVIDOR por el `User-Agent`: el HTML pasaría a depender del
+    dispositivo y dejaría de poder cachearse en un CDN. La Fase 8 del plan contempla Cloudflare, y
+    esto la cerraría.
+
+    CADA TAMAÑO NECESITA SU PROPIA ZONA EN REVIVE, y no es burocracia: Revive cuenta por zona, así que
+    si los tres compartieran una, el informe no podría decir cuántas veces salió en móvil y cuántas en
+    escritorio. Son formatos distintos y se venden a precios distintos.
+    """
+    origen = settings.ADSERVER_URL
+    opciones: list[dict[str, Any]] = []
+    for (ancho, alto, minimo), zona in zip(TAMANOS_HORIZONTALES, (z970, z728, z320), strict=True):
+        opcion: dict[str, Any] = {"min": minimo, "ancho": ancho, "alto": alto}
+        if origen:
+            # El `cb` delante del `zoneid` no es cosmético: ver la cabecera del módulo. Cada tamaño
+            # lleva el suyo porque son zonas distintas y el navegador no debe cachear ninguna.
+            opcion["url"] = f"{origen}/www/pauta/dgl-m.php?cb={secrets.token_hex(6)}&zoneid={zona}"
+        opciones.append(opcion)
+
+    # `separators` sin espacios: este JSON viaja dentro de un atributo y se repite en dos huecos por
+    # página. Los espacios serían bytes que no dicen nada.
+    return {
+        "opciones": json.dumps(opciones, separators=(",", ":")),
+        "hay_servidor": bool(origen),
         "clase": clase,
     }

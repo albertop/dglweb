@@ -413,9 +413,18 @@ def test_configurado_dibuja_los_marcos_con_el_cb_delante(client: Client, setting
 
     html = client.get("/").content.decode()
 
-    assert f'src="{ANUNCIOS}/www/pauta/dgl-m.php?cb=' in html
+    # Los huecos horizontales ya NO llevan `src`: nacen vacíos y `anuncios.js` les pone el de la zona
+    # que cabe en la pantalla. Sus tres URLs viajan en `data-anuncio`, así que la regla del `cb` hay
+    # que comprobarla ahí — y sigue importando igual: la URL que el script acaba usando es esa.
+    assert f"{ANUNCIOS}/www/pauta/dgl-m.php?cb=" in html
     assert "?zoneid=" not in html, "zoneid nunca puede ser el primer parámetro"
     assert "Espacio publicitario" not in html
+
+    # Y el marco horizontal tiene que salir SIN `src`. Si algún día alguien le pone uno en la
+    # plantilla, el navegador pediría ese anuncio ADEMÁS del que elige el script: dos impresiones por
+    # cada una vista, y el informe del anunciante al doble.
+    for marco in re.findall(r"<iframe[^>]*data-anuncio[^>]*>", html):
+        assert "src=" not in marco, f"un hueco horizontal salió con src puesto: {marco[:120]}"
 
 
 def test_cada_hueco_pide_la_zona_que_le_toca(settings: Any) -> None:
