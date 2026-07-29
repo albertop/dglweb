@@ -75,6 +75,25 @@ docker exec dglweb-web-live python manage.py build_daily_standouts --fecha-hoy
       implementa `inert`—: abrir un clip, pulsar Tab cinco o seis veces y comprobar que el foco no se
       escapa a los enlaces de detrás. Cerrar con Escape y ver que vuelve al botón que lo abrió.
 
+### EL ORDEN DEL DESPLIEGUE CAMBIÓ (2026-07-29)
+
+Desde que nginx sirve los estáticos hay **un paso más, y va en un orden que no se puede invertir**:
+
+```bash
+cd /srv/dglweb && git pull --ff-only && ./deploy_dglweb_image.sh
+#   → actualizar el stack en Portainer (recrea el contenedor)
+./deploy/estaticos.sh
+docker exec dglweb-web-live python manage.py migrate   # solo si la versión trae migraciones
+```
+
+**`estaticos.sh` va DESPUÉS de recrear el contenedor.** Al revés se copiarían los estáticos de la
+versión anterior mientras el HTML nuevo pide hashes que no existen: el sitio sale sin hojas de estilo
+y sin JavaScript, y en la consola del navegador solo hay 404.
+
+El script **no borra nada**, y eso es lo que evita una ventana de sitio roto: los nombres llevan hash,
+así que las dos versiones conviven y los navegadores que aún tienen la página anterior en pantalla
+siguen encontrando lo suyo. La carpeta crece unos megas por despliegue; se limpia a mano, en frío.
+
 ### 1.2026.8 — SIN DESPLEGAR (se acumula a propósito)
 
 **Decisión del dueño (2026-07-28): no se despliega por cada detalle.** Los cambios se juntan acá y
