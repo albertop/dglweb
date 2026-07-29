@@ -371,11 +371,13 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 @media (max-width: 991.98px) {
   .dgl-ad-leader { height: 50px; }
 }
+/* Los dos rectángulos de la portada. 250px EXACTOS, y ahí está la corrección del 2026-07-29.
+   Existía además `.dgl-ad-alto`, con `min-height: 250px`, que junto a `h-100` estiraba el marco al
+   alto de la tarjeta de artículo (300px). La intención era que el hueco midiera siempre lo mismo,
+   pero el efecto era el contrario: el marco pasaba a 300×300 y la creatividad de 250 se quedaba
+   arriba, con 50px de blanco por debajo DENTRO del anuncio. Se veía como un banner roto.
+   Sin estirar, el hueco es siempre 300×250 y el sobrante queda fuera, en la fila. */
 .dgl-ad-rect { height: 250px; }
-/* El que acompaña al artículo destacado: se estira a lo que mida su fila —con `h-100`— en vez de
-   quedarse en 250px y dejar un hueco al lado del artículo. El mínimo es el 300×250 de siempre, que
-   es lo que ocupa cuando la columna se apila en móvil y ya no tiene fila que igualar. */
-.dgl-ad-alto { min-height: 250px; }
 /* El que cierra la página: `margin-top: auto` se come el espacio que sobre y lo deja pegado al pie,
    en vez de dejarlo colgando debajo de una tabla corta con un vacío por delante. */
 .dgl-ad-pie { margin-top: auto; }
