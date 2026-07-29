@@ -134,14 +134,32 @@ Se renombran durante la instalación. Es el único punto de este documento que n
 
 - [x] **1. Subdominio y DNS.** **HECHO (2026-07-28)**: `promo.dominicanosengrandesligas.com` → A →
       `107.175.69.53`. Comprobado que resuelve desde fuera.
-- [ ] **2. La imagen.** `Dockerfile` propio sobre **PHP 8.3** —la versión que fija su propio CI— con
-      las extensiones que ellos declaran: `ctype, curl, dom, fileinfo, iconv, intl, json, libxml,
-      mbstring, openssl, pgsql, simplexml, tokenizer, xml, xmlwriter, zip`.
+- [x] **2. La imagen.** **HECHA (2026-07-28)**: `deploy/adserver/Dockerfile`, construida y probada.
+      PHP **8.3** —la que fija su propio CI— con `intl`, `pgsql`, `pdo_pgsql` y `zip`; el resto de lo
+      que declaran ya viene en la imagen oficial. Se compila desde la etiqueta `v6.0.8` con Composer,
+      porque el paquete no se puede automatizar: sus publicaciones de GitHub no traen adjuntos y la
+      descarga directa de su web responde 403.
 
-      **Se construye desde el código con Composer, no desde un paquete.** No hay adjuntos en las
-      publicaciones de GitHub y la descarga directa de su web responde 403, así que el tarball no se
-      puede automatizar — y compilar desde la etiqueta `v6.0.8` es más reproducible que un archivo
-      opaco.
+      Comprobado sobre el contenedor levantado: las cuatro extensiones cargan, el panel redirige al
+      instalador, `adjs.php` responde 200, y `var/`, `lib/`, `etc/` y `composer.json` dan 403.
+
+      **Dos trampas que solo aparecieron al probarla**, y que están escritas en el propio archivo:
+
+      1. Purgar los `-dev` con `--auto-remove` **se lleva también las bibliotecas de ejecución**
+         (`libicuio`, `libpq`, `libzip`) y deja las extensiones sin cargar. Y **la construcción no
+         falla**: la imagen sale perfecta y el fallo aparece al arrancar, en unos avisos de PHP que
+         nadie mira, con `pgsql` ausente — o sea Revive sin base de datos. Se resuelve con la receta
+         de `ldd` que usan las imágenes oficiales de WordPress y Drupal, y ahora hay una comprobación
+         al final del `RUN` que **hace fallar la construcción** si alguna extensión no carga.
+      2. El `conf` de Apache tiene que llamarse `zz-…`. Debian trae su `security.conf` con
+         `ServerTokens OS` y carga `conf-enabled/` en orden alfabético, así que un nombre «normal»
+         queda pisado. Se veía en la cabecera: seguía diciendo `Apache/2.4.68 (Debian)` con el
+         endurecimiento puesto y aparentemente activo.
+
+      **Pesa 900 MB**, y casi todo es la base de Debian con PHP: la aplicación son 108 MB. Se podría
+      bajar mucho con Alpine y `php-fpm`, pero eso pide un servidor web aparte dentro del contenedor.
+      Para una pieza que se quiere aburrida y auditable, el disco es más barato que la complejidad.
+
 - [ ] **3. El stack en Portainer.** Un solo servicio, atado a `127.0.0.1`, con volumen para las
       creatividades que suba Adcio. La base y el rol se crean en el Postgres existente. Las variables
       por el patrón de siempre: declaradas en `environment:` **y** con valor en las «Environment
