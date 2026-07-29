@@ -211,7 +211,7 @@ def main() -> None:
     # La chica tiene la mitad de ancho para casi el mismo alto, así que la insignia pesa más.
     ajustes = {"banner-ancho": {"insignia": 0.56}, "banner-chico": {"insignia": 0.60}}
     for nombre, (ancho, alto) in MEDIDAS.items():
-        imagen = banner(ancho, alto, **ajustes[nombre])  # type: ignore[arg-type]
+        imagen = banner(ancho, alto, **ajustes[nombre])
         ruta = DESTINO / f"{nombre}.png"
         imagen.save(ruta, "PNG", optimize=True)
         print(f"{ruta.name}: {ancho}x{alto}  ({ruta.stat().st_size // 1024} KB)")
