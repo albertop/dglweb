@@ -203,4 +203,25 @@ RUN { \
 RUN mkdir -p var www/images \
     && chown -R www-data:www-data var www/images
 
+# `var/UPGRADE` — SIN ESTE FICHERO VACÍO EL INSTALADOR NO ARRANCA, y el síntoma no lo insinúa.
+#
+# Su `InstallController` empieza así:
+#
+#     // No upgrade file? No installer! Unless the user is in the last step
+#     if (!file_exists(MAX_PATH . '/var/UPGRADE') && 'finish' != $action) { $this->abortInstall(); }
+#
+# y `abortInstall()` es un `Location: index.php`. Como `index.php` manda al instalador cuando no hay
+# instalación, el navegador entra en bucle: `index.php → install.php → index.php → …`, que se ve como
+# ERR_TOO_MANY_REDIRECTS. Nada dice que falte un archivo.
+#
+# ES EL PRECIO DE COMPILAR DESDE EL CÓDIGO, y conviene tenerlo escrito: el fichero está en su
+# `.gitignore` (línea 8) y lo crea el empaquetado con `<touch file="var/UPGRADE"/>` en `build.xml`.
+# O sea que viene en el tarball oficial y NO en el repositorio — la diferencia exacta entre las dos
+# formas de construir esto.
+#
+# OJO AL ACTUALIZAR: `var/` es un volumen, y Docker solo copia el contenido de la imagen cuando el
+# volumen está VACÍO la primera vez. Si el volumen ya existe de una imagen anterior, este fichero no
+# aparece solo — hay que borrar el volumen o crearlo a mano dentro del contenedor.
+RUN touch var/UPGRADE && chown www-data:www-data var/UPGRADE
+
 EXPOSE 80
