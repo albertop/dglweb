@@ -1766,6 +1766,30 @@ falso). Los archivos viven en el volumen `dglweb_media`.
       son la base y `media/`. Con retención y, sobre todo, **una restauración probada**: un respaldo
       que nunca se restauró no se sabe si sirve.
 
+## Rendimiento para el lanzamiento — MEDIDO (2026-07-29)
+
+Ver **`docs/RENDIMIENTO.md`** para los números y el plan completo. El resumen:
+
+**El servidor va sobrado y la base no es el cuello.** 4 núcleos con carga 0,55, 2,3 Gi libres, y las
+páginas se resuelven en 22-274 ms dentro del contenedor con 36-56 ms de base.
+
+**EL problema es uno solo: la portada referencia 210 recursos estáticos y 164 los sirve gunicorn**
+—vía WhiteNoise— con **3 workers síncronos**, o sea 3 peticiones concurrentes en total. Una visita
+son 164 peticiones peleándose por tres huecos. Hoy no se nota porque no hay tráfico; el día del
+lanzamiento es lo que se cae.
+
+- [ ] **Servir `/static/` desde nginx.** Quita 164 de 210 peticiones de gunicorn. `collectstatic` ya
+      corre en la construcción, así que es un `docker cp` en el despliegue y un `location` con
+      `gzip_static on`.
+- [ ] **gunicorn a `gthread`**: 4 workers × 4 hilos = 16 concurrentes contra 3. Casi gratis en
+      memoria porque los hilos comparten proceso.
+- [ ] **Ajustar Postgres**, que corre con la configuración de fábrica. `random_page_cost 4.0` asume
+      disco giratorio y el VPS es SSD, así que el planificador evita índices que sí convienen.
+- [ ] **Límites de peticiones en dglweb**, que no tiene ninguno. Con `limit_req_dry_run` primero, y
+      **por zonas**: un límite uniforme mataría a un visitante normal, que hace 210 peticiones en dos
+      segundos solo por abrir la portada.
+- [ ] **Menos recursos**: 153 de los 210 son imágenes. Los 30 escudos de equipo caben en un sprite.
+
 ## nginx: dos límites mirados y medidos (2026-07-29)
 
 Los dos salieron de recuerdos del dueño de problemas pasados. **Los dos están lejísimos de molestar**,
