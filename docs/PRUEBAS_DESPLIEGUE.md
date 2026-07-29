@@ -274,6 +274,36 @@ Lo que ya nos mordió una vez. Todo esto pasó de verdad el 2026-07-28.
 
 ---
 
+## El CMS está cerrado por IP (2026-07-29)
+
+`/cms`, `/cms/`, su formulario de acceso y `/django-admin/` solo responden desde la IP del dueño. El
+resto del sitio, intacto. En el `server` de nginx:
+
+```nginx
+location ~ ^/(cms|django-admin)(/|$) {
+    allow 73.244.42.221;
+    deny all;
+    # … las mismas cabeceras de proxy que `location /`: NO se heredan entre `location`.
+}
+```
+
+**El `(/|$)` importa.** Con solo `^/(cms|django-admin)/`, la URL sin barra final no casa: llega a
+Django, que redirige a `/cms/`. El acceso queda bloqueado igual, pero esa redirección le confirma a
+cualquiera que la ruta existe.
+
+**Lo que NO se cierra, y es deliberado:** `/static/` —lo sirve WhiteNoise y el panel se quedaría sin
+estilos ni JavaScript— y `/documents/`, que aunque sea de Wagtail es por donde se descargan los
+documentos que enlaza un artículo, o sea contenido público.
+
+**Al comprobarlo, cuidado con el relevo de procesos.** `systemctl reload nginx` devuelve el control
+enseguida pero los trabajadores viejos siguen atendiendo un momento. Un `curl` encadenado al reload
+puede caer en la configuración anterior y dar un resultado que no cuadra con el archivo — pasó, y
+costó un rato de buscar una causa que no existía. Repetir la prueba unos segundos después.
+
+**Y el riesgo que hay que tener presente:** esa IP es residencial. El día que cambie, el CMS queda
+inaccesible hasta editar esta línea por SSH. Está en dos sitios —acá y en `pgadmin.conf`— así que hay
+que cambiarla en los dos.
+
 ## El remapeo de usuarios de Docker, o por qué `chown 1000` no arregla nada
 
 **Este VPS corre Docker con `userns-remap` activado** (`/etc/docker/daemon.json`). Costó una tarde
