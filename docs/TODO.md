@@ -73,10 +73,24 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
       `TELEGRAM_CHAT_ID`, así que **el refresco diario puede fallar todas las noches sin que nada lo
       diga**. Todos los avisos que se han recibido salieron de desarrollo.
 
+      **DEV SÍ FUNCIONA, y esa asimetría es lo que lo escondió.** En desarrollo las credenciales
+      salen del `.env` que `settings/base.py` lee al arrancar (`environ.Env.read_env`), y el compose
+      monta el proyecto entero en `/app`. En producción **no hay ningún `.env` que leer**:
+      `.dockerignore` lo excluye —bien excluido, un secreto no viaja dentro de una imagen— y la
+      imagen no monta el árbol. Ahí solo valen las variables del entorno del contenedor.
+
+      Así que los avisos llegaban, y la evidencia disponible decía que el canal funcionaba. Hablaba
+      siempre el mismo entorno.
+
       **Y la ausencia es silenciosa por diseño**: `notify.configurado()` devuelve falso si falta
       cualquiera de las dos, y `enviar()` escribe una línea en nivel DEBUG y se va. No hay error, no
       hay aviso, no hay nada — es el «un aviso que no llega no avisa de que no llegó» de este mismo
       archivo, cumpliéndose.
+
+      **Ya no puede repetirse en silencio**: `core/checks.py` levanta un aviso de arranque
+      (`core.W001`) cuando el sitio corre con los settings de producción y el canal está apagado. Es
+      aviso y no error a propósito — bloquear el arranque convertiría «no puedo avisar» en «no puedo
+      servir el sitio».
 
       Se arregla poniendo las dos variables en el stack de producción, con **las dos mitades** que
       pide Portainer: declararlas en el bloque `environment:` del compose y darles valor en las
