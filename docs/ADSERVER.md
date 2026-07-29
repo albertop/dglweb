@@ -160,10 +160,23 @@ Se renombran durante la instalación. Es el único punto de este documento que n
       bajar mucho con Alpine y `php-fpm`, pero eso pide un servidor web aparte dentro del contenedor.
       Para una pieza que se quiere aburrida y auditable, el disco es más barato que la complejidad.
 
-- [ ] **3. El stack en Portainer.** Un solo servicio, atado a `127.0.0.1`, con volumen para las
-      creatividades que suba Adcio. La base y el rol se crean en el Postgres existente. Las variables
-      por el patrón de siempre: declaradas en `environment:` **y** con valor en las «Environment
-      variables» del stack.
+- [x] **3. El stack en Portainer.** **HECHO (2026-07-28)**: un solo servicio, atado a
+      `127.0.0.1:8081`, en la red **`backend`** —la que ya comparten el sitio y Postgres— y llegando a
+      la base por el nombre del contenedor, `postgres-postgres-1:5432`. Base y rol propios, creados en
+      la instancia que ya existe.
+
+      **`pull_policy: never` en el servicio, y no es opcional.** Sin esa línea el despliegue falla con
+      `pull access denied for revive, repository does not exist or may require 'docker login'` — un
+      mensaje que manda a buscar credenciales de Docker Hub cuando el problema es otro: la imagen es
+      local, no está en ningún registro, y basta con que el interruptor «Re-pull image» de Portainer
+      quede activado. Con `pull_policy: never` el error, si algún día falta la imagen, dice lo que
+      pasa de verdad: `No such image`.
+
+      Dos volúmenes, y conviene saber qué hay en cada uno: `var/` guarda la configuración que genera
+      el instalador **con la contraseña de Postgres dentro** —si se pierde, Revive vuelve a la
+      pantalla de instalación con la base llena de campañas— y `www/images/` son las creatividades que
+      sube Adcio, **lo único irreemplazable del montaje**.
+
 - [ ] **4. nginx.** Certificado TLS para el subdominio y el `server` partido en dos por ruta.
 - [ ] **5. Instalación.** El asistente de Revive, el renombrado de rutas y la cuenta de administrador.
 - [ ] **6. Enganchar el sitio.** El dominio en `dglweb/core/csp.py` y la etiqueta en las zonas de
