@@ -100,8 +100,33 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
       máquina, así que un refresco fallido se nota igual. Lo que da el token en producción es el
       detalle de QUÉ paso falló, que el 503 del monitor no puede decir.
 
-- [ ] **Montar monitoreo propio en 10.0.0.39, con software libre.** **Decisión del dueño
-  (2026-07-28): no se paga por monitoreo.** Nada de servicios contratados; se autoaloja en su
+- [x] **Montar monitoreo propio en 10.0.0.39, con software libre.** **HECHO (2026-07-28): Uptime
+  Kuma 2.4.0**, en un stack de Portainer con volumen propio y `TZ` en hora del Este. Dos monitores
+  avisando al mismo grupo de Telegram del sitio:
+
+  - `dglweb — sitio` → `/health` cada 60s, con 2 reintentos para no gritar por un microcorte de la
+    conexión doméstica, y aviso de vencimiento del certificado.
+  - `dglweb — pipeline` → `/health/pipeline` cada 5 min, **de tipo Keyword y no HTTP normal**. Ese
+    detalle vale: leído en el código de Kuma, un monitor HTTP manda a Telegram «Request failed with
+    status code 503» y nada más, mientras que el Keyword **incluye el cuerpo de la respuesta**, o sea
+    qué paso falló. Por eso además acepta códigos 200-599 —si no, el 503 se convierte en error de
+    petición antes de que Kuma mire el cuerpo— y manda `X-Monitor-Token`, que es lo que abre el
+    detalle.
+
+  **Y se ganó el sueldo en la primera hora.** Con el monitor recién encendido salió un 503 real: los
+  tres jobs horarios llevaban **seis horas fallando** con «permission denied» sobre el socket de
+  Docker, por el `userns-remap` del VPS, desde el redespliegue de esa tarde. Doce ejecuciones
+  fallidas seguidas sin una sola señal. Ver `docs/PRUEBAS_DESPLIEGUE.md`.
+
+  **Lo que queda de este montaje**, ninguno urgente:
+
+  - **Nadie vigila al vigilante.** Si 10.0.0.39 se apaga o se cae la conexión de la casa, Kuma deja
+    de avisar — y el silencio se parece mucho a que todo va bien. Es la misma clase de fallo que este
+    montaje vino a cerrar, solo que un nivel más arriba. Se cierra con un latido externo gratuito.
+  - **Más monitores**: la portada con palabra clave (para cazar el «200 pero la página está rota»),
+    `/ready`, y el proxy de MLB.
+
+  ~~**Decisión del dueño (2026-07-28): no se paga por monitoreo.**~~ Nada de servicios contratados; se autoaloja en su
   servidor de datos y desde ahí se vigila el VPS.
 
   **Por qué en 10.0.0.39 y no en el propio VPS**, que es lo que hace que esto sirva: un vigilante que
