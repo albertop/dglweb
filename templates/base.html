@@ -67,6 +67,22 @@
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   <link href="{% static 'vendor/bootstrap.min.css' %}" rel="stylesheet">
   <link href="{% static 'css/site.css' %}?v=120" rel="stylesheet">
+  {% if analitica %}{% comment %}
+    Umami: cuántas visitas y por dónde llegaron. Es el ÚNICO tercero que carga el sitio público, y
+    por eso está declarado en tres sitios que tienen que decir lo mismo — acá, en la CSP y en la
+    página de privacidad. `tests/test_legal.py` comprueba que sigan cuadrando.
+
+    NO ES UN AÑADIDO INOCENTE aunque no ponga cookies: cargarlo hace que la dirección IP de quien
+    visita llegue a un servidor que no es nuestro. Eso hay que declararlo, y está declarado.
+
+    Sale de `settings.ANALITICA_*`, vacío por defecto. Así el sitio de desarrollo no ensucia las
+    estadísticas del real, que es el motivo de que esto no esté escrito a mano acá.
+
+    `defer` para que no bloquee el dibujado: la analítica nunca puede ser la razón de que una página
+    tarde en aparecer.
+  {% endcomment %}
+  <script defer src="{{ analitica.url }}/script.js" data-website-id="{{ analitica.id }}"></script>
+  {% endif %}
   {% block extra_head %}{% endblock %}
 </head>
 <body>

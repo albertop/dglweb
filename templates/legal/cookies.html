@@ -8,7 +8,14 @@ inútil el mecanismo el día que sí haga falta. El banner se construye cuando e
 no esencial —publicidad o medición— y no antes.
 
 Lo que sostiene esta página es `tests/test_legal.py::test_el_sitio_publico_no_pone_cookies`: si
-alguien añade analítica o una etiqueta de anuncios, esa prueba se cae y obliga a pasar por acá.
+alguien añade una etiqueta que sí ponga cookies, esa prueba se cae y obliga a pasar por acá.
+
+Y ya pasó una vez sin caerse, que es lo interesante: el 2026-07-28 entró la analítica de visitas
+(Umami) y esta página siguió siendo verdad, porque esa herramienta se eligió por no usar cookies. Lo
+comprobado NO fue la palabra del proveedor sino su `script.js`: cero llamadas a `document.cookie` y
+cero a `setItem`. Lo único que hace es LEER `umami.disabled`, el interruptor manual de exclusión.
+
+O sea que la ausencia de cartel sigue siendo honesta y no un descuido heredado.
 {% endcomment %}
 
 {% block documento %}
@@ -28,15 +35,22 @@ alguien añade analítica o una etiqueta de anuncios, esa prueba se cae y obliga
 <p>
   <b>Ninguna cookie y ningún almacenamiento en tu navegador</b> mientras solo leas el sitio: ni de
   medición, ni de publicidad, ni de preferencias. Las tipografías y las librerías de diseño están
-  copiadas en nuestro propio servidor, así que abrir una página no le llega a nadie más.
+  copiadas en nuestro propio servidor.
 </p>
 <p>
-  <b>Con una excepción, y solo si la pides tú:</b> los videos de jugadas los sirven directamente los
+  <b>Sí contamos las visitas, y sin cookies.</b> Usamos {{ legal.ANALITICA }} justamente porque no
+  necesita ponerte ninguna ni guardar nada en tu navegador: no te asigna un identificador, así que en
+  tu próxima visita vuelves a ser alguien nuevo. Qué recibe exactamente está detallado en la
+  <a href="{% url 'legal' 'privacidad' %}">política de privacidad</a>. Si prefieres no aparecer en esa
+  cuenta, cualquier bloqueador de rastreadores lo impide y no perderás nada del sitio.
+</p>
+<p>
+  <b>Y una excepción más, solo si la pides tú:</b> los videos de jugadas los sirven directamente los
   servidores de las Grandes Ligas. Al pulsar el televisorcito de una jugada, tu navegador se conecta
   a MLB para traer ese clip, y ahí MLB ve tu dirección IP como en cualquier visita a un sitio suyo.
   Mientras no pulses ninguno, no hay conexión con ellos.
 </p>
-<p>La única excepción no te afecta si eres visitante:</p>
+<p>Y las únicas cookies que existen en todo el sitio no te afectan si eres visitante:</p>
 <ul>
   <li>
     <b>Sesión del equipo editorial.</b> Quien entra al sistema de publicación con su cuenta recibe

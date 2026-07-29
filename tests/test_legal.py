@@ -11,8 +11,11 @@ texto en una promesa que el repositorio puede sostener. Si se cae, la respuesta 
 relajarla: es actualizar `templates/legal/cookies.html` y montar el consentimiento.
 """
 
+from typing import Any
+
 import pytest
 from bs4 import BeautifulSoup
+from django.conf import settings
 from django.test import Client
 from django.urls import reverse
 from django.utils.html import escape
@@ -72,6 +75,13 @@ def test_el_sitio_publico_no_pide_nada_a_terceros(client: Client, ruta: str) -> 
     paz los `href` de los enlaces. Así no hay lista blanca que actualizar cada vez que el sitio
     enlace a algún sitio nuevo.
 
+    EL ÚNICO TERCERO PERMITIDO ES EL DECLARADO, y esa es la forma de la excepción que importa. Desde
+    el 2026-07-28 el sitio carga la analítica de visitas, así que esta prueba ya no puede exigir cero
+    cargas externas. Lo que NO se hizo fue relajarla a «externas las que sean»: se comprueba contra
+    `settings.ANALITICA_URL`, o sea contra el mismo ajuste que dibuja el script y que alimenta la CSP.
+    El día que entre un segundo tercero —un ad server, una fuente, un chat— esto se cae y obliga a
+    pasar por las páginas legales, que es exactamente para lo que existe.
+
     LO QUE ESTA PRUEBA NO VE, Y CONVIENE SABERLO
     --------------------------------------------
     Solo mira el HTML servido. El video de MLB no aparece acá por dos motivos a la vez: su URL viaja
@@ -94,8 +104,12 @@ def test_el_sitio_publico_no_pide_nada_a_terceros(client: Client, ruta: str) -> 
         for etiqueta in sopa.find_all("link", href=True)
         if "canonical" not in (etiqueta.get("rel") or [])
     ]
+    permitido = settings.ANALITICA_URL
     for url in cargas:
-        assert not str(url).startswith(("http://", "https://")), f"{ruta} carga {url}"
+        externa = str(url).startswith(("http://", "https://"))
+        if externa and permitido and str(url).startswith(permitido):
+            continue
+        assert not externa, f"{ruta} carga {url}, que no es el tercero declarado ({permitido or 'ninguno'})"
 
 
 @pytest.mark.django_db
@@ -220,3 +234,123 @@ def test_los_datos_del_responsable_estan_puestos() -> None:
     assert legal.RESPONSABLE and "@" in legal.CONTACTO
     for valor in (legal.RESPONSABLE, legal.CONTACTO, legal.ALOJAMIENTO):
         assert "TODO" not in valor and "XXX" not in valor
+
+
+# ── La analítica de visitas (Umami, 2026-07-28) ─────────────────────────────────────────────────
+#
+# Se eligió sin cookies a propósito, así que `test_el_sitio_publico_no_pone_cookies` sigue verde y la
+# política de cookies sigue siendo verdad. Lo que sí cambia es la de privacidad: la visita ahora se
+# le anuncia a alguien, y estas pruebas atan el script, la CSP y el documento que lo declara.
+
+ANALITICA = {"ANALITICA_URL": "https://cloud.umami.is", "ANALITICA_ID": "el-identificador"}
+
+
+@pytest.mark.django_db
+def test_sin_configurar_no_se_carga_ninguna_analitica(client: Client, settings: Any) -> None:
+    """El default APAGA, y ese es el que corre en desarrollo.
+
+    Es lo que evita que las visitas de dev ensucien las estadísticas del sitio real, y también el
+    default correcto en lo legal: medir a escondidas porque nadie configuró nada sería el fallo caro.
+    """
+    settings.ANALITICA_URL = ""
+    settings.ANALITICA_ID = ""
+
+    assert "script.js" not in client.get("/").content.decode()
+
+
+@pytest.mark.django_db
+def test_con_las_dos_puestas_el_script_sale_en_todas_las_paginas(client: Client, settings: Any) -> None:
+    """En `base.html` y no en la portada: si estuviera por vista, faltaría en la que nadie recordó."""
+    for clave, valor in ANALITICA.items():
+        setattr(settings, clave, valor)
+
+    for ruta in PUBLICAS:
+        html = client.get(ruta).content.decode()
+        assert 'src="https://cloud.umami.is/script.js"' in html, ruta
+        assert 'data-website-id="el-identificador"' in html, ruta
+
+
+@pytest.mark.django_db
+def test_a_medias_no_se_dibuja_nada(client: Client, settings: Any) -> None:
+    """Con el origen puesto y el identificador vacío, Umami carga y no cuenta nada.
+
+    Es un fallo silencioso —el script responde 200, la consola queda limpia y el panel vacío— así que
+    la decisión es de todo o nada, y vive en el procesador de contexto para que la plantilla no pueda
+    equivocarse.
+    """
+    settings.ANALITICA_URL = "https://cloud.umami.is"
+    settings.ANALITICA_ID = ""
+
+    assert "script.js" not in client.get("/").content.decode()
+
+
+def test_la_csp_deja_pasar_la_analitica_en_las_dos_directivas() -> None:
+    """`script-src` para poder cargarlo y `connect-src` porque después hace un POST a `/api/send`.
+
+    Con solo la primera el script carga, no protesta y no cuenta ni una visita: el navegador bloquea
+    el envío en silencio. Es el fallo más caro de diagnosticar de los dos, y por eso se prueban las
+    dos y no «que el dominio aparezca en algún sitio de la política».
+    """
+    politica = csp.publica("https://cloud.umami.is")
+
+    assert "script-src 'self' https://cloud.umami.is;" in politica
+    assert "connect-src 'self' https://cloud.umami.is;" in politica
+
+
+def test_sin_analitica_la_csp_se_queda_estricta() -> None:
+    """La política de siempre tiene que sobrevivir intacta cuando no hay nada configurado."""
+    politica = csp.publica()
+
+    assert "script-src 'self';" in politica
+    assert "connect-src 'self';" in politica
+    assert "umami" not in politica
+
+
+@pytest.mark.django_db
+def test_la_privacidad_nombra_a_quien_procesa_las_visitas(client: Client, settings: Any) -> None:
+    """Lo que la ley pide y lo que el código no puede inventar: el nombre de quien trata los datos.
+
+    Va contra las constantes de `core/legal.py` y no contra un texto escrito a mano en la plantilla,
+    porque el día que se cambie de herramienta hay que cambiar el documento en el mismo commit.
+    """
+    for clave, valor in ANALITICA.items():
+        setattr(settings, clave, valor)
+
+    html = client.get(reverse("legal", args=["privacidad"])).content.decode()
+
+    assert legal.ANALITICA in html
+    assert legal.ANALITICA_EMPRESA in html
+    # Una frase que no se parte en la plantilla: la primera versión buscaba «no rastrear» y fallaba
+    # por el salto de línea del HTML, no por faltar el texto.
+    assert "bloqueador de rastreadores" in html, "hay que decirle a la gente cómo quedarse fuera"
+
+
+@pytest.mark.django_db
+def test_la_pagina_de_cookies_sigue_diciendo_que_no_hay_ninguna(client: Client, settings: Any) -> None:
+    """La afirmación que sobrevivió a la analítica, y la razón de haber elegido esa herramienta.
+
+    Se comprueba CON la analítica encendida a propósito: con ella apagada esto pasaría solo y no
+    estaría probando lo que dice probar.
+    """
+    for clave, valor in ANALITICA.items():
+        setattr(settings, clave, valor)
+
+    respuesta = client.get(reverse("legal", args=["cookies"]))
+
+    assert "no recibes ninguna cookie" in respuesta.content.decode()
+    assert not respuesta.cookies
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ruta", PUBLICAS)
+def test_con_la_analitica_encendida_sigue_sin_haber_cookies(client: Client, settings: Any, ruta: str) -> None:
+    """Comprobado además leyendo `script.js` el 2026-07-28: cero `document.cookie`, cero `setItem`.
+
+    Esta prueba solo puede vigilar NUESTRO lado —que el servidor no mande ninguna—, así que la otra
+    mitad queda escrita en `core/legal.py`. Si Umami empezara a poner cookies un día, esto no se
+    entera: lo que avisaría es la revisión del script, que hay que rehacer si se cambia de proveedor.
+    """
+    for clave, valor in ANALITICA.items():
+        setattr(settings, clave, valor)
+
+    assert not client.get(ruta).cookies

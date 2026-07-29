@@ -59,21 +59,33 @@ from django.http import HttpRequest, HttpResponse
 VIDEO_MLB = "https://*.mlb.com"
 IMAGEN_MLB = "https://*.mlbstatic.com"
 
-# El sitio público. Todo del propio origen salvo los estilos inline y los videos — ver la cabecera.
-PUBLICA = (
-    "default-src 'self'; "
-    "script-src 'self'; "
-    "style-src 'self' 'unsafe-inline'; "
-    f"img-src 'self' data: {IMAGEN_MLB}; "
-    f"media-src 'self' {VIDEO_MLB}; "
-    "font-src 'self'; "
-    "connect-src 'self'; "
-    "frame-src 'none'; "
-    "object-src 'none'; "
-    "base-uri 'self'; "
-    "form-action 'self'; "
-    "frame-ancestors 'self'"
-)
+def publica(analitica: str = "") -> str:
+    """El sitio público. Todo del propio origen salvo los estilos inline y los videos.
+
+    `analitica` es el origen del servidor de estadísticas, o cadena vacía si no hay ninguno
+    configurado. Entra en DOS directivas y las dos hacen falta: `script-src` para poder cargar
+    `script.js`, y `connect-src` porque lo que ese script hace después es un `POST` a `/api/send`. Con
+    solo la primera, el script carga, no protesta y no cuenta ni una visita — el navegador bloquea el
+    envío en silencio, que es el fallo más caro de diagnosticar de los dos.
+
+    Es una función y no una constante porque el origen sale de `settings`, y en las pruebas hace falta
+    poder pedir la política con y sin analítica sin levantar el proceso de nuevo.
+    """
+    extra = f" {analitica}" if analitica else ""
+    return (
+        "default-src 'self'; "
+        f"script-src 'self'{extra}; "
+        "style-src 'self' 'unsafe-inline'; "
+        f"img-src 'self' data: {IMAGEN_MLB}; "
+        f"media-src 'self' {VIDEO_MLB}; "
+        "font-src 'self'; "
+        f"connect-src 'self'{extra}; "
+        "frame-src 'none'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "frame-ancestors 'self'"
+    )
 
 # El CMS y el admin de Django. Wagtail necesita inline en scripts y estilos, y `blob:` para las
 # previsualizaciones de imagen del cargador. Lo que SÍ se conserva es lo que corta los ataques
@@ -104,12 +116,18 @@ class ContentSecurityPolicyMiddleware:
     """
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        from django.conf import settings
+
         self.get_response = get_response
+        # Se arma UNA vez, al arrancar el proceso, y no en cada respuesta: el origen de la analítica
+        # sale de la configuración y la configuración no cambia mientras el proceso vive. Rearmar la
+        # cadena en cada petición sería trabajo por nada en la ruta más caliente del sitio.
+        self.publica = publica(settings.ANALITICA_URL if settings.ANALITICA_ID else "")
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         respuesta = self.get_response(request)
         # No se pisa una cabecera ya puesta: si alguna vista necesita la suya, manda ella.
         if "Content-Security-Policy" not in respuesta:
             es_admin = request.path.startswith(RUTAS_DE_ADMINISTRACION)
-            respuesta["Content-Security-Policy"] = ADMINISTRACION if es_admin else PUBLICA
+            respuesta["Content-Security-Policy"] = ADMINISTRACION if es_admin else self.publica
         return respuesta

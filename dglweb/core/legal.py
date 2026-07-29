@@ -45,7 +45,7 @@ DIAS_DE_REGISTROS = 30  # ← confirmar contra la configuración real del proxy
 # La fecha que sale en «última actualización». Se toca A MANO cuando cambia el texto, y por eso es
 # una constante y no `date.today()`: una fecha que se mueve sola diría que el aviso se revisó hoy
 # cuando lleva meses igual, que es exactamente la mentira que la fecha existe para evitar.
-ACTUALIZADO = date(2026, 7, 27)
+ACTUALIZADO = date(2026, 7, 28)
 
 # EL AVISO DE RETROSHEET. Esto no es cortesía: es la ÚNICA condición que pone Retrosheet a cambio de
 # dejar usar sus datos para lo que sea, incluso vendiéndolos. Su licencia dice, literalmente, que la
@@ -65,6 +65,30 @@ RETROSHEET = (
     "The information used here was obtained free of charge from and is copyrighted by Retrosheet. "
     'Interested parties may contact Retrosheet at "www.retrosheet.org".'
 )
+
+# LA ANALÍTICA DE VISITAS. Umami, elegida por el dueño (2026-07-28) explícitamente para no usar
+# Google Analytics.
+#
+# Vive acá y no solo en `settings` porque es una AFIRMACIÓN LEGAL además de un ajuste técnico: la
+# página de privacidad tiene que nombrar a quien procesa los datos, y ese nombre no puede quedar
+# escrito a mano en una plantilla donde nadie lo relacione con el script que lo produce.
+#
+# QUÉ RECOGE, comprobado leyendo `script.js` el 2026-07-28 y no la documentación del proveedor:
+# identificador del sitio, dominio, tamaño de pantalla, idioma del navegador, título de la página,
+# dirección visitada y de dónde se llegó. La IP no viaja en el mensaje, pero el servidor la ve por
+# fuerza — es quien recibe la petición — y con ella arma un identificador de sesión.
+#
+# NO PONE COOKIES NI GUARDA NADA en el navegador, y eso también está comprobado y no supuesto: en el
+# script no hay una sola llamada a `document.cookie` ni a `setItem`. Lo único que hace es LEER una
+# clave, `umami.disabled`, que es el interruptor manual para excluirse. Por eso la política de
+# cookies sigue diciendo la verdad y este sitio sigue sin necesitar un cartel de consentimiento.
+ANALITICA = "Umami"
+ANALITICA_EMPRESA = "Umami Software, Inc."  # ← confirmar en el contrato/página del proveedor
+# Se dice «fuera de la República Dominicana» y no un país concreto a propósito: que el proveedor no
+# es dominicano es seguro, en qué región guarda los datos NO lo sé, y un aviso legal que se inventa
+# una jurisdicción es peor que uno que no la nombra. Cuando se confirme en el panel de Umami, acá va
+# el país y en la plantilla la frase completa de transferencia internacional.
+ANALITICA_PAIS = ""  # ← confirmar en el panel de Umami
 
 # Las tres páginas, en el orden en que se enlazan en el pie. La vista y las pruebas salen de acá:
 # añadir una cuarta es añadir una línea y su plantilla, sin tocar `urls.py` ni la vista.

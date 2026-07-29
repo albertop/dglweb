@@ -34,7 +34,32 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 
 - [x] **Verificar que el usuario de Postgres pueda `CREATE EXTENSION unaccent`.** **HECHO (2026-07-28).** La crea el SUPERUSUARIO en el script de inicialización de la instancia, no la aplicación: el sitio se conecta con un rol propio (`dglweb`) que no puede instalar extensiones, y no le hace falta. Ver `/srv/postgres/init/10-dglweb.sh` en el VPS. El buscador de jugadores depende de esa extensión —es lo que hace que «nunez» encuentre a Núñez, y sin ella la mitad del maestro es inalcanzable—. No va en `requirements.txt` porque no es un paquete de Python: vive en la base. La migración `players/0005_unaccent.py` la crea sola al correr `migrate`, pero `CREATE EXTENSION` pide permisos elevados. En el Postgres actual funciona; en uno gestionado con usuario restringido, `migrate` fallaría ahí. **Comprobarlo antes de migrar**, no después.
 
-- [ ] **PRÓXIMO PASO — montar analítica de visitas, sin Google Analytics.** Pedido del dueño
+- [x] **Analítica de visitas con Umami.** **Hecha (2026-07-28)**, nube gratis. El sitio la dibuja
+      cuando `ANALITICA_URL` y `ANALITICA_ID` están puestas, y **solo entonces**: vacías en
+      desarrollo, así que dev no ensucia las estadísticas del sitio real.
+
+      Se comprobó `script.js` en vez de creerle a la documentación: **no pone cookies ni guarda nada**
+      —cero `document.cookie`, cero `setItem`— solo LEE `umami.disabled`, el interruptor de exclusión.
+      Por eso la política de cookies siguió siendo verdad y el sitio sigue sin necesitar cartel de
+      consentimiento. La de privacidad sí se reescribió: la visita ahora se le anuncia a alguien.
+
+      La prueba de terceros NO se relajó: exige que el único externo sea el declarado en
+      `settings.ANALITICA_URL`. El día que entre un ad server se cae y obliga a pasar por los
+      documentos legales.
+
+      **Falta ponerlo en producción** (va en el mismo despliegue, ver arriba):
+
+      ```
+      ANALITICA_URL=https://cloud.umami.is
+      ANALITICA_ID=bcd6507e-fac9-498b-9bff-1b42afad448f
+      ```
+
+      Y **dos datos que solo el dueño puede confirmar**, marcados `# ← confirmar` en `core/legal.py`:
+      la razón social exacta del proveedor y **en qué región guarda los datos**. Hoy el aviso dice
+      «fuera de la República Dominicana», que es seguro; el país concreto no lo pongo porque no lo sé,
+      y un aviso legal que se inventa una jurisdicción es peor que uno que no la nombra.
+
+- [ ] ~~**PRÓXIMO PASO — montar analítica de visitas, sin Google Analytics.**~~ Pedido del dueño
       (2026-07-28): una buena y gratis, al menos para tráfico bajo.
 
       **Recomendación: Umami.** Es código abierto, no usa cookies y no guarda datos personales, y

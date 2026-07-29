@@ -95,6 +95,8 @@ TEMPLATES = [
                 # `legal_paginas`, la columna «Legal» del pie. Constante del código: ni consulta ni
                 # caché, solo evita que el pie y la vista lleven dos listas que se van separando.
                 "dglweb.core.context_processors.paginas_legales",
+                # `analitica`, el script de Umami. Vacío en desarrollo, así que en dev no se dibuja.
+                "dglweb.core.context_processors.analitica",
             ],
         },
     },
@@ -219,6 +221,23 @@ PIPELINE_HEALTH_TOKEN = env.str("PIPELINE_HEALTH_TOKEN", default="")
 # lo que corresponde en desarrollo. El token es un secreto y sale de `.env`, nunca de acá.
 TELEGRAM_BOT_TOKEN = env.str("TELEGRAM_BOT_TOKEN", default="")
 TELEGRAM_CHAT_ID = env.str("TELEGRAM_CHAT_ID", default="")
+
+# --- Analítica de visitas (Umami) ---
+#
+# Se elige Umami y no Google Analytics por decisión del dueño (2026-07-28). Lo que importa acá arriba
+# es que son DOS variables y ninguna es un secreto: el identificador viaja en el HTML de todas las
+# páginas, así que cualquiera lo ve. No van en `.env` por confidencialidad, van por ENTORNO — que es
+# lo que evita que las visitas de desarrollo ensucien las estadísticas del sitio real.
+#
+# VACÍAS POR DEFECTO, y eso es el interruptor: sin las dos puestas no se dibuja ningún script y el
+# sitio no le pide nada a nadie. Un default que apaga es lo correcto acá porque el fallo silencioso
+# sería al revés — medir a escondidas cuando nadie lo configuró.
+#
+# `ANALITICA_URL` es el ORIGEN, sin `/script.js`: la ruta la pone la plantilla. Así el mismo ajuste
+# sirve para la nube (`https://cloud.umami.is`) y para una instancia propia, que es la salida
+# prevista. Y hay que declararlo también en la CSP — ver `core/csp.py`, que lo lee de acá.
+ANALITICA_URL = env.str("ANALITICA_URL", default="").rstrip("/")
+ANALITICA_ID = env.str("ANALITICA_ID", default="")
 
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"

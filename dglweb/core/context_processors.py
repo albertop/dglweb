@@ -39,3 +39,21 @@ def paginas_legales(request: HttpRequest) -> dict[str, Any]:
     from dglweb.core import legal
 
     return {"legal_paginas": legal.PAGINAS}
+
+
+def analitica(request: HttpRequest) -> dict[str, Any]:
+    """`analitica` — el origen y el identificador de Umami, o `None` si no hay analítica configurada.
+
+    Un diccionario y no dos variables sueltas para que la plantilla no pueda dibujar media etiqueta:
+    con el origen puesto y el identificador vacío, Umami carga y no cuenta nada. O están los dos o no
+    está ninguno, y eso se decide acá y no en un `{% if %}` con dos condiciones.
+
+    NO TOCA NADA: son dos ajustes leídos de memoria. Va de procesador de contexto y no de etiqueta de
+    plantilla porque el script vive en `base.html`, o sea en todas las páginas, y una etiqueta habría
+    que cargarla igual en todas.
+    """
+    from django.conf import settings
+
+    if not (settings.ANALITICA_URL and settings.ANALITICA_ID):
+        return {"analitica": None}
+    return {"analitica": {"url": settings.ANALITICA_URL, "id": settings.ANALITICA_ID}}
