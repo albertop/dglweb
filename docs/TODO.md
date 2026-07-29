@@ -68,7 +68,10 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
       prueba. *Matomo* pesa como para no querer administrarlo. *GoatCounter* es gratis y ligerísimo
       pero su plan libre es para uso NO comercial, y este sitio va a llevar publicidad.
 
-- [ ] **PRODUCCIÓN ESTÁ MUDA: no tiene las credenciales de Telegram.** Descubierto el 2026-07-28 al
+- [x] **PRODUCCIÓN ESTABA MUDA: no tenía las credenciales de Telegram.** **Corregido el 2026-07-28**
+      poniendo `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en el stack de Portainer —bloque
+      `environment:` del compose más las «Environment variables»— y comprobado con
+      `manage.py telegram_check --probar`: el mensaje llegó al grupo. Descubierto al
       montar el monitor. Ni `dglweb-web-live` ni `ofelia` tienen `TELEGRAM_BOT_TOKEN` ni
       `TELEGRAM_CHAT_ID`, así que **el refresco diario puede fallar todas las noches sin que nada lo
       diga**. Todos los avisos que se han recibido salieron de desarrollo.
