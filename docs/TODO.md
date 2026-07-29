@@ -984,7 +984,14 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
 
 ## Por decidir (traído del CONCEPT)
 
-- [ ] **Proveedor de ad server** (GAM vs AdButler/Broadstreet/AdSpeed vs construirlo acá).
+- [x] **Proveedor de ad server.** **DECIDIDO el 2026-07-28: Revive, autoalojado en el VPS.** Adcio
+  vende directo a sus clientes, así que no hace falta una red que llene inventario sino un servidor
+  que publique lo ya vendido. Revive resultó ser prácticamente la única opción libre viva —OpenX se
+  fue a lo programático y el resto son comerciales alojados—. Construirlo dentro del sitio quedó
+  descartado por el dueño, sin discusión.
+
+  El plan, las cinco decisiones de diseño y lo que hay que recordar al enchufarlo:
+  **`docs/ADSERVER.md`**. ~~(GAM vs AdButler/Broadstreet/AdSpeed vs construirlo acá).~~
 
   **El criterio cambió el 2026-07-27.** El dueño puso el dato que faltaba: esto es para República
   Dominicana, donde lo que paga AdSense es ínfimo. Así que **el relleno programático no es el
