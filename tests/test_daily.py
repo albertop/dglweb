@@ -121,6 +121,55 @@ def test_a_seven_inning_start_beats_a_clean_inning_of_relief(db: None) -> None:
 
 
 @pytest.mark.django_db
+def test_cada_boleto_cuesta_exactamente_dos_puntos(db: None) -> None:
+    """El término que FALTABA en la fórmula hasta el 2026-07-29 (SAB-01 del review v12).
+
+    Dos salidas idénticas salvo por los boletos. Sin el `-2*BB`, las dos daban lo mismo, y el sesgo
+    no era neutral: la fórmula favorecía justo a los lanzadores con peor control, que son los que
+    Game Score está pensado para castigar.
+
+    Se comprueba el VALOR EXACTO y no solo que uno sea menor: un `-1*BB` o un `-3*BB` también harían
+    pasar una comparación de «menor que», y entonces la prueba no diría que es la fórmula de Tango.
+    """
+    limpio = daily.game_score(_pitcheo(outsPitched=18, K=6, H=4, R=1))
+    con_tres = daily.game_score(_pitcheo(outsPitched=18, K=6, H=4, R=1, BB=3))
+
+    assert limpio - con_tres == 6.0
+
+
+@pytest.mark.django_db
+def test_los_boletos_intencionales_tambien_cuentan(db: None) -> None:
+    """Tango dice «walks», y `BB` en las estadísticas de MLB ya incluye los intencionales.
+
+    `valor_de_bateo()` sí los separa, y por eso conviene fijar acá que este NO lo hace: son dos
+    modelos distintos, y quien lea los dos podría creer que uno de los dos está mal.
+    """
+    sin_restar = daily.game_score(_pitcheo(outsPitched=18, BB=2, IBB=2))
+    igual = daily.game_score(_pitcheo(outsPitched=18, BB=2))
+
+    assert sin_restar == igual
+
+
+@pytest.mark.django_db
+def test_una_salida_corta_con_boletos_deja_de_publicarse(db: None) -> None:
+    """LA FILA REAL que se estaba publicando: `2.2 IP, 0 K, 1 ER` puntuaba 51 y salía en portada.
+
+    Ocho outs, un hit y una carrera: `40 + 16 - 2 - 3 = 51`, justo por encima del piso de 50. Dos
+    boletos la bajan a 47 y deja de publicarse, que es lo correcto — dos entradas y dos tercios con
+    dos boletos no es una actuación destacada de nadie.
+
+    Las dos afirmaciones son necesarias: sin la primera, la prueba pasaría también con la fórmula
+    vieja si los números elegidos ya estuvieran por debajo del piso por su cuenta. Es el error que
+    tuvo la primera versión de esta prueba.
+    """
+    sin_boletos = daily.game_score(_pitcheo(outsPitched=8, K=0, H=1, R=1))
+    con_boletos = daily.game_score(_pitcheo(outsPitched=8, K=0, H=1, R=1, BB=2))
+
+    assert sin_boletos >= daily.PISO_PITCHEO, "la fila real puntuaba 51 y por eso se publicaba"
+    assert con_boletos < daily.PISO_PITCHEO, "con los boletos contados ya no debería publicarse"
+
+
+@pytest.mark.django_db
 def test_a_home_run_costs_more_than_a_hit(db: None) -> None:
     con_jonron = daily.game_score(_pitcheo(outsPitched=18, H=3, R=1, HR=1))
     sin_jonron = daily.game_score(_pitcheo(outsPitched=18, H=3, R=1))
