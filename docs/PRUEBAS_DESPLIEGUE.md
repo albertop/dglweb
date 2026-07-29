@@ -91,8 +91,19 @@ Lo que lleva acumulado:
 - **Las dos bandas** para tarjetas de artículo sin foto (`static_data/banners/`). No son código: se
   suben desde el CMS cuando el editor las necesite, así que no dependen de este despliegue.
 
+- **La publicidad**, con las cuatro zonas de Revive conectadas a los trece huecos. **Necesita
+  `ADSERVER_URL` en el stack**, o los huecos siguen mostrando el recuadro de maqueta — que es el
+  comportamiento correcto, no un fallo.
+
 Al desplegar:
 
+- [ ] Añadir `ADSERVER_URL=https://promo.dominicanosengrandesligas.com` al stack (bloque
+      `environment:` **y** «Environment variables»).
+- [ ] En la portada, comprobar que los huecos son `<iframe>` y no el recuadro rayado.
+- [ ] **En la consola del navegador no puede haber un error de CSP.** Si lo hay, falta el dominio en
+      `frame-src` — y el hueco se queda vacío sin más pista que esa línea.
+- [ ] En el panel de Revive, **Estadísticas**: las impresiones tienen que empezar a subir. Si el
+      `iframe` carga pero no cuenta, mirar `mod_remoteip` antes que nada.
 - [ ] Pegar un enlace del sitio en Telegram y ver que la lámina sale **solo con el logotipo**. Ojo:
       Telegram y WhatsApp **cachean la lámina por URL durante días**, así que puede seguir saliendo la
       vieja un rato aunque el despliegue esté bien. No es un fallo.

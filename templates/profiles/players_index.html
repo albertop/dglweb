@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load players_extras %}
+{% load players_extras anuncios %}
 {% comment %}
 Índice de peloteros: buscador + la plantilla dominicana de la última temporada.
 
@@ -12,7 +12,7 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
 {% block content %}
 <div class="container my-4">
   {# A todo lo ancho y con su alto reservado, para que el título no salte cuando cargue. #}
-  <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
+  {% anuncio 1 728 90 "dgl-ad-leader mb-4" %}
 
   <h1 class="dgl-page-title">Jugadores</h1>
   <div class="dgl-lede mb-4">
@@ -96,6 +96,6 @@ el JS falla o está desactivado, la página sigue sirviendo para lo mismo.
   sobre el pie para siempre, tapando los enlaces legales.
 {% endcomment %}
 <div class="container">
-  <div class="dgl-ad dgl-ad-leader dgl-ad-pegajoso">Espacio publicitario · 728×90</div>
+  {% anuncio 2 728 90 "dgl-ad-leader dgl-ad-pegajoso" %}
 </div>
 {% endblock %}

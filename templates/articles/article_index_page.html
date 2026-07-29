@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load anuncios %}
 {% comment %}
 `/articulos/`. Ahora recorre lo publicado: hasta la Fase 5 eran tarjetas de muestra escritas a mano.
 
@@ -13,7 +14,7 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
 <main class="container my-4">
 
   {# Alto reservado desde el CSS: el título nace en su sitio y no baja cuando el anuncio carga. #}
-  <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
+  {% anuncio 1 728 90 "dgl-ad-leader mb-4" %}
 
   <h1 class="dgl-page-title">{{ page.title }}</h1>
   {% comment %}
@@ -201,6 +202,6 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
 
 
 
-  <div class="dgl-ad dgl-ad-leader mt-4">Espacio publicitario · 728×90</div>
+  {% anuncio 2 728 90 "dgl-ad-leader mt-4" %}
 </main>
 {% endblock %}

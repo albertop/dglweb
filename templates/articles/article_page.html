@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static wagtailcore_tags wagtailimages_tags %}
+{% load static wagtailcore_tags wagtailimages_tags anuncios %}
 {% comment %}
 Un artículo. La columna de texto es estrecha a propósito —`.dgl-articulo` la limita— porque una línea
 de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde cuál venía.
@@ -51,7 +51,7 @@ de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde c
 {% block content %}
 <main class="container my-4">
 
-  <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
+  {% anuncio 1 728 90 "dgl-ad-leader mb-4" %}
 
   <article class="dgl-articulo">
     <header class="mb-4">
@@ -88,6 +88,6 @@ de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde c
     {% endif %}
   </article>
 
-  <div class="dgl-ad dgl-ad-leader mt-4">Espacio publicitario · 728×90</div>
+  {% anuncio 2 728 90 "dgl-ad-leader mt-4" %}
 </main>
 {% endblock %}

@@ -25,8 +25,8 @@ LO QUE SÍ SE PERMITE, Y POR QUÉ
   quitarlos es mucho ruido para poco: un estilo inyectado puede afear la página, no ejecutar código.
   `script-src` es donde está el peligro de verdad, y ese va estricto.
 - `img-src` lleva `data:` por los SVG y los favicons incrustados.
-- `frame-src` es `'none'`: hoy el sitio no incrusta ningún vídeo ni mapa. Si algún día se incrusta uno,
-  esta es la línea que hay que abrir — y que falle ruidosamente es lo correcto.
+- `frame-src` lleva **el servidor de anuncios y nada más**. Estuvo en `'none'` hasta que entró la
+  publicidad; sigue siendo una lista de una.
 
 EL CMS VA APARTE
 ----------------
@@ -34,11 +34,17 @@ El admin de Wagtail usa scripts y estilos inline por todos lados, y no es códig
 sería romperlo en cada actualización de Wagtail. Recibe una política más floja, que sigue siendo
 mejor que ninguna. Nadie llega al CMS sin credenciales, así que la superficie es distinta.
 
-CUANDO ENTRE LA PUBLICIDAD
---------------------------
-Las etiquetas de un ad server cargan scripts de terceros, y con esto puesto no van a funcionar hasta
-que se añada su dominio acá. Eso NO es un estorbo: es la lista, en un solo archivo, de a quién se le
-permite ejecutar código en el sitio. Que haya que tocarla a mano es la garantía.
+LA PUBLICIDAD ENTRÓ POR LA PUERTA ESTRECHA (2026-07-28)
+-------------------------------------------------------
+La etiqueta que sugiere Revive es JavaScript **en línea** con `document.write`, y usarla habría
+costado dos cosas caras: `'unsafe-inline'` en `script-src` —que tira abajo esta protección entera— y
+permiso de ejecución para un PHP público en TODAS las páginas del sitio.
+
+Se usa el `iframe` en su lugar. El anuncio vive en su propio documento, **el servidor de anuncios no
+puede tocar el nuestro**, y la política solo tuvo que abrir `frame-src`. `script-src` sigue en
+`'self'` a secas. Ver `core/templatetags/anuncios.py`.
+
+Que haya que tocar este archivo a mano para dejar entrar a alguien es la garantía, no el estorbo.
 """
 
 from collections.abc import Callable
@@ -59,8 +65,9 @@ from django.http import HttpRequest, HttpResponse
 VIDEO_MLB = "https://*.mlb.com"
 IMAGEN_MLB = "https://*.mlbstatic.com"
 
-def publica(analitica: str = "") -> str:
-    """El sitio público. Todo del propio origen salvo los estilos inline y los videos.
+
+def publica(analitica: str = "", anuncios: str = "") -> str:
+    """El sitio público. Todo del propio origen salvo los estilos inline, los videos y los anuncios.
 
     `analitica` es el origen del servidor de estadísticas, o cadena vacía si no hay ninguno
     configurado. Entra en DOS directivas y las dos hacen falta: `script-src` para poder cargar
@@ -72,6 +79,17 @@ def publica(analitica: str = "") -> str:
     poder pedir la política con y sin analítica sin levantar el proceso de nuevo.
     """
     extra = f" {analitica}" if analitica else ""
+    # LOS ANUNCIOS ENTRAN POR `frame-src` Y NO POR `script-src`, y esa es la decisión de seguridad
+    # más importante de todo el montaje del servidor de anuncios.
+    #
+    # La etiqueta clásica de Revive es JavaScript en línea, y hacerla funcionar habría exigido dos
+    # cosas: `'unsafe-inline'` en `script-src` —que tira abajo la protección entera— y permiso de
+    # ejecución para un PHP público en TODAS nuestras páginas. Con el `iframe`, el anuncio vive en su
+    # propio documento y **el servidor de anuncios no puede tocar el nuestro**.
+    #
+    # `frame-src` estaba en `'none'` justamente porque el sitio no incrustaba nada. Ahora incrusta una
+    # cosa, y sigue siendo una lista de una. Ver `core/templatetags/anuncios.py`.
+    marcos = anuncios or "'none'"
     return (
         "default-src 'self'; "
         f"script-src 'self'{extra}; "
@@ -80,12 +98,13 @@ def publica(analitica: str = "") -> str:
         f"media-src 'self' {VIDEO_MLB}; "
         "font-src 'self'; "
         f"connect-src 'self'{extra}; "
-        "frame-src 'none'; "
+        f"frame-src {marcos}; "
         "object-src 'none'; "
         "base-uri 'self'; "
         "form-action 'self'; "
         "frame-ancestors 'self'"
     )
+
 
 # El CMS y el admin de Django. Wagtail necesita inline en scripts y estilos, y `blob:` para las
 # previsualizaciones de imagen del cargador. Lo que SÍ se conserva es lo que corta los ataques
@@ -122,7 +141,10 @@ class ContentSecurityPolicyMiddleware:
         # Se arma UNA vez, al arrancar el proceso, y no en cada respuesta: el origen de la analítica
         # sale de la configuración y la configuración no cambia mientras el proceso vive. Rearmar la
         # cadena en cada petición sería trabajo por nada en la ruta más caliente del sitio.
-        self.publica = publica(settings.ANALITICA_URL if settings.ANALITICA_ID else "")
+        self.publica = publica(
+            settings.ANALITICA_URL if settings.ANALITICA_ID else "",
+            settings.ADSERVER_URL,
+        )
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         respuesta = self.get_response(request)

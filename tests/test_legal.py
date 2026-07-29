@@ -11,6 +11,7 @@ texto en una promesa que el repositorio puede sostener. Si se cae, la respuesta 
 relajarla: es actualizar `templates/legal/cookies.html` y montar el consentimiento.
 """
 
+import re
 from typing import Any
 
 import pytest
@@ -354,3 +355,105 @@ def test_con_la_analitica_encendida_sigue_sin_haber_cookies(client: Client, sett
         setattr(settings, clave, valor)
 
     assert not client.get(ruta).cookies
+
+
+# ── El servidor de anuncios (Revive autoalojado, 2026-07-28) ────────────────────────────────────
+
+ANUNCIOS = "https://promo.dominicanosengrandesligas.com"
+
+
+def test_los_anuncios_entran_por_frame_src_y_no_por_script_src() -> None:
+    """La decisión de seguridad más importante del montaje del servidor de anuncios.
+
+    La etiqueta que sugiere Revive es JavaScript en línea, y usarla habría exigido `'unsafe-inline'`
+    en `script-src` —que anula la protección entera— más permiso de ejecución para un PHP público en
+    todas las páginas. Con el `iframe`, el anuncio vive en su propio documento.
+
+    Esta prueba es lo que impide que alguien «arregle» un anuncio que no carga abriendo `script-src`,
+    que es exactamente lo que uno hace cuando no sabe por qué falla.
+    """
+    politica = csp.publica(anuncios=ANUNCIOS)
+
+    assert f"frame-src {ANUNCIOS};" in politica
+    assert "script-src 'self';" in politica, "el servidor de anuncios NO ejecuta código en el sitio"
+
+
+def test_sin_anuncios_frame_src_vuelve_a_none() -> None:
+    """El sitio no incrusta nada más, así que sin publicidad la puerta queda cerrada del todo."""
+    assert "frame-src 'none';" in csp.publica()
+
+
+@pytest.mark.django_db
+def test_sin_configurar_los_huecos_siguen_siendo_maqueta(client: Client, settings: Any) -> None:
+    """El default apagado, que es el que corre en desarrollo.
+
+    Nadie quiere contar impresiones de sí mismo recargando la portada. Y el recuadro rayado mide lo
+    MISMO que el anuncio, así que el diseño se prueba con las medidas reales.
+    """
+    settings.ADSERVER_URL = ""
+
+    html = client.get("/").content.decode()
+
+    assert "Espacio publicitario" in html
+    assert "dgl-ad-marco" not in html
+
+
+@pytest.mark.django_db
+def test_configurado_dibuja_los_marcos_con_el_cb_delante(client: Client, settings: Any) -> None:
+    """`.php?zoneid=` es una regla de EasyList POR SÍ SOLA.
+
+    Medido el 2026-07-28: con `zoneid` de primer parámetro, cualquier navegador con un bloqueador
+    corta la petición **aunque la ruta esté renombrada**. Y a los clientes se les factura por
+    impresiones, así que cada una bloqueada es dinero que no se cobra.
+
+    Poniendo el anti-caché `cb` delante la regla no encaja. No es un truco: `cb` es el parámetro que
+    Revive usa en sus propias etiquetas.
+    """
+    settings.ADSERVER_URL = ANUNCIOS
+
+    html = client.get("/").content.decode()
+
+    assert f'src="{ANUNCIOS}/www/pauta/dgl-m.php?cb=' in html
+    assert "?zoneid=" not in html, "zoneid nunca puede ser el primer parámetro"
+    assert "Espacio publicitario" not in html
+
+
+def test_cada_hueco_pide_la_zona_que_le_toca(settings: Any) -> None:
+    """Si dos huecos apuntaran a la misma zona, Revive contaría dos impresiones de una y ninguna de
+    la otra — y el informe que se le pasa al anunciante diría que su banner salió donde no salió.
+
+    Se prueba la ETIQUETA y no el HTML de una página: la primera versión miraba la portada y exigía
+    tres zonas, pero el hueco lateral vive dentro del bloque del artículo destacado y en una base sin
+    artículos no se dibuja. La prueba dependía de datos sin decirlo, que es como se consiguen fallos
+    que solo aparecen en algunas ejecuciones.
+    """
+    from dglweb.core.templatetags.anuncios import anuncio
+
+    settings.ADSERVER_URL = ANUNCIOS
+
+    assert "zoneid=4" in anuncio(4, 300, 600)["url"]
+    assert anuncio(1, 728, 90)["url"] != anuncio(2, 728, 90)["url"]
+
+
+@pytest.mark.django_db
+def test_dos_huecos_de_la_misma_pagina_no_repiten_zona(client: Client, settings: Any) -> None:
+    """La cabecera y el pie de la portada son zonas distintas: la de arriba se ve sin bajar y vale
+    más, así que se venden por separado."""
+    settings.ADSERVER_URL = ANUNCIOS
+
+    zonas = re.findall(r"zoneid=(\d+)", client.get("/").content.decode())
+
+    assert zonas == sorted(set(zonas)), f"hay una zona repetida en la portada: {zonas}"
+    assert {"1", "2"} <= set(zonas)
+
+
+@pytest.mark.django_db
+def test_el_marco_no_se_puede_confundir_con_contenido(client: Client, settings: Any) -> None:
+    """`title="Publicidad"` es lo que oye quien navega con lector de pantalla.
+
+    Un marco sin título se anuncia como «marco», y quien no ve la página no tiene forma de saber que
+    puede saltárselo.
+    """
+    settings.ADSERVER_URL = ANUNCIOS
+
+    assert 'title="Publicidad"' in client.get("/").content.decode()

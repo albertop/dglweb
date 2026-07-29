@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static anuncios %}
 {% comment %}
 Página de líderes (/lideres/): boards del subconjunto dominicano desde dgl_leader. Mismo lenguaje
 visual que el perfil — tabs de grupo, pills de división, dgl-stats-table. Los controles navegan por
@@ -182,7 +182,7 @@ muda y el usuario vuelve a hacer clic.
     en vez de desaparecer en la primera pantalla.
   {% endcomment %}
   <div class="col-xl-3">
-    <div class="dgl-ad dgl-ad-torre dgl-ad-pegado">Espacio publicitario · 300×600</div>
+    {% anuncio 4 300 600 "dgl-ad-torre dgl-ad-pegado" %}
   </div>
   </div>
   {% endwith %}
@@ -197,7 +197,7 @@ muda y el usuario vuelve a hacer clic.
     y otra de tres— y así el anuncio no se mueve de sitio al cambiar de selección.
   {% endcomment %}
   <div class="container dgl-ad-pie">
-    <div class="dgl-ad dgl-ad-leader">Espacio publicitario · 728×90</div>
+    {% anuncio 2 728 90 "dgl-ad-leader" %}
   </div>
 {% endblock %}
 

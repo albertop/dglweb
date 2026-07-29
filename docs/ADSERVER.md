@@ -213,8 +213,33 @@ Se renombran durante la instalación. Es el único punto de este documento que n
       ficheros en disco y la sección `[file]` de `var/*.conf.php` declara esos mismos nombres. Si
       alguien toca uno sin el otro, Revive genera etiquetas hacia ficheros que no existen.
 
-- [ ] **6. Enganchar el sitio.** El dominio en `dglweb/core/csp.py` y la etiqueta en las zonas de
-      anuncio, que ya están maquetadas con alto fijo.
+- [x] **6. Enganchar el sitio.** **HECHO (2026-07-28)**, en la versión `1.2026.8` — **sin desplegar
+      todavía**. Cuatro zonas creadas en Revive y los **trece huecos** de las plantillas conectados con
+      una etiqueta, `{% anuncio zona ancho alto %}`.
+
+      **CON `iframe` Y NO CON LA ETIQUETA DE JAVASCRIPT DE REVIVE.** Es la decisión de seguridad más
+      importante del montaje. La etiqueta que ellos sugieren es JavaScript **en línea** con
+      `document.write`, y usarla habría costado dos cosas caras: `'unsafe-inline'` en `script-src`
+      —que tira abajo la CSP entera— y permiso de ejecución para un PHP público en TODAS las páginas.
+      Con el `iframe`, el anuncio vive en su propio documento, **el servidor de anuncios no puede
+      tocar el nuestro**, y la política solo tuvo que abrir `frame-src`. `script-src` sigue en
+      `'self'` a secas. Para banners de venta directa no se pierde nada.
+
+      **Cuatro zonas y no trece**, una por posición-y-medida: `Superior 728x90` (1), `Inferior
+      728x90` (2), `Portada lateral 300x250` (3) y `Líderes torre 300x600` (4). Cabecera y pie van
+      separadas porque **no valen lo mismo** —la de arriba se ve sin bajar— y mezclarlas obligaría a
+      cobrar igual por las dos. Vender «solo la portada» no necesita más zonas: se hace con los
+      conjuntos de reglas de entrega de Revive, limitando la campaña por URL.
+
+      **Apagado por defecto.** Sin `ADSERVER_URL` los huecos siguen mostrando el recuadro rayado de
+      maqueta, que mide exactamente lo mismo que el anuncio — así el diseño se prueba en desarrollo
+      con las medidas reales y nadie cuenta impresiones de sí mismo recargando la portada.
+
+      Al desplegar hay que añadir al stack, con las dos mitades de Portainer de siempre:
+
+      ```
+      ADSERVER_URL=https://promo.dominicanosengrandesligas.com
+      ```
 
 ---
 

@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static anuncios %}
 
 {% block nav_home %}active{% endblock %}
 {% block nav_home_current %}aria-current="page"{% endblock %}
 
 {% block content %}
 <div class="container mt-3">
-  <div class="dgl-ad dgl-ad-leader">Espacio publicitario · 728×90</div>
+  {% anuncio 1 728 90 "dgl-ad-leader" %}
 </div>
 
 <main class="container my-4">
@@ -50,7 +50,7 @@
     {% endcomment %}
     <div class="col-lg-8">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}</div>
     <div class="col-lg-4">
-      <div class="dgl-ad dgl-ad-alto h-100">Espacio publicitario · 300×250</div>
+      {% anuncio 3 300 250 "dgl-ad-alto h-100" %}
     </div>
   </div>
 
@@ -70,7 +70,7 @@
   {% endif %}
   {% endif %}
 
-  <div class="dgl-ad dgl-ad-leader">Espacio publicitario · 728×90</div>
+  {% anuncio 2 728 90 "dgl-ad-leader" %}
 </main>
 {% endblock %}
 

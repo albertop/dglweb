@@ -239,6 +239,20 @@ TELEGRAM_CHAT_ID = env.str("TELEGRAM_CHAT_ID", default="")
 ANALITICA_URL = env.str("ANALITICA_URL", default="").rstrip("/")
 ANALITICA_ID = env.str("ANALITICA_ID", default="")
 
+# --- Servidor de anuncios (Revive, autoalojado) ---
+#
+# El ORIGEN del servidor, sin barra final. Vacío = los huecos siguen mostrando el recuadro rayado de
+# maqueta, que es lo que corresponde en desarrollo: nadie quiere contar impresiones de sí mismo
+# recargando la portada.
+#
+# Va como variable y no escrito en las plantillas por el mismo motivo que la analítica, y además por
+# uno propio: el día que se cambie de servidor de anuncios, esto es una línea y no trece plantillas.
+#
+# Hay que declararlo también en la CSP — `core/csp.py` lo lee de acá — y en `frame-src`, no en
+# `script-src`: el anuncio va en un `iframe` y el servidor NUNCA ejecuta código en nuestras páginas.
+# Ver `docs/ADSERVER.md`.
+ADSERVER_URL = env.str("ADSERVER_URL", default="").rstrip("/")
+
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"
 

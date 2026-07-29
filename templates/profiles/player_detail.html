@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load stats_extras %}
+{% load stats_extras anuncios %}
 
 {% block title %}{{ player.full_name }} — Dominicanos en Grandes Ligas{% endblock %}
 
@@ -55,7 +55,7 @@
     —`.dgl-ad-leader` son 90px fijos— y no lo decide lo que se cargue dentro: así la ficha nace en su
     sitio definitivo y no baja de golpe cuando llega el anuncio.
   {% endcomment %}
-  <div class="dgl-ad dgl-ad-leader mb-4">Espacio publicitario · 728×90</div>
+  {% anuncio 1 728 90 "dgl-ad-leader mb-4" %}
 
   <!-- Hero -->
   <div class="dgl-player-hero p-4 mb-4">
@@ -150,6 +150,6 @@
     Anclado abajo, el anuncio cae siempre en el mismo sitio.
   {% endcomment %}
   <div class="container dgl-ad-pie">
-    <div class="dgl-ad dgl-ad-leader">Espacio publicitario · 728×90</div>
+    {% anuncio 2 728 90 "dgl-ad-leader" %}
   </div>
 {% endblock %}

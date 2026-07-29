@@ -1,0 +1,30 @@
+{% comment %}
+Un hueco de publicidad. Lo pone `{% anuncio zona ancho alto %}` — ver `core/templatetags/anuncios.py`
+para el porqué del `iframe` y del orden de los parámetros.
+
+DOS ESTADOS, Y LOS DOS OCUPAN EXACTAMENTE LO MISMO:
+
+  con servidor configurado   el `iframe` con el anuncio
+  sin configurar             el recuadro rayado de maqueta
+
+Que midan igual no es cosmético: si el hueco cambiara de alto al activar la publicidad, el diseño se
+probaría en desarrollo con unas medidas y saldría a producción con otras. El alto lo fija el CSS
+(`.dgl-ad-leader`, `.dgl-ad-rect`…) y acá no se toca.
+{% endcomment %}
+{% if url %}
+  {% comment %}
+    `loading="lazy"` para que un anuncio del pie no compita con el contenido que la persona vino a
+    leer. `scrolling="no"` y `frameborder="0"` son atributos viejos, pero es lo que entienden los
+    navegadores para marcos de publicidad y no cuestan nada.
+
+    SIN `sandbox`, y a propósito: el marco tiene que poder navegar al hacer clic —ese clic es lo que
+    se le factura al anunciante— y `sandbox` sin `allow-top-navigation-by-user-activation` lo
+    rompería. Quien sirve ese marco es nuestro propio servidor, no un tercero.
+  {% endcomment %}
+  <iframe class="dgl-ad-marco {{ clase }}" src="{{ url }}"
+          width="{{ ancho }}" height="{{ alto }}"
+          frameborder="0" scrolling="no" loading="lazy"
+          title="Publicidad"></iframe>
+{% else %}
+  <div class="dgl-ad {{ clase }}">Espacio publicitario · {{ ancho }}×{{ alto }}</div>
+{% endif %}
