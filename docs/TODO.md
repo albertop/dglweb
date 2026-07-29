@@ -1766,6 +1766,49 @@ falso). Los archivos viven en el volumen `dglweb_media`.
       son la base y `media/`. Con retención y, sobre todo, **una restauración probada**: un respaldo
       que nunca se restauró no se sabe si sirve.
 
+## nginx: dos límites mirados y medidos (2026-07-29)
+
+Los dos salieron de recuerdos del dueño de problemas pasados. **Los dos están lejísimos de molestar**,
+y queda la medición para que dentro de un año se sepa qué era «normal».
+
+- [ ] **`keepalive` hacia los contenedores.** Hoy `location /` no lleva `proxy_http_version 1.1`, así
+      que nginx habla HTTP/1.0 con el contenedor y **abre y cierra una conexión por petición**. Cada
+      cierre deja un socket en TIME_WAIT 60 segundos.
+
+      **Medido: 13 sockets en TIME_WAIT, con 28.231 puertos efímeros disponibles.** El 0,05%. Agotar
+      el rango exigiría **~470 conexiones nuevas por segundo sostenidas**.
+
+      Así que NO es un arreglo urgente. Pero el `keepalive` vale por sí mismo —quita el saludo TCP de
+      cada petición y el sitio responde algo más rápido—, así que se hace el día que se toque ese
+      archivo por otra cosa:
+
+      ```nginx
+      upstream dglweb { server 127.0.0.1:3004; keepalive 32; }
+      # y en el location:
+      proxy_pass http://dglweb;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";   # SIN esto, lo anterior no sirve de nada
+      ```
+
+      Ese `Connection ""` es la mitad que se olvida: el navegador manda `close` y, reenviado tal cual,
+      el contenedor cierra la conexión y el keepalive no existe.
+
+      **Y lo que NO se hace, escrito para que nadie lo reintente:** `net.ipv4.tcp_tw_recycle` fue
+      **eliminado del kernel** y antes rompía a cualquiera detrás de un NAT — el clásico «a algunos
+      usuarios les falla y no sabemos por qué». Y el tiempo de TIME_WAIT **no es configurable**: son
+      60 segundos fijos en el código del kernel.
+
+- [ ] **`worker_connections`.** Está en **768** (el defecto de Debian, más bajo que el de nginx) con
+      `worker_processes auto` sobre 4 núcleos: **3.072 conexiones**. En uso: **7**. El error
+      «worker_connections are not enough» no ha aparecido nunca.
+
+      Como en un proxy inverso cada visitante gasta DOS conexiones, eso son ~1.500 simultáneos.
+
+      Si algún día se sube, **hay que subir las dos cosas**: `worker_connections` dentro de `events` y
+      `worker_rlimit_nofile` en el contexto principal. El límite blando de descriptores es **1024**,
+      así que subir solo la primera por encima de ese número no cambia nada — el sistema corta antes.
+      Es el error clásico de esta configuración.
+
 ## Límites de peticiones en nginx — DESPUÉS DEL LANZAMIENTO
 
 **Decisión del dueño (2026-07-28): se hace cuando el sitio ya esté anunciado**, no antes. Hoy no hay
