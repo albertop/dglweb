@@ -224,4 +224,54 @@ RUN mkdir -p var www/images \
 # aparece solo — hay que borrar el volumen o crearlo a mano dentro del contenedor.
 RUN touch var/UPGRADE && chown www-data:www-data var/UPGRADE
 
+# ── LAS RUTAS DE ENTREGA, RENOMBRADAS ───────────────────────────────────────────────────────────
+#
+# Es lo único de todo este montaje que no admite atajo, y la razón es económica: **a los clientes se
+# les factura por impresiones**, y las rutas de fábrica de Revive llevan en las listas de bloqueo
+# desde los tiempos de OpenX. Cada impresión bloqueada es dinero que no se cobra.
+#
+# MEDIDO, no supuesto (2026-07-28, EasyList 84.414 reglas + EasyPrivacy 56.397): de las 17 rutas de
+# entrega, **16 estaban bloqueadas** y con estos nombres **ninguna lo está**.
+#
+# `www/delivery` → `www/pauta` Y NO `/pauta` A SECAS. Los scripts hacen
+# `define('MAX_PATH', __DIR__.'/../..')`, o sea que dan por hecho estar EXACTAMENTE dos niveles bajo
+# la raíz de instalación. Subirlos un nivel los rompe, y el error saldría en ejecución.
+#
+# Los nombres nuevos van con prefijo `dgl-` en vez de letras sueltas, y eso también se midió: los
+# nombres cortos tipo `s.php` o `a.js` aparecen como subcadena dentro de muchísimas reglas ajenas, así
+# que son MÁS arriesgados que los de fábrica, no menos.
+#
+# El fichero de configuración (`var/*.conf.php`, sección `[file]`) tiene que declarar exactamente
+# estos mismos nombres, o Revive generará etiquetas apuntando a ficheros que ya no existen. Ver
+# `docs/ADSERVER.md`.
+RUN set -eux; \
+    mv www/delivery www/pauta; \
+    cd www/pauta; \
+    mv ajs.php dgl-j.php; \
+    mv afr.php dgl-m.php; \
+    mv avw.php dgl-v.php; \
+    mv ck.php dgl-c.php; \
+    mv cl.php dgl-cf.php; \
+    mv lg.php dgl-r.php; \
+    mv ai.php dgl-i.php; \
+    mv apu.php dgl-p.php; \
+    mv al.php dgl-l.php; \
+    mv ac.php dgl-ac.php; \
+    mv asyncjs.php dgl-a.php; \
+    mv async.js dgl-a.js; \
+    mv asyncspc.php dgl-as.php; \
+    mv spcjs.php dgl-s.php; \
+    mv spc.php dgl-sp.php; \
+    mv fc.php dgl-fc.php; \
+    mv ax.php dgl-x.php; \
+    mv ti.php dgl-t.php; \
+    mv tjs.php dgl-tj.php; \
+    mv tv.php dgl-tv.php
+
+# Los atajos de OpenX que viven en la RAÍZ (`adjs.php`, `adframe.php`, `adview.php`…) no se
+# renombran: se BORRAN. Son puentes de compatibilidad con instalaciones de hace quince años, están
+# todos en las listas de bloqueo, y dejarlos sería mantener abierta la puerta que se acaba de cerrar
+# — cualquiera que copie una etiqueta vieja de internet volvería a servir por la ruta fichada.
+RUN rm -f adjs.php adframe.php adview.php adclick.php adimage.php adlayer.php adpopup.php adx.js
+
 EXPOSE 80
