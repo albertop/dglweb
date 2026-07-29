@@ -35,12 +35,21 @@ Nada a lo que se le confíe el JavaScript que ve cada visitante.
 
 Dos cosas, y ninguna es menor:
 
-1. **MariaDB en el VPS.** Revive no habla Postgres. Es un segundo motor de base de datos que
-   respaldar, actualizar y vigilar, y **rompe la regla explícita del dueño de tener una sola
-   instancia**. Se acepta porque no hay alternativa: ningún servidor de anuncios libre usa Postgres.
+1. ~~**MariaDB en el VPS.**~~ **DESCARTADO: Revive habla PostgreSQL.** La primera versión de este
+   documento decía que no, y era falso. Comprobado en su repositorio el 2026-07-28: **`pgsql` es un
+   eje de primera clase de su matriz de pruebas** —junto a `mysqli`, con su propio tipo de tablas y
+   probado contra PHP 8.1, 8.2, 8.3, 8.4 y 8.5— y `lib/OA/DB.php` tiene 17 referencias a pgsql.
+
+   O sea que **usa el Postgres que ya está**, con su propia base y su propio rol. Se cae el coste más
+   grande del plan y **la regla de un solo motor de base de datos sobrevive**.
+
+   La letra pequeña, dicha por honestidad: MySQL es el camino más transitado de Revive y Postgres el
+   menos. Pero «lo prueban en CI en cada versión de PHP» es una garantía muy distinta de «dicen que
+   se puede».
+
 2. **PHP público que hay que mantener parcheado.** Es la pieza **más expuesta** de todo el
    despliegue: sirve código a cada visitante en cada página. Viene del linaje de OpenX y arrastra
-   historial de avisos de seguridad. No es «instalar y olvidar».
+   historial de avisos de seguridad. No es «instalar y olvidar». **Este coste se queda.**
 
 ---
 
@@ -49,23 +58,24 @@ Dos cosas, y ninguna es menor:
 ```
 navegador ──► nginx (VPS)
                 │
-                ├── ads.dominicanosengrandesligas.com/<entrega>/   PÚBLICO
-                │        └──► revive (php-fpm) ──► mariadb
+                ├── promo.dominicanosengrandesligas.com/<entrega>/   PÚBLICO
+                │        └──► revive (php) ──► el Postgres que YA EXISTE
+                │                          (base y rol propios)
                 │
-                └── ads.dominicanosengrandesligas.com/<panel>/     LISTA BLANCA DE IP
-                         └──► revive (php-fpm)
+                └── promo.dominicanosengrandesligas.com/<panel>/     LISTA BLANCA DE IP
+                         └──► revive (php)
 ```
 
-Los dos contenedores atados a `127.0.0.1`, como todo lo demás del VPS: quien entra, entra por nginx.
+El contenedor atado a `127.0.0.1`, como todo lo demás del VPS: quien entra, entra por nginx.
 
 ### Decisión 1 — subdominio del sitio, no de `prdm0.com`
 
-`ads.dominicanosengrandesligas.com` y no un dominio aparte, **y no es cosmético**: es lo que hace
+`promo.dominicanosengrandesligas.com` y no un dominio aparte, **y no es cosmético**: es lo que hace
 que los anuncios sean *first-party*. Servidos desde otro dominio serían terceros para el navegador —
 justo lo que cortan los bloqueadores, y lo que obligaría a abrir la CSP de par en par y a reescribir
 la página de privacidad.
 
-### Decisión 2 — el subdominio se llama `ads`, y el nombre casi da igual
+### Decisión 2 — el subdominio se llama `promo`, y el nombre casi da igual
 
 **Esto empezó siendo un aviso equivocado y quedó corregido con datos.** La recomendación inicial fue
 evitar `ads`, `adserver`, `banner` y `doubleclick` porque «están en las listas de bloqueo por sí
@@ -122,12 +132,20 @@ Se renombran durante la instalación. Es el único punto de este documento que n
 
 ## Los pasos
 
-- [x] **1. Subdominio y DNS.** **HECHO (2026-07-28)**: `ads.dominicanosengrandesligas.com` → A → IP del VPS.
-- [ ] **2. La imagen.** `Dockerfile` propio: PHP oficial + el paquete de Revive, con las extensiones
-      que pide (`mysqli`, `gd`, `zip`, `openssl`).
-- [ ] **3. El stack en Portainer.** Revive + MariaDB, atados a `127.0.0.1`, con volumen para la base y
-      para las creatividades que suba el editor. Las variables por el patrón de siempre: declaradas en
-      `environment:` **y** con valor en las «Environment variables» del stack.
+- [x] **1. Subdominio y DNS.** **HECHO (2026-07-28)**: `promo.dominicanosengrandesligas.com` → A →
+      `107.175.69.53`. Comprobado que resuelve desde fuera.
+- [ ] **2. La imagen.** `Dockerfile` propio sobre **PHP 8.3** —la versión que fija su propio CI— con
+      las extensiones que ellos declaran: `ctype, curl, dom, fileinfo, iconv, intl, json, libxml,
+      mbstring, openssl, pgsql, simplexml, tokenizer, xml, xmlwriter, zip`.
+
+      **Se construye desde el código con Composer, no desde un paquete.** No hay adjuntos en las
+      publicaciones de GitHub y la descarga directa de su web responde 403, así que el tarball no se
+      puede automatizar — y compilar desde la etiqueta `v6.0.8` es más reproducible que un archivo
+      opaco.
+- [ ] **3. El stack en Portainer.** Un solo servicio, atado a `127.0.0.1`, con volumen para las
+      creatividades que suba Adcio. La base y el rol se crean en el Postgres existente. Las variables
+      por el patrón de siempre: declaradas en `environment:` **y** con valor en las «Environment
+      variables» del stack.
 - [ ] **4. nginx.** Certificado TLS para el subdominio y el `server` partido en dos por ruta.
 - [ ] **5. Instalación.** El asistente de Revive, el renombrado de rutas y la cuenta de administrador.
 - [ ] **6. Enganchar el sitio.** El dominio en `dglweb/core/csp.py` y la etiqueta en las zonas de
@@ -138,7 +156,7 @@ Se renombran durante la instalación. Es el único punto de este documento que n
 ## Lo que hay que recordar cuando esté funcionando
 
 **La CSP lo va a bloquear en silencio.** El sitio manda `script-src 'self'` desde el 2026-07-27, así
-que hasta que `ads.dominicanosengrandesligas.com` esté en esa lista, la etiqueta no carga: el hueco
+que hasta que `promo.dominicanosengrandesligas.com` esté en esa lista, la etiqueta no carga: el hueco
 se queda vacío y el único sitio donde se explica es la consola del navegador. Ver `core/csp.py`.
 
 **Las páginas legales cambian.** Hoy la política de cookies dice que quien solo navega no recibe
@@ -151,9 +169,10 @@ montar el cartel de consentimiento. Decidirlo a conciencia, no descubrirlo.
 `settings.ANALITICA_URL`. Al añadir el servidor de anuncios hay que ampliarla **nombrando el nuevo
 origen**, no relajándola: el día que entre un cuarto script, alguien tiene que enterarse.
 
-**El respaldo tiene que incluir MariaDB.** `deploy/respaldo.sh` guarda hoy Postgres y `media/`. Un
-servidor de anuncios sin sus campañas es un servidor vacío, y las creatividades que suba Adcio solo
-existen ahí.
+**El respaldo tiene que incluir la base de Revive y sus creatividades.** `deploy/respaldo.sh` vuelca
+hoy solo la base `dglweb`. Al vivir Revive en la misma instancia de Postgres, añadirla es una línea —
+pero hay que acordarse, porque un servidor de anuncios sin sus campañas es un servidor vacío, y las
+imágenes que suba Adcio solo existen en su volumen.
 
 **Y hay que mantenerlo al día.** Es la pieza más expuesta del VPS. Conviene vigilar las publicaciones
 de Revive y no dejar pasar las de seguridad.
