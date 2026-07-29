@@ -74,14 +74,21 @@
     </div>
 
     {% comment %}
-      `align-self-start` para que el carril no se estire si el contenido de al lado crece: el anuncio
-      mide 300×600 exactos y lo que sobre queda fuera, como aire de la fila.
+      CENTRADO VERTICAL, para que el carril quede entre los mismos márgenes que el bloque de
+      artículos. La columna se estira a lo que mida la fila —660px medidos— y el anuncio son 600
+      exactos, así que sobran 60: repartidos, quedan 30 arriba y 30 abajo.
 
-      `dgl-ad-pegado` lo deja pegajoso: el bloque editorial puede ser más alto que la pantalla, y así
-      el anuncio sigue a la vista mientras se baja en vez de perderse arriba.
+      `d-flex align-items-center` y no `align-self-center`: lo segundo centraría la COLUMNA dentro de
+      la fila y la columna mide lo mismo que el anuncio, así que no haría nada. Lo que hay que centrar
+      es el anuncio DENTRO de su columna, y para eso la columna tiene que estirarse y ser ella la que
+      reparta.
+
+      Se quitó `dgl-ad-pegado`, que prometía dejarlo pegajoso mientras se baja: con la columna del
+      alto del anuncio no había recorrido por donde deslizarse, así que no hacía nada. Un `sticky` sin
+      margen es solo una promesa en el HTML.
     {% endcomment %}
-    <div class="col-12 dgl-col-300 align-self-start">
-      {% anuncio 3 300 600 "dgl-ad-torre dgl-ad-pegado" %}
+    <div class="col-12 dgl-col-300 d-flex align-items-center">
+      {% anuncio 3 300 600 "dgl-ad-torre" %}
     </div>
   </div>
 
