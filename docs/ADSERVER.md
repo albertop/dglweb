@@ -160,7 +160,9 @@ Se renombran durante la instalación. Es el único punto de este documento que n
       bajar mucho con Alpine y `php-fpm`, pero eso pide un servidor web aparte dentro del contenedor.
       Para una pieza que se quiere aburrida y auditable, el disco es más barato que la complejidad.
 
-- [x] **3. El stack en Portainer.** **HECHO (2026-07-28)**: un solo servicio, atado a
+- [x] **3. El stack en Portainer.** **HECHO (2026-07-28)**, y el compose vive en
+      `deploy/adserver/stack.yml` — no solo dentro de Portainer, donde no se puede revisar ni
+      recuperar si alguien lo edita mal. Un solo servicio, atado a
       `127.0.0.1:8081`, en la red **`backend`** —la que ya comparten el sitio y Postgres— y llegando a
       la base por el nombre del contenedor, `postgres-postgres-1:5432`. Base y rol propios, creados en
       la instancia que ya existe.
@@ -208,6 +210,12 @@ Se renombran durante la instalación. Es el único punto de este documento que n
       Los atajos de OpenX de la raíz (`adjs.php`, `adframe.php`…) se **borran**, no se renombran: son
       puentes de compatibilidad de hace quince años, están todos fichados, y dejarlos mantendría
       abierta la puerta que se acababa de cerrar.
+
+      **El healthcheck del stack apuntaba a una ruta que este paso borró.** `/adjs.php` existía
+      cuando se escribió el compose y desapareció con el renombrado, así que Portainer marcaba el
+      contenedor como `unhealthy` con el servicio funcionando perfectamente. Corregido a
+      `/www/pauta/dgl-j.php`. Es la misma trampa de siempre: un cambio correcto rompe algo que lo
+      daba por sentado, y nada lo relaciona con su causa.
 
       **La imagen y el fichero de configuración tienen que cuadrar.** El `Dockerfile` renombra los
       ficheros en disco y la sección `[file]` de `var/*.conf.php` declara esos mismos nombres. Si

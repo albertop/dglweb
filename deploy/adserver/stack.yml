@@ -1,0 +1,76 @@
+# El stack de Revive para Portainer. Ver `docs/ADSERVER.md` para el montaje completo.
+#
+# Se pega tal cual en Portainer (Stacks → revive), con dos pares en «Environment variables»:
+#   PROXY nada — este stack no necesita variables. La configuración de Revive vive en su volumen
+#   `var/`, escrita por el instalador.
+#
+# Vive en el repositorio y no solo en Portainer a propósito: un stack que solo existe dentro de la
+# interfaz de Portainer no se puede revisar, ni comparar, ni recuperar si alguien lo edita mal.
+
+services:
+  revive:
+    # Imagen local, construida en el propio servidor desde `deploy/adserver/Dockerfile`.
+    image: revive:6.0.8
+    # NUNCA salir a buscarla. Sin esta línea, basta con que el interruptor «Re-pull image» de
+    # Portainer quede activado para que el despliegue falle con «pull access denied for revive» — un
+    # mensaje que manda a buscar credenciales de Docker Hub cuando el problema es otro.
+    pull_policy: never
+    container_name: revive
+    restart: unless-stopped
+
+    environment:
+      # Los informes que se le facturan a los clientes se agrupan por día. En UTC, las impresiones de
+      # después de las 8 de la noche caen en el día siguiente y las cifras no cuadran con lo que el
+      # anunciante ve en su calendario.
+      TZ: America/Santo_Domingo
+
+    ports:
+      # Atado a 127.0.0.1: quien entra, entra por nginx. Sin esto el panel de administración quedaría
+      # abierto en el puerto 8081 a todo internet.
+      - "127.0.0.1:8081:80"
+
+    networks:
+      # La red donde ya se hablan el sitio y Postgres. Revive llega a la base por el nombre del
+      # contenedor, `postgres-postgres-1:5432`.
+      - backend
+
+    volumes:
+      # `var/` guarda la configuración que generó el instalador, CON LA CONTRASEÑA DE POSTGRES
+      # dentro. Si se pierde, Revive vuelve a la pantalla de instalación con la base llena de
+      # campañas.
+      - revive_var:/var/www/html/var
+      # Las creatividades que sube Adcio. Es lo único irreemplazable del montaje: la base se puede
+      # reconstruir; un banner que el cliente mandó por correo hace ocho meses, no.
+      - revive_images:/var/www/html/www/images
+
+    healthcheck:
+      # APUNTA A UNA RUTA RENOMBRADA, y esa es la corrección. La primera versión pedía `/adjs.php`,
+      # que existía cuando se escribió y **se borró después** al sacar las rutas de entrega de las
+      # listas de bloqueo. Resultado: 404, `curl -f` falla, y Portainer marca el contenedor como
+      # `unhealthy` con el servicio funcionando perfectamente.
+      #
+      # Es la misma lección que el healthcheck del proxy de MLB: comprueba que ESTE contenedor sirve,
+      # no que sus dependencias estén sanas. Un `curl` a la entrega demuestra que Apache responde y
+      # que PHP ejecuta; si Postgres tuviera un hipo, este contenedor sigue estando bien y no tiene
+      # por qué marcarse enfermo.
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost/www/pauta/dgl-j.php?cb=1&zoneid=1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  backend:
+    # `external` porque la red ya existe y la comparten el sitio y Postgres. Sin esta línea, compose
+    # crearía una red nueva llamada `revive_backend` y Revive no vería la base de datos.
+    external: true
+
+volumes:
+  revive_var:
+  revive_images:
