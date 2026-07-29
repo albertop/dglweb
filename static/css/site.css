@@ -356,10 +356,16 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    formato de móvil (320×50 o 300×250) y enseñar una u otra por CSS. Queda pendiente y anotado. */
 .dgl-ad-marco { max-width: 100%; }
 
-/* `middle` y no la línea base de fábrica: un elemento *inline* reserva sitio para los trazos que
-   bajan de la línea —la cola de una «p»— y eso dejaba **6 px de aire** debajo de cada anuncio.
-   Medido en producción: el marco 90, su contenedor 96. Existía desde el principio. */
-.dgl-ad-marco { vertical-align: middle; }
+/* CENTRADO, Y ESO ES LO QUE SALVA LA COHERENCIA VISUAL DEL SITIO (2026-07-29).
+   Un anuncio tiene ancho FIJO —970, 728, 300— y las columnas del sitio son fluidas: el contenedor
+   mide 1140 o 1320 según la pantalla. Pegado a la izquierda, el sobrante se acumulaba todo a la
+   derecha —350px muertos en el banner de cabecera— y se leía como un elemento mal colocado.
+   Centrado, ese mismo sobrante queda repartido y se lee como margen.
+
+   `display: block` en vez de `inline`: además de permitir el `margin: auto`, quita de un golpe los
+   6px de aire que un elemento inline reserva debajo para los trazos que bajan de la línea. Medido en
+   producción antes de esto: el marco 90, su contenedor 96. */
+.dgl-ad-marco { display: block; margin-inline: auto; }
 
 /* EL ALTO DEL HUECO HORIZONTAL LO FIJA EL CSS, no el atributo del `iframe`, y por una razón concreta:
    el tamaño del anuncio lo elige `anuncios.js` cuando la página ya cargó. Si el alto viniera del
@@ -371,6 +377,19 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 @media (max-width: 991.98px) {
   .dgl-ad-leader { height: 50px; }
 }
+/* LA COLUMNA DE UN RECTÁNGULO DE 300, que mide lo que el anuncio y no lo que la rejilla.
+
+   Un `col-lg-4` sobre el contenedor de 1320 da 440px de ancho, y el anuncio 300: sobraban 140px a un
+   lado, y con el artículo de al lado ocupando su columna entera la fila se veía descuadrada. Es el
+   mismo defecto que tenía la torre de líderes, que entregaba 261px diciendo 300.
+
+   Fijando la base de la columna, el artículo se queda con TODO el resto y no hay hueco entre los dos.
+   La canaleta se suma porque las columnas de Bootstrap llevan `box-sizing: border-box` y su relleno
+   saldría del mismo ancho. */
+@media (min-width: 992px) {
+  .dgl-col-rect { flex: 0 0 auto; width: calc(300px + var(--bs-gutter-x, 1.5rem)); }
+}
+
 /* Los dos rectángulos de la portada. 250px EXACTOS, y ahí está la corrección del 2026-07-29.
    Existía además `.dgl-ad-alto`, con `min-height: 250px`, que junto a `h-100` estiraba el marco al
    alto de la tarjeta de artículo (300px). La intención era que el hueco midiera siempre lo mismo,

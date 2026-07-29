@@ -59,8 +59,8 @@
       `align-self-start` es lo que impide que la columna crezca al alto de la fila y arrastre al
       marco otra vez.
     {% endcomment %}
-    <div class="col-lg-8">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}</div>
-    <div class="col-lg-4 align-self-start">
+    <div class="col-12 col-lg">{% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}</div>
+    <div class="col-12 dgl-col-rect align-self-start">
       {% anuncio 3 300 250 "dgl-ad-rect" %}
     </div>
   </div>
@@ -91,7 +91,7 @@
       {% for otro in articulos %}
         <div class="col-md-6 col-lg-4">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
       {% endfor %}
-      <div class="col-md-6 col-lg-4 align-self-start ms-lg-auto">
+      <div class="col-md-6 dgl-col-rect align-self-start ms-lg-auto">
         {# 300×250 exactos, sin estirar — ver el comentario de la fila del destacado. #}
         {% anuncio 5 300 250 "dgl-ad-rect" %}
       </div>

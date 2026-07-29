@@ -1,54 +1,87 @@
 #!/bin/bash
-# Saca los estáticos del contenedor para que los sirva nginx.
+# Saca los estáticos para que los sirva nginx.
+#
+#   ./deploy/estaticos.sh 1.2026.9     ANTES de cambiar el stack  ← la forma buena
+#   ./deploy/estaticos.sh              del contenedor que esté corriendo (deja una ventana, ver abajo)
+#
 #
 # POR QUÉ, CON NÚMEROS
 # --------------------
-# Medido el 2026-07-29: la portada referencia **210 recursos estáticos y 164 los servía gunicorn**,
-# vía WhiteNoise. Gunicorn corre con workers SÍNCRONOS: cada uno atiende una petición a la vez, así
-# que una sola visita eran 164 peticiones peleándose por tres huecos.
+# Medido el 2026-07-29: la portada referencia 210 recursos estáticos y 164 los servía gunicorn vía
+# WhiteNoise. Gunicorn atiende una petición por hilo, así que servir archivos le robaba capacidad a lo
+# único que solo él puede hacer: generar HTML. Pasándolos a nginx se sirven desde disco y comprimidos.
 #
-# No es un problema de velocidad —un archivo se sirve rápido de cualquier forma— sino de
-# CONCURRENCIA: mientras un worker manda un SVG de 2 KB, no está generando HTML para nadie. Con
-# tráfico de lanzamiento, eso es lo que tumba el sitio.
 #
-# Pasándolos a nginx, gunicorn se queda solo con lo único que solo él puede hacer.
+# POR QUÉ SE COPIA DE LA IMAGEN Y NO DEL CONTENEDOR — LA CORRECCIÓN DEL 2026-07-29
+# --------------------------------------------------------------------------------
+# La primera versión copiaba del contenedor corriendo, así que HABÍA QUE HACERLO DESPUÉS de recrearlo.
+# Eso abre una ventana de segundos en la que el contenedor nuevo ya sirve el HTML nuevo —con los nombres
+# con hash nuevos— y los archivos todavía no están en disco. Quien entre ahí ve el sitio sin estilos.
 #
-# NO SE BORRA NADA, Y ESA ES LA DECISIÓN QUE EVITA UN SITIO SIN ESTILOS
-# ---------------------------------------------------------------------
-# WhiteNoise nombra cada archivo con un hash de su contenido (`site.b6c97e5b013a.css`), así que dos
-# versiones del sitio conviven sin pisarse. Si esto borrara lo viejo antes de copiar lo nuevo, habría
-# una ventana —y peor: los navegadores que ya tienen cargada la página anterior seguirían pidiendo
-# los archivos de esa versión durante minutos, y recibirían 404.
+# Ese día costó una avería de verdad: el bloque `/static/` de nginx llevaba `always` en su `add_header`,
+# así que **el 404 salía con caché de un año y marcado como inmutable**. El navegador de quien entrara
+# en la ventana no volvía a pedir el CSS jamás. Lo del `always` ya está arreglado, pero la ventana
+# seguía ahí — y encima este paso era el fácil de olvidar, porque iba al final.
 #
-# Copiar encima sin borrar significa que el HTML viejo y el nuevo encuentran lo suyo, siempre. El
-# precio es que la carpeta crece unos megas por despliegue. Se limpia a mano, en frío, cuando moleste.
+# `docker create` hace un contenedor SIN ARRANCARLO, y de ahí se copia igual. Así los archivos nuevos
+# están en disco ANTES de que exista el HTML que los pide.
 #
-# ORDEN: DESPUÉS de recrear el contenedor
-# ----------------------------------------
-# Al revés, se copiarían los estáticos de la versión anterior y el HTML nuevo pediría hashes que no
-# existen — el sitio sale sin hojas de estilo y sin JavaScript, y en la consola solo hay 404.
+# Y copiar antes es seguro porque ESTE SCRIPT NUNCA BORRA: los nombres llevan un hash del contenido, así
+# que las dos versiones conviven. El HTML viejo sigue encontrando lo suyo y el nuevo ya tiene lo suyo
+# esperando. La carpeta crece unos megas por despliegue; se limpia a mano, en frío, cuando moleste.
 
 set -euo pipefail
 
-CONTENEDOR="${CONTENEDOR:-dglweb-web-live}"
 DESTINO="${DESTINO:-/srv/dglweb-datos/static}"
+IMAGEN="${1:-}"
+TEMPORAL=""
+MANIFIESTO=$(mktemp)
 
-if ! docker ps --format '{{.Names}}' | grep -qx "$CONTENEDOR"; then
-    echo "Error: el contenedor $CONTENEDOR no está corriendo."
-    exit 1
+limpiar() {
+    [ -n "$TEMPORAL" ] && docker rm -f "$TEMPORAL" >/dev/null 2>&1 || true
+    rm -f "$MANIFIESTO"
+}
+trap limpiar EXIT
+
+if [ -n "$IMAGEN" ]; then
+    # Se acepta «1.2026.9» y «dglweb:1.2026.9»: el prefijo se pone solo si falta.
+    case "$IMAGEN" in *:*) ;; *) IMAGEN="dglweb:$IMAGEN" ;; esac
+    if ! docker image inspect "$IMAGEN" >/dev/null 2>&1; then
+        echo "Error: la imagen $IMAGEN no existe. Constrúyela primero con ./deploy_dglweb_image.sh"
+        exit 1
+    fi
+    TEMPORAL="estaticos-$$"
+    docker create --name "$TEMPORAL" "$IMAGEN" >/dev/null
+    ORIGEN="$TEMPORAL"
+    VERSION="${IMAGEN#*:}"
+    echo "Copiando de la IMAGEN $IMAGEN, sin arrancarla."
+else
+    ORIGEN="${CONTENEDOR:-dglweb-web-live}"
+    if ! docker ps --format '{{.Names}}' | grep -qx "$ORIGEN"; then
+        echo "Error: el contenedor $ORIGEN no está corriendo y no se indicó una imagen."
+        echo "Uso recomendado:  ./deploy/estaticos.sh <version>   (antes de cambiar el stack)"
+        exit 1
+    fi
+    VERSION=$(docker exec "$ORIGEN" python -c \
+        "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('/app/pyproject.toml').read_text())['project']['version'])" \
+        2>/dev/null || echo "?")
+    echo "AVISO: se copia del contenedor corriendo. Si el stack ya se cambió, hubo una ventana en la que"
+    echo "       el sitio se sirvió sin estilos. Para evitarla:  ./deploy/estaticos.sh <version>"
 fi
 
-# La versión que se está copiando, para que el registro diga qué se desplegó y no solo cuándo.
-VERSION=$(docker exec "$CONTENEDOR" python -c \
-    "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('/app/pyproject.toml').read_text())['project']['version'])" \
-    2>/dev/null || echo "?")
+# EL MANIFIESTO PRIMERO, y es lo que hace verificable todo lo demás. WhiteNoise deja en
+# `staticfiles.json` el nombre con hash de cada archivo, o sea EXACTAMENTE lo que el HTML va a pedir.
+# Sacándolo aparte se puede comprobar que la copia trajo los archivos de ESTA versión, en vez de dar por
+# bueno que «hay un css» —que es lo que hacía la comprobación anterior, y que pasaba en verde con los
+# archivos de la versión de antes en disco.
+docker cp "$ORIGEN:/app/staticfiles/staticfiles.json" "$MANIFIESTO" >/dev/null
 
 mkdir -p "$DESTINO"
-docker cp "$CONTENEDOR:/app/staticfiles/." "$DESTINO/"
+docker cp "$ORIGEN:/app/staticfiles/." "$DESTINO/"
 
-# Los archivos salen del contenedor con SU dueño, y en este VPS Docker remapea usuarios: acaban
-# perteneciendo a un uid alto que nginx —que corre como `www-data`— no es. Lo que hace que funcione
-# no es el dueño sino los permisos de lectura para todos.
+# Los archivos salen con SU dueño, y en este VPS Docker remapea usuarios: acaban perteneciendo a un uid
+# alto que nginx —que corre como `www-data`— no es. Lo que hace que funcione no es el dueño sino los
+# permisos de lectura para todos.
 #
 # `a+rX` con X mayúscula: da ejecución solo a los DIRECTORIOS, que es lo que hace falta para
 # atravesarlos. Con `x` minúscula marcaría como ejecutable cada CSS y cada imagen.
@@ -58,11 +91,24 @@ ARCHIVOS=$(find "$DESTINO" -type f | wc -l)
 PESO=$(du -sh "$DESTINO" | cut -f1)
 echo "$(date '+%F %T')  estáticos de la $VERSION en $DESTINO — $ARCHIVOS archivos, $PESO"
 
-# La comprobación que importa: que el CSS que pide el HTML de AHORA esté en disco. Si esto falla, el
-# sitio va a salir sin estilos y conviene enterarse acá y no por una captura de pantalla.
-CSS=$(docker exec "$CONTENEDOR" sh -c 'ls /app/staticfiles/css/site.*.css 2>/dev/null | head -1' || true)
-if [ -n "$CSS" ] && [ ! -f "$DESTINO/${CSS#/app/staticfiles/}" ]; then
-    echo "AVISO: no se copió $CSS — el sitio se va a ver sin estilos."
-    exit 1
-fi
-echo "Comprobado: el CSS con hash está en disco."
+# LA COMPROBACIÓN QUE IMPORTA: que lo que el HTML de ESTA versión va a pedir esté en disco. Se miran el
+# CSS y los dos JavaScript sin los que el sitio no funciona — incluido `anuncios.js`, que es el que le
+# pone el `src` a los huecos de publicidad: sin él no sale ni un banner horizontal.
+FALTAN=0
+for CLAVE in css/site.css js/site.js js/anuncios.js; do
+    CON_HASH=$(python3 -c "
+import json
+print(json.load(open('$MANIFIESTO')).get('paths', {}).get('$CLAVE', ''))
+" 2>/dev/null || true)
+    if [ -z "$CON_HASH" ]; then
+        echo "AVISO: $CLAVE no aparece en el manifiesto de la imagen."
+        FALTAN=1
+    elif [ ! -f "$DESTINO/$CON_HASH" ]; then
+        echo "AVISO: no se copió $CON_HASH (de $CLAVE) — el sitio saldría roto."
+        FALTAN=1
+    else
+        echo "  ok  $CLAVE -> $CON_HASH"
+    fi
+done
+[ "$FALTAN" -eq 0 ] || exit 1
+echo "Comprobado contra el manifiesto: lo que el HTML va a pedir está en disco."
