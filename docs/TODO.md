@@ -545,6 +545,25 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
 
       La política va SOLO en `restart:`. Declararla en dos sitios es tener una que miente.
 
+      **Y el arreglo se hizo en el repositorio del proxy, no a mano en cada stack.** Los compose
+      desplegados llevaban meses separándose del `docker-compose.yml` del repositorio, que ya estaba
+      bien: sin `restart_policy`, con el healthcheck correcto y con cosas que a los desplegados les
+      faltaban — tope de registros (los suyos podían llenar el disco), `no-new-privileges`,
+      `cap_drop: ALL` y un `PROXY_API_KEY` obligatorio que hace fallar el arranque con mensaje claro.
+
+      Se repuso el archivo entero en las dos máquinas en vez de parchear una línea. Comprobado en las
+      dos: `unless-stopped (máx 0)`, healthcheck a `/live`, registros topados y capacidades quitadas.
+
+      **Dos correcciones más en ese repositorio** (`~/Documents/DGLv2/mlb-api`, commits locales sin
+      subir):
+
+      - El `healthcheck` del contenedor apuntaba a `/health`, que **va a la API de MLB en cada
+        llamada**: 2.880 peticiones diarias, y un corte de MLB marcaba como enfermo un proxy que
+        estaba perfecto sirviendo desde caché. El propio código ya decía que ahí va `/live`.
+      - `/health` ahora reutiliza su sondeo 30 segundos (`HEALTH_UPSTREAM_TTL`). El fallo también se
+        recuerda, y a propósito: durante una caída cada sondeo cuesta 5 segundos de espera, que es
+        justo cuando no se quiere repetir. 288 pruebas del proxy en verde.
+
       **El diagnóstico completo, porque el síntoma engaña.** El refresco diario de dev falló entero
       —siete pasos, todos con `ConnectError`— y el proxy llevaba horas caído. Era la segunda vez «sin
       explicación». No lo era:
