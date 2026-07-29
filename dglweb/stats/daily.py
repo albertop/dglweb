@@ -375,6 +375,26 @@ def _pasan_el_piso() -> Any:  # noqa: ANN401 — es un `Q` de Django, tipado com
     )
 
 
+def _publicables() -> Any:  # noqa: ANN401 — un `QuerySet[DailyStandout]`, sin importarlo arriba
+    """Los destacados que PUEDEN salir al público: pasan el piso **y** su jugador no está oculto.
+
+    Por qué las dos condiciones juntas y no la visibilidad suelta en cada consulta: por lo mismo que
+    dice `_pasan_el_piso()`, y acá muerde igual de fuerte. Las tres consultas de `portada()` tienen
+    que estar de acuerdo sobre qué existe. Si la fecha de referencia se eligiera contando a un
+    jugador oculto y las filas lo excluyeran, el resultado sería **un widget con el título de una
+    jornada y el cuerpo vacío** — que es exactamente el fallo contra el que se escribió aquel
+    comentario.
+
+    Y va acá al leer, no al construir, a propósito: el dato crudo tiene que seguir entrando —así
+    reactivar a un jugador es instantáneo y no exige recalcular nada— y lo que obedece al contrato de
+    «deshabilitado» es la publicación. Es la misma regla de `players/visibility.py`.
+    """
+    from dglweb.players.visibility import only_visible
+    from dglweb.stats.models import DailyStandout
+
+    return only_visible(DailyStandout.objects.filter(_pasan_el_piso()))
+
+
 def equipos_terminados(pizarra: Any, dia: date) -> set[str]:  # noqa: ANN401 — `scoreboard.Pizarra`
     """Los equipos cuyos juegos de `dia` están TODOS terminados.
 
@@ -414,8 +434,6 @@ def portada() -> dict[str, Any] | None:
     hueco. Un widget vacío se lee como un sitio roto.
     """
 
-    from dglweb.stats.models import DailyStandout
-
     # LA ÚLTIMA JORNADA CON DESTACADOS, Y LA DE ANTES DE ELLA. Decisión del dueño (2026-07-27): el
     # «hoy» del widget es la fecha más alta que tengamos de un juego terminado, y el «ayer» es esa
     # fecha menos uno. No el calendario.
@@ -427,22 +445,18 @@ def portada() -> dict[str, Any] | None:
     #
     # Anclando en la referencia, «Ayer» significa siempre lo mismo: el día anterior a la jornada que
     # se está enseñando. Es la única lectura que no obliga al lector a saber qué día es hoy.
-    referencia = (
-        DailyStandout.objects.filter(_pasan_el_piso()).order_by("-fecha").values_list("fecha", flat=True).first()
-    )
+    referencia = _publicables().order_by("-fecha").values_list("fecha", flat=True).first()
     if referencia is None:
         return None
 
     anterior = referencia - timedelta(days=1)
     fechas = [referencia]
-    if DailyStandout.objects.filter(_pasan_el_piso(), fecha=anterior).exists():
+    if _publicables().filter(fecha=anterior).exists():
         fechas.append(anterior)
 
     from dglweb.stats import videos
 
-    elegidas = (
-        DailyStandout.objects.filter(_pasan_el_piso(), fecha__in=fechas).select_related("player").order_by("-fecha")
-    )
+    elegidas = _publicables().filter(fecha__in=fechas).select_related("player").order_by("-fecha")
 
     # El video se resuelve acá y no en la plantilla: una sola consulta por fecha, y así la plantilla
     # no tiene que saber que existe una tabla de videos.

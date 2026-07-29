@@ -45,6 +45,7 @@ from django.utils import timezone
 
 from dglweb.mlb.client import MlbProxyClient
 from dglweb.players.models import Player
+from dglweb.players.visibility import only_visible
 from dglweb.stats.models import DomPlayer, RosterMove
 
 logger = logging.getLogger(__name__)
@@ -306,7 +307,12 @@ def portada() -> list[RosterMove]:
     **Solo los que se pudieron traducir.** Lo que ningún patrón reconoció no sale: el sitio no enseña
     inglés.
     """
-    publicables = RosterMove.objects.filter(player__isnull=False).exclude(texto="")
+    # `only_visible` saca a los jugadores dados de baja. Va sobre `publicables` y no sobre la consulta
+    # final a propósito: de acá sale también la FECHA de referencia, y si esa fecha se eligiera
+    # contando a un jugador oculto, el cintillo podría quedarse vacío teniendo material del día
+    # anterior. Es el mismo cuidado que ya se tiene con las firmas de ligas menores, dos líneas más
+    # abajo.
+    publicables = only_visible(RosterMove.objects.filter(player__isnull=False).exclude(texto=""))
 
     # La referencia sale de los movimientos PUBLICABLES, no de todos. Si el día más reciente solo
     # trajera firmas de ligas menores —que se guardan pero no salen— esa fecha marcaría la ventana y

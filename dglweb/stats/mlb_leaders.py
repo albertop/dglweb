@@ -210,10 +210,17 @@ def portada(metricas: int = 5) -> dict[str, Any] | None:
     Devuelve `None` con la tabla vacía —temporada sin empezar, o el refresco horario nunca corrió—
     para que la plantilla no dibuje un panel hueco.
     """
+    from dglweb.players.visibility import only_visible
     from dglweb.stats.models import MlbLeader
 
+    # `only_visible` saca a los jugadores dados de baja. Va acá al leer y no al construir: el dato
+    # crudo debe seguir entrando, así reactivar a alguien es instantáneo y no exige otro refresco.
+    #
+    # Y acá **no hay que renumerar nada**, al revés que en `dgl_leader`. Ese `rank` no lo calculamos
+    # nosotros: viene del API de MLB y es el puesto absoluto en las mayores. Si el 5.º queda oculto,
+    # el widget enseña «2.º y 7.º» y las dos cosas siguen siendo ciertas.
     filas = (
-        MlbLeader.objects.filter(metric__visible_en_widget_lideres=True)
+        only_visible(MlbLeader.objects.filter(metric__visible_en_widget_lideres=True))
         .select_related("metric", "player")
         .order_by("metric__stat_group", "metric__sort_order", "rank", "player__lastname_1")
     )
