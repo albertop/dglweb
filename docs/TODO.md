@@ -32,9 +32,6 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
         `/articulos/` se dibujaba como el destacado.
       - **1.2026.7** — la analítica de Umami. **Hay que añadir sus dos variables al `.env` de
         producción**, o el sitio sale sin medir nada y sin decir una palabra al respecto.
-      - **El retrato del biobox**, que no es código: hace falta añadir
-        `- /srv/dglweb-datos/mugshots:/app/static/img/mugshots:ro` al stack de producción. Las fotos
-        chicas se ven y las grandes no porque solo las chicas viajan dentro de la imagen.
 
 - [x] **Verificar que el usuario de Postgres pueda `CREATE EXTENSION unaccent`.** **HECHO (2026-07-28).** La crea el SUPERUSUARIO en el script de inicialización de la instancia, no la aplicación: el sitio se conecta con un rol propio (`dglweb`) que no puede instalar extensiones, y no le hace falta. Ver `/srv/postgres/init/10-dglweb.sh` en el VPS. El buscador de jugadores depende de esa extensión —es lo que hace que «nunez» encuentre a Núñez, y sin ella la mitad del maestro es inalcanzable—. No va en `requirements.txt` porque no es un paquete de Python: vive en la base. La migración `players/0005_unaccent.py` la crea sola al correr `migrate`, pero `CREATE EXTENSION` pide permisos elevados. En el Postgres actual funciona; en uno gestionado con usuario restringido, `migrate` fallaría ahí. **Comprobarlo antes de migrar**, no después.
 
