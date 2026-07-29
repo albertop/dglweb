@@ -199,9 +199,21 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
       {% endif %}
     </nav>
   {% endif %}
-
-
-
-  {% anuncio_horizontal 11 30 31 "mt-4" %}
 </main>
+{% endblock %}
+
+{% comment %}
+  El anuncio del pie va en SU PROPIO BLOQUE y no al final de `<main>`, y esa es la corrección.
+
+  Dentro de `<main>` quedaba pegado al último artículo, así que con dos publicados dejaba un vacío de
+  trescientos píxeles entre el anuncio y el pie de página. Se veía como si faltara contenido.
+
+  `.dgl-ad-pie` es `margin-top: auto` sobre `.dgl-cuerpo`, que es una columna flexible que crece: el
+  margen automático se come todo el espacio que sobre y deja el anuncio apoyado en el pie. Es el mismo
+  mecanismo que ya usaban líderes, jugadores y el perfil — este índice era el único que no.
+{% endcomment %}
+{% block anuncio_pie %}
+  <div class="container dgl-ad-pie pb-4">
+    {% anuncio_horizontal 11 30 31 %}
+  </div>
 {% endblock %}
