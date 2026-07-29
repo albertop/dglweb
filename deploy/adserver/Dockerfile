@@ -138,6 +138,32 @@ RUN { \
     } > /etc/apache2/conf-available/zz-endurecer.conf \
     && a2enconf zz-endurecer
 
+# VIVIR DETRÁS DE UN PROXY INVERSO. Las dos líneas de abajo arreglan dos fallos distintos que se
+# manifiestan de forma muy distinta, y ninguno se ve al probar el contenedor suelto.
+#
+# 1. `HTTPS=on` — SIN ESTO EL PANEL NO ABRE. Revive mira `$_SERVER['HTTPS']` para construir sus URL,
+#    y detrás del proxy llega vacío: genera `http://`, nginx redirige a `https://`, Revive vuelve a
+#    `http://`… y el navegador corta con ERR_TOO_MANY_REDIRECTS. Pasó el 2026-07-28.
+#
+# 2. `mod_remoteip` — SIN ESTO LOS INFORMES SON FALSOS, y en silencio. nginx manda `X-Forwarded-For`,
+#    pero **esa cabecera sola no hace nada**: Apache y PHP siguen leyendo la IP del proxy en
+#    `REMOTE_ADDR`. Revive contaría todas las impresiones como un único visitante de un único país, y
+#    esos son los números que se le facturan al cliente.
+#
+#    `RemoteIPInternalProxy` con los rangos privados y no una IP concreta: nginx corre en el
+#    anfitrión y el contenedor lo ve llegar por la pasarela de la red de Docker, que cambia de
+#    dirección cada vez que se recrea la red.
+RUN a2enmod remoteip \
+    && { \
+        echo 'SetEnvIf X-Forwarded-Proto "https" HTTPS=on'; \
+        echo 'RemoteIPHeader X-Forwarded-For'; \
+        echo 'RemoteIPInternalProxy 127.0.0.0/8'; \
+        echo 'RemoteIPInternalProxy 172.16.0.0/12'; \
+        echo 'RemoteIPInternalProxy 10.0.0.0/8'; \
+        echo 'RemoteIPInternalProxy 192.168.0.0/16'; \
+    } > /etc/apache2/conf-available/zz-proxy.conf \
+    && a2enconf zz-proxy
+
 WORKDIR /var/www/html
 COPY --from=dependencias --chown=www-data:www-data /origen/ /var/www/html/
 
