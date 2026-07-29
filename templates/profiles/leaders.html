@@ -184,11 +184,16 @@ muda y el usuario vuelve a hacer clic.
   </div>
   </div>
   {% comment %}
-    Pegajoso: el tablero puede tener quince filas y el anuncio se queda a la vista mientras se baja,
-    en vez de desaparecer en la primera pantalla.
+    CENTRADO VERTICAL, para que quede entre los mismos márgenes que el tablero. Medido lado a lado: el
+    tablero son 736px y el anuncio 600, así que sobran 160 — repartidos, 80 arriba y 80 abajo.
+
+    Se quitó . Prometía que «el tablero puede tener quince filas y el anuncio se queda
+    a la vista mientras se baja», y con el tablero más corto —jonrones, diez filas— el recorrido son
+    esos 160px: no alcanza para que se note. En un tablero largo sí ayudaría, así que esto es una
+    decisión de estética sobre función, tomada a propósito: el dueño prefiere el carril alineado.
   {% endcomment %}
-  <div class="col-12 dgl-col-torre">
-    {% anuncio 4 300 600 "dgl-ad-torre dgl-ad-pegado" %}
+  <div class="col-12 dgl-col-torre d-flex align-items-center">
+    {% anuncio 4 300 600 "dgl-ad-torre" %}
   </div>
   </div>
   {% endwith %}
