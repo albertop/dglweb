@@ -519,6 +519,42 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
       y las señales ahorran **cuatro consultas**. Puede que lo correcto sea no cachear esas tablas y
       consultarlas directamente — menos piezas, cero riesgo de dato viejo. Decisión pendiente.
 
+## El proxy de MLB no sobrevive a un reinicio (2026-07-29)
+
+- [ ] **Poner `restart: unless-stopped` al proxy de MLB en LAS DOS máquinas** (10.0.0.39 y el VPS).
+      Hoy está en `on-failure` en ambas.
+
+      **El diagnóstico completo, porque el síntoma engaña.** El refresco diario de dev falló entero
+      —siete pasos, todos con `ConnectError`— y el proxy llevaba horas caído. Era la segunda vez «sin
+      explicación». No lo era:
+
+      - La máquina se reinicia cada una o dos semanas. Cinco veces en siete semanas, con el núcleo
+        subiendo de 6.8.0-124 a 136: son actualizaciones del sistema.
+      - Cada reinicio va precedido de un `shutdown` **ordenado**, y cada uno de una sesión desde
+        `10.0.0.86`, el equipo de trabajo del dueño. **Los reinicia él.** No hay cortes de luz ni
+        riesgo para Postgres, que era la posibilidad fea.
+      - El proxy sale con **código 0** y su `RestartCount` es **0**. Nunca ha fallado: se apaga limpio
+        cuando Docker le manda SIGTERM.
+
+      **Y ahí está la trampa: `on-failure` solo revive lo que muere con error.** Un apagado limpio se
+      ve idéntico a «ya terminé», así que Docker lo deja parado. Uptime Kuma volvió sin problema
+      porque tiene `unless-stopped`, que ignora el motivo de la salida.
+
+      O sea que **el proxy se portó bien y por eso se quedó abajo**.
+
+      `unless-stopped` y no `always`: si algún día se para a mano para depurar, `always` lo
+      resucitaría en el siguiente reinicio y sería pelear contra la propia infraestructura.
+
+      **En producción es lo mismo y pesa más**: ahí el semáforo del pipeline avisaría a las tres
+      horas, pero enterarse de un fallo evitable no es lo mismo que no tenerlo.
+
+- [ ] **Vigilar 10.0.0.39 desde Kuma.** Kuma corre EN esa máquina y vigila el VPS, pero **no vigila
+      la máquina donde vive**. Este fallo lo habría dicho a los cinco minutos en vez de aparecer en el
+      correo del refresco de la mañana. Un monitor HTTP contra `http://10.0.0.39:3002/health`.
+
+      Es medio agujero del «nadie vigila al vigilante» que quedó pendiente al montar el monitoreo — la
+      otra mitad sigue siendo que si esa máquina se apaga, Kuma calla.
+
 ## Del plan de fases — lo que el TODO no tenía (revisado el 2026-07-28)
 
 Al cotejar `BUILD_PLAN.md` contra la realidad aparecieron tres entregas comprometidas que no estaban
