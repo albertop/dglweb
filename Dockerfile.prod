@@ -68,23 +68,43 @@ RUN DJANGO_SECRET_KEY=solo-para-collectstatic \
 
 EXPOSE 8000
 
+# ESTE BLOQUE FIJA CUÁNTAS PETICIONES ATIENDE EL SITIO A LA VEZ. Es el techo de concurrencia, así
+# que conviene entender de dónde sale cada número antes de tocarlo.
+#
+# `--worker-class gthread` y `--threads 4` — EL CAMBIO GRANDE (2026-07-29). Antes eran workers
+# SÍNCRONOS: cada uno atiende UNA petición a la vez, así que tres workers eran TRES peticiones
+# simultáneas en todo el sitio. Y Django no pasa su tiempo calculando, lo pasa ESPERANDO —a Postgres
+# y al proxy de MLB—. Un worker síncrono bloqueado 40 ms esperando a la base es un worker que durante
+# esos 40 ms no atiende a nadie más. Con hilos, mientras uno espera otro trabaja.
+#
+# 4 workers × 4 hilos = **16 peticiones a la vez, contra 3**.
+#
+# Lo que hace que esto sea seguro y no una fuente de datos corruptos: las dos cachés del proyecto
+# aguantan hilos —`LocMemCache` usa un cerrojo y la compartida vive en la base— y Django guarda la
+# conexión a Postgres en almacenamiento POR HILO, así que dos hilos nunca comparten un cursor.
+#
 # `--preload` es lo que MÁS memoria ahorra de todo el despliegue, y es gratis: carga la aplicación
 # UNA vez antes de bifurcar, así los ~90 MB de código de Django y Wagtail quedan compartidos entre
-# los workers por copy-on-write en vez de duplicados. Medido: con 3 workers son ~180 MB menos.
+# los workers por copy-on-write en vez de duplicados.
 #
-# 3 workers y no los 9 de la fórmula de manual ((2 x núcleos) + 1): esa fórmula es para saturar CPU
-# con tráfico alto, y acá sobra con tres para el tráfico que hay. Nueve se comerían la memoria sin
-# servir una petición más.
+# Y los hilos son casi gratis en memoria porque comparten el proceso: pasar de 3 a 16 peticiones
+# concurrentes cuesta UN worker más, no trece.
+#
+# 4 workers y no los 9 de la fórmula de manual ((2 x núcleos) + 1): esa fórmula es para saturar CPU,
+# y acá el trabajo es esperar E/S. Con 4,8 Gi de RAM y Postgres en el mismo servidor, nueve procesos
+# es apretar sin ganar nada.
 #
 # `--max-requests` recicla cada worker cada 1.000 peticiones. No hay ninguna fuga —medido: +1,1 MB
 # tras 270 peticiones y aplanando— pero es el cinturón por si una dependencia gotea con los meses.
-# El `jitter` evita que los tres se reinicien a la vez y dejen un hueco sin nadie atendiendo.
+# El `jitter` evita que los cuatro se reinicien a la vez y dejen un hueco sin nadie atendiendo.
 #
 # El timeout en 60s y no en los 30 de defecto: el Backoffice tiene pantallas que comparan CSV de
 # miles de filas.
 CMD ["gunicorn", "config.wsgi:application", \
      "--bind", "0.0.0.0:8000", \
-     "--workers", "3", \
+     "--workers", "4", \
+     "--worker-class", "gthread", \
+     "--threads", "4", \
      "--preload", \
      "--max-requests", "1000", \
      "--max-requests-jitter", "100", \

@@ -83,24 +83,37 @@ Al revés, el HTML nuevo pediría hashes que no están en disco — 404 en el CS
 > de un año, quien ya vio a un pelotero se quedaría con el retrato viejo hasta el año siguiente. El
 > resto de los estáticos sí lleva hash, y por eso ahí el año e `immutable` sí es correcto.
 
-### 2. gunicorn: de `sync` a `gthread`
+### 2. gunicorn: de `sync` a `gthread` ✅ HECHO 2026-07-29
 
-Hoy: **3 peticiones concurrentes como máximo**. Con hilos, cada worker atiende varias a la vez
-mientras espera a la base o al proxy, que es donde Django pasa la mayor parte del tiempo.
+Antes: **3 peticiones concurrentes como máximo en todo el sitio**. Un worker síncrono atiende UNA a
+la vez, y Django no pasa su tiempo calculando sino ESPERANDO a Postgres y al proxy. Un worker
+bloqueado 40 ms esperando a la base es un worker que durante esos 40 ms no atiende a nadie.
+
+En `Dockerfile.prod`:
 
 ```dockerfile
-     "--workers", "4", \
-     "--worker-class", "gthread", \
-     "--threads", "4", \
-```
+     "--workers", "4",      "--worker-class", "gthread",      "--threads", "4", ```
 
-**4 × 4 = 16 peticiones concurrentes**, cinco veces más que hoy. Y casi gratis en memoria: los hilos
-comparten el proceso, así que no multiplica los ~90 MB de código de Django y Wagtail que `--preload`
-ya deja compartidos.
+**4 × 4 = 16 peticiones concurrentes**, cinco veces más. Comprobado antes de construir la imagen: la
+clase resuelve a `gunicorn.workers.gthread.ThreadWorker`.
+
+Y es casi gratis en memoria: los hilos comparten el proceso, así que pasar de 3 a 16 concurrentes
+cuesta UN worker más, no trece. `--preload` ya deja compartidos los ~90 MB de Django y Wagtail.
+
+**Lo que hace que sea seguro** y no una fuente de datos corruptos: las dos cachés aguantan hilos
+—`LocMemCache` usa un cerrojo, la compartida vive en la base— y Django guarda la conexión a Postgres
+en almacenamiento **por hilo**, así que dos hilos nunca comparten un cursor.
 
 Cuatro workers y no los nueve de la fórmula `(2 × núcleos) + 1`: esa fórmula es para saturar CPU, y
 acá el trabajo es esperar E/S. Con 4,8 Gi de RAM y Postgres al lado, nueve procesos es apretar sin
 ganar.
+
+> **Pendiente de medir en producción: `CONN_MAX_AGE`.** Hoy está en **0**, así que cada petición abre
+> y cierra su conexión a Postgres. Medirlo en DEV no vale —la base de DEV está en 10.0.0.39, al otro
+> lado de la red, y sus 51 ms son latencia, no coste de conexión—. En producción la base es un
+> contenedor en el mismo host. Si abrir cuesta más de ~5 ms, subirlo a 60 se paga solo; con 16 hilos
+> serían hasta 16 conexiones persistentes, holgado contra las 100 de `max_connections` (hoy se usan
+> 9).
 
 ### 3. Postgres, que corre con la configuración de fábrica
 
