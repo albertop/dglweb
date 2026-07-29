@@ -638,3 +638,103 @@ def test_se_pregunta_por_live_y_no_por_health(monkeypatch: pytest.MonkeyPatch) -
     Client().get(reverse("proxy_health"))
 
     assert pedidas and pedidas[0].endswith("/live"), pedidas
+
+
+# ── `/health/adserver`: ¿entrega anuncios Revive? (2026-07-29) ──────────────────────────────────
+#
+# VA AL REVÉS QUE EL DE ARRIBA, y esa es toda la gracia. Al proxy de MLB lo consume EL SITIO desde el
+# servidor, así que ahí lo que importa es el camino interno. A Revive lo consume **el navegador del
+# visitante**, dentro de un `iframe`. Un monitor que preguntara por la red de Docker podría estar
+# verde con el certificado caducado o el subdominio mal apuntado, y ningún visitante vería un
+# anuncio.
+
+
+class _Texto:
+    """Una respuesta con cuerpo de texto — la entrega de Revive es JavaScript, no JSON."""
+
+    def __init__(self, codigo: int, cuerpo: str = "") -> None:
+        self.status_code = codigo
+        self.text = cuerpo
+
+
+# Lo que devuelve Revive de verdad, recortado. Medido contra producción: 395 bytes que empiezan así
+# incluso cuando NO hay campaña que entregar.
+ENTREGA = "var OX_3ce35e19 = '';\nOX_3ce35e19 += \"<\"+\"div id='beacon_833e8a3d15'\""
+
+
+@pytest.mark.django_db
+def test_con_revive_entregando_el_semaforo_esta_verde(monkeypatch: pytest.MonkeyPatch) -> None:
+    _proxy(monkeypatch, respuesta=_Texto(200, ENTREGA))
+    monkeypatch.setattr(settings, "ADSERVER_URL", "https://promo.example.test")
+
+    respuesta = Client().get(reverse("adserver_health"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"status": "ok"}
+
+
+@pytest.mark.django_db
+def test_sin_campana_vendida_sigue_verde(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un hueco sin nada que entregar NO es una avería, y no puede sonar de madrugada.
+
+    Revive responde 200 con `var OX_… = ''` cuando no tiene banner para esa zona. Es el estado normal
+    de un sitio que arranca sin anunciantes, y confundirlo con una caída convertiría el monitor en
+    ruido que nadie mira.
+    """
+    _proxy(monkeypatch, respuesta=_Texto(200, "var OX_3ce35e19 = '';\n"))
+    monkeypatch.setattr(settings, "ADSERVER_URL", "https://promo.example.test")
+
+    assert Client().get(reverse("adserver_health")).status_code == 200
+
+
+@pytest.mark.django_db
+def test_un_200_que_no_es_la_entrega_cuenta_como_roto(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LA PRUEBA QUE JUSTIFICA MIRAR EL CUERPO Y NO SOLO EL CÓDIGO.
+
+    Este montaje ya se rompió así: el instalador de Revive pidiendo configuración, y una página de
+    error de nginx. Las dos responden **200**. Un monitor que solo mirara el código estaría verde con
+    el adserver sin servir un anuncio.
+    """
+    _proxy(monkeypatch, respuesta=_Texto(200, "<html><body>Revive Adserver Installer</body></html>"))
+    monkeypatch.setattr(settings, "ADSERVER_URL", "https://promo.example.test")
+
+    assert Client().get(reverse("adserver_health")).status_code == 503
+
+
+@pytest.mark.django_db
+def test_si_revive_no_responde_el_semaforo_se_pone_rojo(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    _proxy(monkeypatch, error=httpx.ConnectError("Connection refused"))
+    monkeypatch.setattr(settings, "ADSERVER_URL", "https://promo.example.test")
+
+    assert Client().get(reverse("adserver_health")).status_code == 503
+
+
+@pytest.mark.django_db
+def test_fuera_de_produccion_sin_adserver_no_es_un_fallo(monkeypatch: pytest.MonkeyPatch) -> None:
+    """En desarrollo los anuncios están apagados y eso es lo normal, no una avería."""
+    monkeypatch.setattr(settings, "ADSERVER_URL", "")
+
+    respuesta = Client().get(reverse("adserver_health"))
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"status": "apagado"}
+
+
+@pytest.mark.django_db
+def test_en_produccion_sin_adserver_si_es_un_fallo(monkeypatch: pytest.MonkeyPatch) -> None:
+    """EL FALLO SILENCIOSO DE ESTE MONTAJE, y la razón de que este endpoint exista.
+
+    `ADSERVER_URL` se declara en Portainer en DOS sitios: la sustitución `${...}` del compose y el
+    bloque `environment:`. Si falta en el segundo, el contenedor arranca sin ella, la portada carga
+    perfecta, y **los huecos de anuncio salen en blanco sin un solo error en ningún registro**. Es
+    exactamente el tipo de fallo que este proyecto lleva todo el mes persiguiendo: la configuración
+    se ve bien, nada se queja, y se descubre semanas después.
+    """
+    monkeypatch.setattr(settings, "ADSERVER_URL", "")
+    # Así es como `notify.entorno()` distingue los dos entornos: por el módulo de settings y no por
+    # una variable propia, precisamente porque una variable se puede olvidar y el módulo no.
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "config.settings.prod")
+
+    assert Client().get(reverse("adserver_health")).status_code == 503

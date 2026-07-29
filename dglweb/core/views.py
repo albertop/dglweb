@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 # retícula que ya estaba dibujada. El corte vive acá y no en la plantilla para que el HTML no tenga
 # que contar posiciones del bucle.
 PORTADA_DESTACADO = 1
-PORTADA_RESTO = 3
+# DOS y no tres, y el motivo está en la plantilla: la fila de «Últimos artículos» son tres celdas en
+# pantalla grande, y la tercera la ocupa un anuncio (zona 5). Con tres artículos, el anuncio empujaría
+# al último a una segunda fila él solo — una tarjeta y dos huecos, que se lee como un error.
+PORTADA_RESTO = 2
 
 # Los jobs que corren cada hora y alimentan módulos que el visitante VE. Se vigilan aparte del
 # refresco diario porque fallan distinto: el diario se nota al día siguiente, y estos dejan la
@@ -32,6 +35,7 @@ HORARIOS = jobs.HORARIOS
 SEGUNDOS_SEMAFORO = 30
 CLAVE_SEMAFORO = "health:pipeline"
 CLAVE_PROXY = "health:proxy"
+CLAVE_ADSERVER = "health:adserver"
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -383,6 +387,93 @@ def proxy_health(request: HttpRequest) -> HttpResponse:
     if con_que.status_code != 200:
         return respuesta("error", 503, detalle=f"El proxy respondió {con_que.status_code}.", url=url)
     return respuesta("ok", detalle="El proxy responde.", version=con_que.json().get("version", ""))
+
+
+def adserver_health(request: HttpRequest) -> HttpResponse:
+    """¿Está sirviendo anuncios Revive? Para un monitor externo.
+
+    POR QUÉ SE PREGUNTA POR LA URL PÚBLICA, Y NO POR LA RED INTERNA DE DOCKER
+    --------------------------------------------------------------------------
+    Va **al revés que `/health/proxy`**, y la diferencia no es un detalle: el proxy de MLB lo consume
+    EL SITIO desde el servidor, así que ahí lo que importa es el camino interno. Revive lo consume
+    **el navegador del visitante**, dentro de un `iframe`. Un monitor que preguntara por
+    `http://revive/` por nombre de contenedor podría estar verde con el certificado caducado, el
+    subdominio mal apuntado o nginx sin recargar — y ningún visitante vería un anuncio.
+
+    Así que se pregunta por `ADSERVER_URL`, que es literalmente la dirección que el navegador va a
+    pedir. Se recorre el mismo camino: DNS, TLS, nginx, contenedor.
+
+    QUÉ DEMUESTRA UN 200, Y QUÉ NO
+    -------------------------------
+    Demuestra que Apache está arriba, que PHP ejecuta y que la ruta de entrega —renombrada para
+    esquivar las listas de bloqueo— sigue existiendo. Ese último punto no es teórico: el healthcheck
+    del contenedor apuntaba a `/adjs.php`, se renombró la carpeta, y Portainer marcó `unhealthy` un
+    servicio que funcionaba perfectamente.
+
+    **NO demuestra que haya una campaña activa**, y es a propósito. Revive responde 200 con un
+    `var OX_… = ''` cuando no hay nada que entregar, y así debe ser: un hueco sin campaña vendida es
+    el estado normal de un sitio que arranca, no una avería que tenga que sonar de madrugada.
+
+    EL CASO QUE DE VERDAD SE QUIERE CAZAR
+    -------------------------------------
+    `ADSERVER_URL` vacío **en producción** da 503. Ese es el fallo silencioso de este montaje: la
+    variable se declara en Portainer en dos sitios —la sustitución `${...}` y el bloque
+    `environment:`— y si falta en el segundo, el contenedor arranca sin ella, la página carga
+    perfecta, y los huecos salen vacíos sin un solo error en ningún registro. En desarrollo, en
+    cambio, tenerlo apagado es lo normal y responde 200.
+
+    Mismo trato que los otros semáforos: el estado es público y el detalle solo con el token.
+    """
+    import httpx
+    from django.conf import settings
+    from django.core.cache import cache
+
+    from dglweb.core.notify import entorno
+
+    detallado = _puede_ver_el_detalle(request)
+
+    if not detallado:
+        cacheada = cache.get(CLAVE_ADSERVER)
+        if cacheada is not None:
+            estado, codigo = cacheada
+            return JsonResponse({"status": estado}, status=codigo)
+
+    def respuesta(estado: str, codigo: int = 200, **detalle: object) -> JsonResponse:
+        if not detallado:
+            cache.set(CLAVE_ADSERVER, (estado, codigo), SEGUNDOS_SEMAFORO)
+        return JsonResponse({"status": estado, **(detalle if detallado else {})}, status=codigo)
+
+    origen = (settings.ADSERVER_URL or "").rstrip("/")
+    if not origen:
+        if entorno() == "PROD":
+            return respuesta(
+                "error",
+                503,
+                detalle="ADSERVER_URL está vacío en producción: los huecos de anuncio salen en blanco.",
+            )
+        return respuesta("apagado", detalle="ADSERVER_URL vacío. Fuera de producción es lo normal.")
+
+    # La misma zona que usa el healthcheck del contenedor. `cb` es el «cache buster» que Revive
+    # espera; sin él podría devolver una respuesta guardada y la comprobación no probaría nada.
+    url = f"{origen}/www/pauta/dgl-j.php?cb={secrets.token_hex(6)}&zoneid=1"
+    try:
+        # Cinco segundos, como el del proxy: acá solo se pregunta si hay alguien al otro lado, y un
+        # monitor que espera más se agota antes de recibir la respuesta.
+        con_que = httpx.get(url, timeout=5.0)
+    except httpx.HTTPError as error:
+        return respuesta("error", 503, detalle=f"No se pudo alcanzar el adserver: {error}", url=url)
+
+    if con_que.status_code != 200:
+        return respuesta("error", 503, detalle=f"El adserver respondió {con_que.status_code}.", url=url)
+
+    # El cuerpo tiene que ser el JavaScript de entrega. Un 200 con una página de error de nginx, o
+    # con el instalador de Revive pidiendo que se configure, también es un 200 — y esa es justo la
+    # forma en que este montaje se ha roto antes.
+    cuerpo = con_que.text
+    if "OX_" not in cuerpo:
+        return respuesta("error", 503, detalle="Respondió 200 pero el cuerpo no es la entrega de Revive.", url=url)
+
+    return respuesta("ok", detalle="El adserver entrega.", bytes=len(cuerpo))
 
 
 def _horarios_atrasados() -> list[str]:

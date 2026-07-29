@@ -17,6 +17,7 @@ from wagtail.documents import urls as wagtaildocs_urls
 
 from dglweb.core.sitemaps import Jugadores, Legales, Portada
 from dglweb.core.views import (
+    adserver_health,
     contacto,
     documento_legal,
     health,
@@ -51,6 +52,10 @@ urlpatterns: list[URLPattern | URLResolver] = [
     # porque en producción el proxy escucha solo en `127.0.0.1` y un monitor externo no lo alcanza —
     # y porque preguntándoselo al sitio se vigila el camino de verdad. Ver la vista.
     path("health/proxy", proxy_health, name="proxy_health"),
+    # ¿Entrega anuncios Revive? Va por la URL PÚBLICA y no por la red de Docker, al revés que el de
+    # arriba: a Revive lo consume el navegador del visitante, así que el camino que hay que vigilar
+    # es el suyo —DNS, TLS, nginx, contenedor—. Ver la vista.
+    path("health/adserver", adserver_health, name="adserver_health"),
     path("django-admin/", admin.site.urls),
     # Las pantallas de carga de datos de apoyo cuelgan del Backoffice y van ANTES del include de
     # Wagtail, que se queda con todo lo demás bajo /cms/.

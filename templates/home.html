@@ -56,10 +56,28 @@
 
   {% if articulos %}
     <h2 class="dgl-section-title">Últimos artículos</h2>
+    {% comment %}
+      La fila son TRES celdas en pantalla grande, y la tercera es un anuncio (zona 5, 300×250).
+
+      Por eso la vista trae dos artículos acá y no tres: si trajera tres, el anuncio empujaría al
+      último a una segunda fila él solo, y una fila con una tarjeta y dos huecos se lee como un
+      error de maquetación.
+
+      El anuncio va DENTRO de este `if`, no fuera: sin artículos publicados el bloque entero
+      desaparece —incluido el encabezado— y un anuncio suelto bajo un título ausente no tendría
+      dónde apoyarse.
+
+      En móvil la rejilla es de dos columnas (`col-md-6`), así que el anuncio cae solo en la segunda
+      fila. Es lo correcto: queda debajo del contenido, no antes.
+    {% endcomment %}
     <div class="row g-3">
       {% for otro in articulos %}
         <div class="col-md-6 col-lg-4">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
       {% endfor %}
+      <div class="col-md-6 col-lg-4">
+        {# `h-100` como el de la fila del destacado: iguala su alto al de las tarjetas de al lado. #}
+        {% anuncio 5 300 250 "dgl-ad-alto h-100" %}
+      </div>
     </div>
   {% endif %}
 
