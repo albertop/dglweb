@@ -171,23 +171,40 @@ contando pgAdmin y Revive.
 > servidor con `pg_terminate_backend` y volviendo a consultar: `OperationalError: terminating
 > connection due to administrator command`. Eso es ahora `tests/test_conexiones_persistentes.py`.
 
-### 3. Postgres, que corre con la configuración de fábrica
+### 3. Postgres — REDIMENSIONADO 2026-07-29, hacia abajo
 
-Los valores por defecto de Postgres están pensados para arrancar en cualquier máquina, no para
-aprovechar una. Con 4,8 Gi y la base compartida con Revive:
+El plan original decía `shared_buffers = 1GB`, `effective_cache_size = 3GB` y
+`maintenance_work_mem = 256MB`. **Casi todo sobra**, y medirlo antes ahorró reservar memoria que no
+hacía falta:
 
+| | |
+|---|---|
+| **la base entera pesa** | **228 MB** |
+| RAM total / disponible | 4.917 MB / 2.387 MB |
+| swap en uso | **474 MB** |
+| tiempo en base por página | 36-56 ms, 17-23 consultas |
+
+Con la base entera en 228 MB, pedir 1 GB de `shared_buffers` es reservar **cuatro veces la base** —y
+con el swap ya en uso—. Y no hay problema de E/S que resolver: 2 ms por consulta.
+
+Lo que queda, y el primero es el único que cambia algo de verdad:
+
+```sql
+-- CAMBIA DECISIONES DEL PLANIFICADOR. En 4.0 (el defecto) Postgres cree que leer una página al azar
+-- cuesta 4 veces más que una secuencial: cierto en disco giratorio, falso en SSD. Con 4.0 descarta
+-- índices que sí convienen.
+ALTER SYSTEM SET random_page_cost = 1.1;
+ALTER SYSTEM SET work_mem = '16MB';        -- hoy 4 MB
+ALTER SYSTEM SET shared_buffers = '256MB'; -- hoy 128 MB. 256 caben los 228 con margen para crecer
 ```
-shared_buffers = 1GB              # por defecto 128MB
-effective_cache_size = 3GB        # le dice al planificador cuánta caché del sistema puede contar
-work_mem = 16MB                   # por defecto 4MB; los ORDER BY de líderes se agradecen
-maintenance_work_mem = 256MB      # los VACUUM y la creación de índices
-random_page_cost = 1.1            # por defecto 4.0, que asume disco giratorio. El VPS es SSD.
-```
 
-**`random_page_cost` es el que más cambia decisiones**: con 4.0 el planificador evita índices que
-sí convienen en SSD.
+`shared_buffers` pide reiniciar el contenedor; los otros dos, `SELECT pg_reload_conf()`. Y lo hace el
+superusuario `postgres`, no `dglweb`, que no lo es.
 
-No es urgente —la base responde en 36-56 ms— pero es lo que sostiene el crecimiento.
+> **Queda dentro del volumen, no en el repositorio.** `ALTER SYSTEM` escribe en
+> `postgresql.auto.conf` dentro de los datos: sobrevive a reinicios y a recrear el contenedor, pero
+> es invisible en Portainer y en un diff. Va contra cómo está todo lo demás. Moverlo a `command:` en
+> el compose de Postgres es la tarea pendiente.
 
 ### 4. Reducir los recursos — DESCARTADO 2026-07-29, con números
 
@@ -248,9 +265,30 @@ Más el CMS cerrado por IP (2026-07-29) y el panel de anuncios igual.
       vuelve» y Googlebot baja el ritmo. 503 significa «el servidor está roto», y repetido hace que
       Google saque páginas del índice — un pico de tráfico podría costar posiciones de búsqueda.
 
-- [ ] **`includeSubDomains` en la HSTS.** Hoy falta. Añadirlo cubre también
-      `promo.dominicanosengrandesligas.com`, que ya va por HTTPS. Es una decisión con vuelta atrás
-      lenta —el navegador recuerda un año— así que se hace a conciencia.
+- [x] **`includeSubDomains` en la HSTS — HECHO 2026-07-29.** Estaba apagado por una razón buena:
+      encenderlo con un subdominio sin TLS lo deja **inaccesible durante un año**, porque el navegador
+      se niega a hablarle por HTTP y ya no hay forma de decirle que sí.
+
+      Así que se comprobó cuáles existen de verdad antes de tocarlo. Bajo `dominicanosengrandesligas.com`
+      hay **exactamente dos**, y los dos redirigen HTTP→HTTPS con un 301:
+
+      | subdominio | qué es | HTTP | HTTPS |
+      |---|---|---|---|
+      | `www.` | el mismo sitio | 301 | 200 |
+      | `promo.` | el panel de anuncios (Revive) | 301 | 302 al panel |
+
+      Los otros dominios del servidor —`sabertables.com`, `baseballsixdegrees.com`, `prdm0.com`— **no
+      son subdominios de este**, así que la cabecera no los toca.
+
+      **Lo que obliga de aquí en adelante**: cualquier subdominio nuevo nace con TLS o no funciona. Un
+      `staging.` levantado deprisa por HTTP se verá inaccesible desde cualquier navegador que haya
+      entrado al sitio. No es un problema —Let's Encrypt es gratis y automático— pero hay que saberlo
+      antes, no descubrirlo.
+
+      **`preload` NO, y es a propósito.** Es otra cosa: mete el dominio en una lista que viene
+      COMPILADA dentro de Chrome, Firefox y Safari. Salir de ahí tarda meses y depende de que otros
+      publiquen versiones nuevas del navegador. Lo protege `tests/test_cabeceras_seguridad.py`, que
+      falla si alguien lo enciende — para que sea una decisión y no un descuido de una línea.
 
 - [ ] **fail2ban sobre los registros de nginx**, para que los escaneos repetidos se corten en el
       cortafuegos y no lleguen a gastar workers.
