@@ -852,14 +852,25 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 
 /* El anuncio que se queda a la vista mientras se baja y aterriza sobre el pie de página al llegar al
-   final. Con fondo propio porque, al flotar sobre el contenido, sin él se leería el texto por debajo
-   del patrón rayado.
+   final.
+
+   SIN FONDO PROPIO (2026-07-29). Lo tenía —blanco— y el motivo escrito era que, al flotar sobre el
+   contenido, «se leería el texto por debajo del patrón rayado». Ese razonamiento era de cuando el
+   hueco dibujaba el recuadro rayado de maqueta. Hoy lo que flota es un `iframe` con un anuncio real,
+   que es opaco y tapa por sí mismo, así que el fondo ya no protegía de nada.
+
+   Y sí estorbaba: cuando la zona NO tiene campaña, Revive devuelve un cuerpo transparente y vacío, y
+   ese blanco quedaba como **un recuadro en blanco en mitad de la página**. Se veía en `/jugadores/` y
+   no en la portada, y la diferencia no era la página: era esta única línea. Los demás huecos vacíos
+   son transparentes y se funden con el gris del fondo.
+
+   Lo que se acepta a cambio: si algún día un anunciante manda una creatividad con transparencia, se
+   leerá el texto a través. Es exigible al anunciante —los formatos de display se entregan opacos— y
+   es preferible a un rectángulo blanco permanente que ve todo el mundo.
 
    Nombre propio y NO `.dgl-ad-pie`, que ya existe y significa otra cosa —«vete al fondo del espacio
-   que sobre»— y se usa en el perfil y en líderes sobre un `.container`. Ponerle a esa clase un fondo
-   blanco pintaba los márgenes del contenedor, que son más anchos que el anuncio, y dejaba dos
-   franjas blancas a los lados. */
-.dgl-ad-pegajoso { position: sticky; bottom: .75rem; background-color: var(--dgl-card); }
+   que sobre»— y se usa en el perfil y en líderes sobre un `.container`. */
+.dgl-ad-pegajoso { position: sticky; bottom: .75rem; }
 
 /* ---------- Índice de artículos ---------- */
 /* La tarjeta. Sin sombra y con un filo tenue: son doce en pantalla, y doce sombras convierten la
