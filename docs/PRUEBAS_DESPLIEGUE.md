@@ -219,7 +219,7 @@ Lo que ya nos mordió una vez. Todo esto pasó de verdad el 2026-07-28.
 |---|---|
 | `ImproperlyConfigured: Set the DJANGO_SECRET_KEY` | Las «Environment variables» de Portainer **no llegan al contenedor**: solo sustituyen `${VAR}` dentro del compose. Hay que nombrarlas en un bloque `environment:`. |
 | `env file … not found` al desplegar | `env_file` con ruta del anfitrión no sirve: Portainer corre en un contenedor y no ve ese sistema de archivos. |
-| Los trabajos del scheduler no corren | El contenedor no se llama `dglweb-web-live`. Renombrar exige **borrar el contenedor primero**; Portainer no lo hace solo. |
+| Los trabajos del scheduler no corren | Dos causas distintas. (a) `permission denied` sobre `/var/run/docker.sock` en el log de Ofelia: es el `userns-remap`, falta `userns_mode: "host"` en ese servicio — ver abajo. (b) El contenedor no se llama `dglweb-web-live`. Renombrar exige **borrar el contenedor primero**; Portainer no lo hace solo. |
 | 403 en las fotos | Los archivos quedaron dentro de `/var/lib/docker`, que es `0710 root:root` y nginx —como `www-data`— no puede atravesar. Tienen que estar en `/srv/dglweb-datos/`. |
 | «Permission denied» al subir o borrar una imagen desde el CMS | La carpeta montada no es del `appuser` del contenedor **visto desde el anfitrión**. Este Docker usa `userns-remap`, así que NO es el uid 1000 — ver la sección de abajo. |
 | `MissingFileError` al construir la imagen | Un estático referencia un archivo que no existe (nos pasó con el `.map` de Bootstrap). El almacenamiento con manifiesto aborta si falta algo referenciado. |
@@ -276,6 +276,43 @@ y eso es lo correcto, no un error**.
   copia los retratos es un script del anfitrión.
 - Si algún día se quita `userns-remap` del `daemon.json`, **hay que deshacer estos `chown`** o el
   problema vuelve al revés.
+
+### Y rompe el scheduler, que es la otra mitad de la misma causa
+
+El 2026-07-28, con dos horas de diferencia, el remapeo causó **dos averías que no se parecen en nada**:
+no se podían subir imágenes desde el CMS, y los tres jobs horarios llevaban seis horas fallando.
+
+Lo del scheduler se ve así en `docker logs ofelia`:
+
+```
+ERROR [Job "mlb-leaders-hourly"] failed: true, error: error creating exec:
+Post "http://unix.sock/containers/dglweb-web-live/exec":
+dial unix /var/run/docker.sock: connect: permission denied
+```
+
+**Por qué.** Ofelia corre como root dentro de su contenedor, pero con el remapeo ese root es el uid
+`100000` del anfitrión — que no es root y no está en el grupo `docker`. El socket es `0660
+root:docker`. Permiso denegado en cada `exec`.
+
+**Por qué funcionó hasta que dejó de funcionar.** Un contenedor vivo conserva el mapeo con el que
+nació. Activar `userns-remap` no rompe nada de inmediato: rompe **la próxima vez que se recrea el
+contenedor**, que puede ser semanas después y por un cambio que no tiene nada que ver. Acá fue un
+redespliegue para añadir unas variables de entorno.
+
+**El arreglo**, en el servicio del scheduler del compose:
+
+```yaml
+    userns_mode: "host"
+```
+
+**Y no empeora la seguridad**, aunque lo parezca: ese contenedor ya tiene el socket de Docker montado,
+y quien controla el socket controla la máquina, remapeado o no. Es el riesgo que el dueño aceptó
+explícitamente al dejar el socket como está. La alternativa de verdad sería un proxy del socket con
+lista blanca de operaciones, no el remapeo.
+
+**Lo que lo hizo visible fue el monitor externo**, a los minutos de encenderse. Doce ejecuciones
+fallidas seguidas no habían generado ni una señal: Ofelia registra el fallo en su propio log y nadie
+lee los logs de un contenedor que se supone que funciona.
 
 ### El `chown` sobrevive a todo… menos a tres cosas
 
