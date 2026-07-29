@@ -221,9 +221,61 @@ Lo que ya nos mordió una vez. Todo esto pasó de verdad el 2026-07-28.
 | `env file … not found` al desplegar | `env_file` con ruta del anfitrión no sirve: Portainer corre en un contenedor y no ve ese sistema de archivos. |
 | Los trabajos del scheduler no corren | El contenedor no se llama `dglweb-web-live`. Renombrar exige **borrar el contenedor primero**; Portainer no lo hace solo. |
 | 403 en las fotos | Los archivos quedaron dentro de `/var/lib/docker`, que es `0710 root:root` y nginx —como `www-data`— no puede atravesar. Tienen que estar en `/srv/dglweb-datos/`. |
-| «Permission denied» al subir una imagen desde el CMS | La carpeta montada no es del uid **1000**. `chown -R 1000:1000 /srv/dglweb-datos`. |
+| «Permission denied» al subir o borrar una imagen desde el CMS | La carpeta montada no es del `appuser` del contenedor **visto desde el anfitrión**. Este Docker usa `userns-remap`, así que NO es el uid 1000 — ver la sección de abajo. |
 | `MissingFileError` al construir la imagen | Un estático referencia un archivo que no existe (nos pasó con el `.map` de Bootstrap). El almacenamiento con manifiesto aborta si falta algo referenciado. |
 | 413 al subir una foto grande | `client_max_body_size` en nginx. Su defecto es 1 MB y **no deja rastro en los logs de Django**. |
+
+---
+
+## El remapeo de usuarios de Docker, o por qué `chown 1000` no arregla nada
+
+**Este VPS corre Docker con `userns-remap` activado** (`/etc/docker/daemon.json`). Costó una tarde
+descubrirlo el 2026-07-28, así que queda escrito.
+
+### El síntoma
+
+Subir o borrar una imagen desde el CMS da error 500. **Verlas funciona perfectamente**, y esa
+asimetría es la firma: leer sí, escribir no. En desarrollo no pasa.
+
+### Por qué
+
+Con `userns-remap`, el uid 1000 de DENTRO del contenedor es el uid `100000 + 1000 = 101000` en el
+anfitrión. Son dos numeraciones distintas para el mismo proceso.
+
+Y ahí está la trampa: **una carpeta creada con `mkdir` en el anfitrión pertenece a root, uid 0, que
+cae FUERA del rango remapeado**. El kernel no puede expresar ese dueño dentro del espacio de nombres
+del contenedor, así que se lo enseña como **65534 (`nobody`)**. Con permisos `755`, el contenedor
+puede leer y no puede escribir.
+
+Eso también explica por qué en desarrollo no ocurre, y **no es porque dev corra como root** —corre
+como el mismo `appuser`—: en dev los medios están en un *volumen con nombre*, y Docker los crea
+copiando el dueño que la carpeta tenga dentro de la imagen. Un *bind mount* no: respeta lo que haya
+en el anfitrión. La diferencia es el tipo de montaje, no el usuario.
+
+### El arreglo
+
+El número correcto sale de `/etc/subuid`, no se adivina:
+
+```bash
+BU=$(awk -F: '$1=="dockremap"{print $2}' /etc/subuid)
+BG=$(awk -F: '$1=="dockremap"{print $2}' /etc/subgid)
+chown -R $((BU+1000)):$((BG+999)) /srv/dglweb-datos/media /srv/dglweb-datos/uploads
+```
+
+El `+1000` es el uid de `appuser` en el `Dockerfile.prod` y el `+999` su gid. Bien hecho, el
+anfitrión enseña `101000 100999` y el contenedor enseña `1000 999`: **cada lado ve su propio número,
+y eso es lo correcto, no un error**.
+
+### Lo que hay que recordar
+
+- **Toda carpeta nueva que se monte va a llegar rota igual.** No fue el accidente de una copia: es
+  cómo se comportan los bind mounts en esta máquina. Montar algo escribible = chownearlo.
+- **Los permisos no se tocan.** Siguen en `755`, que es lo que necesita nginx —como `www-data` en el
+  anfitrión— para poder servir `/media/`. Un `chmod` de más acá rompería las imágenes con un 403.
+- **`mugshots` va montado `:ro`** y se queda como está: el contenedor nunca escribe ahí, y quien
+  copia los retratos es un script del anfitrión.
+- Si algún día se quita `userns-remap` del `daemon.json`, **hay que deshacer estos `chown`** o el
+  problema vuelve al revés.
 
 ---
 
