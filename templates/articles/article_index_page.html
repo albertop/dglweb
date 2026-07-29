@@ -146,8 +146,18 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
         `mb-3` y no `mb-4`: el hueco que lo separa del artículo de abajo tiene que ser el mismo que
         `g-3` deja entre las filas de la izquierda, o el desfase vuelve por otro lado.
       {% endcomment %}
+      {% comment %}
+        SOLO EN ESCRITORIO (`d-none d-lg-block`). El panel vale por SER LATERAL: una columna estrecha
+        al lado de la lista, que se lee como índice.
+
+        Apilado en móvil caía al final de la página, y ahí deja de aportar y empieza a molestar:
+        `recientes` son los 10 más recientes SIN FILTRAR —está así a propósito, filtrarlos lo dejaría
+        vacío en escritorio— y `/articulos/` ya es la lista cronológica. O sea que el lector recorría
+        toda la lista y al final se encontraba los mismos títulos otra vez, sin nada que le dijera que
+        eso era una barra lateral. Con los dos artículos publicados hoy la repetición es del 100%.
+      {% endcomment %}
       {% if recientes %}
-        <section class="dgl-panel dgl-panel-reciente p-3 mb-3">
+        <section class="dgl-panel dgl-panel-reciente p-3 mb-3 d-none d-lg-block">
           <h2 class="dgl-section-title mb-2" style="font-size:.95rem" id="mas-reciente">Lo más reciente</h2>
           <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-reciente">
             {% for articulo in recientes %}
