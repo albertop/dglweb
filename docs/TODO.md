@@ -521,8 +521,29 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
 
 ## El proxy de MLB no sobrevive a un reinicio (2026-07-29)
 
-- [ ] **Poner `restart: unless-stopped` al proxy de MLB en LAS DOS máquinas** (10.0.0.39 y el VPS).
-      Hoy está en `on-failure` en ambas.
+- [x] **El proxy de MLB no sobrevivía a un reinicio.** **CORREGIDO en las dos máquinas
+      (2026-07-29)**: `unless-stopped (máx 0)` y el proxy en 200 en 10.0.0.39 y en el VPS.
+
+      **Y el arreglo NO era poner `restart: unless-stopped`: ya estaba puesto.** Ese es el nudo de
+      todo esto. El compose lo declaraba en la línea 20 y doce líneas más abajo, dentro de `deploy:`,
+      había una SEGUNDA política:
+
+      ```yaml
+      deploy:
+        restart_policy:
+          condition: on-failure     # ← esta ganaba
+          max_attempts: 3
+      ```
+
+      Compose v2 aplica `deploy.restart_policy` también fuera de Swarm y **tiene prioridad**. Así que
+      el contenedor corría en `on-failure` teniendo `unless-stopped` escrito tres líneas antes, y
+      nada lo avisaba: ni el despliegue, ni Portainer, ni ningún error. **Solo `docker inspect` decía
+      la verdad, y solo si ibas a preguntárselo.**
+
+      El `max_attempts: 3` era una segunda trampa: aun con la condición correcta, Docker habría
+      dejado de intentarlo tras tres veces en dos minutos.
+
+      La política va SOLO en `restart:`. Declararla en dos sitios es tener una que miente.
 
       **El diagnóstico completo, porque el síntoma engaña.** El refresco diario de dev falló entero
       —siete pasos, todos con `ConnectError`— y el proxy llevaba horas caído. Era la segunda vez «sin
