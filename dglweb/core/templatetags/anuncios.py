@@ -133,3 +133,39 @@ def anuncio_horizontal(z970: int, z728: int, z320: int, clase: str = "") -> dict
         "hay_servidor": bool(origen),
         "clase": clase,
     }
+
+
+@register.inclusion_tag("widgets/_anuncio_horizontal.html")
+def anuncio_rango(
+    zona: int, ancho: int, alto: int, minimo: int = 0, maximo: int = 0, clase: str = ""
+) -> dict[str, Any]:
+    """Un hueco que SOLO existe en un rango de pantallas.
+
+    Usa la misma maquinaria que `anuncio_horizontal` —un marco sin `src` que rellena `anuncios.js`—
+    pero con una sola opción y un rango acotado.
+
+    POR QUÉ NO SE RESUELVE CON `d-none` DE BOOTSTRAP, que sería lo obvio: **un `iframe` oculto con CSS
+    SÍ CARGA su documento.** Se comprobó en el navegador. Esconder el carril de 300x600 en movil dejaría
+    a Revive contando una impresión que nadie vio, y el banner de 320x50 que va entre los widgets
+    contaría otra en escritorio. En venta directa eso es facturar aire.
+
+    Declarando el rango, el script no le pone `src` fuera de él — y además quita el marco del DOM, así
+    que tampoco deja una franja vacía reservada por el CSS.
+
+    Las clases de Bootstrap sí siguen haciendo falta, pero para otra cosa: evitan el salto de
+    maquetación entre que el HTML se dibuja y el script decide.
+
+        maximo=991    solo por debajo de `lg`  (móvil y tablet en vertical)
+        minimo=992    solo desde `lg`          (escritorio y tablet en horizontal)
+    """
+    origen = settings.ADSERVER_URL
+    opcion: dict[str, Any] = {"min": minimo, "ancho": ancho, "alto": alto}
+    if maximo:
+        opcion["max"] = maximo
+    if origen:
+        opcion["url"] = f"{origen}/www/pauta/dgl-m.php?cb={secrets.token_hex(6)}&zoneid={zona}"
+    return {
+        "opciones": json.dumps([opcion], separators=(",", ":")),
+        "hay_servidor": bool(origen),
+        "clase": clase,
+    }

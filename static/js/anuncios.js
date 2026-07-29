@@ -33,16 +33,24 @@
   }
 
   function elegir(opciones, disponible) {
-    /* Las opciones vienen de mayor a menor. Se coge la primera que quepa: la que declara una pantalla
-     * mínima menor o igual a la ventana Y cuyo ancho entre en el contenedor. Las dos condiciones,
-     * porque el corte de pantalla es la regla de negocio y el ancho real es la comprobación. */
+    /* Las opciones vienen de mayor a menor. Se coge la primera cuyo RANGO DE PANTALLA incluya a esta
+     * ventana y cuyo ancho entre en el contenedor. Las dos condiciones, porque el rango es la regla de
+     * negocio y el ancho real es la comprobación.
+     *
+     * El `max` es lo que permite un hueco EXCLUSIVO de un rango: el carril de 300×600 solo existe
+     * desde 992 px y el banner de 320×50 que va entre los widgets solo hasta 991. Sin él habría que
+     * esconderlos con CSS, y un `iframe` oculto SÍ CARGA —comprobado— así que Revive contaría una
+     * impresión de un anuncio que nadie vio. */
     for (var i = 0; i < opciones.length; i++) {
       var o = opciones[i];
-      if (window.innerWidth >= o.min && o.ancho <= disponible) return o;
+      if (window.innerWidth < o.min) continue;
+      if (o.max && window.innerWidth > o.max) continue;
+      if (o.ancho <= disponible) return o;
     }
-    /* Si ni el más pequeño cabe —una pantalla de menos de 320 px— se devuelve ese igualmente: el
-     * `max-width: 100%` del CSS lo encoge, y es mejor un banner apretado que un hueco vacío. */
-    return opciones[opciones.length - 1];
+    /* Nada encaja. Puede ser un hueco exclusivo de otro rango —y entonces es lo correcto: no se pide
+     * nada— o una pantalla de menos de 320 px. Devolver la última serviría para lo segundo y sería un
+     * error en lo primero, así que se devuelve nada y se decide arriba. */
+    return null;
   }
 
   function montar(marco) {
@@ -56,6 +64,13 @@
     if (!opciones || !opciones.length) return;
 
     var elegida = elegir(opciones, anchoDisponible(marco));
+    /* Sin opción para esta pantalla, el hueco se quita del DOM. No basta con dejarlo sin `src`: el CSS
+     * le reserva su alto, así que quedaría una franja vacía. Y quitarlo es lo correcto — este hueco no
+     * existe en esta pantalla. */
+    if (!elegida) {
+      marco.remove();
+      return;
+    }
     if (!elegida.url) return; // sin servidor de anuncios configurado
 
     marco.width = elegida.ancho;

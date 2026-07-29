@@ -28,6 +28,18 @@
   </div>
 
   {% comment %}
+    SOLO EN MÓVIL, entre los widgets y el primer artículo. En pantalla ancha ese sitio no necesita nada
+    —el carril de la derecha ya acompaña al bloque editorial— pero apilado el lector se come dos
+    widgets largos antes de llegar al contenido, y ahí es donde el anuncio tiene sentido.
+
+    El rango va en la etiqueta y no solo en `d-lg-none` por lo mismo que el carril: un marco oculto
+    carga igual, y este contaría una impresión en cada visita de escritorio.
+  {% endcomment %}
+  <div class="d-lg-none mb-4">
+    {% anuncio_rango 40 320 50 maximo=991 clase="dgl-ad-leader" %}
+  </div>
+
+  {% comment %}
     Desde la Fase 5 los artículos son páginas de Wagtail y no las tarjetas de muestra que había acá
     escritas a mano. Cuántos entran lo decide la vista (`PORTADA_DESTACADO` y `PORTADA_RESTO`); la
     plantilla solo los coloca.
@@ -87,8 +99,17 @@
       alto del anuncio no había recorrido por donde deslizarse, así que no hacía nada. Un `sticky` sin
       margen es solo una promesa en el HTML.
     {% endcomment %}
-    <div class="col-12 dgl-col-300 d-flex align-items-center">
-      {% anuncio 3 300 600 "dgl-ad-torre" %}
+    <div class="col-12 dgl-col-300 d-none d-lg-flex align-items-center">
+      {% comment %}
+        SOLO DESDE 992px, y el rango lo declara la etiqueta — no basta con `d-none`. Un `iframe` oculto
+        con CSS SÍ CARGA su documento (comprobado), así que esconderlo en móvil dejaría a Revive
+        contando una impresión que nadie vio. En un teléfono, además, 600px de alto son media pantalla
+        de anuncio: el dueño lo pidió fuera y tiene razón.
+
+        Las clases `d-none d-lg-flex` siguen haciendo falta, pero para evitar el salto de maquetación
+        entre que se dibuja el HTML y el script decide.
+      {% endcomment %}
+      {% anuncio_rango 3 300 600 minimo=992 clase="dgl-ad-torre" %}
     </div>
   </div>
 
