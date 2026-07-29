@@ -431,20 +431,32 @@ def test_cada_hueco_pide_la_zona_que_le_toca(settings: Any) -> None:
 
     settings.ADSERVER_URL = ANUNCIOS
 
-    assert "zoneid=4" in anuncio(4, 300, 600)["url"]
-    assert anuncio(1, 728, 90)["url"] != anuncio(2, 728, 90)["url"]
+    assert "zoneid=12" in anuncio(12, 300, 600)["url"]
+    assert anuncio(1, 970, 90)["url"] != anuncio(4, 970, 90)["url"]
 
 
 @pytest.mark.django_db
 def test_dos_huecos_de_la_misma_pagina_no_repiten_zona(client: Client, settings: Any) -> None:
     """La cabecera y el pie de la portada son zonas distintas: la de arriba se ve sin bajar y vale
-    más, así que se venden por separado."""
+    más, así que se venden por separado.
+
+    LOS NÚMEROS CAMBIARON EL 2026-07-29 y esta prueba fue la que lo cantó. Antes toda la web
+    compartía las zonas 1 y 2, así que un anuncio vendido para la portada se entregaba también en
+    artículos, en jugadores y en el perfil. Ahora cada página tiene su decena:
+
+        1-4    portada        11-13  líderes       21-22  jugadores
+        31-32  índice art.    41-42  artículo      51-52  perfil
+
+    Acá se comprueban la 1 (arriba) y la 4 (abajo), que son las dos que existen en una base de
+    pruebas vacía: las otras dos de la portada viven dentro del bloque de artículos y no se dibujan
+    sin contenido publicado.
+    """
     settings.ADSERVER_URL = ANUNCIOS
 
     zonas = re.findall(r"zoneid=(\d+)", client.get("/").content.decode())
 
     assert zonas == sorted(set(zonas)), f"hay una zona repetida en la portada: {zonas}"
-    assert {"1", "2"} <= set(zonas)
+    assert {"1", "4"} <= set(zonas), f"faltan la cabecera o el pie: {zonas}"
 
 
 @pytest.mark.django_db

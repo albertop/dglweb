@@ -343,6 +343,18 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   border-radius: .4rem;
 }
 .dgl-ad-leader { height: 90px; }
+
+/* NINGÚN ANUNCIO PUEDE EMPUJAR LA PÁGINA A LO ANCHO. El `iframe` lleva su ancho en un atributo
+   —970 desde el 2026-07-29— y sin esto una pantalla más estrecha que eso saca una barra de scroll
+   horizontal en TODO el sitio, que es de los defectos que peor se ven en un móvil.
+
+   Antes el problema existía igual con 728, solo que empezaba por debajo de 740px de pantalla. Con
+   970 empezaría por debajo de ~994, o sea también en tablets y portátiles pequeños.
+
+   Lo que esto NO resuelve: por debajo de esos 994px el banner se ve RECORTADO, porque el `iframe` se
+   estrecha pero la imagen de dentro sigue midiendo 970. La solución de verdad es una zona aparte con
+   formato de móvil (320×50 o 300×250) y enseñar una u otra por CSS. Queda pendiente y anotado. */
+.dgl-ad-marco { max-width: 100%; }
 .dgl-ad-rect { height: 250px; }
 /* El que acompaña al artículo destacado: se estira a lo que mida su fila —con `h-100`— en vez de
    quedarse en 250px y dejar un hueco al lado del artículo. El mínimo es el 300×250 de siempre, que
@@ -835,6 +847,19 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    pegado al borde —`margin-left: auto`— en vez de ocupar toda la columna: un anuncio estirado hasta
    los 470px de la columna no es ningún formato que exista. */
 .dgl-ad-torre { width: 300px; max-width: 100%; height: 600px; margin-left: auto; }
+
+/* LA COLUMNA DE LA TORRE, y existe por un defecto medido (2026-07-29).
+
+   Estaba en `col-xl-3`, que sobre el contenedor de 1140px da 285px menos 24 de canaleta: **261**. El
+   `max-width: 100%` de `.dgl-ad-torre` la encogía a esos 261 sin quejarse, así que el hueco decía
+   300×600 y entregaba 261×600 — una creatividad de 300 de ancho salía aplastada un 13%.
+
+   Con `flex-basis` fijo la columna mide siempre lo que el anuncio necesita, y el tablero se queda con
+   el resto. La canaleta se suma porque las columnas de Bootstrap llevan `box-sizing: border-box` y su
+   relleno saldría del mismo ancho. */
+@media (min-width: 1200px) {
+  .dgl-col-torre { flex: 0 0 auto; width: calc(300px + var(--bs-gutter-x, 1.5rem)); }
+}
 
 /* Banner chico, para el hueco corto que queda al lado de unas pestañas. Ancho fijo y pegado a la
    derecha: estirado a la columna entera pesaba más que las pestañas, que son el control de la

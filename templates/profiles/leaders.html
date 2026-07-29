@@ -17,6 +17,12 @@ muda y el usuario vuelve a hacer clic.
 <div class="dgl-loading" id="dgl-loading" aria-hidden="true"><div class="dgl-spinner" role="status" aria-label="Cargando"></div></div>
 <div class="container my-4">
   {% comment %}
+    Cabecera de la página (zona 11). Va DENTRO del `.container` y no en un bloque propio para que
+    comparta el mismo ancho que el tablero: un anuncio que no se alinea con el contenido se lee como
+    algo pegado por fuera de la página.
+  {% endcomment %}
+  {% anuncio 11 970 90 "dgl-ad-leader mb-4" %}
+  {% comment %}
   Entrada de la página. El h1 era `visually-hidden` cuando esto era un MVP sin texto; ahora que hay
   encabezado visible lleva el nombre de la sección, y el detalle de la selección queda en el <title>
   del documento, que es donde sirve para buscadores y para la pestaña.
@@ -133,7 +139,7 @@ muda y el usuario vuelve a hacer clic.
   {% endcomment %}
   {% with split=board.columns|length %}
   <div class="row g-4">
-  <div class="col-xl-9">
+  <div class="col-12 col-xl">
   <div class="dgl-leaders-board{% if split > 1 %} dgl-leaders-board-split{% endif %}">
     <div class="row g-3 mb-3">
       {% for column in board.columns %}
@@ -181,8 +187,8 @@ muda y el usuario vuelve a hacer clic.
     Pegajoso: el tablero puede tener quince filas y el anuncio se queda a la vista mientras se baja,
     en vez de desaparecer en la primera pantalla.
   {% endcomment %}
-  <div class="col-xl-3">
-    {% anuncio 4 300 600 "dgl-ad-torre dgl-ad-pegado" %}
+  <div class="col-12 dgl-col-torre">
+    {% anuncio 12 300 600 "dgl-ad-torre dgl-ad-pegado" %}
   </div>
   </div>
   {% endwith %}
@@ -197,7 +203,7 @@ muda y el usuario vuelve a hacer clic.
     y otra de tres— y así el anuncio no se mueve de sitio al cambiar de selección.
   {% endcomment %}
   <div class="container dgl-ad-pie">
-    {% anuncio 2 728 90 "dgl-ad-leader" %}
+    {% anuncio 13 970 90 "dgl-ad-leader" %}
   </div>
 {% endblock %}
 
