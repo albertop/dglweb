@@ -38,6 +38,18 @@
 # el gestor de contraseñas— y por eso una copia en la nube tendría que ir cifrada.
 set -euo pipefail
 
+# UNO A LA VEZ. Todas las corridas comparten `/srv/respaldos/.trabajo`, así que dos solapadas se
+# pisan: el `rm -rf` de la segunda borra lo que la primera está escribiendo, y lo que se publica es
+# una mezcla de las dos que pasa todas las verificaciones.
+#
+# No es hipotético: el 2026-07-30 el comando que añadía la línea al crontab se corrió tres veces y
+# quedaron TRES entradas idénticas a las 5:30. Se vio al mirar `crontab -l`, no al fallar nada.
+#
+# `-n` para no encolar: si ya hay un respaldo corriendo, este sobra. Sale con 0 porque no es un error
+# que merezca despertar a nadie — el que está corriendo hará el trabajo.
+exec 200>/var/run/respaldo_dgl.lock
+flock -n 200 || { echo "Ya hay un respaldo corriendo; este se omite."; exit 0; }
+
 DESTINO="${DESTINO:-/srv/respaldos}"
 CORRIDAS="${CORRIDAS:-3}"
 FECHA=$(date +%Y-%m-%d_%H%M)
