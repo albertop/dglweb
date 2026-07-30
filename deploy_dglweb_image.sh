@@ -47,9 +47,17 @@ SUCIO=$(git status --porcelain --untracked-files=all)
 if [ -n "$SUCIO" ]; then
     echo ""
     echo "Error: hay cambios sin commitear. La imagen no correspondería al commit $COMMIT."
+    echo ""
     echo "$SUCIO" | head -20
     echo ""
-    echo "  Commitea, descarta con 'git checkout -- .', o limpia con 'git clean -fd'."
+    # NO SE SUGIERE COMO ARREGLARLO, y es deliberado. La primera versión recomendaba
+    # `git checkout -- .` y `git clean -fd`, que BORRAN trabajo sin confirmación — y salen en un
+    # mensaje de error, que es justo lo que alguien pega a las tres de la mañana sin leer.
+    #
+    # Puede ser un hotfix que salvó la noche o un archivo que alguien lleva días escribiendo. El
+    # script no tiene forma de saberlo, así que enseña QUÉ hay y se detiene. Decidir qué hacer con
+    # trabajo propio es del operador, no de un script de despliegue.
+    echo "  Revisa esa lista y decide qué hacer con cada cosa antes de volver a intentarlo."
     exit 1
 fi
 

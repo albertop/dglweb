@@ -279,9 +279,16 @@ fi
 #
 # Propagarlo es seguro porque va AL FINAL: la parte de nginx ya se ejecuto y ya se recargo. Lo unico
 # que cambia es que cron se entere.
-if [[ -x /usr/local/bin/sync_access_ip.sh ]]; then
-  if ! /usr/local/bin/sync_access_ip.sh "$NEW_IP"; then
-    log_message "ERROR: sync_access_ip.sh fallo para $NEW_IP — fail2ban/ufw pueden tener la IP vieja"
-    exit 1
-  fi
+# Y SI NO ESTA INSTALADO, TAMBIEN FALLA. Antes se saltaba en silencio y el cron terminaba con exito,
+# que es la misma trampa un nivel mas arriba: «actualice la IP» cuando solo se actualizaron dos de los
+# cinco consumidores. En un servidor recien reinstalado eso es lo que pasaria, y nadie lo notaria
+# hasta que el CMS dejara de abrirse.
+if [[ ! -x /usr/local/bin/sync_access_ip.sh ]]; then
+  log_message "ERROR: falta /usr/local/bin/sync_access_ip.sh — fail2ban, ufw y el snippet NO se sincronizaron"
+  exit 1
+fi
+
+if ! /usr/local/bin/sync_access_ip.sh "$NEW_IP"; then
+  log_message "ERROR: sync_access_ip.sh fallo para $NEW_IP — fail2ban/ufw pueden tener la IP vieja"
+  exit 1
 fi

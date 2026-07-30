@@ -56,40 +56,55 @@ LOG_DIR="/var/log/change_nginx_allow_ip"
 mkdir -p "$LOG_DIR" && chmod 700 "$LOG_DIR"
 log() { echo "[$(date '+%F %T')] sync_access_ip: $1" | tee -a "$LOG_DIR/update-$(date +%F).log" >/dev/null; }
 
-# ── nginx: el snippet que incluyen el CMS y el panel de Revive ──────────────────────────────────
-if [[ -f "$SNIPPET" ]]; then
-    IP_VIEJA="$(grep -oE '^allow[[:space:]]+([0-9]{1,3}\.){3}[0-9]{1,3}' "$SNIPPET" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' || true)"
-    if [[ "$IP_VIEJA" != "$IP" ]]; then
-        cp -a "$SNIPPET" "$SNIPPET.backup-$(date +%Y%m%d-%H%M%S)"
-        # Solo la línea que EMPIEZA por `allow`: los comentarios de arriba no se tocan.
-        sed -i -E "s|^allow[[:space:]]+([0-9]{1,3}\.){3}[0-9]{1,3};|allow ${IP};|" "$SNIPPET"
-
-        # `nginx -t` ANTES de recargar, siempre. Si algo quedó mal, nginx sigue sirviendo con lo que
-        # tenía y el error queda en el log — en vez de tumbar cuatro sitios de madrugada.
-        if nginx -t 2>/dev/null; then
-            systemctl reload nginx
-            log "nginx: $IP_VIEJA → $IP (recargado)"
-        else
-            log "ERROR: nginx -t falló tras cambiar el snippet. NO se recargó."
-            exit 1
-        fi
+# LOS DOS ARCHIVOS TIENEN QUE EXISTIR, Y SI NO, ESTO FALLA
+# ----------------------------------------------------------
+# Antes se avisaba y se seguía con éxito. Reproducido en un contenedor limpio: sin el snippet y sin
+# `jail.local`, el script terminaba con **código 0** — o sea, «sincronicé la IP» cuando no había
+# sincronizado nada.
+#
+# Es EL MISMO DEFECTO que este script vino a arreglar en su padre, un nivel más abajo. Un `[[ -f ]]`
+# que se salta el trabajo y devuelve éxito es indistinguible de haberlo hecho, y ahí se acaba la
+# vigilancia: cron contento, log local que nadie lee, y la IP sin propagar.
+#
+#   falta el snippet   el CMS y el panel de Revive no actualizan su IP
+#   falta jail.local   fail2ban se queda con la vieja y PUEDE BANEAR AL DUEÑO
+#
+# Los dos son estados de instalación incompleta, no de operación normal. Tienen que doler.
+for requisito in "$SNIPPET" "$JAIL"; do
+    if [[ ! -f "$requisito" ]]; then
+        log "ERROR: falta $requisito — la IP NO se sincronizó. Instalar desde deploy/ y repetir."
+        exit 1
     fi
-else
-    log "AVISO: no existe $SNIPPET — el CMS y Revive no están usando el include"
+done
+
+# ── nginx: el snippet que incluyen el CMS y el panel de Revive ──────────────────────────────────
+IP_VIEJA="$(grep -oE '^allow[[:space:]]+([0-9]{1,3}\.){3}[0-9]{1,3}' "$SNIPPET" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' || true)"
+if [[ "$IP_VIEJA" != "$IP" ]]; then
+    cp -a "$SNIPPET" "$SNIPPET.backup-$(date +%Y%m%d-%H%M%S)"
+    # Solo la línea que EMPIEZA por `allow`: los comentarios de arriba no se tocan.
+    sed -i -E "s|^allow[[:space:]]+([0-9]{1,3}\.){3}[0-9]{1,3};|allow ${IP};|" "$SNIPPET"
+
+    # `nginx -t` ANTES de recargar, siempre. Si algo quedó mal, nginx sigue sirviendo con lo que
+    # tenía y el error queda en el log — en vez de tumbar cuatro sitios de madrugada.
+    if nginx -t 2>/dev/null; then
+        systemctl reload nginx
+        log "nginx: $IP_VIEJA → $IP (recargado)"
+    else
+        log "ERROR: nginx -t falló tras cambiar el snippet. NO se recargó."
+        exit 1
+    fi
 fi
 
 # ── fail2ban: que no te banee a ti ──────────────────────────────────────────────────────────────
-if [[ -f "$JAIL" ]]; then
-    DESEADA="ignoreip = ${IGNORE_FIJAS} ${IP}"
-    if ! grep -qxF "$DESEADA" "$JAIL"; then
-        cp -a "$JAIL" "$JAIL.backup-$(date +%Y%m%d-%H%M%S)"
-        sed -i -E "s|^ignoreip[[:space:]]*=.*|${DESEADA}|" "$JAIL"
-        fail2ban-client reload >/dev/null
-        log "fail2ban: ignoreip → $IP (recargado)"
-    fi
-    # Idempotente y barato: si no estaba baneada, no hace nada.
-    fail2ban-client unban "$IP" >/dev/null 2>&1 || true
+DESEADA="ignoreip = ${IGNORE_FIJAS} ${IP}"
+if ! grep -qxF "$DESEADA" "$JAIL"; then
+    cp -a "$JAIL" "$JAIL.backup-$(date +%Y%m%d-%H%M%S)"
+    sed -i -E "s|^ignoreip[[:space:]]*=.*|${DESEADA}|" "$JAIL"
+    fail2ban-client reload >/dev/null
+    log "fail2ban: ignoreip → $IP (recargado)"
 fi
+# Idempotente y barato: si no estaba baneada, no hace nada.
+fail2ban-client unban "$IP" >/dev/null 2>&1 || true
 
 # ── ufw: el atajo del 22 ────────────────────────────────────────────────────────────────────────
 #
@@ -117,3 +132,25 @@ if command -v ufw >/dev/null && ufw status | grep -q "^Status: active"; then
         log "ufw: borrada la regla del 22 de $vieja"
     done
 fi
+
+# ── La postcondición ────────────────────────────────────────────────────────────────────────────
+#
+# El contrato de este script no es «edité dos archivos» sino **«todos los puntos de acceso reconocen
+# la misma IP»**. Editar y recargar no lo demuestra: un `sed` que no casa devuelve 0, y un `reload`
+# que carga un archivo sin cambiar tampoco protesta.
+#
+# Así que se comprueba el resultado, no la operación. Es lo único que distingue «hice el trabajo» de
+# «ejecuté los comandos del trabajo», y esa distinción es la que faltaba en toda esta cadena.
+#
+# Se leen los archivos de disco a propósito, no las variables de arriba: lo que importa es lo que
+# quedó escrito.
+fallos=""
+grep -qE "^allow[[:space:]]+${IP};" "$SNIPPET"        || fallos="$fallos snippet"
+grep -qE "^ignoreip[[:space:]]*=.*(^|[[:space:]])${IP}([[:space:]]|\$)" "$JAIL" || fallos="$fallos ignoreip"
+
+if [[ -n "$fallos" ]]; then
+    log "ERROR: la IP $IP no quedó aplicada en:$fallos"
+    exit 1
+fi
+
+log "ok: $IP aplicada en snippet, ignoreip y ufw"
