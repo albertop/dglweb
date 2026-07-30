@@ -18,12 +18,16 @@ que haría dudar de cuál de los dos comportamientos aplica en cada sitio.
 {% endcomment %}
 {% if hay_servidor %}
   {% comment %}
-    Sin `sandbox` a propósito: el marco tiene que poder navegar al hacer clic —ese clic es lo que se le
-    factura al anunciante— y `sandbox` sin `allow-top-navigation-by-user-activation` lo rompería. Quien
-    sirve ese marco es nuestro propio servidor, no un tercero.
+    El `sandbox` impide que una creatividad de tercero se lleve al lector con `top.location`. Va
+    explicado en detalle en `_anuncio.html`, y los dos marcos tienen que llevar el mismo — hay una
+    prueba que lo exige, porque proteger uno y dejar el otro abierto no protege nada.
+
+    Y va EN EL HTML, no puesto por `anuncios.js`: el atributo solo surte efecto si ya está cuando el
+    marco recibe su `src`, y añadirlo desde el script sería confiar en el orden de dos líneas.
   {% endcomment %}
   <iframe class="dgl-ad-marco dgl-ad-leader {{ clase }}"
           data-anuncio="{{ opciones }}"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
           frameborder="0" scrolling="no" loading="lazy"
           title="Publicidad"></iframe>
 {% else %}

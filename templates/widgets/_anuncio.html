@@ -17,12 +17,35 @@ probaría en desarrollo con unas medidas y saldría a producción con otras. El 
     leer. `scrolling="no"` y `frameborder="0"` son atributos viejos, pero es lo que entienden los
     navegadores para marcos de publicidad y no cuestan nada.
 
-    SIN `sandbox`, y a propósito: el marco tiene que poder navegar al hacer clic —ese clic es lo que
-    se le factura al anunciante— y `sandbox` sin `allow-top-navigation-by-user-activation` lo
-    rompería. Quien sirve ese marco es nuestro propio servidor, no un tercero.
+    EL `sandbox` VA, Y LO QUE COMPRA ES QUE UN ANUNCIO NO PUEDA SECUESTRAR LA PÁGINA
+    --------------------------------------------------------------------------------
+    Esto estuvo sin `sandbox` con el argumento de que el marco «tiene que poder navegar al hacer
+    clic». Es falso: **la plantilla de entrega de Revive ya abre con `target="_blank"`** —se miró el
+    HTML que sirve—, así que el clic nunca navega la ventana de arriba y no hace falta permitirlo.
+
+    Lo que se está evitando es concreto. La creatividad la sube un anunciante, no nosotros; es HTML y
+    JavaScript de un tercero corriendo dentro del sitio. Sin `sandbox`, ese código puede hacer
+    `top.location = ...` y llevarse al lector a otra parte SIN QUE TOQUE NADA. Es el fraude
+    publicitario más común que hay, y aparece cuando le da la gana —de madrugada, o solo en móvil—,
+    así que abrir el sitio y ver que funciona no prueba absolutamente nada.
+
+    Los cuatro permisos, uno por uno:
+
+      allow-scripts                    casi toda creatividad es HTML+JS; sin esto no se ve nada
+      allow-same-origin                Revive necesita SU cookie para no repetir el mismo anuncio
+      allow-popups                     el `target="_blank"` del clic, que es lo que se factura
+      allow-popups-to-escape-sandbox   sin esto la página del anunciante abre TAMBIÉN sandboxed y se
+                                       ve rota, que es peor que no mostrarla
+
+    Sobre juntar `allow-scripts` y `allow-same-origin`, que normalmente anula el `sandbox` entero: eso
+    pasa cuando el marco es del MISMO origen que quien lo mete, porque entonces puede alcanzar el
+    documento de arriba y quitarse el atributo. Acá el marco viene de `promo.dominicanos…` y la página
+    de `dominicanos…` — orígenes distintos, no se alcanzan. Si algún día el adserver se mueve al mismo
+    dominio, este atributo deja de proteger y hay que volver a mirarlo.
   {% endcomment %}
   <iframe class="dgl-ad-marco {{ clase }}" src="{{ url }}"
           width="{{ ancho }}" height="{{ alto }}"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
           frameborder="0" scrolling="no" loading="lazy"
           title="Publicidad"></iframe>
 {% else %}
