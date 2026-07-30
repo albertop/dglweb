@@ -33,8 +33,17 @@ no existe —o peor, a la de la agencia— sería ruido en el mensaje de otra pe
 `rel="noopener"` en todos: abren en otra pestaña y sin él la página de destino puede tocar la nuestra
 por `window.opener`.
 {% endcomment %}
-<div class="dgl-compartir {{ clase }}" data-compartir data-titulo="{{ titulo }}" data-url="{{ url }}">
-  <span class="dgl-compartir-etiqueta">Compartir</span>
+{% comment %}
+  SIN LA PALABRA «Compartir» A LA VISTA. La llevaba delante y sobraba: con los iconos, cinco botones en
+  fila al final de un artículo ya dicen lo que son.
+
+  Pero el grupo sí necesita nombre para quien no ve la pantalla: sin él, un lector de pantalla anuncia
+  cinco enlaces sueltos —«WhatsApp», «X», «Facebook»…— sin decir para qué están ahí. Va en
+  `aria-label` sobre un `role="group"`, que es exactamente eso: un nombre para el conjunto, no un
+  texto que ocupe sitio.
+{% endcomment %}
+<div class="dgl-compartir {{ clase }}" role="group" aria-label="Compartir este artículo"
+     data-compartir data-titulo="{{ titulo }}" data-url="{{ url }}">
 
   {# El botón nativo. Nace oculto y `compartir.js` lo enseña solo donde el navegador lo soporta. #}
   <button type="button" class="dgl-compartir-boton d-none" data-compartir-nativo hidden>

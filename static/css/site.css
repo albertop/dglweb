@@ -1403,10 +1403,6 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 .dgl-compartir {
   display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
 }
-.dgl-compartir-etiqueta {
-  font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .7rem; letter-spacing: .12em;
-  text-transform: uppercase; color: var(--dgl-muted); margin-right: .25rem;
-}
 /* Botones de contorno y no macizos: son una acción secundaria. Un artículo tiene UNA acción
    principal —leerlo— y cuatro botones de color pleno debajo del texto compiten con ella. */
 .dgl-compartir-boton {
@@ -1421,7 +1417,6 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 /* La variante de la cabecera: misma cosa, más callada. Va bajo la firma y no puede pesar más que el
    titular que tiene encima. */
 .dgl-compartir-fino .dgl-compartir-boton { padding: .15rem .55rem; font-size: .72rem; }
-.dgl-compartir-fino .dgl-compartir-etiqueta { font-size: .65rem; }
 
 /* El icono. `em` y no `px`: así sigue al tamaño del texto del botón, y la variante fina de la cabecera
    se encoge sola sin necesitar su propia regla.
