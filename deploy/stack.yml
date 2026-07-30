@@ -1,0 +1,113 @@
+# El stack de producción de dglweb, para Portainer (Stacks → dglweb → Editor).
+#
+# Vive en el repositorio por lo mismo que el de Revive: un stack que solo existe dentro de la interfaz
+# de Portainer no se puede revisar, ni comparar, ni recuperar si alguien lo edita mal. Y este es el
+# único sitio donde están escritos los volúmenes, la red y el healthcheck — nada de eso se deduce
+# mirando el código.
+#
+#
+# NINGUNA CREDENCIAL ACÁ, Y POR ESO SE PUEDE VERSIONAR
+# -----------------------------------------------------
+# Todo valor entra por «Environment variables» del stack en Portainer. Acá solo están los NOMBRES.
+#
+# Y la distinción entre los dos operadores es una decisión, no estilo:
+#
+#     ${VAR:?falta}   sin ella el stack NO ARRANCA. Son las que, faltando, dan un sitio roto de una
+#                     forma difícil de diagnosticar: sin `DATABASE_URL` no hay nada que servir, y sin
+#                     `DJANGO_ALLOWED_HOSTS` Django responde 400 a todo el mundo.
+#
+#     ${VAR:-}        opcionales de verdad. Faltando, la función se apaga y el resto sigue: sin
+#                     `ANALITICA_ID` no se dibuja el script de Umami, sin `ADSERVER_URL` los huecos de
+#                     publicidad muestran el recuadro de maqueta, sin las de Telegram no hay avisos.
+#
+# Fallar al arrancar es preferible a arrancar a medias cuando lo que falta es esencial. Un contenedor
+# que no levanta se ve; uno que levanta y contesta 400 parece un problema de red.
+#
+# `ANALITICA_ENVIO_URL` NO ESTÁ Y NO HACE FALTA: trae un valor por defecto que cubre a Umami Cloud
+# (ver `config/settings/base.py`). Solo se añade acá si Umami vuelve a mover su host de recolección.
+#
+#
+# DOS COSAS QUE HAY QUE SABER ANTES DE LEVANTARLO EN UN SERVIDOR NUEVO
+# ---------------------------------------------------------------------
+#   1. La red `backend` es EXTERNA — la comparten Postgres, Revive y el proxy. Hay que crearla antes:
+#
+#          docker network create backend
+#
+#   2. Los tres directorios de `/srv/dglweb-datos/` tienen que existir. `media/` y `uploads/` son lo
+#      que sube el editor desde el CMS: **eso no está en ninguna imagen ni en git**, y es la mitad de
+#      lo que protege `deploy/respaldo.sh`. `mugshots/` va en solo lectura porque lo llena un script
+#      de descarga, no la aplicación.
+#
+#
+# LA VERSIÓN DE LA IMAGEN ESTÁ ESCRITA A MANO, y es a propósito: desplegar obliga a editar esta línea,
+# así que no se puede recrear el stack «sin querer» sobre una imagen distinta de la que se probó. El
+# precio es acordarse de cambiarla — el checklist de `docs/PRUEBAS_DESPLIEGUE.md` lo dice en su paso.
+services:
+  web:
+    image: dglweb:1.2026.10
+    container_name: dglweb-web-live
+    restart: unless-stopped
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?falta}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?falta}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      DATABASE_URL: ${DATABASE_URL:?falta}
+      MLB_PROXY_URL: ${MLB_PROXY_URL:?falta}
+      MLB_PROXY_API_KEY: ${MLB_PROXY_API_KEY:?falta}
+      WAGTAILADMIN_BASE_URL: ${WAGTAILADMIN_BASE_URL:?falta}
+      PIPELINE_HEALTH_TOKEN: ${PIPELINE_HEALTH_TOKEN:-}
+      ANALITICA_URL: ${ANALITICA_URL:-}
+      ANALITICA_ID: ${ANALITICA_ID:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      ADSERVER_URL: ${ADSERVER_URL:-}
+    volumes:
+      - /srv/dglweb-datos/media:/app/media
+      - /srv/dglweb-datos/uploads:/app/uploads
+      - /srv/dglweb-datos/mugshots:/app/static/img/mugshots:ro
+    # SOLO al loopback. nginx hace de frente; publicarlo en `0.0.0.0` dejaría el sitio accesible
+    # saltándose TLS, los límites de tasa y el cierre por IP del CMS — y `ufw status` seguiría
+    # diciendo que todo está cerrado, porque Docker escribe sus reglas por delante. Ver
+    # `docs/CORTAFUEGOS.md`.
+    ports:
+      - "127.0.0.1:3004:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [backend]
+
+  # EL RELOJ DEL PIPELINE. Los horarios no están acá: viven en `ofelia/config.ini`, que se monta desde
+  # el checkout del repositorio.
+  scheduler:
+    # Fijada por DIGEST y no por etiqueta: `latest` de un tercero puede cambiar bajo los pies entre dos
+    # despliegues, y esto es lo que dispara el refresco diario. Que reproduzca exactamente lo mismo
+    # importa más acá que en ningún otro contenedor.
+    image: mcuadros/ofelia@sha256:efcbe2c5cf658a25de6443c1462d653f9cc03791d642e01fc6c638a00f97e492
+    container_name: dglweb-scheduler
+    restart: unless-stopped
+    depends_on: [web]
+    command: daemon --config=/etc/ofelia/config.ini
+    userns_mode: "host"
+    environment:
+      TZ: America/Santo_Domingo
+    volumes:
+      # EL SOCKET DE DOCKER, EN SOLO LECTURA. Ofelia lanza los comandos dentro del contenedor `web`, y
+      # para eso necesita hablar con el demonio. El `:ro` limita el daño, pero no lo elimina: acceso al
+      # socket es acceso al anfitrión. Es la razón por la que este contenedor no expone ningún puerto.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /srv/dglweb/ofelia/config.ini:/etc/ofelia/config.ini:ro
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [backend]
+
+networks:
+  backend:
+    external: true
