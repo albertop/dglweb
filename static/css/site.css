@@ -1435,3 +1435,13 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .dgl-compartir-fino .dgl-compartir-boton { padding: .35rem .5rem; }
 .dgl-compartir-fino .dgl-compartir-icono { width: 1.15rem; height: 1.15rem; }
+
+/* La variante para fondo oscuro: el hero del perfil es navy, y los botones de contorno claro
+   desaparecerían encima. Mismo dibujo, colores invertidos. */
+.dgl-compartir-oscuro .dgl-compartir-boton {
+  background: transparent; border-color: rgba(255, 255, 255, .35); color: #fff;
+}
+.dgl-compartir-oscuro .dgl-compartir-boton:hover,
+.dgl-compartir-oscuro .dgl-compartir-boton:focus-visible {
+  background: #fff; border-color: #fff; color: var(--dgl-navy);
+}

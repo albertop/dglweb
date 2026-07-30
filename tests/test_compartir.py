@@ -137,3 +137,70 @@ def test_el_enlace_de_whatsapp_lleva_titulo_y_direccion() -> None:
 
     assert TITULO in texto
     assert HOST in texto
+
+
+# ── El texto que se comparte desde el perfil ────────────────────────────────────────────────────
+#
+# Es lo que decide si compartir un perfil sirve de algo. Un enlace que dice «Juan Soto» compite con
+# todo lo demás en un chat; uno que dice «Juan Soto — 245 jonrones de por vida» se abre.
+
+
+class _Carrera:
+    """Lo mínimo de `BattingCareer` / `PitchingCareer` que mira la función."""
+
+    def __init__(self, **kw: object) -> None:
+        self.hr = self.h = self.so = 0
+        self.__dict__.update(kw)
+
+
+class _Jugador:
+    def __init__(self, nombre: str) -> None:
+        self.full_name = nombre
+
+
+def test_el_texto_del_perfil_lleva_la_cifra_que_define_al_pelotero() -> None:
+    from dglweb.profiles.views import texto_compartir
+
+    texto = texto_compartir(_Jugador("Juan Soto"), _Carrera(hr=245, h=1200), None)  # type: ignore[arg-type]
+
+    assert texto.startswith("Juan Soto")
+    assert "245" in texto, "sin el número, el enlace no invita a nada"
+
+
+def test_a_un_lanzador_lo_define_el_ponche_y_no_el_jonron() -> None:
+    """Un lanzador con jonrones PERMITIDOS no puede salir presumiendo de ellos."""
+    from dglweb.profiles.views import texto_compartir
+
+    texto = texto_compartir(
+        _Jugador("Cristian Javier"),  # type: ignore[arg-type]
+        _Carrera(hr=2),  # type: ignore[arg-type]
+        _Carrera(so=980),  # type: ignore[arg-type]
+    )
+
+    assert "980 ponches" in texto
+    assert "jonrones" not in texto
+
+
+def test_sin_datos_se_queda_solo_el_nombre_y_no_un_cero() -> None:
+    """«Fulano — 0 jonrones de por vida» es peor que no decir nada.
+
+    Pasa de verdad: hay peloteros en el maestro que debutaron y no acumularon nada, y peloteros de
+    `dom_players` que aún no llegaron a las mayores.
+    """
+    from dglweb.profiles.views import texto_compartir
+
+    assert texto_compartir(_Jugador("Recién Llegado"), _Carrera(), _Carrera()) == "Recién Llegado"  # type: ignore[arg-type]
+
+
+def test_el_texto_del_perfil_no_arrastra_la_cola_de_seo() -> None:
+    """`descripcion_social` termina en «Estadísticas completas de su carrera», que sirve para Google.
+
+    En un mensaje de WhatsApp eso es relleno, y las dos frases se parecen lo suficiente como para que
+    alguien reutilice la que no toca.
+    """
+    from dglweb.profiles.views import texto_compartir
+
+    texto = texto_compartir(_Jugador("Juan Soto"), _Carrera(hr=245), None)  # type: ignore[arg-type]
+
+    assert "Estadísticas completas" not in texto
+    assert len(texto) < 80, f"demasiado largo para un mensaje: {texto!r}"

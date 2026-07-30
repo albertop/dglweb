@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load stats_extras anuncios %}
+{% load compartir stats_extras anuncios %}
 
 {% block title %}{{ player.full_name }} — Dominicanos en Grandes Ligas{% endblock %}
 
@@ -80,6 +80,17 @@
         statboxes fuera del borde derecho del hero.
         {% endcomment %}
         {% for line in bio %}<div class="k">{{ line|join:" · " }}</div>{% endfor %}
+        {% comment %}
+          Dentro del hero, bajo la biografía. Es el único sitio de esta página que significa algo: el
+          perfil no tiene «final del texto» —son pestañas que cambian sin recargar— así que un bloque
+          al fondo quedaría colgado de la última tabla que el lector abriera.
+
+          `dgl-compartir-oscuro` porque el hero es navy: los botones de contorno claro desaparecerían.
+
+          El texto lleva la cifra que define al pelotero —«Juan Soto — 245 jonrones de por vida»— y no
+          solo el nombre. Un enlace con un número se abre; uno genérico se ignora.
+        {% endcomment %}
+        {% compartir request.path texto_compartir "dgl-compartir-fino dgl-compartir-oscuro mt-3" %}
       </div>
       <div class="d-flex gap-4 text-center flex-wrap">
         {% if is_pitcher and pit_total %}

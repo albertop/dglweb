@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static anuncios %}
+{% load static anuncios compartir %}
 {% comment %}
 Página de líderes (/lideres/): boards del subconjunto dominicano desde dgl_leader. Mismo lenguaje
 visual que el perfil — tabs de grupo, pills de división, dgl-stats-table. Los controles navegan por
@@ -7,6 +7,22 @@ GET (cada board es su propia URL, indexable). MVP: Bateo/Pitcheo, serie regular,
 temporada. Postemporada y Fildeo llegan después.
 {% endcomment %}
 {% block title %}Líderes {{ board.name }} — {{ group_label }} · Dominicanos en Grandes Ligas{% endblock %}
+
+{% comment %}
+  LO QUE SE VE AL PEGAR EL ENLACE, y hacía falta porque cada tablero es su propia URL. Sin esto los
+  treinta tableros compartían la misma tarjeta —«Dominicanos en Grandes Ligas»— así que el botón de
+  compartir mandaba «Líderes dominicanos en Jonrones» y la tarjeta lo contradecía.
+
+  La descripción nombra a quien encabeza, que es lo que hace que alguien abra el enlace: «Otto López
+  encabeza…» dice algo; «lista de líderes» no. Sale de la primera fila de la primera columna, que es
+  la de Mejores. Si el tablero está vacío queda la frase sin nombre, que sigue siendo cierta.
+
+  El `og:image` se queda en la genérica del sitio a propósito: un tablero no tiene foto propia, y
+  recortar el retrato del primero —que mide 120px— daría una imagen borrosa en una tarjeta que pide
+  1200×630.
+{% endcomment %}
+{% block og_titulo %}Líderes dominicanos en {{ board.name }}{% endblock %}
+{% block og_descripcion %}{% with primero=board.columns.0.rows.0 %}{% if primero %}{{ primero.name }} encabeza a los dominicanos en {{ board.name|lower }} con {{ primero.value }}. {% endif %}{% endwith %}Los líderes dominicanos de las Grandes Ligas en {{ board.name|lower }}, {{ group_label|lower }}.{% endblock %}
 
 {% block content %}
 {% comment %}
@@ -198,6 +214,17 @@ muda y el usuario vuelve a hacer clic.
       {% if board.shows_partial %}<span class="d-block"><span class="dgl-partial">*</span> Debutó antes de {{ board.available_from }}: su total no cuenta las temporadas anteriores.</span>{% endif %}
       {% if board.shows_active %}<span class="d-block"><span class="dgl-active-swatch"></span> = jugador activo.</span>{% endif %}
     </p>
+    {% comment %}
+      Bajo el tablero, que es donde acaba lo que la persona vino a ver. Cada tablero es SU PROPIA URL
+      —el alcance, la temporada y la métrica van en la dirección— así que lo que se comparte es «los
+      líderes dominicanos en jonrones» y no «la página de líderes».
+
+      Por eso el texto se arma con el nombre del tablero y el oficio, y no con el título de la página:
+      compartir «Líderes» a secas no le dice nada a quien lo recibe.
+    {% endcomment %}
+    {% with texto="Líderes dominicanos en "|add:board.name %}
+      {% compartir request.get_full_path texto %}
+    {% endwith %}
   </div>
   </div>
   {% comment %}

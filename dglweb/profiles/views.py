@@ -107,6 +107,7 @@ def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "pit_total": pitcheo,
     }
     context["descripcion_social"] = descripcion_social(player, bateo, pitcheo)
+    context["texto_compartir"] = texto_compartir(player, bateo, pitcheo)
     return render(request, "profiles/player_detail.html", context)
 
 
@@ -129,16 +130,40 @@ def descripcion_social(player: Player, bateo: BattingCareer | None, pitcheo: Pit
     if player.debut_date:
         partes.append(f"en Grandes Ligas desde {player.debut_date.year}")
 
-    # La cifra que más lo define, y una sola: una lista de seis números no la lee nadie en un
-    # resultado de búsqueda. Un lanzador se resume por ponches; un bateador, por jonrones.
-    if pitcheo and (pitcheo.so or 0) > 0:
-        partes.append(f"{pitcheo.so:,} ponches de por vida".replace(",", "."))
-    elif bateo and (bateo.hr or 0) > 0:
-        partes.append(f"{bateo.hr:,} jonrones de por vida".replace(",", "."))
-    elif bateo and (bateo.h or 0) > 0:
-        partes.append(f"{bateo.h:,} hits de por vida".replace(",", "."))
+    cifra = cifra_que_lo_define(bateo, pitcheo)
+    if cifra:
+        partes.append(cifra)
 
     return ". ".join([", ".join(partes[:2]), *partes[2:]]) + ". Estadísticas completas de su carrera."
+
+
+def cifra_que_lo_define(bateo: BattingCareer | None, pitcheo: PitchingCareer | None) -> str:
+    """UNA sola cifra, la que resume a ese pelotero. Un lanzador por ponches; un bateador por jonrones.
+
+    Una lista de seis números no la lee nadie en un resultado de búsqueda ni en un mensaje de
+    WhatsApp. Y si el dato falta se devuelve vacío en vez de escribir un cero: «0 jonrones de por
+    vida» es peor que no decir nada.
+    """
+    if pitcheo and (pitcheo.so or 0) > 0:
+        return f"{pitcheo.so:,} ponches de por vida".replace(",", ".")
+    if bateo and (bateo.hr or 0) > 0:
+        return f"{bateo.hr:,} jonrones de por vida".replace(",", ".")
+    if bateo and (bateo.h or 0) > 0:
+        return f"{bateo.h:,} hits de por vida".replace(",", ".")
+    return ""
+
+
+def texto_compartir(player: Player, bateo: BattingCareer | None, pitcheo: PitchingCareer | None) -> str:
+    """Lo que se escribe en el mensaje al compartir el perfil.
+
+    NO es `descripcion_social`, y la diferencia importa. Aquella es una frase larga para Google, con
+    cola de SEO —«Estadísticas completas de su carrera»— que en un WhatsApp sobra y estorba.
+
+    Acá va corto y CON UN NÚMERO: «Juan Soto — 245 jonrones de por vida». Un enlace con una cifra se
+    abre; uno que solo dice el nombre del sitio se ignora. Es lo que decide si esto sirve de algo.
+    """
+    cifra = cifra_que_lo_define(bateo, pitcheo)
+    return f"{player.full_name} — {cifra}" if cifra else player.full_name
 
 
 def _latest_full_season() -> int | None:
