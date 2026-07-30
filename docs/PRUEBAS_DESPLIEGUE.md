@@ -538,3 +538,32 @@ docker images dglweb --format "{{.Tag}}  ({{.CreatedSince}})" | grep -v latest
 ⚠️ **Si el despliegue incluyó migraciones, volver atrás NO es solo cambiar la imagen**: la base ya
 tiene el esquema nuevo y el código viejo puede no entenderlo. Ahí se restaura del respaldo, y por eso
 importa haber probado una restauración antes de necesitarla.
+
+---
+
+## Después de reiniciar el VPS: espera dos minutos antes de asustarte
+
+El 2026-07-30, un reinicio dejó `dominicanosengrandesligas.com` y `baseballsixdegrees.com` en **502**
+mientras `sabertables.com` y Revive respondían. Parecía que dos contenedores no habían vuelto.
+
+No era eso. Docker los arranca a todos casi a la vez —medido: los cuatro dentro de 100 ms— pero
+**tardan distinto en estar LISTOS**. `sabertables` responde en cuanto levanta; `dglweb` arranca
+gunicorn con `--preload`, carga Django y tiene `start_period: 20s` en su healthcheck. En esa ventana
+nginx no tiene a quién proxear y devuelve 502.
+
+**Cómo se distingue de un problema real**, que es lo único que hay que recordar:
+
+```bash
+docker inspect -f '{{.Name}} reinicios={{.RestartCount}} arrancado={{.State.StartedAt}}' \
+  dglweb-web-live sixdegrees.com sabertables.com postgres-postgres-1
+```
+
+- **`reinicios=0` y arranques casi simultáneos** → nadie murió, solo están terminando de subir. Esperar.
+- **`reinicios` alto** → hubo bucle contra algo. Ahí sí hay que mirar el log del que peleaba.
+
+Y NO hace falta un `depends_on` hacia Postgres: no se puede —están en stacks distintos y `depends_on`
+no cruza proyectos de compose— y tampoco corresponde, porque nada falló. `restart: unless-stopped` ya
+cubre el caso en que un contenedor sí muera.
+
+**Uptime Kuma avisó durante la caída**, así que la vigilancia hizo su trabajo. Vale la pena saber que
+un reinicio del VPS va a disparar esas alertas y que remiten solas.
