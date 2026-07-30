@@ -20,6 +20,42 @@ y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé pri
 Los dos puntos que el dueño quiere apuntados. Los dos son de RESILIENCIA, no de features, y por eso
 van juntos: el sitio ya funciona, lo que falta es que siga funcionando cuando algo salga mal.
 
+### Botones para compartir en redes — NO HAY NINGUNO
+
+**Lo que ya está, para no rehacerlo.** La mitad difícil del asunto está resuelta: `base.html` manda
+`og:title`, `og:description`, `og:image`, `og:url`, `og:type`, `og:locale` (`es_DO`) y
+`twitter:card = summary_large_image`, más la canónica absoluta. O sea que **cuando alguien pega un
+enlace del sitio, la tarjeta sale bien**. Comprobado.
+
+**Lo que falta es el mecanismo**: no hay ni un botón. Compartir un artículo exige copiar la URL de la
+barra del navegador, y en un teléfono eso es suficiente fricción para que no pase.
+
+**Y LA CSP YA DECIDIÓ CÓMO SE HACE**, así que no hay que evaluar opciones. El sitio manda
+`script-src 'self'` y tiene una prueba que lo vigila (`test_el_sitio_publico_no_pide_nada_a_terceros`).
+Eso descarta de entrada **todos** los widgets: AddThis, ShareThis, el botón oficial de X, el de
+Facebook. Todos cargan JavaScript de un tercero y el navegador los bloquearía — y aunque no lo hiciera,
+cada uno le cuenta la visita a su dueño, lo que rompería la política de cookies que este repositorio
+sostiene con pruebas.
+
+Queda lo que sí se puede, que además es mejor:
+
+- **Enlaces `<a href>` planos** a la URL de compartir de cada red. No cargan nada, no rastrean a nadie,
+  funcionan sin JavaScript y son cuatro líneas de plantilla.
+- **`navigator.share()`** en móvil, que abre el menú nativo del teléfono — el que ya tiene WhatsApp,
+  Instagram y todo lo que la persona use. Necesita un JS propio diminuto, servido desde `'self'`, y
+  cae con elegancia a los enlaces planos donde no exista.
+
+**Qué redes, y esto NO es la lista de siempre.** El orden lo manda la audiencia dominicana:
+
+1. **WhatsApp** — casi seguro el primero por volumen. Es donde se comparte deporte en RD.
+2. **Instagram** — no tiene URL de compartir, así que solo llega vía `navigator.share()`. Es una razón
+   por sí sola para implementarlo.
+3. **X / Facebook** — los que todo el mundo pone. Van, pero no son los que van a mover el tráfico.
+4. **Copiar enlace** — el más usado de todos en escritorio, y el más fácil de olvidar.
+
+**Dónde ponerlos**: en el artículo, arriba y al final del cuerpo. En las páginas de perfil y de líderes
+tiene sentido también —«mira los números de Soto»— pero eso es una segunda tanda.
+
 ### fail2ban sobre los registros de nginx
 
 **Qué resuelve.** Hoy hay límites de peticiones por IP (`deploy/nginx-limites.conf`), y eso frena el
