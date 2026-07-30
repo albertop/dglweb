@@ -83,3 +83,42 @@ jobs:
 
       - name: Vitest
         run: npm test
+
+  # ── Lo que no es Python ni JavaScript ──────────────────────────────────────────────────────────
+  #
+  # Siete scripts de shell y tres stacks de compose. Nada los miraba, y son los archivos con el peor
+  # modo de fallo del repositorio: **nadie los ejecuta al desarrollar**, así que un error de sintaxis
+  # espera hasta que lo dispare un cron o un despliegue —`respaldo.sh` a las 5:30 de la mañana,
+  # `deploy/stack.yml` al recrear el stack con el sitio abajo—.
+  #
+  # Va en un job aparte y no dentro del gate de Python por lo mismo que el de JavaScript: tarda
+  # segundos, no comparte dependencias, y un fallo acá no debe obligar a releer un log donde casi
+  # todo es de otra cosa.
+  #
+  # El `.ps1` NO se comprueba aquí: necesita el analizador de .NET y solo existe en la máquina del
+  # dueño. Lo cubre `make checkps1`, que se salta solo donde no hay PowerShell.
+  operaciones:
+    name: shell + stacks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # `bash -n` valida SINTAXIS, no semántica: no detecta un `awk` con una extensión de gawk ni un
+      # `sed` que no casa. Para eso están las pruebas; esto es la red de abajo.
+      - name: Sintaxis de los scripts
+        run: |
+          for f in deploy/*.sh deploy/postgres/init/*.sh deploy_dglweb_image.sh; do
+            printf "  %-42s " "$f"; bash -n "$f" || exit 1; echo ok
+          done
+
+      # `config -q` valida sintaxis Y esquema. Las variables llevan valores de mentira porque los
+      # `${VAR:?falta}` abortarían — y esos `:?` son deliberados, así que hay que darles algo.
+      - name: Stacks de producción
+        run: |
+          DJANGO_SECRET_KEY=x DJANGO_ALLOWED_HOSTS=x DATABASE_URL=x MLB_PROXY_URL=x \
+            MLB_PROXY_API_KEY=x WAGTAILADMIN_BASE_URL=x \
+            docker compose -f deploy/stack.yml config -q
+          POSTGRES_PASSWORD=x DGLWEB_DB_PASSWORD=x PGADMIN_PASSWORD=x PGADMIN_DEFAULT_EMAIL=x \
+            docker compose -f deploy/postgres/stack.yml config -q
+          docker compose -f deploy/adserver/stack.yml config -q
