@@ -21,8 +21,20 @@ estadísticas, y al final la publicidad, que llega poco pero importa.
 
     <p class="dgl-legal-resumen">
       Escríbenos a <a href="mailto:{{ legal.CONTACTO }}">{{ legal.CONTACTO }}</a>. Lo leemos todo y
-      respondemos lo que pide respuesta.
+      respondemos lo que pide respuesta.{% if X_USUARIO %} También estamos en X, en
+      <a href="https://x.com/{{ X_USUARIO }}" target="_blank" rel="noopener">@{{ X_USUARIO }}</a>.{% endif %}
     </p>
+    {% comment %}
+      La cuenta va ACÁ ARRIBA y no en una sección propia, porque esta página es una carta de servicios
+      y este párrafo es el «cómo nos escribes». Una sección «Redes sociales» al final sería una
+      sección para una sola cuenta.
+
+      Sale de `X_USUARIO` y no escrita a mano: la misma que usan el pie y el `via=` del botón de
+      compartir. Un usuario que cambiara acá y no allá sería un enlace roto que nadie mira.
+
+      Y el `{% if %}` no es defensivo por costumbre: sin cuenta configurada, la frase entera desaparece
+      en vez de dejar «También estamos en X, en @.».
+    {% endcomment %}
 
     {% comment %}
       Va PRIMERO, por encima incluso de las correcciones. Es el único bloque de esta página que

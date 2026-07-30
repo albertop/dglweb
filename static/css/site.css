@@ -1446,6 +1446,8 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   background: #fff; border-color: #fff; color: var(--dgl-navy);
 }
 
-/* El enlace a la cuenta del sitio en el pie. Icono al lado del usuario, del tamaño del texto. */
-.dgl-pie-x { display: inline-flex; align-items: center; gap: .35rem; }
-.dgl-pie-x svg { width: .95em; height: .95em; }
+/* El enlace a la cuenta del sitio en el pie.
+   El TAMAÑO del icono va en los atributos del `<svg>` y no acá: un SVG en línea sin `width` ni
+   `height` ocupa todo el ancho de su contenedor, y esa es una avería que no puede depender de que una
+   hoja de estilos cargue. Acá solo va la disposición. */
+.dgl-pie-x { display: inline-flex; align-items: center; gap: .4rem; font-size: .875rem; }

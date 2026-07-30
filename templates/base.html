@@ -233,22 +233,6 @@
         </div>
         <p class="small mb-0" style="max-width:32ch">Béisbol de las Grandes Ligas, visto a través
           del lente dominicano.</p>
-        {% comment %}
-          La cuenta del sitio. Hasta el 2026-07-30 el pie solo enlazaba a la agencia, así que no había
-          ni un enlace a algo del propio sitio — quien quisiera seguirlo no tenía dónde.
-
-          Va en la columna de la marca y no en «Gestionado por»: son dos cosas distintas. Esa es quien
-          lo gestiona; esta es el sitio.
-        {% endcomment %}
-        {% if X_USUARIO %}
-          <a class="dgl-pie-x small d-inline-block mt-2" href="https://x.com/{{ X_USUARIO }}"
-             target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path fill="currentColor" d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.58-6.63 7.58H.47l8.6-9.83L0 1.15h7.59l5.25 6.93ZM17.61 20.64h2.04L6.49 3.24H4.3Z"/>
-            </svg>
-            @{{ X_USUARIO }}
-          </a>
-        {% endif %}
       </div>
       {% comment %}
         La agencia que gestiona el sitio. El logo va de fondo en CSS y no en un `<img>` a propósito:
@@ -265,6 +249,31 @@
             <span class="dgl-agencia-ig">@adciomediard</span>
           </span>
         </a>
+        {% comment %}
+          LA CUENTA DEL SITIO, en esta columna y con SU PROPIO encabezado.
+
+          Estuvo debajo del lema, en la columna de la marca, y se veía fatal: el `<svg>` salía gigante
+          porque **un SVG en línea sin atributos `width` y `height` ocupa todo el ancho de su
+          contenedor**. La regla de CSS que debía arreglarlo no llegaba a aplicarse porque
+          `d-inline-block` de Bootstrap lleva `!important` y le rompía el `display: inline-flex` a la
+          clase de al lado.
+
+          Ahora el tamaño va en el propio `<svg>`: así no depende de que una hoja de estilos cargue ni
+          de que una utilidad de Bootstrap gane una pelea de especificidad.
+
+          Y LLEVA ENCABEZADO PROPIO a propósito. Pegada debajo de «Gestionado por · Adcio Media» sin
+          nada que la separe, se leería como la cuenta de la agencia. Son dos cosas distintas: esa es
+          quien gestiona el sitio, esta es el sitio.
+        {% endcomment %}
+        {% if X_USUARIO %}
+          <h6 id="pie-redes" class="mt-4">Síguenos</h6>
+          <a class="dgl-pie-x" href="https://x.com/{{ X_USUARIO }}" target="_blank" rel="noopener">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.58-6.63 7.58H.47l8.6-9.83L0 1.15h7.59l5.25 6.93ZM17.61 20.64h2.04L6.49 3.24H4.3Z"/>
+            </svg>
+            @{{ X_USUARIO }}
+          </a>
+        {% endif %}
       </div>
       <div class="col-6 col-md-2"><h6 id="pie-secciones">Secciones</h6>
         <ul class="list-unstyled small" aria-labelledby="pie-secciones">
