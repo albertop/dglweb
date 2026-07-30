@@ -50,13 +50,21 @@
   }
 
   function avisar(boton, texto) {
+    /* SE ESCRIBE EN EL `<span>`, NO EN EL BOTÓN. Asignar `textContent` al botón borra TODOS sus
+     * hijos, y el icono en SVG es uno de ellos: el aviso se deshace a los dos segundos pero el icono
+     * no vuelve, así que el botón se quedaba de texto pelado y desalineado respecto a los otros
+     * cuatro para el resto de la visita. No revienta nada — solo se ve mirando, y estuvo así hasta
+     * que lo cazó una prueba.
+     *
+     * El respaldo al botón es para no depender de la forma exacta del marcado. */
+    var destino = boton.querySelector("span") || boton;
     if (boton.dataset.textoOriginal === undefined) {
-      boton.dataset.textoOriginal = boton.textContent;
+      boton.dataset.textoOriginal = destino.textContent;
     }
-    boton.textContent = texto;
+    destino.textContent = texto;
     clearTimeout(boton._temporizador);
     boton._temporizador = setTimeout(function () {
-      boton.textContent = boton.dataset.textoOriginal;
+      destino.textContent = boton.dataset.textoOriginal;
     }, COPIADO_MS);
   }
 
