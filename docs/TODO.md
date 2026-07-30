@@ -400,9 +400,18 @@ Lo que queda:
       peloteros, boletín. Sin eso es construir una puerta a un cuarto vacío y pagar el alquiler del
       cuarto.
 
-- [ ] **Zonas de anuncio: la etiqueta del proveedor.** Los huecos ya están en las plantillas, con
-      alto fijo y agnósticos de proveedor. Falta pegar la etiqueta, que depende de elegir el ad
-      server — y de añadir su dominio a la CSP, o no cargará y fallará en silencio.
+- [x] **Zonas de anuncio: la etiqueta del proveedor. HECHO (2026-07-29): Revive Adserver 6.0.8**, en
+      su propio contenedor bajo `promo.dominicanosengrandesligas.com`. Son **41 zonas** —cada página
+      con las suyas, y cada hueco horizontal en tres tamaños— y el dominio está en la CSP, en
+      `frame-src`.
+
+      Y no se pegó «la etiqueta» que sugiere Revive, que es JavaScript en línea con `document.write`:
+      la CSP la bloquearía entera. Se monta un `iframe` sin `src` que rellena `static/js/anuncios.js`
+      eligiendo el tamaño que cabe. **Un marco, una petición, una impresión** — la primera versión
+      dibujaba los tres tamaños y ocultaba dos, y se descubrió midiendo que un `iframe` oculto SÍ
+      carga: habrían sido tres impresiones por cada anuncio visto.
+
+      Ver `docs/ADSERVER.md`.
 
 ## SEO — hecho entero el 2026-07-28
 
@@ -1280,7 +1289,9 @@ Ver `docs/reviews/code_review_v6.md`, donde cada finding lleva la evaluación co
   **El pie pasó a cuatro columnas** (marca · agencia · secciones · legal). La ficha de Adcio Media
   tenía su propia franja bajo el filete y costaba unos 60px de alto en todas las páginas para decir
   tres líneas: 270px → 207px.
-- [ ] **Añadir el dominio del ad server a la CSP.** Desde el 27-07 el sitio manda
+- [x] **HECHO (2026-07-29).** Comprobado en producción: va en **`frame-src`, nunca en `script-src`**. El anuncio se dibuja en su propio documento y el servidor de anuncios no ejecuta código en nuestras páginas.
+
+      **Lo que decía cuando estaba pendiente:** **Añadir el dominio del ad server a la CSP.** Desde el 27-07 el sitio manda
   `Content-Security-Policy` con `script-src 'self'` (ver `dglweb/core/csp.py`), así que **la etiqueta
   del ad server no va a cargar hasta que su dominio esté en esa lista** — y va a fallar en silencio,
   que es lo peor: el hueco se queda vacío y la consola del navegador es el único sitio donde se dice
@@ -1889,24 +1900,36 @@ páginas se resuelven en 22-274 ms dentro del contenedor con 36-56 ms de base.
 son 164 peticiones peleándose por tres huecos. Hoy no se nota porque no hay tráfico; el día del
 lanzamiento es lo que se cae.
 
-- [ ] **Servir `/static/` desde nginx.** Quita 164 de 210 peticiones de gunicorn. `collectstatic` ya
+- [x] **HECHO (2026-07-29).** `deploy/nginx-dglweb.conf` + `deploy/estaticos.sh`. Medido en producción: el CSS pasa de 80.701 a 25.901 bytes con `gzip_static`, y los escudos de equipo que servía gunicorn ahora salen de nginx. **El «164 de 210» del texto de abajo estaba mal contado** —eran REFERENCIAS en el HTML, no peticiones; el navegador pide cada URL una vez, y los archivos distintos son 68. El reparto real era 24 nginx / 44 gunicorn. Se hizo igual, y seguía siendo lo correcto: 44 peticiones contra 3 workers es un problema de concurrencia.
+
+      **Lo que decía cuando estaba pendiente:** **Servir `/static/` desde nginx.** Quita 164 de 210 peticiones de gunicorn. `collectstatic` ya
       corre en la construcción, así que es un `docker cp` en el despliegue y un `location` con
       `gzip_static on`.
-- [ ] **gunicorn a `gthread`**: 4 workers × 4 hilos = 16 concurrentes contra 3. Casi gratis en
+- [x] **HECHO (2026-07-29).** Comprobado en producción: `--workers 4 --worker-class gthread --threads 4 --preload`. De 3 peticiones concurrentes a 16.
+
+      **Lo que decía cuando estaba pendiente:** **gunicorn a `gthread`**: 4 workers × 4 hilos = 16 concurrentes contra 3. Casi gratis en
       memoria porque los hilos comparten proceso.
-- [ ] **Ajustar Postgres**, que corre con la configuración de fábrica. `random_page_cost 4.0` asume
+- [x] **HECHO (2026-07-29), y más pequeño de lo que decía el plan.** La base pesa **228 MB**, así que el `shared_buffers = 1GB` que se proponía eran cuatro veces la base entera, con el swap ya en uso. Quedó en `random_page_cost = 1.1` —el único que cambia decisiones del planificador—, `work_mem = 16MB` y `shared_buffers = 256MB`. Con `ALTER SYSTEM`, o sea que vive en el volumen y no en el compose: eso queda como deuda.
+
+      **Lo que decía cuando estaba pendiente:** **Ajustar Postgres**, que corre con la configuración de fábrica. `random_page_cost 4.0` asume
       disco giratorio y el VPS es SSD, así que el planificador evita índices que sí convienen.
-- [ ] **Límites de peticiones en dglweb**, que no tiene ninguno. Con `limit_req_dry_run` primero, y
+- [x] **HECHO (2026-07-29).** `deploy/nginx-limites.conf`. Dos zonas: 20/s para el HTML y 300/s para los estáticos, más una tercera de 2/s para las rutas de salud. Devuelven **429 y no el 503 de fábrica**: 429 hace que Googlebot baje el ritmo, 503 repetido saca páginas del índice.
+
+      **Lo que decía cuando estaba pendiente:** **Límites de peticiones en dglweb**, que no tiene ninguno. Con `limit_req_dry_run` primero, y
       **por zonas**: un límite uniforme mataría a un visitante normal, que hace 210 peticiones en dos
       segundos solo por abrir la portada.
-- [ ] **Menos recursos**: 153 de los 210 son imágenes. Los 30 escudos de equipo caben en un sprite.
+- [x] **DESCARTADO (2026-07-29), con números.** Este punto existía por el error de conteo de arriba. Medido bien: 68 archivos distintos y 313,8 KB en total. El sprite de escudos ahorraría 31 peticiones de 57,6 KB **ya comprimidos** y multiplexadas por HTTP/2, a cambio de complicar las plantillas. Y el `loading="lazy"` ya está donde debe —los 44 retratos—; las 154 `<img>` que no lo llevan son iconos de 20×20, donde sería contraproducente.
+
+      **Lo que decía cuando estaba pendiente:** **Menos recursos**: 153 de los 210 son imágenes. Los 30 escudos de equipo caben en un sprite.
 
 ## nginx: dos límites mirados y medidos (2026-07-29)
 
 Los dos salieron de recuerdos del dueño de problemas pasados. **Los dos están lejísimos de molestar**,
 y queda la medición para que dentro de un año se sepa qué era «normal».
 
-- [ ] **`keepalive` hacia los contenedores.** Hoy `location /` no lleva `proxy_http_version 1.1`, así
+- [x] **HECHO (2026-07-29).** En los seis sitios del servidor, con el `map $http_upgrade` que deja convivir keepalive y websockets.
+
+      **Lo que decía cuando estaba pendiente:** **`keepalive` hacia los contenedores.** Hoy `location /` no lleva `proxy_http_version 1.1`, así
       que nginx habla HTTP/1.0 con el contenedor y **abre y cierra una conexión por petición**. Cada
       cierre deja un socket en TIME_WAIT 60 segundos.
 
@@ -1933,7 +1956,9 @@ y queda la medición para que dentro de un año se sepa qué era «normal».
       usuarios les falla y no sabemos por qué». Y el tiempo de TIME_WAIT **no es configurable**: son
       60 segundos fijos en el código del kernel.
 
-- [ ] **`worker_connections`.** Está en **768** (el defecto de Debian, más bajo que el de nginx) con
+- [x] **HECHO (2026-07-29).** Subido junto con `worker_rlimit_nofile`.
+
+      **Lo que decía cuando estaba pendiente:** **`worker_connections`.** Está en **768** (el defecto de Debian, más bajo que el de nginx) con
       `worker_processes auto` sobre 4 núcleos: **3.072 conexiones**. En uso: **7**. El error
       «worker_connections are not enough» no ha aparecido nunca.
 
@@ -1949,7 +1974,9 @@ y queda la medición para que dentro de un año se sepa qué era «normal».
 **Decisión del dueño (2026-07-28): se hace cuando el sitio ya esté anunciado**, no antes. Hoy no hay
 tráfico que medir, y poner números inventados es la forma de romper el sitio en su primera semana.
 
-- [ ] **Montar los límites con `limit_req_dry_run on` y ajustarlos con tráfico real.**
+- [x] **HECHO (2026-07-29), sin el modo de prueba.** Se montaron directamente en vigor y no con `limit_req_dry_run`, porque los números se eligieron altos a propósito: una visita pide 68 archivos y en RD el CGNAT hace que muchos usuarios móviles compartan una IP pública. Comprobado después: 68 estáticos de golpe y 30 peticiones de HTML de golpe, **ni un 429**.
+
+      **Lo que decía cuando estaba pendiente:** **Montar los límites con `limit_req_dry_run on` y ajustarlos con tráfico real.**
 
       **POR QUÉ ESTE SITIO NO PUEDE COPIAR LOS NÚMEROS DE LOS OTROS.** El dueño usa
       `general: 100r/m` en sabertables y sixdegrees. Acá eso dejaría fuera a un visitante **antes de
