@@ -54,6 +54,10 @@ AVISOS = ("detect_debuts",)
 # Mantenimiento del propio log. Corre siempre, incluso fuera de temporada — ver el comando.
 MANTENIMIENTO = ("prune_ingest_log",)
 
+# Por qué se omitió un derivado. Va como prefijo para que el detalle diga QUIÉN lo dejó colgado:
+# «build_leaders: skipped — omitido porque no terminó bien build_career_totals».
+OMITIDO_POR = "omitido porque no terminó bien "
+
 # Lo que se pone cuando el paso no dejó rastro. NO es una explicación del comando: es el marcador de
 # que no sabemos nada de él. La diferencia importa en `_correr` — ver ahí.
 SIN_FILA = "no dejó fila en el log"
@@ -72,6 +76,16 @@ class Paso:
     def ok(self) -> bool:
         return self.estado == IngestRun.Status.SUCCESS
 
+    @property
+    def omitido(self) -> bool:
+        """No se ejecutó a propósito, porque su dependencia no salió bien. NO es un fallo suyo.
+
+        La distinción no es de vocabulario: si contara como fallo, el aviso diría que dos cosas se
+        rompieron cuando se rompió una, y mandaría a revisar `build_leaders` en vez de a los totales de
+        carrera, que es donde está el problema.
+        """
+        return self.estado == IngestRun.Status.SKIPPED
+
     def __str__(self) -> str:
         detalle = f" — {self.error}" if self.error else ""
         return f"{self.comando}: {self.estado} ({self.filas:,} filas){detalle}"
@@ -87,7 +101,17 @@ class Resultado:
 
     @property
     def fallidos(self) -> list[Paso]:
-        return [p for p in self.pasos if not p.ok]
+        """Los que se ejecutaron y salieron mal. Los OMITIDOS quedan fuera a propósito — ver `omitido`.
+
+        Esta lista hace dos trabajos: decide si se publican los derivados, y es la que se marca en la
+        fila agregada. En el primero no cambia nada al excluir los omitidos —los insumos nunca se
+        omiten, solo fallan— y en el segundo evita acusar a un paso que ni corrió.
+        """
+        return [p for p in self.pasos if not p.ok and not p.omitido]
+
+    @property
+    def omitidos(self) -> list[Paso]:
+        return [p for p in self.pasos if p.omitido]
 
     @property
     def filas(self) -> int:
@@ -134,6 +158,47 @@ def _correr(comando: str, desde: datetime, note: object) -> Paso:
     return paso
 
 
+def _correr_cadena(comandos: tuple[str, ...], desde: datetime, note: object, resultado: Resultado) -> bool:
+    """Corre una CADENA: si un paso no sale bien, los siguientes NO se ejecutan. Devuelve si publicó.
+
+    ARCH-01 DEL REVIEW v13, Y ERA UN FALLO DE VERDAD
+    ------------------------------------------------
+    Antes esto era un `for` que llamaba a los dos derivados pasara lo que pasara, y
+    `derivados_publicados` se ponía en `True` ANTES de empezar. Comprobado haciendo fallar
+    `build_career_totals` a propósito: `build_leaders` se ejecutaba igual y el resultado decía que
+    había publicado.
+
+    Lo que eso produce no es una caída sino algo peor: **una foto mixta que se afirma completa.** Los
+    liderazgos de por vida LEEN los totales de carrera, así que con los totales fallidos se
+    reconstruían los rankings de temporada con datos de hoy y los de carrera con los de ayer. El aviso
+    de Telegram decía que los derivados se publicaron, porque ese es el único sitio donde se mira el
+    flag.
+
+    Ahora la dependencia es real: `DERIVADOS` está en orden —los totales primero— y si uno no termina
+    en `SUCCESS`, el siguiente se registra como OMITIDO y no se llama. El flag se pone al final y solo
+    si la cadena entera salió bien.
+
+    POR QUÉ SE REGISTRA EL OMITIDO en vez de callarlo: un paso que no aparece se lee como un paso que
+    no existe. «build_leaders: omitido — build_career_totals no terminó bien» dice qué pasó y por qué,
+    que es justo lo que el dueño necesita a las seis de la mañana.
+    """
+    for i, comando in enumerate(comandos):
+        paso = _correr(comando, desde, note)
+        resultado.pasos.append(paso)
+        if not paso.ok:
+            for pendiente in comandos[i + 1 :]:
+                omitido = Paso(
+                    comando=pendiente,
+                    estado=IngestRun.Status.SKIPPED,
+                    error=f"{OMITIDO_POR}{comando}",
+                )
+                resultado.pasos.append(omitido)
+                if callable(note):
+                    note(f"  - {omitido}")
+            return False
+    return True
+
+
 def hay_trabajo(force: bool = False) -> tuple[bool, str]:
     """¿Hay algo que refrescar hoy? Devuelve también el motivo, para el log del salto.
 
@@ -178,13 +243,11 @@ def run_daily(*, force: bool = False, publicar_parcial: bool = False, note: obje
                 "Para publicar igual: --publicar-parcial."
             )
     else:
-        resultado.derivados_publicados = True
         # Los dos derivados bajo el mismo candado, y no cada uno el suyo: son una cadena —los
         # liderazgos de por vida leen los totales de carrera— y protegerlos por separado deja que
         # otra cadena se cuele entre medio y publique líderes de una foto que ya no existe.
         with locks.cadena_derivada():
-            for comando in DERIVADOS:
-                resultado.pasos.append(_correr(comando, inicio, note))
+            resultado.derivados_publicados = _correr_cadena(DERIVADOS, inicio, note, resultado)
 
     for comando in (*PORTADA, *AVISOS):
         resultado.pasos.append(_correr(comando, inicio, note))
@@ -214,7 +277,15 @@ def run_and_record(*, force: bool = False, publicar_parcial: bool = False, note:
             for paso in resultado.pasos:
                 run.note(str(paso))
             if not resultado.derivados_publicados:
-                run.note("Derivados NO reconstruidos: las entradas no salieron completas.")
+                # LA CAUSA IMPORTA, y hasta el review v13 esta línea afirmaba una sola. Hay dos formas
+                # de no publicar los derivados y mandan a mirar sitios distintos: que las ENTRADAS no
+                # llegaran, o que un DERIVADO reventara. Decir siempre lo primero manda al dueño a
+                # revisar el proxy cuando el problema está en nuestro propio cálculo.
+                if resultado.omitidos:
+                    roto = resultado.fallidos[0].comando if resultado.fallidos else "un derivado"
+                    run.note(f"Derivados NO reconstruidos: {roto} no terminó bien y cortó la cadena.")
+                else:
+                    run.note("Derivados NO reconstruidos: las entradas no salieron completas.")
             for paso in resultado.fallidos:
                 run.fail(paso.comando)  # deja la corrida en PARTIAL, visible en el Backoffice
 

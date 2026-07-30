@@ -416,3 +416,98 @@ def test_todos_los_pasos_del_refresco_aceptan_lo_que_el_pipeline_les_pasa() -> N
             sin_force.append(nombre)
 
     assert not sin_force, f"el pipeline los llama con --force y no lo declaran: {sin_force}"
+
+
+# ── ARCH-01 del review v13: la cadena de derivados es una DEPENDENCIA, no una lista ──────────────
+#
+# Los liderazgos de por vida LEEN los totales de carrera. Antes esto era un `for` que llamaba a los
+# dos pasara lo que pasara, y `derivados_publicados` se ponía en `True` ANTES de empezar.
+#
+# Lo que producía no era una caída sino algo peor: una FOTO MIXTA que se afirmaba completa. Con los
+# totales fallidos, los rankings de temporada salían con datos de hoy y los de carrera con los de
+# ayer, y el aviso decía que se había publicado.
+
+
+@pytest.mark.django_db
+def test_si_los_totales_fallan_los_lideres_no_se_construyen(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """LA PRUEBA DEL FALLO. Comprobado antes de arreglarlo: `build_leaders` se ejecutaba igual."""
+    falso_call_command["estados"]["build_career_totals"] = IngestRun.Status.FAILED
+
+    pipeline.run_daily(force=True)
+
+    assert "build_career_totals" in falso_call_command["corridos"]
+    assert "build_leaders" not in falso_call_command["corridos"], (
+        "build_leaders leyó unos totales que no se pudieron reconstruir"
+    )
+
+
+@pytest.mark.django_db
+def test_un_derivado_fallido_no_puede_decir_que_publico(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """El flag es lo único que mira el aviso de Telegram, así que mentir ahí es mentir en el aviso."""
+    falso_call_command["estados"]["build_career_totals"] = IngestRun.Status.FAILED
+
+    resultado = pipeline.run_daily(force=True)
+
+    assert resultado.derivados_publicados is False
+
+
+@pytest.mark.django_db
+def test_el_derivado_omitido_queda_registrado_y_dice_quien_lo_dejo_colgado(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """Un paso que no aparece se lee como un paso que no existe.
+
+    Y el detalle nombra al culpable: a las seis de la mañana, «omitido porque no terminó bien
+    build_career_totals» manda a mirar el sitio correcto. Sin el nombre, el dueño empieza por
+    `build_leaders`, que es el que no tiene nada roto.
+    """
+    falso_call_command["estados"]["build_career_totals"] = IngestRun.Status.FAILED
+
+    resultado = pipeline.run_daily(force=True)
+
+    omitidos = [p for p in resultado.pasos if p.omitido]
+    assert [p.comando for p in omitidos] == ["build_leaders"]
+    assert "build_career_totals" in omitidos[0].error
+
+
+@pytest.mark.django_db
+def test_un_omitido_no_cuenta_como_fallo(temporada: SeasonDates, falso_call_command: dict[str, Any]) -> None:
+    """Si contara, el aviso diría que dos cosas se rompieron cuando se rompió una — y mandaría a
+    revisar `build_leaders`, que es justo el que no tiene nada mal."""
+    falso_call_command["estados"]["build_career_totals"] = IngestRun.Status.FAILED
+
+    resultado = pipeline.run_daily(force=True)
+
+    assert [p.comando for p in resultado.fallidos] == ["build_career_totals"]
+
+
+@pytest.mark.django_db
+def test_si_el_ultimo_derivado_falla_el_flag_tambien_es_falso(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """El otro extremo de la cadena: los totales se rehacen y los líderes no.
+
+    Ahí no hay nada que omitir —era el último— pero la foto queda igual de mixta: totales de hoy con
+    snapshots de líderes de ayer. El flag no puede decir que publicó.
+    """
+    falso_call_command["estados"]["build_leaders"] = IngestRun.Status.FAILED
+
+    resultado = pipeline.run_daily(force=True)
+
+    assert resultado.derivados_publicados is False
+    assert [p.comando for p in resultado.fallidos] == ["build_leaders"]
+
+
+@pytest.mark.django_db
+def test_con_la_cadena_entera_bien_si_publica(temporada: SeasonDates, falso_call_command: dict[str, Any]) -> None:
+    """El caso normal, que es el que un arreglo así puede romper sin que nadie lo note."""
+    resultado = pipeline.run_daily(force=True)
+
+    assert resultado.derivados_publicados is True
+    assert falso_call_command["corridos"].index("build_career_totals") < falso_call_command["corridos"].index(
+        "build_leaders"
+    )
