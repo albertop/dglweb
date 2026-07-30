@@ -116,7 +116,7 @@ for IDX in "${!CFG_FILES[@]}"; do
         depth_at = depths[i]
 
         if (target_block) {
-          if (depth_at == top_depth && line ~ /^\s*allow\s+[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+;/) {
+          if (depth_at == top_depth && line ~ /^[[:space:]]*allow[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+;/) {
             if (!allow_seen) {
               sub(/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/, new_ip, line)
               allow_seen = 1
@@ -125,7 +125,7 @@ for IDX in "${!CFG_FILES[@]}"; do
             continue
           }
 
-          if (depth_at == top_depth && line ~ /^\s*deny\s+all;/) {
+          if (depth_at == top_depth && line ~ /^[[:space:]]*deny[[:space:]]+all;/) {
             deny_count++
             if (deny_count > 1) {
               continue
@@ -138,7 +138,7 @@ for IDX in "${!CFG_FILES[@]}"; do
             continue
           }
 
-          if (depth_at == top_depth && line ~ /^\s*location/ && !inserted) {
+          if (depth_at == top_depth && line ~ /^[[:space:]]*location/ && !inserted) {
             if (!allow_seen) {
               if (deny_count == 0) {
                 print "  # Lock to your IP"
@@ -153,7 +153,7 @@ for IDX in "${!CFG_FILES[@]}"; do
             inserted = 1
           }
 
-          if (depth_at == top_depth && line ~ /^\s*\}/ && !inserted) {
+          if (depth_at == top_depth && line ~ /^[[:space:]]*\}/ && !inserted) {
             if (!allow_seen) {
               if (deny_count == 0) {
                 print "  # Lock to your IP"
@@ -181,7 +181,7 @@ for IDX in "${!CFG_FILES[@]}"; do
       line=$0
       delta=brace_delta(line)
 
-      if (!in_server && line ~ /^\s*server\s*\{/) {
+      if (!in_server && line ~ /^[[:space:]]*server[[:space:]]*\{/) {
         in_server=1
         server_start_depth=depth
         listen_443=0
@@ -195,7 +195,7 @@ for IDX in "${!CFG_FILES[@]}"; do
         lines[n]=line
         depths[n]=depth
 
-        if (line ~ /^\s*server_name\s+/) {
+        if (line ~ /^[[:space:]]*server_name[[:space:]]+/) {
           for (i=2; i<=NF; i++) {
             name=$i
             sub(/;$/, "", name)
@@ -203,7 +203,7 @@ for IDX in "${!CFG_FILES[@]}"; do
           }
         }
 
-        if (line !~ /^\s*#/ && line ~ /^\s*listen[[:space:]]+/ && line ~ /(^|[^0-9])443([^0-9]|$)/) {
+        if (line !~ /^[[:space:]]*#/ && line ~ /^[[:space:]]*listen[[:space:]]+/ && line ~ /(^|[^0-9])443([^0-9]|$)/) {
           listen_443=1
         }
 
@@ -267,8 +267,21 @@ fi
 # insertar allow/deny al nivel del `server`, que es lo que necesitan portainer y
 # pgadmin. Ahi no hay nada que tocar.
 #
-# `|| true` para que un fallo suyo no rompa la parte de nginx, que es la critica.
+# EL FALLO DEL HIJO SE PROPAGA. Aca decia `|| log_message "WARNING: ..."` y terminaba en exito, con la
+# idea de que un fallo suyo no rompiera la parte de nginx. El efecto real era otro (OPS-01 del review
+# v14): el cron reportaba EXITO mientras fail2ban y ufw seguian con la IP vieja, y la unica evidencia
+# quedaba en un log local que ningun monitor lee.
+#
+# O sea, exactamente el escenario que deja al dueno fuera del servidor, reportado como correcto.
+#
+# El contrato de este job no es «actualice dos archivos» sino «todos los puntos de acceso reconocen la
+# misma IP». Si no puede demostrarlo, tiene que fallar.
+#
+# Propagarlo es seguro porque va AL FINAL: la parte de nginx ya se ejecuto y ya se recargo. Lo unico
+# que cambia es que cron se entere.
 if [[ -x /usr/local/bin/sync_access_ip.sh ]]; then
-  /usr/local/bin/sync_access_ip.sh "$NEW_IP" \
-    || log_message "WARNING: sync_access_ip.sh fallo para $NEW_IP"
+  if ! /usr/local/bin/sync_access_ip.sh "$NEW_IP"; then
+    log_message "ERROR: sync_access_ip.sh fallo para $NEW_IP — fail2ban/ufw pueden tener la IP vieja"
+    exit 1
+  fi
 fi
