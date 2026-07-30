@@ -24,6 +24,37 @@ que haría dudar de cuál de los dos comportamientos aplica en cada sitio.
 
     Y va EN EL HTML, no puesto por `anuncios.js`: el atributo solo surte efecto si ya está cuando el
     marco recibe su `src`, y añadirlo desde el script sería confiar en el orden de dos líneas.
+
+    EL AVISO DE LA CONSOLA ES ESTE, Y SE DEJA A PROPÓSITO (2026-07-30)
+    ------------------------------------------------------------------
+    Al desplegar la 1.2026.10 salen cuatro líneas, una por hueco:
+
+        about:blank:1  An iframe which has both allow-scripts and allow-same-origin for its
+                       sandbox attribute can escape its sandboxing.
+
+    Es correcto y no es un fallo. Un `iframe` sin `src` es `about:blank`, y **`about:blank` hereda el
+    origen del padre** — por eso el navegador avisa. La explicación de `_anuncio.html` decía que
+    juntar esos dos permisos solo anula el aislamiento cuando el marco es del mismo origen, y daba por
+    hecho que el origen del marco es el del anuncio; en la fase VACÍA, antes de que `anuncios.js` le
+    ponga el `src`, no lo es.
+
+    NO ES EXPLOTABLE, y por eso se queda:
+
+      * En esa fase el marco está VACÍO. No hay código de nadie dentro que pueda usar el mismo
+        origen. Haría falta que alguien ya ejecutara JavaScript en nuestra página — y entonces no
+        necesita el `iframe` para nada.
+      * En cuanto recibe el `src`, el documento pasa a ser de `promo.dominicanos…`.
+        `allow-same-origin` ahí significa «conserva SU origen», que es distinto del nuestro. El
+        aislamiento vale en la única fase donde hay código ajeno corriendo.
+
+    QUITARLO CUESTA DINERO, que es la otra mitad de la decisión: sin `allow-same-origin` el marco
+    recibe un origen opaco y Revive se queda sin cookies. Se acaba la limitación de frecuencia —el
+    mismo anuncio repetido a la misma persona— y el conteo de únicos se degrada, que es lo que se le
+    informa al anunciante. Se prefiere el aviso en la consola.
+
+    Y NO SE SILENCIA MOVIENDO EL ATRIBUTO A `anuncios.js`, que es lo que uno piensa primero: cambiaría
+    una garantía que está siempre en el HTML por una que depende del orden de dos líneas, y si alguien
+    las reordena el anuncio carga sin aislamiento y nada se ve mal.
   {% endcomment %}
   <iframe class="dgl-ad-marco dgl-ad-leader {{ clase }}"
           data-anuncio="{{ opciones }}"

@@ -42,6 +42,11 @@ probaría en desarrollo con unas medidas y saldría a producción con otras. El 
     documento de arriba y quitarse el atributo. Acá el marco viene de `promo.dominicanos…` y la página
     de `dominicanos…` — orígenes distintos, no se alcanzan. Si algún día el adserver se mueve al mismo
     dominio, este atributo deja de proteger y hay que volver a mirarlo.
+
+    ESO VALE PARA ESTE MARCO, QUE NACE CON `src`. El de `_anuncio_horizontal.html` nace vacío, y un
+    `iframe` sin `src` es `about:blank`, que SÍ hereda el origen del padre — así que el navegador avisa
+    en la consola. Está decidido y explicado allá: se deja, porque en esa fase el marco está vacío y no
+    hay código de nadie que pueda aprovecharlo.
   {% endcomment %}
   <iframe class="dgl-ad-marco {{ clase }}" src="{{ url }}"
           width="{{ ancho }}" height="{{ alto }}"
