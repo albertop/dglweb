@@ -56,13 +56,21 @@ def test_un_jugador_dado_de_baja_no_entra_al_mapa() -> None:
 @pytest.mark.django_db
 def test_cada_ficha_lleva_su_propia_descripcion() -> None:
     """Sin ella, Google recorta la primera frase de la página —la fila biográfica— y publica algo
-    como «Posición: P-ABR · Batea: Derecho». Cierto, y no distingue una ficha de otras 970.
+    como «Posición: P-ABR · Batea: Derecho». Cierto, y no distingue una ficha de otras 984.
+
+    LA FRASE SE ACORTÓ EL 2026-07-30 y esta prueba fue la que lo cantó: esperaba «jardinero derecho
+    dominicano», del formato anterior. El dueño la fue recortando quitando todo lo que la tarjeta ya
+    dice —el nombre, que es el título; «dominicano» y «Grandes Ligas», que están en el nombre del
+    sitio— hasta dejar el oficio y el año. Ver `profiles/views.descripcion_social`.
+
+    Se comprueba el oficio y NO la frase entera: la redacción es del dueño y va a seguir moviéndose.
+    Lo que esta prueba protege es que cada ficha diga algo propio, no una redacción concreta.
     """
     jugador = _jugador()
 
     html = Client().get(reverse("player_detail", args=[jugador.slug])).content.decode()
 
-    assert "jardinero derecho dominicano" in html
+    assert "Jardinero derecho" in html
     assert 'property="og:title" content="Juan Soto"' in html
 
 
