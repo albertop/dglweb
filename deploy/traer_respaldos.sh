@@ -64,6 +64,10 @@ DIARIOS="${DIARIOS:-14}"
 SEMANALES="${SEMANALES:-8}"
 PUSH_KUMA="${PUSH_KUMA:-}"   # la URL del monitor Push; vacío = no se notifica
 
+# La tercera copia. Vacío = no se sube nada, y el resto sigue funcionando igual.
+B2_BUCKET="${B2_BUCKET:-}"
+AGE_PUB="${AGE_PUB:-/root/.age-dgl.pub}"
+
 mkdir -p "$DESTINO"
 cd "$DESTINO"
 
@@ -78,6 +82,7 @@ remotas=$(rsync -e "$SSH" --list-only "$REMOTO:$ORIGEN" 2>/dev/null \
           | awk '$5 ~ /^20[0-9][0-9]-/ {print $5}' | sort)
 
 nuevas=0
+recien=""
 for carpeta in $remotas; do
     [ -d "$DESTINO/$carpeta" ] && continue
 
@@ -100,7 +105,49 @@ for carpeta in $remotas; do
         exit 1
     fi
     nuevas=$((nuevas + 1))
+    recien="$recien $carpeta"
 done
+
+# ── La tercera copia: cifrada, en B2 ────────────────────────────────────────────────────────────
+#
+# CONTRA QUÉ PROTEGE, que no es lo mismo que las otras dos. El VPS y esta máquina cubren un disco
+# roto, un borrado por error o el servidor perdido. No cubren que ESTA CASA desaparezca —incendio,
+# robo— ni que un ransomware llegue acá por otra vía y cifre también la carpeta de respaldos.
+#
+# SE CIFRA ACÁ Y NO SE CONFÍA EN EL CIFRADO DEL PROVEEDOR. El volcado lleva los hashes de contraseña
+# de los roles de Postgres y los correos de los usuarios del CMS. Subirlo en claro convierte cada
+# copia en una filtración esperando a pasar.
+#
+# `age` es asimétrico, y esa es la propiedad que se está comprando: acá solo vive la clave PÚBLICA.
+# Si algo compromete esta máquina encuentra con qué cifrar y **no puede leer nada de lo que ya está en
+# B2**. La privada existe únicamente en 1Password, y solo hace falta para restaurar.
+#
+# Y LA CLAVE DE B2 NO SABE BORRAR: se creó con `listFiles,readFiles,writeFiles` y sin `deleteFiles`.
+# La rotación la ejecuta B2 con una regla de ciclo de vida a 90 días, desde su lado. Si el borrado lo
+# hiciera este script, habría que darle permiso de borrar — y entonces las tres copias volverían a
+# estar en el mismo dominio de confianza, que es justo lo que esta tercera viene a romper.
+if [[ -n "$B2_BUCKET" && -n "$recien" ]]; then
+    [[ -f "$AGE_PUB" ]] || { echo "$(date '+%F %T')  ERROR: falta $AGE_PUB; no se sube nada" >&2; exit 1; }
+    destinatario="$(cat "$AGE_PUB")"
+
+    for carpeta in $recien; do
+        cifrado="$DESTINO/.$carpeta.tar.age"
+        # Un solo archivo por corrida: restaurar es bajar uno, descifrar y desempaquetar. Con los
+        # archivos sueltos habría que acordarse de cuáles son ocho meses después.
+        tar -cf - -C "$DESTINO" "$carpeta" | age -r "$destinatario" > "$cifrado"
+
+        b2 file upload --quiet "$B2_BUCKET" "$cifrado" "$carpeta.tar.age" >/dev/null
+
+        # SE COMPRUEBA QUE LLEGÓ, no que el comando devolvió cero. Es la misma lección del día: un
+        # `b2 file upload` que sale bien no demuestra que el objeto esté en el bucket.
+        if ! b2 file info "b2://$B2_BUCKET/$carpeta.tar.age" >/dev/null 2>&1; then
+            rm -f "$cifrado"
+            echo "$(date '+%F %T')  ERROR  $carpeta no llegó a B2" >&2
+            exit 1
+        fi
+        rm -f "$cifrado"
+    done
+fi
 
 # ── 3. Rotar ────────────────────────────────────────────────────────────────────────────────────
 #
@@ -130,9 +177,22 @@ done
 # es precisamente lo que hace que Kuma se dé cuenta.
 ultima=$(ls -1d 20*/ 2>/dev/null | sort -r | head -1 | tr -d /)
 total=$(du -sh "$DESTINO" | cut -f1)
-echo "$(date '+%F %T')  ok  nuevas=$nuevas  ultima=$ultima  copias=$(ls -1d 20*/ | wc -l)  total=$total"
+
+# B2 SE NOMBRA SOLO SI SE SUBIÓ ALGO, por lo mismo que el mensaje de ufw del otro script: una línea
+# de resumen que afirma más de lo que hizo es peor que no tenerla, porque es lo que alguien lee para
+# decidir si mirar más.
+if [[ -z "$B2_BUCKET" ]]; then
+    en_b2=""
+elif [[ -n "$recien" ]]; then
+    en_b2="  b2=subido"
+else
+    en_b2="  b2=sin-novedad"
+fi
+
+echo "$(date '+%F %T')  ok  nuevas=$nuevas  ultima=$ultima  copias=$(ls -1d 20*/ | wc -l)  total=$total$en_b2"
 
 # Se recorta lo que venga despues de `?`: Kuma enseña la URL de ejemplo CON parametros ya puestos
 # (`?status=up&msg=OK&ping=`), y pegarla tal cual duplicaria `msg`. Asi funciona con la URL pelada y
 # con la de ejemplo, que es la que uno copia sin mirar.
+# Se nombra B2 solo si de verdad se subio algo, por lo mismo que el mensaje de ufw en el otro script.
 [ -n "$PUSH_KUMA" ] && curl -fsS -m 15 "${PUSH_KUMA%%?*}?status=up&msg=nuevas-$nuevas" -o /dev/null || true
