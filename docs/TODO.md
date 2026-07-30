@@ -864,6 +864,50 @@ en esta lista. Ninguna bloquea el lanzamiento; las tres son de la Fase 8 y la 9.
 - [ ] Escribir los 8–12 artículos semilla (cuello de botella — **ya no está bloqueado**: el CMS
       quedó utilizable el 2026-07-27).
 
+## Cloudflare — CON UN REQUISITO PREVIO QUE NO ES OPCIONAL (revisado el 2026-07-30)
+
+La Fase 8 de `CONCEPT.md` contempla poner Cloudflare gratis delante del VPS: CDN, caché, mitigación de
+DDoS y esconder la IP de origen. La idea sigue siendo buena. Lo que cambió es que ahora se sabe qué
+depende de la IP real, y **son cuatro cosas, tres montadas ese mismo día**.
+
+Con Cloudflare delante, nginx deja de ver a los visitantes: ve unas veinte direcciones de Cloudflare.
+
+| qué se rompe | consecuencia |
+|---|---|
+| `limit_req_zone $binary_remote_addr` | todo el tráfico desde pocas IP → **la zona estrangula el sitio entero en segundos**. No es teórico, es una caída inmediata |
+| fail2ban | banearía a **Cloudflare**, o sea a todos los visitantes de golpe |
+| `allow` del CMS, Revive, pgAdmin y Portainer | `$remote_addr` nunca casa → **el dueño fuera de todos sus paneles** |
+| el conteo de Revive | todas las impresiones desde un país y un visitante → **el informe que se le factura a Adcio deja de ser cierto** |
+
+El último es el único con consecuencias frente a un tercero, y el propio `nginx-promo.conf` ya lo
+advierte: *«la IP real importa más acá que en ningún otro sitio del VPS»*.
+
+**El requisito previo** es `set_real_ip_from` con los rangos de Cloudflare y `real_ip_header
+CF-Connecting-IP` en nginx. Es media hora, pero va **en el mismo cambio**, no después.
+
+### Por qué NO se hizo ahora
+
+El beneficio de un CDN aparece con tráfico, y en julio de 2026 el sitio tuvo **dos visitas en todo el
+mes**. Mientras tanto:
+
+- Los estáticos ya los sirve nginx comprimidos —88 KB → 28 KB, medido— con caché de un año.
+- La protección contra abuso ya la dan `limit_req` y fail2ban, que **funcionan porque ven la IP real**.
+- Esconder la IP de origen sirve de poco: `107.175.69.53` lleva meses en el DNS público y los
+  históricos se consultan gratis.
+
+O sea, se cambiarían cuatro mecanismos recién afinados por un beneficio que no se nota hasta que haya
+gente.
+
+### Cuándo sí, y en qué orden
+
+Cuando llegue tráfico de verdad, o si aparece un ataque que los límites actuales no aguanten.
+
+1. `real_ip` en nginx **primero**, con el proxy de Cloudflare todavía apagado (modo «solo DNS»).
+2. Comprobar que fail2ban sigue baneando IP reales y que los paneles siguen abriéndose.
+3. Y **solo entonces** encender el proxy.
+
+Hacerlo al revés se descubre de uno en uno, y dos de los cuatro fallos dejan el sitio caído.
+
 ## Deferido a Fase 8 (hardening de prod) — de code review
 
 - [x] **Imagen prod separada:** **HECHA (2026-07-28)**, `Dockerfile.prod`: dos etapas, solo dependencias de ejecución, `collectstatic` en el build y gunicorn con `--preload` y 3 workers. 298 MB en el VPS contra 626 de la de desarrollo. Con `deploy_dglweb_image.sh`, al estilo del script del proxy. ~~ Dockerfile de producción con `collectstatic` en el build, solo
