@@ -6,7 +6,7 @@ mayoría de estos tests comparan dos jornadas y exigen que gane la que cualquier
 """
 
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from django.core.management import call_command
@@ -951,6 +951,10 @@ def test_una_linea_imposible_no_llega_a_la_lista(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(daily, "splits", lambda *a, **k: [bueno, imposible])
 
-    salida = daily._actuaciones(None, "hitting", AYER, {1, 2}, {}, daily.valor_de_bateo, daily.linea_de_bateo)
+    # El cliente no se toca: `splits` está sustituido y es lo único que lo usaría. El `cast` es para
+    # mypy, que corre sobre los tests y no puede saberlo.
+    salida = daily._actuaciones(
+        cast("Any", None), "hitting", AYER, {1, 2}, {}, daily.valor_de_bateo, daily.linea_de_bateo
+    )
 
     assert [a.player_id for a in salida] == [1], "la línea imposible se colgó en la lista"
