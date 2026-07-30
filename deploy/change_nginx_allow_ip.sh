@@ -96,9 +96,15 @@ for IDX in "${!CFG_FILES[@]}"; do
   CFG="${CFG_FILES[$IDX]}"
   TARGET_SERVER="${SERVER_NAMES[$IDX]}"
 
+  # FALTAR UNA CONFIGURACION ES UN ERROR, NO UN AVISO. Antes se registraba un WARNING y se seguia con
+  # exito: el cron reportaba «actualice la IP» habiendo actualizado la mitad, o ninguna. Reproducido:
+  # sin los dos archivos, terminaba con codigo 0.
+  #
+  # Si un sitio dejo de existir, lo que corresponde es sacarlo de CFG_FILES — no que este script
+  # decida por su cuenta que ya no importa.
   if [[ ! -f "$CFG" ]]; then
-    log_message "WARNING: Config file not found: $CFG"
-    continue
+    log_message "ERROR: no existe $CFG — la IP NO se actualizo ahi. Restaurarlo o sacarlo de CFG_FILES."
+    exit 1
   fi
 
   if awk -v new_ip="$NEW_IP" -v target="$TARGET_SERVER" '

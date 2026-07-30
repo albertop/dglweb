@@ -114,23 +114,53 @@ fail2ban-client unban "$IP" >/dev/null 2>&1 || true
 # `ufw status` imprime tres columnas —`22/tcp  ALLOW  1.2.3.4`— y `ufw status verbose` imprime cuatro,
 # porque ahí la acción es `ALLOW IN`. Miré el formato de `verbose`, escribí `$4`, y con el formato real
 # no casaba nada: añadía la regla nueva y dejaba la vieja puesta. Se vio comprobando la salida.
+UFW_VERIFICADO=no
+
 if command -v ufw >/dev/null && ufw status | grep -q "^Status: active"; then
+    # SIN `{1,3}`, y por lo mismo que el `\s` del otro script: los INTERVALOS son una extensión que
+    # gawk soporta y `mawk` —el awk por defecto de Debian y Ubuntu— no garantiza. Con `{1,3}` esta
+    # función devolvía **vacío** en un contenedor Debian limpio, y vacío significa «no encontré la
+    # regla»: el script concluía que ufw había rechazado el `allow` cuando lo había aceptado.
+    #
+    # Lo introduje yo al arreglar el `\s`, en el mismo día. Se vio probando, no leyendo.
+    #
+    # `[0-9]+\.` cuatro veces es más largo y funciona en las tres implementaciones. No valida rangos
+    # —aceptaría 999.999.999.999— y da igual: lo que sale de `ufw status` ya son direcciones que ufw
+    # aceptó, y la validación de verdad está arriba, sobre el argumento.
     reglas_del_22() {
         ufw status | awk '/^22\/tcp/ && /ALLOW/ {
-            for (i = 1; i <= NF; i++) if ($i ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/) print $i
+            for (i = 1; i <= NF; i++) if ($i ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) print $i
         }'
     }
+
+    # PRIMERO AÑADIR Y COMPROBAR, DESPUÉS BORRAR. El orden importa: si el `add` falla y ya se borró la
+    # regla anterior, se queda sin ninguna. No es un bloqueo total —el 22 sigue con `LIMIT` desde
+    # cualquier sitio— pero es un estado peor que el de partida, provocado por el script que venía a
+    # mejorarlo.
     if ! reglas_del_22 | grep -qxF "$IP"; then
         ufw allow from "$IP" to any port 22 proto tcp >/dev/null 2>&1 || true
+        # Se comprueba el RESULTADO y no el código de salida: `ufw` devuelve 0 en situaciones donde no
+        # hizo nada, así que preguntarle si le fue bien no sirve. Se le pregunta al estado.
+        if ! reglas_del_22 | grep -qxF "$IP"; then
+            log "ERROR: ufw no acepto la regla del 22 para $IP; NO se borran las anteriores"
+            exit 1
+        fi
         log "ufw: añadida la regla del 22 para $IP"
     fi
-    # Las sobrantes se limpian SIEMPRE, no solo cuando se añade una: si un intento anterior dejó una
-    # colgada, esto la recoge en la siguiente corrida en vez de acumularlas para siempre.
+
+    # Ahora sí, las sobrantes. Se limpian SIEMPRE y no solo cuando se añade una: si un intento anterior
+    # dejó una colgada, esto la recoge en la siguiente corrida en vez de acumularlas para siempre.
     for vieja in $(reglas_del_22); do
         [[ "$vieja" == "$IP" ]] && continue
         ufw --force delete allow from "$vieja" to any port 22 proto tcp >/dev/null 2>&1 || true
+        if reglas_del_22 | grep -qxF "$vieja"; then
+            log "ERROR: ufw no borro la regla del 22 de $vieja"
+            exit 1
+        fi
         log "ufw: borrada la regla del 22 de $vieja"
     done
+
+    UFW_VERIFICADO=si
 fi
 
 # ── La postcondición ────────────────────────────────────────────────────────────────────────────
@@ -153,4 +183,14 @@ if [[ -n "$fallos" ]]; then
     exit 1
 fi
 
-log "ok: $IP aplicada en snippet, ignoreip y ufw"
+# EL MENSAJE NOMBRA SOLO LO QUE SE COMPROBÓ. Antes decía «aplicada en snippet, ignoreip y ufw» y ufw
+# no se verificaba en ninguna parte — lo afirmaba una línea que yo escribí como postcondición.
+#
+# Es el mismo defecto que este archivo lleva media jornada persiguiendo en otros sitios: una
+# afirmación que dice más de lo que el código sostiene. Y en un log es peor que en un comentario,
+# porque es lo que alguien lee para decidir si mirar más.
+if [[ "$UFW_VERIFICADO" == si ]]; then
+    log "ok: $IP aplicada y comprobada en snippet, ignoreip y ufw"
+else
+    log "ok: $IP aplicada y comprobada en snippet e ignoreip (ufw inactivo o ausente: no se tocó)"
+fi
