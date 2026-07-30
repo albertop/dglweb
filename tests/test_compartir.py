@@ -192,3 +192,57 @@ def test_sin_fecha_de_debut_no_se_inventa_un_ano() -> None:
     frase = descripcion_social(_Jugador(pos="SS"))  # type: ignore[arg-type]
 
     assert frase == "Campocorto."
+
+
+# ── FE-01 del review v13: el grupo se llama por lo que de verdad se comparte ─────────────────────
+
+
+def test_sin_decir_que_se_comparte_el_nombre_es_pobre_pero_cierto() -> None:
+    """La penalización de olvidarlo tiene que ser un nombre POBRE y no uno FALSO.
+
+    Lo pobre se nota al leerlo; lo falso solo lo nota quien depende de ello.
+    """
+    assert compartir(_contexto(), RUTA, TITULO)["etiqueta"] == "Compartir"
+
+
+@pytest.mark.parametrize(
+    ("que", "esperado"),
+    [
+        ("este artículo", "Compartir este artículo"),
+        ("este perfil", "Compartir este perfil"),
+        ("esta lista de líderes", "Compartir esta lista de líderes"),
+    ],
+)
+def test_cada_pagina_nombra_lo_suyo(que: str, esperado: str) -> None:
+    assert compartir(_contexto(), RUTA, TITULO, que=que)["etiqueta"] == esperado
+
+
+# Las tres páginas que llevan los botones, y lo que cada una tiene que anunciar.
+PAGINAS_QUE_COMPARTEN = [
+    ("articles/article_page.html", "este artículo"),
+    ("profiles/player_detail.html", "este perfil"),
+    ("profiles/leaders.html", "esta lista de líderes"),
+]
+
+
+@pytest.mark.parametrize(("plantilla", "que"), PAGINAS_QUE_COMPARTEN)
+def test_ninguna_pagina_anuncia_un_articulo_que_no_existe(plantilla: str, que: str) -> None:
+    """EL FALLO QUE SOLO ENCUENTRA QUIEN NO VE LA PANTALLA, y por eso no lo encuentra nadie.
+
+    El `aria-label` estuvo fijo en «Compartir este artículo» dentro del widget, y el widget se llevó
+    tal cual al perfil de jugador y a líderes. En esas dos páginas un lector de pantalla anunciaba un
+    artículo que no existe — peor que no decir nada, porque manda a buscar algo que no está.
+
+    Se lee el archivo y no la página renderizada a propósito: el perfil necesita un jugador con
+    temporadas y líderes una tabla entera, así que montarlas costaría más que lo que se comprueba, y
+    lo que se comprueba —que la llamada pase su `que`— está entero en el texto.
+    """
+    import pathlib
+    import re
+
+    ruta = pathlib.Path(__file__).resolve().parent.parent / "templates" / plantilla
+    llamadas = re.findall(r"\{% compartir [^%]*%\}", ruta.read_text(encoding="utf-8"))
+
+    assert llamadas, f"{plantilla} ya no comparte: esta prueba dejó de comprobar nada"
+    for llamada in llamadas:
+        assert f'que="{que}"' in llamada, llamada

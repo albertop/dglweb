@@ -35,12 +35,23 @@ register = template.Library()
 
 
 @register.inclusion_tag("widgets/_compartir.html", takes_context=True)
-def compartir(context: dict[str, Any], url: str, titulo: str, clase: str = "") -> dict[str, Any]:
+def compartir(context: dict[str, Any], url: str, titulo: str, clase: str = "", que: str = "") -> dict[str, Any]:
     """Los botones para compartir `url`, que puede venir relativa.
 
     `titulo` es lo que se escribe en el mensaje. En un artículo, su titular; en un perfil debería ser
     algo con datos —«Juan Soto — 2026: .285, 32 HR»— porque un enlace con números se abre y uno
     genérico se ignora.
+
+    `que` NOMBRA LO QUE SE COMPARTE PARA QUIEN NO VE LA PANTALLA
+    ------------------------------------------------------------
+    Sale en el `aria-label` del grupo: «Compartir este artículo», «Compartir este perfil». Sin nombre,
+    un lector de pantalla anuncia cinco enlaces sueltos —«WhatsApp», «X», «Facebook»…— sin decir para
+    qué están ahí ni qué se llevaría cada uno.
+
+    Estuvo fijo en «Compartir este artículo» y se copió tal cual al perfil de jugador y a líderes, así
+    que esas dos páginas anunciaban un artículo que no existe. Vacío por defecto —queda «Compartir»,
+    que es cierto en todas partes— porque la penalización de olvidarlo tiene que ser un nombre pobre y
+    no uno FALSO: lo pobre se nota al leerlo, lo falso solo lo nota quien depende de ello.
     """
     peticion: HttpRequest | None = context.get("request")
     if peticion is not None and url.startswith("/"):
@@ -57,4 +68,5 @@ def compartir(context: dict[str, Any], url: str, titulo: str, clase: str = "") -
         "url_url": quote(url, safe=""),
         "texto_url": quote(titulo, safe=""),
         "clase": clase,
+        "etiqueta": f"Compartir {que}".strip(),
     }

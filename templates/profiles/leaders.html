@@ -223,7 +223,7 @@ muda y el usuario vuelve a hacer clic.
       compartir «Líderes» a secas no le dice nada a quien lo recibe.
     {% endcomment %}
     {% with texto="Líderes dominicanos en "|add:board.name %}
-      {% compartir request.get_full_path texto %}
+      {% compartir request.get_full_path texto que="esta lista de líderes" %}
     {% endwith %}
   </div>
   </div>

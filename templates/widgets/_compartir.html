@@ -27,16 +27,10 @@ del texto, así que el CSS solo tiene que preocuparse de una cosa.
 WHATSAPP PRIMERO, y no es el orden de costumbre. En República Dominicana es donde se comparte deporte;
 X y Facebook van detrás porque tocan ponerlos, no porque vayan a mover el tráfico.
 
-SIN «vía @…», Y NO ES UN OLVIDO — es una decisión, anotada acá para que no vuelva a surgir como
-«mejora».
-
-El sitio no tiene cuentas propias, y el dueño lo publica desde su cuenta personal a propósito: no
-trabaja en el ambiente deportivo y prefiere que esto no quede atado a su nombre más de lo que ya lo
-está por la firma de los artículos. Un `via=` pondría su usuario, repetido, en cada tuit que
-compartiera cualquier lector — que es justo el vínculo que no quiere multiplicar.
-
-Si algún día existe una cuenta del propio sitio, ahí sí tendría sentido. Mientras tanto, el mensaje que
-escribe otra persona no lleva firma nuestra.
+EL «vía @…» APUNTA AL SITIO, NUNCA A UNA PERSONA. Estuvo sin `via=` mientras el sitio no tenía cuenta:
+se propuso poner la personal del dueño y se descartó, porque no trabaja en el ambiente deportivo y un
+`via=` pondría su usuario, repetido, en cada tuit que compartiera cualquier lector. Con `@dglmlb`
+(2026-07-30) el parámetro atribuye al SITIO y ahí sí tiene sentido. Sale de `settings.X_USUARIO`.
 
 `rel="noopener"` en todos: abren en otra pestaña y sin él la página de destino puede tocar la nuestra
 por `window.opener`.
@@ -49,8 +43,12 @@ por `window.opener`.
   cinco enlaces sueltos —«WhatsApp», «X», «Facebook»…— sin decir para qué están ahí. Va en
   `aria-label` sobre un `role="group"`, que es exactamente eso: un nombre para el conjunto, no un
   texto que ocupe sitio.
+
+  Y LO NOMBRA CADA PÁGINA con el argumento `que`, porque este widget ya no es solo del artículo. El
+  texto estuvo fijo en «Compartir este artículo» y se copió tal cual al perfil y a líderes, que
+  anunciaban así un artículo que no existe.
 {% endcomment %}
-<div class="dgl-compartir {{ clase }}" role="group" aria-label="Compartir este artículo"
+<div class="dgl-compartir {{ clase }}" role="group" aria-label="{{ etiqueta }}"
      data-compartir data-titulo="{{ titulo }}" data-url="{{ url }}">
 
   {# El botón nativo. Nace oculto y `compartir.js` lo enseña solo donde el navegador lo soporta. #}
