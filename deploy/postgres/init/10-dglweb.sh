@@ -39,8 +39,26 @@
 # En una reconstrucción desde cero eso hay que recordarlo: este script deja el servidor listo para el
 # sitio y **no** para la publicidad. Ver `docs/ADSERVER.md`.
 set -e
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-SQL
-  CREATE ROLE dglweb LOGIN PASSWORD '${DGLWEB_DB_PASSWORD}';
+
+# LA CONTRASEÑA ENTRA COMO VARIABLE DE `psql`, NO INTERPOLADA EN EL SQL
+# ----------------------------------------------------------------------
+# Acá decía `PASSWORD '${DGLWEB_DB_PASSWORD}'`, y una contraseña con una comilla simple rompía el
+# script. Reproducido con `abc'def`, que es una contraseña perfectamente legítima de cualquier gestor:
+#
+#     unrecognized role option "def"
+#
+# Y el fallo aparece **solo al inicializar un volumen vacío**, o sea durante una instalación nueva o
+# una recuperación — el peor momento posible para descubrir que el bootstrap no corre. Postgres
+# arranca igual, el healthcheck da verde, y la base simplemente no existe.
+#
+# Con `--set` y `:'variable'`, psql produce el literal correctamente escapado él mismo. Un secreto es
+# un dato, no código SQL.
+#
+# La alternativa —restringir el alfabeto del generador de contraseñas— esconde el problema en la
+# operación en vez de arreglarlo, y depende de que alguien lo recuerde dentro de dos años.
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" \
+     --set=clave="$DGLWEB_DB_PASSWORD" <<-SQL
+  CREATE ROLE dglweb LOGIN PASSWORD :'clave';
   CREATE DATABASE dglweb OWNER dglweb;
 SQL
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname dglweb <<-SQL
