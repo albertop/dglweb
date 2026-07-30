@@ -42,7 +42,11 @@
 set -euo pipefail
 
 REMOTO="${REMOTO:-root@dominicanosengrandesligas.com}"
-ORIGEN="${ORIGEN:-/srv/respaldos}"
+# LA RAIZ DE `rrsync`, QUE DESDE EL CLIENTE ES `/` Y NO LA RUTA REAL. El `command=` del VPS enraiza
+# todo en `/srv/respaldos`, asi que pedir `:/srv/respaldos/` se resuelve como `/srv/respaldos` +
+# `/srv/respaldos` y falla con un «No such file or directory» que manda a buscar al sitio equivocado.
+# Solo se ve probando: la ruta que uno escribiria por logica es justo la que no funciona.
+ORIGEN="${ORIGEN:-/}"
 DESTINO="${DESTINO:-/srv/respaldos-dgl}"
 CLAVE="${CLAVE:-/root/.ssh/respaldo_dgl}"
 DIARIOS="${DIARIOS:-14}"
@@ -59,7 +63,7 @@ SSH="ssh -i $CLAVE -o BatchMode=yes -o ConnectTimeout=15"
 # Se piden solo las carpetas CON `MANIFIESTO`. Ese archivo se escribe el último en el VPS, así que su
 # presencia es la señal de que la corrida terminó — y así no se copia una que se esté generando ahora
 # mismo. El `mv` atómico del otro lado ya lo hace improbable; esto lo hace imposible.
-remotas=$(rsync -e "$SSH" --list-only "$REMOTO:$ORIGEN/" 2>/dev/null \
+remotas=$(rsync -e "$SSH" --list-only "$REMOTO:$ORIGEN" 2>/dev/null \
           | awk '$5 ~ /^20[0-9][0-9]-/ {print $5}' | sort)
 
 nuevas=0
@@ -70,7 +74,7 @@ for carpeta in $remotas; do
     # directorio oculto y NO a un archivo parcial junto al bueno, que es lo que confundiría al `-d` de
     # arriba en la siguiente corrida: una carpeta a medias parecería una carpeta ya traída.
     rsync -e "$SSH" -a --partial-dir=.parcial --timeout=300 \
-          "$REMOTO:$ORIGEN/$carpeta" "$DESTINO/"
+          "$REMOTO:$ORIGEN$carpeta" "$DESTINO/"
 
     # ── 2. Comprobar que llegó ENTERO ────────────────────────────────────────────────────────────
     #
