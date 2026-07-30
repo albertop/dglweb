@@ -71,8 +71,23 @@ dispositivo donde más se comparte. Un botón que estorba se pulsa menos, no má
 **El orden dentro de la fila también importa**: WhatsApp primero y visible, no escondido tras un
 «más». Es el que va a mover el tráfico acá.
 
-En perfil y en líderes tiene sentido también —«mira los números de Soto»— pero eso es una segunda
-tanda, después de ver si en artículos se usa.
+**EN QUÉ PÁGINAS, y esto se corrigió el 2026-07-29.** La primera versión de esta nota mandaba todo lo
+que no fuera un artículo a «una segunda tanda». Estaba mal:
+
+- **Perfil de jugador — TAN IMPORTANTE COMO EL ARTÍCULO, o más.** «Mira los números de Soto» es
+  literalmente el mensaje de WhatsApp que se manda un dominicano después de un juego. Es una URL
+  permanente, sobre una persona concreta, y el sitio entero existe para eso. Va en la primera tanda.
+- **Líderes — sí.** Cada tablero es su propia URL indexable, así que lo que se comparte es «los
+  dominicanos que más jonrones tienen», no «la página de líderes». Durante una carrera por el liderato
+  eso se mueve solo.
+- **Portada, `/jugadores/` y `/articulos/` — NO.** Ahí compartir significa «mira este sitio», y para eso
+  ya basta con pegar la URL: la tarjeta de Open Graph sale bien sin ningún botón. Un botón en una
+  página que no habla de nada en concreto es decoración.
+
+**Y LO QUE DECIDE SI ESTO FUNCIONA ES EL TEXTO QUE SE COMPARTE, no el botón.** En el perfil tiene que
+salir algo específico —`Juan Soto — 2026: .285, 32 HR, 89 RBI`— y no el nombre del sitio. Un enlace con
+datos se abre; uno genérico se ignora. Eso significa que cada página necesita su propio texto de
+compartir, igual que ya tiene su propio `og:description`.
 
 ### fail2ban sobre los registros de nginx
 
