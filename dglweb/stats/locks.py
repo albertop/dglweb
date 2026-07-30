@@ -37,6 +37,9 @@ from django.db import connection
 # que no tener candado.
 CLAVE_DERIVADOS = 8412025
 
+# El candado del REFRESCO COMPLETO, distinto del de los derivados. Ver `refresco_exclusivo`.
+CLAVE_REFRESCO = 8412026
+
 
 def tomar_en_transaccion(clave: int = CLAVE_DERIVADOS) -> None:
     """Toma la clave hasta que la transacción actual termine. Debe llamarse DENTRO de un `atomic()`.
@@ -64,3 +67,44 @@ def cadena_derivada(clave: int = CLAVE_DERIVADOS) -> Iterator[None]:
         # tomado mientras viva la conexión, y la siguiente cadena esperaría para siempre.
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_unlock(%s)", [clave])
+
+
+@contextmanager
+def refresco_exclusivo(clave: int = CLAVE_REFRESCO) -> Iterator[bool]:
+    """Intenta tomar el candado del refresco completo. NO espera: devuelve `False` si ya hay uno.
+
+    QA-01 DEL REVIEW v13, Y EL FALLO ERA REAL
+    -----------------------------------------
+    `_estado_de()` busca «la fila más reciente de este comando desde que empecé», no SU fila. Con dos
+    refrescos solapados —el scheduler corriendo cuando alguien lanza un retry a mano, o una corrida que
+    se pasa de su ventana— los dos ejecutan `update_batting` y el primero puede leer la fila del
+    segundo.
+
+    Comprobado escribiendo las dos filas a mano: la corrida A dejó `PARTIAL — faltaron 3 equipos` y
+    `_estado_de` le contestó `SUCCESS — completo`, que era de B. Un `PARTIAL` leído como `SUCCESS`
+    hace que una corrida publique derivados con un insumo incompleto.
+
+    POR QUÉ `try` Y NO ESPERAR. Un candado que espera convertiría el retry manual en una segunda
+    corrida completa encolada, que arrancaría justo cuando la primera acabó de publicar — trabajo
+    duplicado sobre datos que ya están. Y con el scheduler cada hora, una corrida lenta iría acumulando
+    cola hasta solaparse igual. Rechazar y decirlo es lo correcto: el refresco de mañana lo arregla.
+
+    LO QUE ESTO NO CUBRE, y queda anotado en `docs/TODO.md`: el candado impide dos refrescos, pero no
+    que alguien corra `manage.py update_batting` suelto mientras el refresco va. En ese caso
+    `_estado_de` puede seguir leyendo la fila ajena. El arreglo de fondo es que cada `IngestRun` lleve
+    el identificador de su corrida padre y que `_estado_de` resuelva por esa identidad y no por una
+    ventana temporal — el tiempo aproxima causalidad, pero no la representa. Eso pide una migración y
+    tocar cómo cada comando registra su fila, así que va aparte.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_try_advisory_lock(%s)", [clave])
+        fila = cursor.fetchone()
+        tomado = bool(fila and fila[0])
+    try:
+        yield tomado
+    finally:
+        # Solo se suelta si se tomó: soltar un candado que no se tiene deja un aviso en el log de
+        # Postgres y, peor, sueltaría el de la corrida que sí lo tiene.
+        if tomado:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(%s)", [clave])

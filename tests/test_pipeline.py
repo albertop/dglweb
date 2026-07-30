@@ -511,3 +511,80 @@ def test_con_la_cadena_entera_bien_si_publica(temporada: SeasonDates, falso_call
     assert falso_call_command["corridos"].index("build_career_totals") < falso_call_command["corridos"].index(
         "build_leaders"
     )
+
+
+# ── QA-01 del review v13: un refresco a la vez ───────────────────────────────────────────────────
+#
+# `_estado_de()` busca «la fila más reciente de este comando desde que empecé», no SU fila. Con dos
+# refrescos solapados los dos ejecutan `update_batting` y el primero puede leer la fila del segundo.
+#
+# Comprobado escribiendo las dos filas a mano: la corrida A dejó `PARTIAL — faltaron 3 equipos` y
+# `_estado_de` le contestó `SUCCESS — completo`, que era de B. Un PARTIAL leído como SUCCESS hace que
+# una corrida publique derivados con un insumo incompleto.
+
+
+@pytest.mark.django_db(transaction=True)
+def test_un_segundo_refresco_no_corre_mientras_hay_uno(temporada: SeasonDates) -> None:
+    """El candado es de SESIÓN de Postgres, así que hace falta una conexión aparte para probarlo.
+
+    Con la misma conexión, los advisory locks son reentrantes: el segundo intento tomaría la clave que
+    su propia sesión ya tiene y la prueba pasaría sin probar nada.
+    """
+    import psycopg
+    from django.conf import settings
+
+    from dglweb.stats import locks
+
+    ajustes = settings.DATABASES["default"]
+    otra = psycopg.connect(
+        host=ajustes["HOST"],
+        port=ajustes["PORT"] or 5432,
+        dbname=ajustes["NAME"],
+        user=ajustes["USER"],
+        password=ajustes["PASSWORD"],
+        autocommit=True,
+    )
+    try:
+        # La «primera corrida»: toma la clave desde otra sesión y no la suelta.
+        otra.execute("SELECT pg_advisory_lock(%s)", (locks.CLAVE_REFRESCO,))
+
+        with locks.refresco_exclusivo() as tomado:
+            assert tomado is False, "el segundo refresco no debería poder tomar el candado"
+    finally:
+        otra.execute("SELECT pg_advisory_unlock(%s)", (locks.CLAVE_REFRESCO,))
+        otra.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_el_refresco_omitido_queda_en_el_log(temporada: SeasonDates) -> None:
+    """Un refresco que no deja rastro se lee como un scheduler que no corrió.
+
+    Eso ya costó días de no darse cuenta una vez —el incidente que dio origen a `/health/pipeline`—
+    así que el salto se registra en vez de callarse.
+    """
+    import psycopg
+    from django.conf import settings
+
+    from dglweb.stats import locks
+    from dglweb.stats.management.commands.refresh_daily import MOTIVO_OCUPADO
+
+    ajustes = settings.DATABASES["default"]
+    otra = psycopg.connect(
+        host=ajustes["HOST"],
+        port=ajustes["PORT"] or 5432,
+        dbname=ajustes["NAME"],
+        user=ajustes["USER"],
+        password=ajustes["PASSWORD"],
+        autocommit=True,
+    )
+    try:
+        otra.execute("SELECT pg_advisory_lock(%s)", (locks.CLAVE_REFRESCO,))
+        call_command("refresh_daily", force=True)
+    finally:
+        otra.execute("SELECT pg_advisory_unlock(%s)", (locks.CLAVE_REFRESCO,))
+        otra.close()
+
+    fila = IngestRun.objects.filter(command="refresh_daily").order_by("-started_at").first()
+    assert fila is not None
+    assert fila.status == IngestRun.Status.SKIPPED
+    assert MOTIVO_OCUPADO in (fila.detail or "")

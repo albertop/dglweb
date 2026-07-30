@@ -89,6 +89,28 @@ salir algo específico —`Juan Soto — 2026: .285, 32 HR, 89 RBI`— y no el n
 datos se abre; uno genérico se ignora. Eso significa que cada página necesita su propio texto de
 compartir, igual que ya tiene su propio `og:description`.
 
+### Identidad de corrida en `IngestRun` — la otra mitad de QA-01
+
+El review v13 encontró que `_estado_de()` busca «la fila más reciente de este comando desde que
+empecé», no SU fila. Con dos refrescos solapados, el primero puede leer la fila del segundo — un
+`PARTIAL` leído como `SUCCESS` hace que una corrida publique derivados con un insumo incompleto.
+Comprobado escribiendo las dos filas a mano.
+
+**Lo que ya se hizo (2026-07-30):** un candado exclusivo al entrar en `refresh_daily`. Dos refrescos no
+pueden solaparse, así que el escenario del review queda cerrado.
+
+**Lo que falta, y por qué no se hizo a la vez:** el candado impide dos refrescos, pero no que alguien
+corra `manage.py update_batting` suelto mientras el refresco va. Ahí `_estado_de` puede seguir leyendo
+la fila ajena.
+
+El arreglo de fondo es que cada `IngestRun` lleve el **identificador de su corrida padre**, y que
+`_estado_de` resuelva por esa identidad y no por una ventana temporal. Como dice el review: *el tiempo
+aproxima causalidad, pero no la representa*.
+
+Cuesta una migración y tocar cómo cada comando registra su fila —son once—, así que va aparte de un
+arreglo que ya cierra el caso realista. No es urgente: correr un comando de entrada a mano mientras el
+refresco corre es algo que solo hace quien está depurando, y esa persona está mirando.
+
 ### fail2ban sobre los registros de nginx
 
 **Qué resuelve.** Hoy hay límites de peticiones por IP (`deploy/nginx-limites.conf`), y eso frena el

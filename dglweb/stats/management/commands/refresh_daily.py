@@ -11,8 +11,12 @@ acá solo están los argumentos y la salida por consola.
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandParser
+from django.utils import timezone
 
-from dglweb.stats import pipeline
+from dglweb.stats import locks, pipeline, runlog
+
+# El motivo del salto, en una constante porque lo miran el log y la prueba.
+MOTIVO_OCUPADO = "ya hay un refresco corriendo; este se omite para no mezclar los dos"
 
 
 class Command(BaseCommand):
@@ -32,11 +36,22 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        resultado = pipeline.run_and_record(
-            force=options["force"],
-            publicar_parcial=options["publicar_parcial"],
-            note=self.stdout.write,
-        )
+        # UN REFRESCO A LA VEZ (QA-01 del review v13). Dos solapados pueden atribuirse mutuamente el
+        # resultado de sus pasos: `_estado_de()` busca la fila más reciente del comando, no la suya.
+        # Comprobado — un PARTIAL se leía como SUCCESS. Ver `locks.refresco_exclusivo`.
+        with locks.refresco_exclusivo() as tomado:
+            if not tomado:
+                # Se registra el salto en vez de callarlo: un refresco que no dejó rastro se lee como
+                # un scheduler que no corrió, y eso ya costó días de no darse cuenta una vez.
+                runlog.record_skip("refresh_daily", str(timezone.localdate()), MOTIVO_OCUPADO)
+                self.stdout.write(f"Sin correr — {MOTIVO_OCUPADO}")
+                return
+
+            resultado = pipeline.run_and_record(
+                force=options["force"],
+                publicar_parcial=options["publicar_parcial"],
+                note=self.stdout.write,
+            )
 
         if resultado.motivo_salto:
             self.stdout.write(f"Sin correr — {resultado.motivo_salto}")
