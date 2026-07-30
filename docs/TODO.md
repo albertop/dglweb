@@ -53,8 +53,26 @@ Queda lo que sí se puede, que además es mejor:
 3. **X / Facebook** — los que todo el mundo pone. Van, pero no son los que van a mover el tráfico.
 4. **Copiar enlace** — el más usado de todos en escritorio, y el más fácil de olvidar.
 
-**Dónde ponerlos**: en el artículo, arriba y al final del cuerpo. En las páginas de perfil y de líderes
-tiene sentido también —«mira los números de Soto»— pero eso es una segunda tanda.
+**DÓNDE PONERLOS: SIN DECIDIR (dueño, 2026-07-29).** Lo de abajo es una recomendación, no una
+decisión tomada.
+
+Lo que yo haría, y el porqué de cada sitio:
+
+- **Al final del cuerpo del artículo — el principal.** Es donde está la intención: quien terminó de
+  leer y le gustó. Arriba compite con el titular, que es lo que engancha.
+- **Una fila discreta bajo la firma**, tamaño de icono pequeño, sin caja ni fondo. Recoge al que
+  comparte sin leer —que en deporte es mucha gente— sin interrumpir la entrada al texto.
+
+**Lo que NO recomiendo, y es lo que suele proponerse**: una barra flotante pegada al borde. En
+escritorio chocaría con el carril de anuncios que acabamos de montar, y en un teléfono ya hay barra
+superior fija y cintillo de movimientos — una tercera cosa flotando se come la pantalla en el
+dispositivo donde más se comparte. Un botón que estorba se pulsa menos, no más.
+
+**El orden dentro de la fila también importa**: WhatsApp primero y visible, no escondido tras un
+«más». Es el que va a mover el tráfico acá.
+
+En perfil y en líderes tiene sentido también —«mira los números de Soto»— pero eso es una segunda
+tanda, después de ver si en artículos se usa.
 
 ### fail2ban sobre los registros de nginx
 
