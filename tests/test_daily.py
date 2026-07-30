@@ -882,3 +882,75 @@ def test_el_refresco_diario_no_lleva_alcance(temporada: SeasonDates, monkeypatch
     call_command("build_daily_standouts", "--fecha", "2026-07-25")
 
     assert IngestRun.objects.get().scope == "2026-07-25"
+
+
+# ── DEV-01 del review v13: una línea imposible no se puntúa ──────────────────────────────────────
+#
+# Los componentes se sacan RESTANDO —los sencillos son `H - 2B - 3B - HR`, los boletos ganados
+# `BB - IBB`— y `_numero()` convierte lo ausente en cero. Si el proxy omite `H` pero manda un doble, el
+# código inventa -1 sencillos y devuelve un float perfectamente válido.
+#
+# Medido antes de arreglarlo, sobre 6 IP con 6 K y 4 H:
+#
+#     limpio                        +3,016
+#     IBB=2 con BB=0 (imposible)    +3,244   PREMIA
+#     H ausente y 2 dobles          +4,286   PREMIA  ← +1,27 carreras de regalo
+#
+# En pitcheo premia porque toda la suma va negada, y +1,27 mueve a un lanzador varios puestos.
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("caso", "stat"),
+    [
+        ("más extrabases que hits", {"H": 0, "X2B": 1}),
+        ("un jonrón sin hit", {"H": 0, "HR": 1}),
+        ("más intencionales que boletos", {"BB": 0, "IBB": 2}),
+        ("hits y ponches de más para los turnos", {"AB": 3, "H": 2, "K": 2}),
+    ],
+)
+def test_una_linea_imposible_se_reconoce(caso: str, stat: dict[str, Any]) -> None:
+    """Cada una es aritmética de definición, no un criterio nuestro: un extrabase ES un hit, un
+    intencional ES un boleto, y un hit y un ponche son turnos al bate excluyentes entre sí."""
+    assert daily.por_que_no_cuadra(stat), caso
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("caso", "stat"),
+    [
+        ("una jornada normal", {"AB": 4, "H": 2, "X2B": 1, "K": 1}),
+        ("solo boletos, sin turnos", {"AB": 0, "BB": 2, "IBB": 1}),
+        ("un ponche y nada más", {"AB": 3, "K": 1}),
+        ("todo en cero", {}),
+        ("una salida de pitcheo limpia", {"outsPitched": 18, "K": 6, "H": 4}),
+    ],
+)
+def test_una_linea_buena_no_se_descarta(caso: str, stat: dict[str, Any]) -> None:
+    """El otro lado, que es el que un validador demasiado estricto rompe sin que nadie lo note.
+
+    El caso de «solo boletos» es el que obliga a mirar `AB` solo cuando hay: una línea de puro boleto
+    trae `AB=0` legítimamente, y exigir `H + K <= AB` ahí descartaría filas buenas.
+    """
+    assert daily.por_que_no_cuadra(stat) == "", caso
+
+
+@pytest.mark.django_db
+def test_el_motivo_dice_los_numeros_y_no_solo_que_esta_mal() -> None:
+    """Va a un log que alguien lee a las seis de la mañana. «línea inválida» no se puede depurar."""
+    motivo = daily.por_que_no_cuadra({"H": 1, "X2B": 2, "HR": 1})
+
+    assert "3" in motivo and "1" in motivo, motivo
+
+
+@pytest.mark.django_db
+def test_una_linea_imposible_no_llega_a_la_lista(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LA PRUEBA QUE IMPORTA: que la fila no se puntúe, no solo que se sepa que está mal."""
+    bueno = {"player": {"id": 1, "fullName": "Bueno"}, "team": {"id": 0}, "stat": {"AB": 4, "H": 3}}
+    imposible = {"player": {"id": 2, "fullName": "Imposible"}, "team": {"id": 0}, "stat": {"H": 0, "X2B": 2}}
+
+    monkeypatch.setattr(daily, "splits", lambda *a, **k: [bueno, imposible])
+
+    salida = daily._actuaciones(None, "hitting", AYER, {1, 2}, {}, daily.valor_de_bateo, daily.linea_de_bateo)
+
+    assert [a.player_id for a in salida] == [1], "la línea imposible se colgó en la lista"

@@ -37,6 +37,7 @@ sin que nadie lo note. Está en el historial si algún día se quiere ENSEÑAR e
 cosa que ordenar con él.
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -47,6 +48,8 @@ from django.utils.formats import date_format
 from dglweb.mlb.client import MlbProxyClient
 from dglweb.stats import scoreboard
 from dglweb.stats._download import fetch_team_codes
+
+logger = logging.getLogger(__name__)
 
 _LIMITE = 8000
 
@@ -176,6 +179,55 @@ def _numero(stat: dict[str, Any], clave: str) -> float:
         return float(stat.get(clave) or 0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def por_que_no_cuadra(stat: dict[str, Any]) -> str:
+    """Por qué esta línea es imposible, o cadena vacía si cuadra. DEV-01 del review v13.
+
+    QUÉ PROBLEMA RESUELVE, CON NÚMEROS
+    ----------------------------------
+    `_numero()` convierte lo ausente y lo ilegible en cero, y los componentes se sacan RESTANDO: los
+    sencillos son `H - 2B - 3B - HR`, los boletos ganados `BB - IBB`. Si el proxy omite `H` pero manda
+    un doble, el código inventa **-1 sencillos** y devuelve un `float` perfectamente válido.
+
+    En pitcheo eso puede PREMIAR al lanzador, porque toda la suma va negada. Medido:
+
+        6 IP, 6 K, 4 H limpio          +3,016
+        IBB=2 con BB=0 (imposible)     +3,244   premia
+        H ausente y 2 dobles           +4,286   premia  ← +1,27 carreras de regalo
+
+    Y +1,27 basta para mover a un lanzador varios puestos en la lista mezclada de la portada.
+
+    POR QUÉ SE EXCLUYE LA FILA Y NO SE ARREGLA CON `max()`
+    -----------------------------------------------------
+    Un `max(0, ...)` en cada resta haría desaparecer el negativo y dejaría un número plausible
+    construido con componentes imposibles — o sea, un destacado falso que nadie puede detectar mirando.
+    Es peor que no publicar la fila: la credibilidad de la portada depende de que lo que sale sea
+    cierto, no de que salga completo.
+
+    LO QUE SE COMPRUEBA, y todo es aritmética de definición, no un criterio nuestro:
+
+    * `2B + 3B + HR <= H`  — un extrabase ES un hit; no puede haber más extrabases que hits.
+    * `IBB <= BB`          — los intencionales son un subconjunto de los boletos.
+    * `H + K <= AB`        — un hit y un ponche son turnos al bate, y son excluyentes entre sí.
+
+    El tercero solo se mira cuando hay `AB`: una línea de puro boleto trae `AB=0` legítimamente, y
+    exigirlo ahí descartaría filas buenas.
+    """
+    hits = _numero(stat, "H")
+    extrabases = _numero(stat, "X2B") + _numero(stat, "X3B") + _numero(stat, "HR")
+    if extrabases > hits:
+        return f"{extrabases:.0f} extrabases con {hits:.0f} hits"
+
+    boletos, intencionales = _numero(stat, "BB"), _numero(stat, "IBB")
+    if intencionales > boletos:
+        return f"{intencionales:.0f} boletos intencionales con {boletos:.0f} boletos"
+
+    turnos = _numero(stat, "AB")
+    if turnos and hits + _numero(stat, "K") > turnos:
+        return f"{hits:.0f} hits y {_numero(stat, 'K'):.0f} ponches en {turnos:.0f} turnos"
+
+    return ""
 
 
 def valor_de_bateo(stat: dict[str, Any]) -> float:
@@ -369,6 +421,22 @@ def _actuaciones(
         if jugador.get("id") not in universo:
             continue
         stat = split.get("stat") or {}
+
+        # UNA LÍNEA IMPOSIBLE NO SE PUNTÚA (DEV-01 del review v13). Ver `por_que_no_cuadra`: los
+        # componentes se sacan restando, así que un campo ausente inventa cantidades negativas y en
+        # pitcheo eso PREMIA al lanzador. Se descarta la fila y se deja dicho en el log, en vez de
+        # publicar un número plausible construido con componentes que no pueden existir.
+        if motivo := por_que_no_cuadra(stat):
+            logger.warning(
+                "daily: línea imposible descartada — %s (%s, %s, %s): %s",
+                jugador.get("fullName") or jugador.get("id"),
+                grupo,
+                dia,
+                motivo,
+                stat,
+            )
+            continue
+
         salida.append(
             Actuacion(
                 player_id=jugador["id"],
