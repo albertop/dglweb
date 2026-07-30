@@ -41,6 +41,17 @@
 # día saltado no despierta a nadie, pero dos seguidos sí.
 set -euo pipefail
 
+# UNO A LA VEZ. Dos corridas solapadas escriben con `rsync` en la MISMA carpeta mientras la rotación de
+# una puede borrar lo que la otra está copiando — y el resultado pasaría la comprobación del manifiesto
+# o no según el orden, que es la peor clase de fallo: intermitente y sin causa visible.
+#
+# No es hipotético: el 2026-07-30 el comando que añadía la línea al crontab se corrió dos veces y
+# quedaron dos entradas idénticas a las 7:00.
+#
+# `-n` para no encolar, y salida 0: si ya hay uno corriendo, este sobra.
+exec 200>/var/run/traer_respaldos.lock
+flock -n 200 || { echo "Ya hay una descarga corriendo; esta se omite."; exit 0; }
+
 REMOTO="${REMOTO:-root@dominicanosengrandesligas.com}"
 # LA RAIZ DE `rrsync`, QUE DESDE EL CLIENTE ES `/` Y NO LA RUTA REAL. El `command=` del VPS enraiza
 # todo en `/srv/respaldos`, asi que pedir `:/srv/respaldos/` se resuelve como `/srv/respaldos` +
