@@ -723,7 +723,7 @@ def test_la_jornada_en_curso_solo_guarda_los_equipos_que_terminaron(
     acabo = daily.Actuacion(player_id=1, nombre="Terminado", equipo="MIA", valor=2.0, linea="3-4, HR")
     jugando = daily.Actuacion(player_id=2, nombre="En curso", equipo="SEA", valor=2.0, linea="2-2, HR")
 
-    monkeypatch.setattr(daily, "destacados", lambda *_: {"bateo": [acabo, jugando], "pitcheo": []})
+    monkeypatch.setattr(daily, "destacados", lambda *_, **__: {"bateo": [acabo, jugando], "pitcheo": []})
     hoy = timezone.localdate()
     monkeypatch.setattr(scoreboard, "del_dia", lambda: _pizarra_falsa((hoy, {"MIA"}, {"SEA"})))
     guardadas: dict[str, list[daily.Actuacion]] = {}
@@ -746,7 +746,7 @@ def _sin_escribir(monkeypatch: pytest.MonkeyPatch) -> list[date]:
     """
     procesadas: list[date] = []
 
-    def _destacados(_cliente: Any, dia: date, _universo: Any) -> dict[str, list[Any]]:
+    def _destacados(_cliente: Any, dia: date, _universo: Any, avisar: Any = None) -> dict[str, list[Any]]:
         procesadas.append(dia)
         return {
             "bateo": [daily.Actuacion(player_id=1, nombre="X", equipo="MIA", valor=2.0, linea="3-4")],
@@ -923,22 +923,28 @@ def test_una_linea_imposible_se_reconoce(caso: str, stat: dict[str, Any]) -> Non
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    ("caso", "stat"),
+    ("caso", "grupo", "stat"),
     [
-        ("una jornada normal", {"AB": 4, "H": 2, "X2B": 1, "K": 1}),
-        ("solo boletos, sin turnos", {"AB": 0, "BB": 2, "IBB": 1}),
-        ("un ponche y nada más", {"AB": 3, "K": 1}),
-        ("todo en cero", {}),
-        ("una salida de pitcheo limpia", {"outsPitched": 18, "K": 6, "H": 4}),
+        ("una jornada normal", "hitting", {"AB": 4, "H": 2, "X2B": 1, "K": 1}),
+        ("solo boletos, sin turnos", "hitting", {"AB": 0, "BB": 2, "IBB": 1}),
+        ("un ponche y nada más", "hitting", {"AB": 3, "K": 1}),
+        ("todo en cero", "hitting", {}),
+        ("una salida de pitcheo limpia", "pitching", {"outsPitched": 18, "K": 6, "H": 4}),
+        # El tercer strike no atrapado: el ponche se acredita y NO hay out. Dos casos reales en dos
+        # semanas, y lo que descarta `K + CS <= outsPitched` como invariante del pitcheo.
+        ("tres ponches en dos outs", "pitching", {"outsPitched": 2, "K": 3, "H": 1}),
     ],
 )
-def test_una_linea_buena_no_se_descarta(caso: str, stat: dict[str, Any]) -> None:
+def test_una_linea_buena_no_se_descarta(caso: str, grupo: str, stat: dict[str, Any]) -> None:
     """El otro lado, que es el que un validador demasiado estricto rompe sin que nadie lo note.
 
-    El caso de «solo boletos» es el que obliga a mirar `AB` solo cuando hay: una línea de puro boleto
-    trae `AB=0` legítimamente, y exigir `H + K <= AB` ahí descartaría filas buenas.
+    La línea de puro boleto trae `AB=0` legítimamente — y pasa igual, porque `H + K = 0 <= 0`.
+
+    La salida de pitcheo pasa por otra razón: `valor_de_pitcheo` no mira `AB` en ningún momento, así
+    que descartarla por una inconsistencia ahí sería tirar una fila puntuable por un campo que no
+    participa. Es lo que le dio sentido al parámetro `grupo`.
     """
-    assert daily.por_que_no_cuadra(stat) == "", caso
+    assert daily.por_que_no_cuadra(stat, grupo) == "", caso
 
 
 @pytest.mark.django_db
@@ -1022,3 +1028,115 @@ def test_un_inning_limpio_de_relevo_no_es_un_destacado(ponches: int) -> None:
     nada en medio— y esa es la razón de que el número parezca no cuadrar.
     """
     assert daily.valor_de_pitcheo(_pitcheo(outsPitched=3, K=ponches)) < daily.PISO_PITCHEO
+
+
+# ── El agujero del guardia `if AB` (review del 2026-07-30) ──────────────────────────────────────
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("caso", "stat"),
+    [
+        ("un hit sin turno al bate", {"AB": 0, "H": 1}),
+        ("un ponche sin turno al bate", {"AB": 0, "K": 1}),
+        ("hits con el campo AB ausente", {"H": 2}),
+    ],
+)
+def test_una_linea_sin_turnos_pero_con_hits_es_imposible(caso: str, stat: dict[str, Any]) -> None:
+    """LO QUE EL GUARDIA `if AB` DEJABA PASAR, y el motivo de que estuviera ahí era equivocado.
+
+    Lo puse temiendo descartar la línea de puro boleto, que trae `AB=0` legítimamente — pero esa línea
+    tiene `H + K = 0 <= 0` y pasa igual. El guardia no protegía nada.
+
+    `{"AB": 0, "H": 1}` cuadraba y valía **+0,7378**: `AB - H` da -1 outs, así que el out negativo suma
+    +0,273 y el sencillo otros +0,465. Los dos componentes tiran para arriba.
+    """
+    assert daily.por_que_no_cuadra(stat), caso
+
+
+@pytest.mark.django_db
+def test_la_linea_de_puro_boleto_sigue_pasando() -> None:
+    """El miedo que motivó el guardia, comprobado en vez de supuesto.
+
+    Un jugador que recibió dos boletos y nada más tiene AB=0 de verdad — y `H + K = 0 <= 0`.
+    """
+    assert daily.por_que_no_cuadra({"AB": 0, "BB": 2, "IBB": 1}) == ""
+    assert daily.valor_de_bateo({"AB": 0, "BB": 2, "IBB": 1}) > 0
+
+
+@pytest.mark.django_db
+def test_el_descarte_llega_a_la_fila_de_ingesta(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un descarte que solo vive en el log del contenedor es, en la práctica, un descarte silencioso.
+
+    El log de Docker se rota y hay que entrar al servidor a leerlo; `IngestRun` es lo que se mira desde
+    el backoffice cuando el widget enseña menos gente de la esperada.
+    """
+    imposible = {"player": {"id": 2, "fullName": "Imposible"}, "team": {"id": 0}, "stat": {"H": 0, "X2B": 2}}
+    monkeypatch.setattr(daily, "splits", lambda *a, **k: [imposible])
+    avisos: list[str] = []
+
+    daily._actuaciones(
+        cast("Any", None), "hitting", AYER, {2}, {}, daily.valor_de_bateo, daily.linea_de_bateo, avisos.append
+    )
+
+    assert len(avisos) == 1, avisos
+    assert "Imposible" in avisos[0] and "hitting" in avisos[0], avisos[0]
+
+
+@pytest.mark.django_db
+def test_un_dia_limpio_no_deja_ruido_en_la_fila(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sin descartes no se escribe nada: un aviso de «0 líneas descartadas» en cada corrida enseñaría
+    a ignorar el campo, que es lo contrario de lo que se busca."""
+    bueno = {"player": {"id": 1, "fullName": "Bueno"}, "team": {"id": 0}, "stat": {"AB": 4, "H": 3}}
+    monkeypatch.setattr(daily, "splits", lambda *a, **k: [bueno])
+    avisos: list[str] = []
+
+    daily._actuaciones(
+        cast("Any", None), "hitting", AYER, {1}, {}, daily.valor_de_bateo, daily.linea_de_bateo, avisos.append
+    )
+
+    assert avisos == []
+
+
+@pytest.mark.django_db
+def test_una_avalancha_de_descartes_no_inunda_la_fila(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Si el proxy se degrada de verdad esto podrían ser cientos de líneas en una columna de texto.
+
+    Se dan las tres primeras y el total, que es lo que permite decidir si mirar el log completo.
+    """
+    malas = [
+        {"player": {"id": i, "fullName": f"Jugador {i}"}, "team": {"id": 0}, "stat": {"H": 0, "X2B": 1}}
+        for i in range(1, 21)
+    ]
+    monkeypatch.setattr(daily, "splits", lambda *a, **k: malas)
+    avisos: list[str] = []
+
+    daily._actuaciones(
+        cast("Any", None),
+        "hitting",
+        AYER,
+        set(range(1, 21)),
+        {},
+        daily.valor_de_bateo,
+        daily.linea_de_bateo,
+        avisos.append,
+    )
+
+    assert len(avisos) == 1
+    assert "20 líneas" in avisos[0] and "y 17 más" in avisos[0], avisos[0]
+
+
+@pytest.mark.django_db
+def test_la_regla_de_los_turnos_no_se_le_aplica_al_pitcheo() -> None:
+    """CADA OFICIO SE VALIDA CONTRA LOS CAMPOS QUE SU FÓRMULA CONSUME.
+
+    La misma línea es imposible mirada como bateo —hits sin turnos— y perfectamente puntuable mirada
+    como pitcheo, porque `valor_de_pitcheo` saca sus outs de `outsPitched` y no toca `AB`.
+
+    Sin el parámetro `grupo`, la regla descartaba salidas buenas: lo cazaron cinco pruebas de este
+    archivo cuyos datos de pitcheo no traen `AB`, que es justo el aviso que dio el review.
+    """
+    salida = {"outsPitched": 18, "K": 6, "H": 4}
+
+    assert daily.por_que_no_cuadra(salida, "pitching") == ""
+    assert daily.por_que_no_cuadra(salida, "hitting")

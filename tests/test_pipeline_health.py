@@ -889,3 +889,72 @@ def test_el_que_pierde_el_cerrojo_recibe_el_ultimo_estado_conocido(monkeypatch: 
 
     assert respuesta.status_code == 503
     assert respuesta.json() == {"status": "error"}
+
+
+# ── El intento omitido por el cerrojo no puede tapar al que sí corrió ────────────────────────────
+#
+# El cerrojo de QA-01 (v13) hace que un segundo `refresh_daily` no corra, y deja constancia con una
+# fila SKIPPED — porque un refresco que no dejó rastro se lee como un scheduler caído.
+#
+# Esa fila es POSTERIOR a la del refresco que sí está trabajando, y el semáforo elige por
+# `started_at`. Así que el intento que no hizo nada se convierte en la respuesta oficial sobre la
+# salud del pipeline, y SKIPPED cuenta como sano.
+#
+# EL ESCENARIO COMPLETO:
+#
+#   09:00  A arranca            RUNNING     (fila escrita al entrar)
+#   09:02  B intenta y se omite SKIPPED     ← la más reciente
+#   09:05  A termina mal        FAILED
+#
+# A las 09:06 el pipeline está roto y el monitor ve verde, hasta el refresco siguiente. Es el mismo
+# agujero que este endpoint vino a tapar, entrando por otra puerta.
+
+
+def _omitido_por_el_cerrojo(hace_horas: float = 0.5) -> IngestRun:
+    """La fila que deja el segundo refresco al encontrarse el cerrojo tomado."""
+    from dglweb.stats.management.commands.refresh_daily import MOTIVO_OCUPADO
+
+    return _refresco(IngestRun.Status.SKIPPED, hace_horas=hace_horas, detalle=MOTIVO_OCUPADO)
+
+
+@pytest.mark.django_db
+def test_un_intento_omitido_no_tapa_un_refresco_que_fallo(temporada: SeasonDates) -> None:
+    """LA PRUEBA QUE IMPORTA. El fallo es real y el semáforo tiene que verlo."""
+    _todo_sano(IngestRun.Status.FAILED)
+    _omitido_por_el_cerrojo()
+
+    respuesta = _pedir()
+
+    assert respuesta.status_code == 503, "el intento omitido tapó un refresco fallido"
+
+
+@pytest.mark.django_db
+def test_un_intento_omitido_no_tapa_un_refresco_que_salio_bien(temporada: SeasonDates) -> None:
+    """El otro lado: la fila omitida tampoco puede hacer que se pierda una corrida buena."""
+    _todo_sano()
+    _omitido_por_el_cerrojo()
+
+    respuesta = _pedir()
+
+    assert respuesta.status_code == 200
+
+
+@pytest.mark.django_db
+def test_solo_intentos_omitidos_es_un_refresco_colgado_y_se_avisa(temporada: SeasonDates, settings: Any) -> None:
+    """SI TODO LO QUE HAY SON OMITIDOS, no es que el pipeline esté sano: es que alguien lleva la
+    ventana entera con el cerrojo tomado — un refresco colgado, que es justo lo que `IngestRun`
+    escribe la fila RUNNING para hacer visible.
+
+    Contestar «ok» ahí sería el peor caso de los tres: un proceso muerto sujetando el cerrojo, ningún
+    refresco desde entonces, y el monitor tranquilo.
+    """
+    # Los horarios sanos: si no, el 503 llegaría por ellos y la prueba pasaría sin comprobar nada.
+    for job in HORARIOS:
+        _horario(job)
+    for horas in (5, 3, 1):
+        _omitido_por_el_cerrojo(hace_horas=horas)
+
+    respuesta = _pedir_con_token(settings)
+
+    assert respuesta.status_code == 503
+    assert "omit" in respuesta.json()["detalle"].lower(), respuesta.json()

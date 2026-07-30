@@ -145,7 +145,9 @@ class Command(BaseCommand):
         no confundir los dos modos de este mismo comando — ver `stats/jobs.py`.
         """
         with record_run("build_daily_standouts", f"{dia.isoformat()} {alcance}".strip()) as run:
-            listas = daily.destacados(build_client(), dia, universe.debuted())
+            # `run.note` para que un descarte por línea imposible quede en la fila de ingesta y no
+            # solo en el log del contenedor, que se rota y hay que entrar al servidor a leer.
+            listas = daily.destacados(build_client(), dia, universe.debuted(), avisar=run.note)
             if terminados is not None:
                 listas = {oficio: [a for a in lista if a.equipo in terminados] for oficio, lista in listas.items()}
                 run.note(f"Jornada en curso: {len(terminados)} equipos con el juego terminado.")

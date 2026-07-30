@@ -170,6 +170,10 @@ PISO_PITCHEO = 0.82
 Calculo = Callable[[dict[str, Any]], float]
 Descripcion = Callable[[dict[str, Any]], str]
 
+# Adónde va lo que hay que dejar escrito en la fila de `IngestRun`. En la práctica es `run.note`; se
+# recibe como parámetro para que este módulo no tenga que saber nada del registro de corridas.
+Aviso = Callable[[str], None] | None
+
 # Valor en carreras de cada evento — matriz de pesos lineales 2022-2025, columna `average`, provista
 # por el dueño. Se copian tal cual, con todos sus decimales: redondearlos acá sería introducir un
 # criterio propio en un número que ya viene decidido.
@@ -215,7 +219,7 @@ def _numero(stat: dict[str, Any], clave: str) -> float:
         return 0.0
 
 
-def por_que_no_cuadra(stat: dict[str, Any]) -> str:
+def por_que_no_cuadra(stat: dict[str, Any], grupo: str = "hitting") -> str:
     """Por qué esta línea es imposible, o cadena vacía si cuadra. DEV-01 del review v13.
 
     QUÉ PROBLEMA RESUELVE, CON NÚMEROS
@@ -245,8 +249,33 @@ def por_que_no_cuadra(stat: dict[str, Any]) -> str:
     * `IBB <= BB`          — los intencionales son un subconjunto de los boletos.
     * `H + K <= AB`        — un hit y un ponche son turnos al bate, y son excluyentes entre sí.
 
-    El tercero solo se mira cuando hay `AB`: una línea de puro boleto trae `AB=0` legítimamente, y
-    exigirlo ahí descartaría filas buenas.
+    EL TERCERO ESTUVO CONDICIONADO A `if AB`, Y ESO ABRÍA UN HUECO. Lo puse temiendo descartar la
+    línea de puro boleto, que trae `AB=0` legítimamente — pero esa línea tiene `H + K = 0 <= 0` y pasa
+    igual. El guardia no protegía nada y dejaba entrar justo el caso que la regla existe para atrapar:
+
+        {"AB": 0, "H": 1}   ->  cuadraba, y valía +0,7378
+
+    Un hit sin turno al bate. Y no es que el error se colara con un valor pequeño: `AB - H` da **-1
+    outs**, así que el out negativo SUMA +0,273 y el sencillo otros +0,465 — los dos componentes tiran
+    para arriba. Medido sobre 3.141 líneas de bateo, la regla sin guardia no rechaza ninguna fila real,
+    y las 150 líneas de puro boleto pasan.
+
+    `AB` ausente se trata igual que `AB=0`: si el proxy no manda los turnos pero sí los hits,
+    `valor_de_bateo` deduce los mismos outs negativos. La fila no es puntuable, venga el cero de la API
+    o de que el campo no llegó.
+
+    Y LA REGLA DE `AB` ES SOLO DE BATEO, que es el `grupo`
+    ------------------------------------------------------
+    Cada oficio se valida contra los campos que SU fórmula consume. `valor_de_pitcheo` no mira `AB` en
+    ningún momento —sus outs salen de `outsPitched`—, así que descartar una salida por una
+    inconsistencia en `AB` sería tirar una fila perfectamente puntuable por un campo que no participa.
+
+    NO HAY UNA REGLA EQUIVALENTE DEL LADO DEL PITCHEO, y se comprobó antes de darla por buena. La
+    candidata natural era `K + CS <= outsPitched`, y es FALSA: en un tercer strike no atrapado el
+    ponche se acredita y no hay out. Dos casos reales en dos semanas —una salida de 2 outs con 3
+    ponches, y otra de 1 out con 1 ponche y 1 atrapado robando—, así que exigirlo habría descartado
+    jugadas legítimas. Es también lo que justifica el `max(..., 0)` de `valor_de_pitcheo`: ahí no está
+    tapando un dato malo, está tratando una jugada que existe.
     """
     hits = _numero(stat, "H")
     extrabases = _numero(stat, "X2B") + _numero(stat, "X3B") + _numero(stat, "HR")
@@ -258,7 +287,7 @@ def por_que_no_cuadra(stat: dict[str, Any]) -> str:
         return f"{intencionales:.0f} boletos intencionales con {boletos:.0f} boletos"
 
     turnos = _numero(stat, "AB")
-    if turnos and hits + _numero(stat, "K") > turnos:
+    if grupo == "hitting" and hits + _numero(stat, "K") > turnos:
         return f"{hits:.0f} hits y {_numero(stat, 'K'):.0f} ponches en {turnos:.0f} turnos"
 
     return ""
@@ -478,8 +507,10 @@ def _actuaciones(
     codigos: dict[int, str],
     puntuar: Calculo,
     describir: Descripcion,
+    avisar: Aviso = None,
 ) -> list[Actuacion]:
     salida = []
+    descartadas: list[str] = []
     for split in splits(client, grupo, dia):
         jugador = split.get("player") or {}
         if jugador.get("id") not in universo:
@@ -490,15 +521,10 @@ def _actuaciones(
         # componentes se sacan restando, así que un campo ausente inventa cantidades negativas y en
         # pitcheo eso PREMIA al lanzador. Se descarta la fila y se deja dicho en el log, en vez de
         # publicar un número plausible construido con componentes que no pueden existir.
-        if motivo := por_que_no_cuadra(stat):
-            logger.warning(
-                "daily: línea imposible descartada — %s (%s, %s, %s): %s",
-                jugador.get("fullName") or jugador.get("id"),
-                grupo,
-                dia,
-                motivo,
-                stat,
-            )
+        if motivo := por_que_no_cuadra(stat, grupo):
+            quien = jugador.get("fullName") or jugador.get("id")
+            logger.warning("daily: línea imposible descartada — %s (%s, %s, %s): %s", quien, grupo, dia, motivo, stat)
+            descartadas.append(f"{quien}: {motivo}")
             continue
 
         salida.append(
@@ -510,18 +536,38 @@ def _actuaciones(
                 linea=describir(stat),
             )
         )
+    # EL DESCARTE TAMBIÉN VA A `IngestRun`, no solo al log del contenedor (review del 2026-07-30). El
+    # log de Docker se rota y hay que entrar al servidor a leerlo; `IngestRun` es lo que se mira desde
+    # el backoffice cuando el widget enseña menos gente de la esperada. Un descarte que solo existe en
+    # un log que nadie abre es, en la práctica, un descarte silencioso.
+    #
+    # UN AVISO POR GRUPO Y NO UNO POR FILA: si el proxy se degrada de verdad, esto podrían ser cientos
+    # de líneas metidas en una columna de texto. Se dan las tres primeras y el total, que es lo que
+    # permite decidir si mirar el log completo.
+    if descartadas and avisar is not None:
+        muestra = "; ".join(descartadas[:3])
+        resto = f" (y {len(descartadas) - 3} más)" if len(descartadas) > 3 else ""
+        avisar(f"{len(descartadas)} líneas imposibles descartadas en {grupo} — {muestra}{resto}.")
+
     # Por valor, y el id desempata para que dos actuaciones idénticas no bailen entre corridas.
     return sorted(salida, key=lambda a: (-a.valor, a.player_id))
 
 
-def destacados(client: MlbProxyClient, dia: date, universo: set[int]) -> dict[str, list[Actuacion]]:
-    """Las dos listas del día, ya ordenadas. El recorte a los primeros N lo decide quien muestre."""
+def destacados(
+    client: MlbProxyClient, dia: date, universo: set[int], avisar: Aviso = None
+) -> dict[str, list[Actuacion]]:
+    """Las dos listas del día, ya ordenadas. El recorte a los primeros N lo decide quien muestre.
+
+    `avisar` recibe lo que hay que dejar escrito en la fila de `IngestRun` — hoy, las líneas que se
+    descartaron por imposibles. Es opcional para que la función se pueda llamar desde un shell sin
+    montar un registro de corrida.
+    """
     # El split solo trae el id y el nombre largo del equipo («San Diego Padres»); el código de tres
     # letras sale de `/teams`, que es la misma traducción que ya hace el descargador de temporadas.
     codigos = fetch_team_codes(client, dia.year)
     return {
-        "bateo": _actuaciones(client, "hitting", dia, universo, codigos, valor_de_bateo, linea_de_bateo),
-        "pitcheo": _actuaciones(client, "pitching", dia, universo, codigos, valor_de_pitcheo, linea_de_pitcheo),
+        "bateo": _actuaciones(client, "hitting", dia, universo, codigos, valor_de_bateo, linea_de_bateo, avisar),
+        "pitcheo": _actuaciones(client, "pitching", dia, universo, codigos, valor_de_pitcheo, linea_de_pitcheo, avisar),
     }
 
 

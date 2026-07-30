@@ -14,9 +14,9 @@ from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 
 from dglweb.stats import locks, pipeline, runlog
+from dglweb.stats.locks import MOTIVO_OCUPADO
 
-# El motivo del salto, en una constante porque lo miran el log y la prueba.
-MOTIVO_OCUPADO = "ya hay un refresco corriendo; este se omite para no mezclar los dos"
+__all__ = ["MOTIVO_OCUPADO", "Command"]
 
 
 class Command(BaseCommand):

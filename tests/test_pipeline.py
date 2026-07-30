@@ -588,3 +588,71 @@ def test_el_refresco_omitido_queda_en_el_log(temporada: SeasonDates) -> None:
     assert fila is not None
     assert fila.status == IngestRun.Status.SKIPPED
     assert MOTIVO_OCUPADO in (fila.detail or "")
+
+
+# ── El diagnóstico nombra al que cortó la cadena (review del 2026-07-30) ─────────────────────────
+
+
+def _detalle_del_refresco() -> str:
+    fila = IngestRun.objects.filter(command="refresh_daily").order_by("-started_at").first()
+    assert fila is not None
+    return fila.detail or ""
+
+
+@pytest.mark.django_db
+def test_si_falla_el_ultimo_derivado_no_se_culpa_a_las_entradas(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """EL EXTREMO QUE ROMPÍA EL DIAGNÓSTICO, y solo ese.
+
+    La primera versión preguntaba si había pasos OMITIDOS para decidir si la culpa era de un derivado.
+    Con `build_leaders` —el último de la cadena— no queda nada por omitir, así que caía en el mensaje
+    de las entradas **con todas las entradas en verde**.
+
+    Eso manda al dueño a revisar el proxy a las seis de la mañana cuando el fallo está en nuestro
+    propio cálculo. Un diagnóstico equivocado es peor que no dar ninguno: el genérico hace mirar todo,
+    y este hace mirar el sitio contrario.
+    """
+    falso_call_command["estados"]["build_leaders"] = IngestRun.Status.FAILED
+
+    pipeline.run_and_record(force=True)
+
+    detalle = _detalle_del_refresco()
+    assert "build_leaders no terminó bien" in detalle, detalle
+    assert "las entradas no salieron completas" not in detalle, detalle
+
+
+@pytest.mark.django_db
+def test_con_publicar_parcial_se_nombra_el_derivado_y_no_el_insumo(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """El otro camino a un nombre equivocado: `fallidos[0]`.
+
+    Con `--publicar-parcial` la lista de fallidos arranca con las entradas que se decidió ignorar, así
+    que el primero es un insumo que no tuvo NADA que ver con cortar la cadena de derivados. Nombrarlo
+    es acusar al paso que el dueño ya decidió tolerar.
+    """
+    falso_call_command["estados"]["update_batting"] = IngestRun.Status.FAILED
+    falso_call_command["estados"]["build_career_totals"] = IngestRun.Status.FAILED
+
+    pipeline.run_and_record(force=True, publicar_parcial=True)
+
+    detalle = _detalle_del_refresco()
+    assert "build_career_totals no terminó bien" in detalle, detalle
+    assert "update_batting no terminó bien" not in detalle, detalle
+
+
+@pytest.mark.django_db
+def test_si_lo_que_falla_son_las_entradas_se_dice_eso(
+    temporada: SeasonDates, falso_call_command: dict[str, Any]
+) -> None:
+    """El otro lado, que es el que un arreglo así rompe: sin derivado roto, la culpa SÍ es del insumo.
+
+    Sin esta prueba, buscar el derivado y no encontrarlo podría acabar en un mensaje vacío o en el
+    equivocado, y nadie lo notaría hasta la próxima madrugada rota.
+    """
+    falso_call_command["estados"]["update_batting"] = IngestRun.Status.FAILED
+
+    pipeline.run_and_record(force=True)
+
+    assert "las entradas no salieron completas" in _detalle_del_refresco()

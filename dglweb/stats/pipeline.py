@@ -281,9 +281,19 @@ def run_and_record(*, force: bool = False, publicar_parcial: bool = False, note:
                 # de no publicar los derivados y mandan a mirar sitios distintos: que las ENTRADAS no
                 # llegaran, o que un DERIVADO reventara. Decir siempre lo primero manda al dueño a
                 # revisar el proxy cuando el problema está en nuestro propio cálculo.
-                if resultado.omitidos:
-                    roto = resultado.fallidos[0].comando if resultado.fallidos else "un derivado"
-                    run.note(f"Derivados NO reconstruidos: {roto} no terminó bien y cortó la cadena.")
+                #
+                # SE BUSCA EL DERIVADO ROTO, y no se deduce. La primera versión preguntaba si había
+                # pasos OMITIDOS, y eso falla justo en un extremo: si el que revienta es `build_leaders`
+                # —el último— no queda nada por omitir, así que la corrida decía «las entradas no
+                # salieron completas» con todas las entradas en verde. El diagnóstico mandaba a mirar
+                # el proxy con el fallo en nuestro propio cálculo.
+                #
+                # Y tampoco vale `fallidos[0]`: con `--publicar-parcial` la lista arranca con las
+                # entradas que fallaron y se siguió igual, así que el primero puede ser un insumo que
+                # no tuvo nada que ver con cortar la cadena.
+                roto = next((p for p in resultado.fallidos if p.comando in DERIVADOS), None)
+                if roto is not None:
+                    run.note(f"Derivados NO reconstruidos: {roto.comando} no terminó bien y cortó la cadena.")
                 else:
                     run.note("Derivados NO reconstruidos: las entradas no salieron completas.")
             for paso in resultado.fallidos:

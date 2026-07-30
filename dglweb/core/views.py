@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from dglweb.core import legal
 from dglweb.stats import jobs  # no importa modelos: se puede traer acá arriba sin cargar la app
+from dglweb.stats.locks import MOTIVO_OCUPADO  # una constante, tampoco carga la app
 
 logger = logging.getLogger(__name__)
 
@@ -297,7 +298,40 @@ def pipeline_health(request: HttpRequest) -> JsonResponse:
         return respuesta("ok", detalle=f"Fuera de temporada — {ventana.motivo}")
 
     desde = timezone.now() - timedelta(hours=ventana_horas)
-    ultima = IngestRun.objects.filter(command="refresh_daily", started_at__gte=desde).order_by("-started_at").first()
+    refrescos = IngestRun.objects.filter(command="refresh_daily", started_at__gte=desde)
+
+    # EL INTENTO QUE NO CORRIÓ NO PUEDE CONTESTAR POR EL QUE SÍ. Cuando el cerrojo de `refresh_daily`
+    # está tomado, el segundo intento deja una fila SKIPPED —para que un refresco sin rastro no se lea
+    # como un scheduler caído— y esa fila es POSTERIOR a la del refresco que está trabajando.
+    #
+    # Eligiendo por `started_at` a secas, el intento que no hizo nada se volvía la respuesta oficial
+    # sobre la salud del pipeline, y SKIPPED cuenta como sano:
+    #
+    #     09:00  A arranca             RUNNING
+    #     09:02  B intenta y se omite  SKIPPED   ← la más reciente
+    #     09:05  A termina mal         FAILED
+    #
+    # A las 09:06 el pipeline está roto y el monitor ve verde hasta el refresco siguiente. Es el mismo
+    # agujero que este endpoint vino a tapar, entrando por otra puerta.
+    #
+    # Se descartan por el MOTIVO y no por el estado: hay otros SKIPPED —fuera de temporada— que sí son
+    # una respuesta legítima sobre la salud del pipeline y tienen que seguir contando.
+    ultima = refrescos.exclude(status=IngestRun.Status.SKIPPED, detail=MOTIVO_OCUPADO).order_by("-started_at").first()
+
+    # SI TODO LO QUE HAY SON OMITIDOS, no es que el pipeline esté sano: es que alguien lleva la ventana
+    # entera con el cerrojo tomado, o sea un refresco colgado. Callarlo sería el peor de los casos —un
+    # proceso muerto sujetando el candado, ningún refresco desde entonces, y el monitor tranquilo—, y
+    # el mensaje genérico de «el scheduler puede estar caído» mandaría a mirar justo al sitio
+    # equivocado: el scheduler está corriendo, y es lo único que se sabe con certeza.
+    if ultima is None and refrescos.exists():
+        return respuesta(
+            "error",
+            503,
+            detalle=(
+                f"Todos los intentos de las últimas {ventana_horas} horas se omitieron por el "
+                "cerrojo. Hay un refresco colgado sujetándolo."
+            ),
+        )
 
     # Los jobs HORARIOS, con su propio umbral. El semáforo miraba solo el refresco diario, así que
     # `build_mlb_leaders` y `update_roster_moves` podían llevar seis horas fallando —líderes viejos en

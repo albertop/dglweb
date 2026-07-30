@@ -40,6 +40,12 @@ CLAVE_DERIVADOS = 8412025
 # El candado del REFRESCO COMPLETO, distinto del de los derivados. Ver `refresco_exclusivo`.
 CLAVE_REFRESCO = 8412026
 
+# EL MOTIVO DEL SALTO, y vive acá y no en el comando porque lo miran TRES sitios: el comando que lo
+# escribe, el log, y `/health/pipeline`, que necesita reconocer esas filas para no confundirlas con
+# una corrida de verdad. Estaba en el comando, y que el semáforo tuviera que importar de
+# `management/commands/` para hacer su trabajo era la señal de que estaba en el sitio equivocado.
+MOTIVO_OCUPADO = "ya hay un refresco corriendo; este se omite para no mezclar los dos"
+
 
 def tomar_en_transaccion(clave: int = CLAVE_DERIVADOS) -> None:
     """Toma la clave hasta que la transacción actual termine. Debe llamarse DENTRO de un `atomic()`.
