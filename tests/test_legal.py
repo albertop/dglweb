@@ -291,11 +291,91 @@ def test_la_csp_deja_pasar_la_analitica_en_las_dos_directivas() -> None:
     Con solo la primera el script carga, no protesta y no cuenta ni una visita: el navegador bloquea
     el envío en silencio. Es el fallo más caro de diagnosticar de los dos, y por eso se prueban las
     dos y no «que el dominio aparezca en algún sitio de la política».
+
+    ESTA PRUEBA EXISTÍA Y NO EVITÓ NADA. Pasaba UN origen y comprobaba que estuviera en las dos
+    directivas — o sea, codificaba la misma suposición falsa que el código: que el script envía a
+    donde vive. Pasó en verde todo el tiempo que la analítica estuvo caída. Ver la de abajo, que es
+    la que faltaba.
     """
     politica = csp.publica("https://cloud.umami.is")
 
     assert "script-src 'self' https://cloud.umami.is;" in politica
     assert "connect-src 'self' https://cloud.umami.is;" in politica
+
+
+def test_el_script_y_la_recoleccion_pueden_vivir_en_hosts_distintos() -> None:
+    """EL FALLO REAL DEL 2026-07-30, y lo que ninguna prueba comprobaba.
+
+    Umami Cloud baja `script.js` de `cloud.umami.is` y manda los eventos a `gateway.umami.is`. La
+    política se armaba con un solo origen para las dos directivas, así que cuando el segundo host
+    cambió el navegador empezó a bloquear cada envío:
+
+        Connecting to 'https://gateway.umami.is/api/send' violates the following Content Security
+        Policy directive: "connect-src 'self' https://cloud.umami.is"
+
+    Nada falló. El script seguía cargando, la página se veía igual, y el único rastro era una línea
+    en la consola de quien mirara. Se descubrió en la factura de eventos: 2 en todo el mes.
+
+    De dónde viene el código y adónde van los datos son dos preguntas distintas.
+    """
+    politica = csp.publica("https://cloud.umami.is", envio="https://gateway.umami.is")
+
+    assert "script-src 'self' https://cloud.umami.is;" in politica
+    assert "connect-src 'self' https://gateway.umami.is;" in politica
+
+
+def test_el_comodin_del_envio_no_se_cuela_en_script_src() -> None:
+    """LA LÍNEA QUE SEPARA UN COMODÍN BARATO DE UNO CARO.
+
+        script-src    decide QUÉ CÓDIGO puede ejecutarse en nuestras páginas
+        connect-src   decide ADÓNDE puede mandar datos el código que ya corre
+
+    El comodín en el segundo evita que el próximo cambio de host apague la medición, y no le concede
+    nada al script que no tuviera ya. En el primero dejaría entrar código de cualquier subdominio del
+    proveedor, que es otra cosa completamente distinta.
+
+    Si algún día alguien «simplifica» pasando el mismo valor a las dos, esto lo para.
+    """
+    politica = csp.publica("https://cloud.umami.is", envio="https://*.umami.is")
+
+    directivas = dict(d.strip().split(" ", 1) for d in politica.split(";") if " " in d.strip())
+
+    assert "*" not in directivas["script-src"], directivas["script-src"]
+    assert "https://*.umami.is" in directivas["connect-src"]
+
+
+def test_una_instancia_propia_no_necesita_configurar_el_envio() -> None:
+    """Con Umami autoalojado el script y la recolección SÍ comparten host, así que `envio` vacío cae
+    de vuelta en el origen del script. Sin esto, mudarse a una instancia propia apagaría los envíos —
+    el mismo fallo silencioso, entrando por la puerta contraria."""
+    politica = csp.publica("https://estadisticas.dominicanosengrandesligas.com")
+
+    assert "connect-src 'self' https://estadisticas.dominicanosengrandesligas.com;" in politica
+
+
+@pytest.mark.parametrize(
+    ("analitica", "esperado"),
+    [
+        ("https://cloud.umami.is", "https://*.umami.is"),
+        ("https://us.umami.is", "https://*.umami.is"),
+        ("https://estadisticas.dominicanosengrandesligas.com", ""),
+        ("", ""),
+    ],
+)
+def test_con_umami_cloud_el_envio_se_configura_solo(analitica: str, esperado: str) -> None:
+    """Que producción quede cubierta SIN tener que acordarse de poner una variable en el stack.
+
+    Las de arriba prueban `publica()` con argumentos escritos a mano; esta prueba la regla que decide
+    esos argumentos de verdad. Se comprueba la función y no `settings.ANALITICA_ENVIO_URL` porque en
+    desarrollo la analítica va vacía a propósito, así que leer el ajuste no diría nada de lo que corre
+    en el VPS.
+
+    El caso del dominio propio devuelve vacío, y no es un olvido: ahí `publica()` cae de vuelta en el
+    origen del script, que es lo correcto cuando los dos comparten host.
+    """
+    from config.settings.base import _envio_por_defecto
+
+    assert _envio_por_defecto(analitica) == esperado
 
 
 def test_sin_analitica_la_csp_se_queda_estricta() -> None:

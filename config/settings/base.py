@@ -280,6 +280,37 @@ TELEGRAM_CHAT_ID = env.str("TELEGRAM_CHAT_ID", default="")
 ANALITICA_URL = env.str("ANALITICA_URL", default="").rstrip("/")
 ANALITICA_ID = env.str("ANALITICA_ID", default="")
 
+
+# ADÓNDE MANDA LOS EVENTOS ESE SCRIPT, que NO tiene por qué ser de donde se bajó.
+#
+# Umami Cloud sirve `script.js` desde `cloud.umami.is` y recolecta en `gateway.umami.is`. El
+# 2026-07-30 esa segunda parte cambió, la CSP dejó de cubrirla, y el sitio estuvo días sin contar una
+# sola visita sin que nada fallara: el script cargaba, el `POST` lo bloqueaba el navegador y el único
+# rastro era una línea en la consola de quien mirara. Se descubrió en la factura de eventos —2 en todo
+# el mes— y no en ninguna alerta.
+#
+# POR DEFECTO VA CON COMODÍN, `https://*.umami.is`, para que el próximo cambio de host del proveedor
+# no vuelva a apagar la medición. Solo entra en `connect-src`, nunca en `script-src`: el primero
+# decide adónde puede mandar datos un script ya autorizado, el segundo qué código puede ejecutarse.
+# Ver `core/csp.py`, que lo explica entero.
+#
+# Vacío con una instancia propia: `csp.publica()` cae de vuelta en `ANALITICA_URL`, porque ahí el
+# script y la recolección sí comparten host.
+#
+# Y es una variable de entorno para que el día que esto vuelva a cambiar se arregle editando el stack
+# y reiniciando, sin reconstruir la imagen.
+def _envio_por_defecto(analitica_url: str) -> str:
+    """Adónde recolecta el proveedor, deducido de dónde sirve el script.
+
+    Es una función y no una expresión suelta para poder PROBAR la regla: en desarrollo la analítica va
+    vacía a propósito, así que una prueba contra `settings.ANALITICA_ENVIO_URL` no comprobaría nada de
+    lo que corre en producción.
+    """
+    return "https://*.umami.is" if "umami.is" in analitica_url else ""
+
+
+ANALITICA_ENVIO_URL = env.str("ANALITICA_ENVIO_URL", default=_envio_por_defecto(ANALITICA_URL)).rstrip("/")
+
 # --- Servidor de anuncios (Revive, autoalojado) ---
 #
 # El ORIGEN del servidor, sin barra final. Vacío = los huecos siguen mostrando el recuadro rayado de

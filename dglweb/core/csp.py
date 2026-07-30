@@ -66,19 +66,53 @@ VIDEO_MLB = "https://*.mlb.com"
 IMAGEN_MLB = "https://*.mlbstatic.com"
 
 
-def publica(analitica: str = "", anuncios: str = "") -> str:
+def publica(analitica: str = "", anuncios: str = "", envio: str = "") -> str:
     """El sitio público. Todo del propio origen salvo los estilos inline, los videos y los anuncios.
 
-    `analitica` es el origen del servidor de estadísticas, o cadena vacía si no hay ninguno
-    configurado. Entra en DOS directivas y las dos hacen falta: `script-src` para poder cargar
-    `script.js`, y `connect-src` porque lo que ese script hace después es un `POST` a `/api/send`. Con
-    solo la primera, el script carga, no protesta y no cuenta ni una visita — el navegador bloquea el
-    envío en silencio, que es el fallo más caro de diagnosticar de los dos.
+    LA ANALÍTICA NECESITA DOS DIRECTIVAS, Y PUEDEN SER DOS ORIGENES DISTINTOS
+    -------------------------------------------------------------------------
+    `analitica` es de dónde se BAJA el script y va en `script-src`. `envio` es adónde ese script MANDA
+    los eventos y va en `connect-src`. Con solo la primera, el script carga, no protesta y no cuenta
+    ni una visita: el navegador bloquea el envío y solo queda constancia en la consola de quien mire.
 
-    Es una función y no una constante porque el origen sale de `settings`, y en las pruebas hace falta
-    poder pedir la política con y sin analítica sin levantar el proceso de nuevo.
+    ESTO ESTUVO ROTO EN PRODUCCIÓN Y ASÍ SE ENCONTRÓ (2026-07-30). Acá se pasaba el MISMO origen a las
+    dos, dando por hecho que el script envía a donde vive. Umami Cloud no hace eso: el script sale de
+    `cloud.umami.is` y los eventos van a `gateway.umami.is`. Cuando cambiaron el segundo, la política
+    dejó de cubrirlo y el sitio dejó de contar visitas sin que nada fallara. El mensaje era este:
+
+        Connecting to 'https://gateway.umami.is/api/send' violates the following Content Security
+        Policy directive: "connect-src 'self' https://cloud.umami.is"
+
+    Se vio en la factura de eventos: 2 en todo el mes, los dos anteriores al cambio.
+
+    Que sean dos parámetros y no uno derivado del otro es la lección: **de dónde viene el código y
+    adónde van los datos son dos preguntas distintas**, y ningún proveedor está obligado a responder
+    lo mismo a las dos.
+
+    POR QUÉ EL COMODÍN VA EN `connect-src` Y NO EN `script-src`
+    ------------------------------------------------------------
+    `envio` llega como `https://*.umami.is` (ver `settings.ANALITICA_ENVIO_URL`), para que el próximo
+    cambio de host del proveedor no vuelva a apagar la analítica en silencio. Es el mismo razonamiento
+    que ya se aplicó a `VIDEO_MLB` acá arriba, y el que acaba de costar un mes de datos.
+
+    Pero el comodín NO sube a `script-src`, y la diferencia es la que importa:
+
+        script-src    decide QUÉ CÓDIGO puede ejecutarse dentro de nuestras páginas
+        connect-src   decide ADÓNDE puede mandar datos el código que ya se está ejecutando
+
+    Un comodín en el primero deja entrar código de cualquier subdominio del proveedor. En el segundo
+    solo amplía el destino de un script que ya está autorizado a correr — y ese script, si algún día
+    fuera malicioso, ya podría mandar a `gateway.umami.is` de todas formas. El comodín no le concede
+    nada que no tuviera; le ahorra al sitio dejar de medir cada vez que el proveedor mueve un host.
+
+    Es una función y no una constante porque los orígenes salen de `settings`, y en las pruebas hace
+    falta poder pedir la política con y sin analítica sin levantar el proceso de nuevo.
     """
     extra = f" {analitica}" if analitica else ""
+    # `envio` cae de vuelta en `analitica` para el caso de una instancia propia, donde el script y la
+    # recolección sí comparten host. Así una Umami autoalojada no necesita configurar nada extra.
+    destino = envio or analitica
+    extra_envio = f" {destino}" if destino else ""
     # LOS ANUNCIOS ENTRAN POR `frame-src` Y NO POR `script-src`, y esa es la decisión de seguridad
     # más importante de todo el montaje del servidor de anuncios.
     #
@@ -97,7 +131,7 @@ def publica(analitica: str = "", anuncios: str = "") -> str:
         f"img-src 'self' data: {IMAGEN_MLB}; "
         f"media-src 'self' {VIDEO_MLB}; "
         "font-src 'self'; "
-        f"connect-src 'self'{extra}; "
+        f"connect-src 'self'{extra_envio}; "
         f"frame-src {marcos}; "
         "object-src 'none'; "
         "base-uri 'self'; "
@@ -141,9 +175,11 @@ class ContentSecurityPolicyMiddleware:
         # Se arma UNA vez, al arrancar el proceso, y no en cada respuesta: el origen de la analítica
         # sale de la configuración y la configuración no cambia mientras el proceso vive. Rearmar la
         # cadena en cada petición sería trabajo por nada en la ruta más caliente del sitio.
+        hay_analitica = bool(settings.ANALITICA_ID)
         self.publica = publica(
-            settings.ANALITICA_URL if settings.ANALITICA_ID else "",
+            settings.ANALITICA_URL if hay_analitica else "",
             settings.ADSERVER_URL,
+            settings.ANALITICA_ENVIO_URL if hay_analitica else "",
         )
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
