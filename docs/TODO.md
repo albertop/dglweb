@@ -15,7 +15,23 @@ un TODO que describe trabajo ya hecho es peor que uno incompleto, porque se lee 
 y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé priorizar deuda técnica
 "antes de Fildeo" — que ya había pasado.
 
-## Lo que queda para el lanzamiento (revisado el 2026-07-30)
+## Lo que queda para el lanzamiento (cerrado el 2026-07-30 por la noche)
+
+**Los tres puntos de resiliencia están hechos.** Lo que queda ya no es infraestructura:
+
+    1. Los 8–12 artículos semilla        ← lo único que de verdad falta
+    2. La prueba de restauración         octubre de 2026
+    3. fail2ban en modo aviso            unos días de observación
+    4. Identidad de corrida en IngestRun no urgente, pide migración
+
+El primero es el que decide si esto es un sitio o una demo. En julio de 2026 hubo **dos visitas en
+todo el mes**, y eso no es un problema técnico: con dos artículos publicados no hay a qué entrar. Todo
+lo montado hoy —respaldo, cortafuegos, publicidad, compartir— protege y sirve contenido que aún no
+existe.
+
+Lo demás son detalles con calendario propio. Nada de esto bloquea publicar.
+
+### El estado del 2026-07-30 (histórico)
 
 Quedan **tres**, y los tres son de RESILIENCIA y no de features: el sitio ya funciona, lo que falta es
 que siga funcionando cuando algo salga mal. Ninguno se ve desde el navegador, que es justamente por lo
