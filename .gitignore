@@ -46,3 +46,9 @@ node_modules/
 
 # El HTML intermedio del PDF de anunciantes: lo regenera `docs/generar_pdf_banners.sh`.
 docs/_banners.html
+
+# Listas de bloqueo de terceros (EasyList/EasyPrivacy). Entraron por accidente en 507059c y ningun
+# archivo del proyecto las usa. Se quedan en el disco para probar el sitio con un bloqueador, pero
+# fuera de git: son 3,5 MB de datos ajenos que ademas caducan.
+easylist.txt
+easyprivacy.txt
