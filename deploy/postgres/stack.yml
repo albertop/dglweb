@@ -77,7 +77,7 @@ services:
     image: dpage/pgadmin4:9.16
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: aperdomo@gmail.com
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?falta}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?falta}
       TZ: America/New_York
       PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
