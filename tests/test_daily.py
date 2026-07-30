@@ -998,3 +998,27 @@ def test_el_doble_play_le_da_al_lanzador_un_out_que_no_le_cuesta_a_nadie() -> No
     assert daily.valor_de_pitcheo(_pitcheo(outsPitched=2)) > daily.valor_de_pitcheo(_pitcheo(outsPitched=1)), (
         "el lanzador cobra los DOS outs del doble play mientras el bateador solo declara el suyo"
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ponches", [0, 1, 2])
+def test_un_inning_limpio_de_relevo_no_es_un_destacado(ponches: int) -> None:
+    """EL PISO DE PITCHEO ESTÁ POR ENCIMA DE LA MESETA, y esta prueba es lo que lo mantiene ahí.
+
+    El inning limpio de relevo tiene tres valores exactos y se repite muchísimo. Contado sobre 2.828
+    salidas de 28 días:
+
+        0,8120   1.0 IP, 0 K     x113
+        0,8141   1.0 IP, 1 K     x173
+        0,8163   1.0 IP, 2 K      x96
+
+    382 salidas —el 13,5%— apiladas en tres valores, justo donde cae el p80. Por eso `PISO_PITCHEO`
+    es 0,82 y no 0,8163: el percentil exacto dejaría entrar el inning con dos ponches, y con él 96
+    apariciones cada cuatro semanas de algo que es el día normal de un relevista.
+
+    LA TENTACIÓN QUE ESTO BLOQUEA es concreta y razonable: alguien ve que el piso publica el 16,6% en
+    vez del 20% que dice el comentario, lo baja al p80 exacto para que cuadre, y la portada se llena
+    de relevistas. El 20% NO ES ALCANZABLE — los cortes que existen publican 17,3% o 26,8%, no hay
+    nada en medio— y esa es la razón de que el número parezca no cuadrar.
+    """
+    assert daily.valor_de_pitcheo(_pitcheo(outsPitched=3, K=ponches)) < daily.PISO_PITCHEO

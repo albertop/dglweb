@@ -99,8 +99,29 @@ _LIMITE = 8000
 # Al p80 salen **6,3 dominicanos al día**, que es justo lo que enseña el widget (`VISIBLES`). Con el
 # piso anterior —1,0 para los dos— salían 3,8: la portada mostraba cuatro de seis huecos.
 #
-# Ojo con la meseta del pitcheo: entre el p70 y el p82 el corte es siempre ~0,81, porque muchísimas
-# actuaciones son exactamente «un inning limpio». Mover el percentil ahí dentro no cambia nada.
+# LA MESETA DEL PITCHEO, Y POR QUÉ 0,82 NO ES UN REDONDEO DESCUIDADO DE 0,8163
+# -----------------------------------------------------------------------------
+# El p80 del pitcheo cae ENCIMA de una pila de empates, porque el inning limpio de relevo tiene tres
+# valores exactos y se repite muchísimo. Contado sobre 2.828 salidas de 28 días:
+#
+#     0,8120   1.0 IP, 0 K     x113
+#     0,8141   1.0 IP, 1 K     x173
+#     0,8163   1.0 IP, 2 K      x96
+#
+# Son 382 salidas —el 13,5%— apiladas en tres valores, justo en el corte. La consecuencia es que **el
+# 20% no se puede alcanzar**: los cortes que existen de verdad publican el 17,3% (dejando entrar el
+# inning limpio con dos ponches) o el 26,8% (dejando entrar también el de uno). No hay nada en medio.
+#
+# 0,82 está DELIBERADAMENTE por encima de los tres, y publica el 16,6%. Es más estricto que el 20%
+# nominal a propósito: por debajo de 0,8163 la portada se llena de relevistas que retiraron el inning
+# en orden, que es el día normal de su oficio y no un destacado — exactamente lo que dice el bloque de
+# arriba sobre el corte único de 0,70.
+#
+# ASÍ QUE NO SE «CORRIJA» A 0,8163 PARA QUE CUADRE CON EL PERCENTIL. Cuadraría, y metería 96
+# innings limpios cada cuatro semanas. Hay una prueba que lo impide.
+#
+# El bateo no tiene este problema: publica el 19,2% y el 19,8% en dos ventanas sin solape, que es lo
+# que se buscaba.
 #
 # ESTOS NÚMEROS CADUCAN. Salen de catorce días de julio de 2026. Sirven para arrancar, pero antes de
 # dar por buena una temporada conviene recalcularlos con el año completo — el entorno de carreras
