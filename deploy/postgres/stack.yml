@@ -36,16 +36,21 @@
 # por no reconocer el origen.
 #
 #
-# OJO CON LA ZONA HORARIA, que no coincide con la del sitio
-# ----------------------------------------------------------
-# Acá dice `America/New_York` y el sitio corre en `America/Santo_Domingo`. **No son la misma**: Nueva
-# York cambia de hora y la República Dominicana no, así que unos cuatro meses al año van desfasadas
-# una hora.
+# LA ZONA HORARIA — corregida el 2026-07-30
+# ------------------------------------------
+# Postgres estaba en `America/New_York` y el sitio corre en `America/Santo_Domingo`. **No son la
+# misma**: Nueva York cambia de hora y la República Dominicana no, así que unos cuatro meses al año
+# iban desfasadas una hora.
 #
-# Hoy no rompe nada porque Django guarda en UTC (`USE_TZ = True`) y las jornadas se calculan en
-# Python. Afectaría el día que algo agrupe por fecha **del lado del servidor** —un `now()::date` en
-# SQL, o los sellos de tiempo del propio log de Postgres al depurar—. Queda anotado, no arreglado:
-# cambiarlo reinicia la base, y no hay motivo suficiente hoy.
+# No rompía nada visible —Django guarda en UTC (`USE_TZ = True`) y las jornadas se calculan en
+# Python— pero habría mordido el día que algo agrupara por fecha **del lado del servidor**: un
+# `now()::date` en SQL, o simplemente los sellos de tiempo del log de Postgres al depurar por qué una
+# jornada salió con la fecha de ayer. Un desfase de una hora en un sitio cuyo contenido son JORNADAS
+# de béisbol es de los que se descubren tarde y mal.
+#
+# **`pgadmin` sigue en `America/New_York` a propósito de nadie**: se quedó así al cambiar el otro. Solo
+# afecta a los sellos de tiempo que enseña su interfaz, no a los datos. Si molesta, es una palabra —
+# pero cambiarlo recrea el contenedor.
 services:
   postgres:
     image: postgres:18.4
@@ -55,7 +60,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta}
       DGLWEB_DB_PASSWORD: ${DGLWEB_DB_PASSWORD:?falta}
-      TZ: America/New_York
+      TZ: America/Santo_Domingo
     volumes:
       # UN SOLO MONTAJE en `/var/lib/postgresql`, no en `…/data`. Postgres 18+ guarda los datos en un
       # subdirectorio con el número de versión, y montar así es lo que permite un `pg_upgrade --link`
