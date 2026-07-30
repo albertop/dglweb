@@ -14,9 +14,22 @@ de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde c
 {% block og_tipo %}article{% endblock %}
 {% block og_titulo %}{{ page.title }}{% endblock %}
 {% block og_descripcion %}{{ page.entradilla|truncatechars:200 }}{% endblock %}
-{% if page.imagen %}
-  {% block og_imagen %}{% image page.imagen fill-1200x630 as social %}{{ request.scheme }}://{{ request.get_host }}{{ social.url }}{% endblock %}
-{% endif %}
+{% comment %}
+  LA TARJETA SOCIAL USA LA FOTO DEL ARTÍCULO, O LA LÁMINA DE MARCA. Nunca una banda de relleno.
+
+  `fill-1200x630` sobre una banda de 2400x280 tiene que escalarla hasta 5400px de ancho para alcanzar
+  los 630 de alto, y después recorta el centro — que en esas bandas está vacío. El resultado es el
+  rectángulo azul liso que WhatsApp enseñaba: sin escudo, sin nombre y sin sentido.
+
+  La lámina por defecto (`og-default.png`) ya existe y ya lleva la marca, así que la solución es no
+  pisarla cuando lo que hay no sirve.
+
+  Y LA CONDICIÓN VA DENTRO DEL BLOQUE, no envolviéndolo. Acá estaba fuera —`{% if page.imagen %}`
+  alrededor del `{% block %}`— y eso NO funciona en una plantilla hija: Django recoge los bloques al
+  compilar y no evalúa lo que los rodea, así que el bloque pisaba al padre también cuando no había
+  imagen. No se veía porque todos los artículos tienen una.
+{% endcomment %}
+{% block og_imagen %}{{ request.scheme }}://{{ request.get_host }}{% if page.imagen and not page.imagen_es_banda %}{% image page.imagen fill-1200x630 as social %}{{ social.url }}{% else %}{% static 'img/og-default.png' %}{% endif %}{% endblock %}
 
 {% block extra_head %}
 {% comment %}

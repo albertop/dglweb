@@ -1176,3 +1176,79 @@ def test_sin_imagen_no_es_banda() -> None:
     """Un artículo sin imagen no puede dar `True`: la cabecera ya no la dibuja, pero la propiedad se
     usará en más sitios y devolver «es una banda» cuando no hay nada es una respuesta falsa."""
     assert ArticlePage(imagen=None).imagen_es_banda is False
+
+
+# ── La tarjeta social nunca enseña una banda de relleno (2026-07-30) ────────────────────────────
+
+
+def _og_imagen(html: str) -> str:
+    """El `content` de `og:image`, y solo eso.
+
+    Buscar «og-default» en el HTML entero no vale: el JSON-LD lo lleva SIEMPRE como logo de la
+    publicación, así que la primera versión de estas pruebas daba positivo en los tres casos. Lo
+    cazó la que exige lo contrario — sin ella, las otras dos habrían pasado sin comprobar nada.
+    """
+    etiqueta = re.search(r'<meta property="og:image" content="([^"]*)"', html)
+    assert etiqueta, "la página no trae og:image"
+    return etiqueta.group(1)
+
+
+def _imagen(ancho: int, alto: int, titulo: str) -> object:
+    """Una imagen real en la biblioteca, del tamaño pedido. Wagtail necesita el archivo para poder
+    generar el recorte `fill-1200x630`, así que no vale un doble."""
+    import io
+
+    from django.core.files.images import ImageFile
+    from PIL import Image as Pillow
+    from wagtail.images.models import Image
+
+    memoria = io.BytesIO()
+    Pillow.new("RGB", (ancho, alto), (11, 31, 58)).save(memoria, format="PNG")
+    memoria.seek(0)
+    return Image.objects.create(title=titulo, file=ImageFile(memoria, name=f"{titulo}.png"))
+
+
+@pytest.mark.django_db
+def test_una_banda_no_llega_a_la_tarjeta_social(indice: ArticleIndexPage, client: Client) -> None:
+    """LO QUE SE VEÍA EN WHATSAPP: un rectángulo azul liso, sin escudo y sin nombre.
+
+    `fill-1200x630` sobre una banda de 2400x280 tiene que escalarla hasta 5400px de ancho para
+    alcanzar los 630 de alto, y después recorta el centro — que en esas bandas está vacío. El
+    resultado es una tarjeta que no dice de quién es el enlace, justo en el sitio donde más gente lo
+    ve por primera vez.
+    """
+    articulo = _articulo(indice, "Con banda", imagen=_imagen(2400, 280, "banda"))
+
+    html = client.get(articulo.url).content.decode()
+
+    assert "og-default" in _og_imagen(html), "la tarjeta social debería caer en la lámina de marca"
+
+
+@pytest.mark.django_db
+def test_una_foto_de_verdad_si_llega_a_la_tarjeta_social(indice: ArticleIndexPage, client: Client) -> None:
+    """La otra mitad, y la que importa: el arreglo tiene que DISTINGUIR, no dejar de usar la foto.
+
+    Sin esta prueba, cambiar el corte por proporción a un número absurdo dejaría todos los artículos
+    con la lámina genérica y la anterior seguiría en verde.
+    """
+    articulo = _articulo(indice, "Con foto", imagen=_imagen(1200, 800, "foto"))
+
+    html = client.get(articulo.url).content.decode()
+
+    assert "og-default" not in _og_imagen(html), "una foto real no debería caer en la lámina genérica"
+
+
+@pytest.mark.django_db
+def test_sin_imagen_la_tarjeta_social_usa_la_lamina(indice: ArticleIndexPage, client: Client) -> None:
+    """El caso que el `{% if %}` de fuera del bloque NO cubría.
+
+    Estaba escrito como `{% if page.imagen %}` ENVOLVIENDO al `{% block og_imagen %}`, y eso no
+    funciona en una plantilla hija: Django recoge los bloques al compilar y no evalúa lo que los
+    rodea, así que el bloque pisaba al padre también sin imagen. No se veía porque todos los
+    artículos tienen una.
+    """
+    articulo = _articulo(indice, "Sin imagen")
+
+    html = client.get(articulo.url).content.decode()
+
+    assert "og-default" in _og_imagen(html)
