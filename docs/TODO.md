@@ -15,12 +15,43 @@ un TODO que describe trabajo ya hecho es peor que uno incompleto, porque se lee 
 y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé priorizar deuda técnica
 "antes de Fildeo" — que ya había pasado.
 
-## Lo que queda para el lanzamiento (2026-07-29)
+## Lo que queda para el lanzamiento (revisado el 2026-07-30)
 
-Los dos puntos que el dueño quiere apuntados. Los dos son de RESILIENCIA, no de features, y por eso
-van juntos: el sitio ya funciona, lo que falta es que siga funcionando cuando algo salga mal.
+Quedan **tres**, y los tres son de RESILIENCIA y no de features: el sitio ya funciona, lo que falta es
+que siga funcionando cuando algo salga mal. Ninguno se ve desde el navegador, que es justamente por lo
+que hay que apuntarlos.
 
-### Botones para compartir en redes — NO HAY NINGUNO
+    1. Identidad de corrida en IngestRun    la otra mitad de QA-01
+    2. fail2ban                             sobre los registros de nginx
+    3. Estrategia de respaldo               cron + fuera del VPS + restauración probada
+
+El cuarto —los botones de compartir— se hizo el 2026-07-30 y va arriba, con lo que se aprendió.
+
+**El respaldo es el más urgente de los tres, y por un margen amplio.** Los otros dos protegen contra
+alguien que ataca; ese protege contra perderlo todo, y hoy el único respaldo escribe en el mismo disco
+que pretende proteger. Además, desde que Postgres lo comparten dglweb y Revive, en el mismo golpe se
+irían las campañas y las creatividades del anunciante.
+
+### Botones para compartir — ✅ HECHO Y EN PRODUCCIÓN (2026-07-30, `1.2026.10`)
+
+Construido tal como se recomendaba abajo y sin sorpresas: cinco botones en artículo, perfil de jugador
+y líderes; WhatsApp primero; enlaces `<a href>` planos que funcionan sin JavaScript; `navigator.share`
+encima donde el navegador lo trae; y «Copiar enlace» con respaldo a `execCommand` para el localhost por
+http. Ni un tercero, así que la prueba de la CSP siguió en verde sin tocarla.
+
+**Tres cosas que solo aparecieron al construirlo**, anotadas porque ninguna se veía en el plan:
+
+- El `aria-label` del grupo estaba fijo en «Compartir este artículo» y el widget se llevó tal cual al
+  perfil y a líderes, que anunciaban así un artículo inexistente. Ahora lo nombra cada llamada.
+- `avisar()` escribía `textContent` **en el botón**, lo que borra sus hijos — incluido el icono SVG.
+  «Copiar enlace» quedaba de texto pelado el resto de la visita. Lo cazó una prueba, no la vista.
+- La cuenta del sitio en X (`@dglmlb`) se creó en el camino, así que el `via=` ya atribuye al sitio y
+  no a la cuenta personal del dueño. Era la razón por la que estuvo sin ponerse.
+
+Lo de abajo se conserva como el razonamiento que llevó al diseño — sobre todo lo que se DESCARTÓ y por
+qué, que es lo que evita que alguien proponga un widget de terceros dentro de seis meses.
+
+### El plan original (2026-07-29)
 
 **Lo que ya está, para no rehacerlo.** La mitad difícil del asunto está resuelta: `base.html` manda
 `og:title`, `og:description`, `og:image`, `og:url`, `og:type`, `og:locale` (`es_DO`) y
