@@ -716,13 +716,10 @@ Lo que sí salió, y lo que queda por hacer en el VPS:
       un contenedor está vivo, y encima se pondría rojo durante un corte de MLB — algo que ni podemos
       arreglar ni tiene que despertar a nadie.
 
-- [ ] **Vigilar la propia 10.0.0.39 desde Kuma.** Kuma corre EN esa máquina y vigila el VPS, pero **no vigila
-      la máquina donde vive**. Este fallo lo habría dicho a los cinco minutos en vez de aparecer en el
-      correo del refresco de la mañana. Un monitor HTTP contra `http://10.0.0.39:3002/health`.
-
-      Es medio agujero del «nadie vigila al vigilante» que quedó pendiente al montar el monitoreo — la
-      otra mitad sigue siendo que si esa máquina se apaga, Kuma calla.
-
+> **Vigilar la propia 10.0.0.39 desde Kuma — DESCARTADO (dueño, 2026-07-29).** Estaba apuntado y se
+> quita por un argumento que lo cierra: el problema es recursivo. Quien vigile a Kuma necesitaría a su
+> vez alguien que lo vigile, y así indefinidamente. En algún punto hay que confiar en algo sin
+> comprobarlo, y ese punto es Kuma.
 ## Del plan de fases — lo que el TODO no tenía (revisado el 2026-07-28)
 
 Al cotejar `BUILD_PLAN.md` contra la realidad aparecieron tres entregas comprometidas que no estaban
