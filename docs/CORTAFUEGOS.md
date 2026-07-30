@@ -45,6 +45,31 @@ portátil, la salida NO es publicarlo: es un túnel SSH.
 Política de ufw: `deny (incoming)`, `allow (outgoing)`, `deny (routed)`. Abiertos 22 (con `LIMIT`, más
 la IP del dueño explícita), 80 y 443.
 
+## La IP del dueño está en un solo sitio, y un cron la reparte
+
+Es una IP residencial dinámica, así que cambia sola. Estaba escrita a mano en **cuatro** sitios y el
+cron solo actualizaba dos:
+
+    nginx portainer + pgadmin      change_nginx_allow_ip.sh    ✔ se actualizaba
+    nginx CMS de dglweb            a mano                      ✘ no
+    nginx panel de Revive          a mano                      ✘ no
+    fail2ban ignoreip              a mano                      ✘ no
+    ufw, regla del 22              a mano                      ✘ no
+
+Las de nginx funcionaban **de casualidad**: el valor escrito coincidía con la IP del momento. El
+siguiente cambio habría cerrado el CMS y Revive sin ninguna pista de por qué.
+
+**Y el de fail2ban era el que mordía.** Con una IP vieja en `ignoreip`, fail2ban no reconoce al dueño y
+**puede banearlo**: con `nginx-404-scan` y `sshd` en cinco intentos, un rato probando URLs o dos SSH
+fallidos lo meten en el cortafuegos 12 o 24 horas. Y el baneo es por IP, así que se pierden el sitio, el
+CMS y SSH de una vez.
+
+Ahora la IP vive en `/etc/nginx/snippets/ip-del-dueno.conf` —una línea, que los `location` privados
+incluyen— y `sync_access_ip.sh` la propaga a fail2ban y a ufw. Lo llama el cron de nginx al final,
+pasándole la IP que ya resolvió. Ver `deploy/sync_access_ip.sh` y `deploy/nginx-ip-del-dueno.conf`.
+
+Es idempotente: si nada cambió, no toca archivos ni recarga servicios.
+
 ## Tailscale es la salida de emergencia
 
 `sshd` escucha en `0.0.0.0`, así que también responde por la interfaz del tailnet. Eso importa por una
