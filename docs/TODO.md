@@ -155,7 +155,7 @@ Un cero absoluto en un VPS público tras meses no significa que no haya ataques:
 está mirando. Al poner `backend = auto` por jail, `nginx-404-scan` encontró **2 coincidencias en un
 minuto**.
 
-La configuración está versionada en `deploy/fail2ban-nginx.local` con el porqué de cada número. Vivía
+La configuración está versionada en `deploy/fail2ban/` con el porqué de cada número. Vivía
 solo en el servidor.
 
 **`nginx-limit-req` se dejó DESACTIVADA a propósito.** Banea a quien dispara los `limit_req`, que son

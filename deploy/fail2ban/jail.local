@@ -1,0 +1,53 @@
+# La política base de fail2ban. Va en `/etc/fail2ban/jail.local`.
+#
+#   sudo install -m 644 deploy/fail2ban/jail.local /etc/fail2ban/jail.local
+#
+# Sin este archivo, `sync_access_ip.sh` no actualiza nada: comprueba que exista y si no está, se salta
+# la parte de fail2ban entera. O sea que el dueño se quedaría fuera de `ignoreip` sin ninguna señal.
+# Faltaba en el repositorio y lo levantó el review v14 (SEC-01).
+#
+#
+# `ignoreip` LO REESCRIBE UN CRON — lo que hay abajo es solo el valor del momento
+# --------------------------------------------------------------------------------
+# La IP de casa del dueño es dinámica. `sync_access_ip.sh` reescribe esa línea ENTERA cuando cambia,
+# así que una edición a mano se pierde en la siguiente corrida sin avisar. Para añadir algo permanente
+# —el rango del tailnet, otra oficina— se toca `IGNORE_FIJAS` en ese script, no este archivo.
+#
+# Y es la línea que más importa de todo el archivo: con una IP vieja acá, fail2ban NO reconoce al dueño
+# y puede banearlo. El baneo es de cortafuegos, así que se pierden el sitio, el CMS y SSH a la vez.
+#
+#
+# `backend = systemd` ES CORRECTO ACÁ Y VENENOSO ABAJO
+# ------------------------------------------------------
+# Para `sshd` está bien: escribe al journal. Pero en fail2ban **el backend manda sobre el `logpath`**,
+# y este `[DEFAULT]` lo hereda TODO — así que las jails de nginx estuvieron desde su instalación
+# leyendo el journal en vez de sus archivos, con cero coincidencias históricas y cara de funcionar.
+#
+# Por eso `deploy/fail2ban-nginx.local` pone `backend = auto` **en cada jail** y no toca este
+# `[DEFAULT]`: cambiarlo acá arreglaría nginx y rompería `sshd`, que es lo único que sí protegía.
+#
+#
+# CONFLICTO CONOCIDO CON `jail.d/defaults-debian.conf`
+# -----------------------------------------------------
+# Ese archivo declara `banaction = nftables` y este declara `ufw`. Gana este, porque fail2ban lee
+# `jail.d/*.conf` ANTES que `jail.local`. Y funciona: las reglas aparecen en `ufw status` como
+# `REJECT IN … # by Fail2Ban`, comprobado el 2026-07-30 con un escáner real.
+#
+# Se deja el conflicto en vez de «limpiarlo» porque tocar el `banaction` de un fail2ban que está
+# baneando de verdad, para dejar más bonito un archivo, es cambiar algo que funciona por algo que
+# habría que volver a comprobar. Queda escrito para que nadie lo descubra de nuevo.
+[DEFAULT]
+# Add your admin IP(s) here to avoid bans (example: ignoreip = 127.0.0.1/8 ::1 203.0.113.5)
+#ignoreip = 127.0.0.1/8 ::1
+ignoreip = 127.0.0.1/8 ::1 73.244.42.221
+
+# Ban policy
+findtime = 8m
+maxretry = 15
+bantime  = 6h
+
+# Backend for Ubuntu (systemd logs)
+backend = systemd
+
+# If UFW is enabled, this is convenient on Ubuntu
+banaction = ufw

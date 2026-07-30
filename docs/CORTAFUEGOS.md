@@ -84,7 +84,7 @@ funcione el día que haga falta.
 ## Lo que fail2ban añade encima
 
 ufw bloquea puertos; fail2ban bloquea **IPs que se portan mal en los puertos abiertos**. Las reglas
-aparecen en `ufw status` como `REJECT IN … # by Fail2Ban`. Ver `deploy/fail2ban-nginx.local`.
+aparecen en `ufw status` como `REJECT IN … # by Fail2Ban`. Ver `deploy/fail2ban/` — la jail, su FILTRO y el `jail.local` con la lista blanca. Los tres hacen falta: sin el filtro la jail no arranca, y sin `jail.local` el cron de la IP se salta la parte de fail2ban en silencio.
 
 El mismo día en que se arreglaron las jails de nginx, la primera IP cazada fue un escáner de webshells
 (`/xstelth.php`, `/wp-load.php`) — detectada, contada y metida en el cortafuegos en minutos.
