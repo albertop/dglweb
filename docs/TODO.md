@@ -142,7 +142,36 @@ Cuesta una migración y tocar cómo cada comando registra su fila —son once—
 arreglo que ya cierra el caso realista. No es urgente: correr un comando de entrada a mano mientras el
 refresco corre es algo que solo hace quien está depurando, y esa persona está mirando.
 
-### fail2ban sobre los registros de nginx
+### fail2ban — ✅ ARREGLADO PARA dglweb (2026-07-30), queda el modo aviso
+
+Estaba instalado desde antes, con **ocho jails activas**, y siete de ellas no protegían nada.
+
+`jail.local` pone `backend = systemd` en el `[DEFAULT]`, y en fail2ban **el backend manda sobre el
+`logpath`**: con `systemd` el `logpath` ni se lee. Las siete jails web declaraban su archivo, leían el
+journal —donde nginx solo escribe errores de arranque— y llevaban **cero coincidencias desde que se
+instalaron**. Lo único que fail2ban protegía de verdad era SSH, porque `sshd` sí escribe al journal.
+
+Un cero absoluto en un VPS público tras meses no significa que no haya ataques: significa que nadie
+está mirando. Al poner `backend = auto` por jail, `nginx-404-scan` encontró **2 coincidencias en un
+minuto**.
+
+La configuración está versionada en `deploy/fail2ban-nginx.local` con el porqué de cada número. Vivía
+solo en el servidor.
+
+**`nginx-limit-req` se dejó DESACTIVADA a propósito.** Banea a quien dispara los `limit_req`, que son
+por IP; con el CGNAT dominicano una IP pública es una operadora entera, así que cinco 429 en diez
+minutos dejarían sin sitio a todos sus usuarios una hora sin que se note desde el servidor. Y nginx ya
+responde 429 barato, así que banear ahorra poco. Se vuelve peligrosa justo el día que haya tráfico.
+
+**Lo que falta:**
+
+- **Mirar unos días qué caza antes de confiar en ella.** Es el modo aviso que se planteó desde el
+  principio: `fail2ban-client status nginx-404-scan` y comprobar que las IP acumuladas son escáneres y
+  no lectores.
+- **Los otros dos sitios del VPS** (`sabertables`, `sixdegrees`) tienen el mismo defecto heredado y el
+  mismo arreglo de una línea. Son webs del dueño ajenas a este repositorio, así que va por separado.
+
+### El plan original de fail2ban (2026-07-29)
 
 **Qué resuelve.** Hoy hay límites de peticiones por IP (`deploy/nginx-limites.conf`), y eso frena el
 ritmo pero no aparta a nadie: un escáner que prueba mil rutas inexistentes sigue llegando a nginx mil

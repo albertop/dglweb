@@ -1,0 +1,88 @@
+# Las jails de nginx, para `/etc/fail2ban/jail.d/nginx.local` en el VPS.
+#
+#   sudo cp deploy/fail2ban-nginx.local /etc/fail2ban/jail.d/nginx.local
+#   sudo fail2ban-client reload && fail2ban-client status nginx-404-scan
+#
+# Se versiona acá igual que los `nginx-*.conf`: vivía solo en el servidor, y una configuración que
+# solo existe en una máquina se pierde entera el día que esa máquina se reinstale — con el porqué de
+# cada número, que es lo que cuesta reconstruir.
+#
+#
+# `backend = auto` EN CADA JAIL, Y ES LO ÚNICO QUE HACE QUE ESTO FUNCIONE
+# -----------------------------------------------------------------------
+# Estuvieron SIETE jails activas sin proteger nada, y con cara de estar protegiendo. El `[DEFAULT]`
+# de `jail.local` pone `backend = systemd`, y en fail2ban **el backend manda sobre el `logpath`**: con
+# `systemd` el `logpath` ni se lee. Cada jail declaraba su archivo, leía el journal —donde nginx solo
+# escribe errores de arranque, no peticiones— y llevaba CERO coincidencias desde que se instaló.
+#
+# Así se vio (2026-07-30). `fail2ban-client status` decía:
+#
+#     nginx-404-scan   |- Journal matches:            <- no «File list»
+#                      |- Total failed:  0
+#                      `- Total banned:  0
+#
+# Un cero absoluto en un VPS público tras meses no significa que no haya ataques: significa que nadie
+# está mirando. Al poner `backend = auto` la misma jail encontró **2 coincidencias en un minuto**.
+#
+# NO se toca el `[DEFAULT]` global: `sshd` sí escribe al journal y funciona. Un `[DEFAULT]` acá se
+# aplicaría a TODAS las jails, incluida esa, y rompería lo único que sí protegía.
+#
+# Los otros dos sitios del servidor (`sabertables`, `sixdegrees`) tienen sus propios `.local` con el
+# mismo defecto heredado y el mismo arreglo de una línea.
+
+[nginx-botsearch]
+enabled = true
+backend = auto
+port = http,https
+logpath = /var/log/nginx/access.log
+# Dos intentos es agresivo a propósito: busca rutas de escáner —`/wp-login.php`, `/xmlrpc.php`— que un
+# lector de este sitio no pide jamás. Aquí un falso positivo es casi imposible.
+maxretry = 2
+findtime = 10m
+bantime = 12h
+
+[nginx-404-scan]
+enabled = true
+backend = auto
+port = http,https
+logpath = /var/log/nginx/access.log
+# Los 404 de ESTÁTICOS no llegan acá: `/static/` va con `access_log off` en `nginx-dglweb.conf`. Eso
+# importa, porque los nombres llevan hash y un navegador con la página vieja en pantalla pide archivos
+# que ya no existen — tráfico normal que en otro sitio dispararía esta jail sin motivo.
+maxretry = 5
+findtime = 10m
+bantime = 12h
+
+[nginx-bad-request]
+enabled = true
+backend = auto
+port = http,https
+logpath = /var/log/nginx/access.log
+maxretry = 5
+findtime = 10m
+bantime = 12h
+
+[nginx-http-auth]
+enabled = true
+backend = auto
+port = http,https
+logpath = /var/log/nginx/error.log
+maxretry = 3
+findtime = 10m
+bantime = 12h
+
+# DESACTIVADA A PROPÓSITO (2026-07-30), y es la decisión que más se puede revertir por error.
+#
+# Banea a quien dispara los `limit_req` de `nginx-limites.conf`, que son **por IP**
+# (`$binary_remote_addr`, 20 r/s para HTML). Con el CGNAT dominicano una IP pública NO es una persona:
+# es una operadora entera. Cinco respuestas 429 en diez minutos —fáciles de acumular entre miles de
+# usuarios compartiendo esa IP— dejarían a todos ellos sin sitio durante una hora, y desde el servidor
+# no se notaría nada: para quien mira, el sitio va bien.
+#
+# Y lo que se gana es poco: nginx YA responde 429 y eso cuesta casi nada. Banear ahorra poco y
+# arriesga mucho.
+#
+# OJO CON EL MOMENTO EN QUE SE VUELVE PELIGROSA: hoy el sitio no tiene tráfico, así que activarla no
+# rompería nada — empezaría a morder exactamente el día que el sitio funcione.
+[nginx-limit-req]
+enabled = false
