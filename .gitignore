@@ -43,3 +43,6 @@ media/*
 node_modules/
 # El store de pnpm: binarios SQLite de una caché local, nunca del repositorio.
 .pnpm-store/
+
+# El HTML intermedio del PDF de anunciantes: lo regenera `docs/generar_pdf_banners.sh`.
+docs/_banners.html

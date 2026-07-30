@@ -1,0 +1,139 @@
+/* Hoja de estilo del PDF de especificaciones para anunciantes.
+ *
+ * Solo la usa `docs/ESPECIFICACIONES_BANNERS.md` al exportarse. No la carga el sitio.
+ *
+ * Los colores son los de la marca: el azul y el rojo del encabezado del sitio, para que el documento
+ * que recibe el anunciante se reconozca como nuestro sin llevar el logotipo en cada página. */
+
+@page {
+    size: A4;
+    margin: 20mm 18mm 18mm 18mm;
+    @bottom-center {
+        content: "dominicanosengrandesligas.com  ·  Especificaciones para banners  ·  " counter(page);
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #8EA6C8;
+    }
+}
+
+body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.55;
+    color: #1a1a1a;
+}
+
+h1 {
+    font-size: 22pt;
+    color: #0B1F3A;
+    margin: 0 0 2mm 0;
+    border-bottom: 3px solid #CE1126;
+    padding-bottom: 3mm;
+}
+
+/* El nombre del sitio, que en el Markdown va como el primer párrafo en negrita. */
+h1 + p strong {
+    font-size: 11pt;
+    color: #CE1126;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+h2 {
+    font-size: 14pt;
+    color: #0B1F3A;
+    margin: 9mm 0 3mm 0;
+    padding-left: 3mm;
+    border-left: 4px solid #CE1126;
+    /* Un encabezado solo al pie de página es peor que un salto: obliga a pasar la hoja para saber
+     * de qué habla. */
+    break-after: avoid;
+}
+
+h3 {
+    font-size: 11.5pt;
+    color: #0B1F3A;
+    margin: 6mm 0 2mm 0;
+    break-after: avoid;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3mm 0 5mm 0;
+    font-size: 9.5pt;
+    /* Una tabla partida a la mitad pierde la cabecera y deja de leerse. */
+    break-inside: avoid;
+}
+
+th {
+    background: #0B1F3A;
+    color: #fff;
+    text-align: left;
+    padding: 2mm 3mm;
+    font-weight: 600;
+}
+
+td {
+    padding: 2mm 3mm;
+    border-bottom: 1px solid #d8dee8;
+    vertical-align: top;
+}
+
+tr:nth-child(even) td { background: #f5f7fa; }
+
+code {
+    font-family: "Courier New", monospace;
+    font-size: 9pt;
+    background: #eef1f6;
+    padding: 0.4mm 1.2mm;
+    border-radius: 2px;
+}
+
+pre {
+    background: #f5f7fa;
+    border-left: 3px solid #8EA6C8;
+    padding: 3mm 4mm;
+    font-size: 9pt;
+    break-inside: avoid;
+}
+
+pre code { background: none; padding: 0; }
+
+strong { color: #0B1F3A; }
+
+hr {
+    border: none;
+    border-top: 1px solid #d8dee8;
+    margin: 7mm 0;
+}
+
+/* La lista de verificación. Pandoc la saca como `<input type=checkbox>` deshabilitado; se sustituye
+ * por un cuadro dibujado, que en papel es lo que de verdad se puede marcar. */
+ul.task-list { list-style: none; padding-left: 0; }
+
+ul.task-list li {
+    padding-left: 8mm;
+    position: relative;
+    margin-bottom: 1.5mm;
+}
+
+ul.task-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 1mm;
+    width: 3.5mm;
+    height: 3.5mm;
+    border: 1.5px solid #0B1F3A;
+    border-radius: 1px;
+}
+
+ul.task-list input { display: none; }
+
+blockquote, em {
+    color: #4a5568;
+}
+
+/* El cierre en cursiva del final. */
+p em { font-size: 9.5pt; }
