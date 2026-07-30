@@ -1395,3 +1395,30 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   color: #ffd166;
   font-weight: 700;
 }
+
+
+/* ---------- Compartir ---------- */
+/* Cuatro enlaces y una etiqueta, en fila y con salto. `gap` y no márgenes: con márgenes, el hueco
+   entre filas al saltar de línea sale distinto del hueco entre botones. */
+.dgl-compartir {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+}
+.dgl-compartir-etiqueta {
+  font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .7rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--dgl-muted); margin-right: .25rem;
+}
+/* Botones de contorno y no macizos: son una acción secundaria. Un artículo tiene UNA acción
+   principal —leerlo— y cuatro botones de color pleno debajo del texto compiten con ella. */
+.dgl-compartir-boton {
+  display: inline-block; padding: .3rem .7rem; border: 1px solid var(--dgl-line, #dfe3e9);
+  border-radius: 999px; background: #fff; color: var(--dgl-navy); text-decoration: none;
+  font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .78rem; line-height: 1.4;
+  cursor: pointer; transition: background-color .12s, border-color .12s;
+}
+.dgl-compartir-boton:hover, .dgl-compartir-boton:focus-visible {
+  background: var(--dgl-navy); border-color: var(--dgl-navy); color: #fff; text-decoration: none;
+}
+/* La variante de la cabecera: misma cosa, más callada. Va bajo la firma y no puede pesar más que el
+   titular que tiene encima. */
+.dgl-compartir-fino .dgl-compartir-boton { padding: .15rem .55rem; font-size: .72rem; }
+.dgl-compartir-fino .dgl-compartir-etiqueta { font-size: .65rem; }

@@ -284,6 +284,11 @@
   `widgets/_anuncio_horizontal.html`— así que SIN ESTE SCRIPT NO SALE NINGÚN ANUNCIO horizontal.
 {% endcomment %}
 <script src="{% static 'js/anuncios.js' %}?v=1" defer></script>
+{% comment %}
+  Mejora los botones de compartir donde el navegador da más: el menú nativo del sistema y el copiado
+  al portapapeles. SIN este script los botones siguen funcionando — son enlaces planos.
+{% endcomment %}
+<script src="{% static 'js/compartir.js' %}?v=1" defer></script>
 <script src="{% static 'js/site.js' %}?v=2" defer></script>
 {% block extra_js %}{% endblock %}
 </body>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static wagtailcore_tags wagtailimages_tags anuncios %}
+{% load static wagtailcore_tags wagtailimages_tags anuncios compartir %}
 {% comment %}
 Un artículo. La columna de texto es estrecha a propósito —`.dgl-articulo` la limita— porque una línea
 de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde cuál venía.
@@ -69,6 +69,11 @@ de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde c
         {% if page.autor %}Por <b>{{ page.autor }}</b> · {% endif %}
         {{ page.fecha|date:"j M Y" }} · {{ page.minutos }} min de lectura
       </div>
+      {% comment %}
+        Fila discreta, tamaño de la firma y sin caja. Recoge al que comparte SIN leer —que en deporte
+        es mucha gente— sin competir con el titular, que es lo que engancha.
+      {% endcomment %}
+      {% compartir page.url page.title "dgl-compartir-fino mt-3" %}
     </header>
 
     {% if page.imagen %}
@@ -80,6 +85,13 @@ de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde c
 
     {# Cada bloque trae su propia plantilla; ver `articles/blocks.py`. #}
     <div class="dgl-articulo-cuerpo">{% include_block page.cuerpo %}</div>
+
+    {% comment %}
+      EL PRINCIPAL. Va al terminar el cuerpo y ANTES de los hashtags: ahí está la intención —quien
+      leyó y le gustó— y todavía no ha llegado al anuncio del pie. Un botón detrás de un anuncio se
+      pulsa mucho menos.
+    {% endcomment %}
+    {% compartir page.url page.title "mt-4 pt-3 border-top" %}
 
     {% if page.hashtags.all %}
       <footer class="dgl-art-tags mt-4 pt-3 border-top">

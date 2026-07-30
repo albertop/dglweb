@@ -1,0 +1,45 @@
+{% comment %}
+Los botones de compartir. Lo pone `{% compartir url titulo %}` — ver `core/templatetags/compartir.py`.
+
+ENLACES PLANOS, NINGÚN WIDGET, Y ESO NO ES UNA LIMITACIÓN
+----------------------------------------------------------
+El sitio manda `script-src 'self'` y tiene una prueba que prohíbe cargar de terceros
+(`test_el_sitio_publico_no_pide_nada_a_terceros`). Eso descarta AddThis, ShareThis y los botones
+oficiales de X y de Facebook: todos cargan JavaScript ajeno, el navegador los bloquearía, y **cada uno
+le cuenta la visita a su dueño** — lo que convertiría en mentira la política de cookies que este
+repositorio sostiene con pruebas.
+
+Lo que queda es mejor: cuatro `<a href>` que no cargan nada, no rastrean a nadie y **funcionan sin
+JavaScript**. La mejora progresiva la pone `static/js/compartir.js`: en un teléfono cambia todo esto
+por el menú nativo del sistema —el que ya tiene WhatsApp, Instagram y lo que la persona use— y hace
+que «Copiar enlace» copie de verdad.
+
+WHATSAPP PRIMERO, y no es el orden de costumbre. En República Dominicana es donde se comparte deporte;
+X y Facebook van detrás porque tocan ponerlos, no porque vayan a mover el tráfico.
+
+SIN «vía @…». El sitio no tiene cuentas propias (dueño, 2026-07-29), así que atribuir a una cuenta que
+no existe —o peor, a la de la agencia— sería ruido en el mensaje de otra persona.
+
+`rel="noopener"` en todos: abren en otra pestaña y sin él la página de destino puede tocar la nuestra
+por `window.opener`.
+{% endcomment %}
+<div class="dgl-compartir {{ clase }}" data-compartir data-titulo="{{ titulo }}" data-url="{{ url }}">
+  <span class="dgl-compartir-etiqueta">Compartir</span>
+
+  {# El botón nativo. Nace oculto y `compartir.js` lo enseña solo donde el navegador lo soporta. #}
+  <button type="button" class="dgl-compartir-boton d-none" data-compartir-nativo hidden>
+    Compartir…
+  </button>
+
+  <a class="dgl-compartir-boton" data-red="whatsapp" rel="noopener" target="_blank"
+     href="https://wa.me/?text={{ texto_url }}%20{{ url_url }}">WhatsApp</a>
+
+  <a class="dgl-compartir-boton" data-red="x" rel="noopener" target="_blank"
+     href="https://twitter.com/intent/tweet?text={{ texto_url }}&url={{ url_url }}">X</a>
+
+  <a class="dgl-compartir-boton" data-red="facebook" rel="noopener" target="_blank"
+     href="https://www.facebook.com/sharer/sharer.php?u={{ url_url }}">Facebook</a>
+
+  {# Sin JavaScript es un enlace al propio artículo: no copia, pero tampoco miente ni queda muerto. #}
+  <a class="dgl-compartir-boton" data-copiar href="{{ url }}">Copiar enlace</a>
+</div>
