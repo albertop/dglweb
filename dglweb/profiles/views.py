@@ -106,69 +106,51 @@ def player_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "bat_total": bateo,
         "pit_total": pitcheo,
     }
-    context["descripcion_social"] = descripcion_social(player, bateo, pitcheo)
-    context["texto_compartir"] = texto_compartir(player, bateo, pitcheo)
+    context["descripcion_social"] = descripcion_social(player)
     return render(request, "profiles/player_detail.html", context)
 
 
-def descripcion_social(player: Player, bateo: BattingCareer | None, pitcheo: PitchingCareer | None) -> str:
-    """La frase que sale bajo el titular en Google y en el recuadro de WhatsApp.
+def descripcion_social(player: Player) -> str:
+    """La frase que sale bajo el titular en Google y en la tarjeta de WhatsApp.
+
+        Bryan Abreu
+        Lanzador relevista. Debutó en 2019.
+        dominicanosengrandesligas.com
 
     POR QUÉ NO SE DEJA VACÍA. Sin ella, Google recorta la primera frase que encuentre en la página —
-    que acá es la fila de datos biográficos— y publica algo como «Posición: P-ABR · Batea: Derecho ·
-    Estatura: 6-0». Es cierto y no dice nada. Son ~970 páginas: la descripción es lo único que las
-    distingue en una lista de resultados.
+    que acá es la fila de datos biográficos— y publica «Posición: P-ABR · Batea: Derecho · Estatura:
+    6-0». Es cierto y no dice nada.
 
-    Se arma con lo que define a ese pelotero, en este orden: qué juega, cuándo jugó, y su cifra más
-    alta. Nada inventado — si un dato falta, no aparece la frase, en vez de escribir un cero.
+    CÓMO LLEGÓ A SER TAN CORTA (decisión del dueño, 2026-07-30). Empezó siendo esto:
+
+        Bryan Abreu, lanzador relevista dominicano, en Grandes Ligas desde 2019.
+        496 ponches de por vida. Estadísticas completas de su carrera.
+
+    y se le quitó, por este orden, todo lo que repetía algo que la tarjeta ya dice:
+
+    * **El nombre** — es el TÍTULO, justo encima.
+    * **La cifra de carrera** — se elegía por una regla fija: ponches si es lanzador, jonrones si no.
+      Eso no resume a un pelotero concreto: a un relevista lo definía por un total que a nadie le dice
+      nada, y a un joven por una cifra pequeña que parece un desaire.
+    * **«Estadísticas completas de su carrera»** — relleno de palabras clave.
+    * **«dominicano»** — está en el nombre del sitio.
+    * **«Grandes Ligas»** — está en el nombre del sitio y en el dominio que la tarjeta imprime debajo.
+    * **El pueblo natal** — llegó a estar y también se fue, por simplificar.
+
+    Y «Debutó en» y no «desde»: con un retirado, «desde 1997» suena a que sigue jugando.
+
+    LO QUE SE ACEPTA A CAMBIO: la frase ya no distingue una ficha de otra. Dos relevistas que debutaron
+    el mismo año tienen la misma descripción, y eso a Google le sabe a contenido duplicado. Es el precio
+    de la brevedad y está tomado a conciencia — lo que de verdad distingue cada página en una búsqueda
+    es el `<title>`, que sí lleva el nombre.
     """
     from dglweb.players import positions
 
-    oficio = positions.nombre_largo(player.pos) or "pelotero"
-    partes = [f"{player.full_name}, {oficio} dominicano"]
-
+    oficio = positions.nombre_largo(player.pos) or "Pelotero"
+    frase = oficio[0].upper() + oficio[1:] + "."
     if player.debut_date:
-        partes.append(f"en Grandes Ligas desde {player.debut_date.year}")
-
-    cifra = cifra_que_lo_define(bateo, pitcheo)
-    if cifra:
-        partes.append(cifra)
-
-    return ". ".join([", ".join(partes[:2]), *partes[2:]]) + ". Estadísticas completas de su carrera."
-
-
-def cifra_que_lo_define(bateo: BattingCareer | None, pitcheo: PitchingCareer | None) -> str:
-    """UNA sola cifra, la que resume a ese pelotero. Un lanzador por ponches; un bateador por jonrones.
-
-    Una lista de seis números no la lee nadie en un resultado de búsqueda ni en un mensaje de
-    WhatsApp. Y si el dato falta se devuelve vacío en vez de escribir un cero: «0 jonrones de por
-    vida» es peor que no decir nada.
-    """
-    if pitcheo and (pitcheo.so or 0) > 0:
-        return f"{pitcheo.so:,} ponches de por vida".replace(",", ".")
-    if bateo and (bateo.hr or 0) > 0:
-        return f"{bateo.hr:,} jonrones de por vida".replace(",", ".")
-    if bateo and (bateo.h or 0) > 0:
-        return f"{bateo.h:,} hits de por vida".replace(",", ".")
-    return ""
-
-
-def texto_compartir(player: Player, bateo: BattingCareer | None, pitcheo: PitchingCareer | None) -> str:
-    """Lo que se escribe en el mensaje al compartir el perfil: SOLO EL NOMBRE.
-
-    Llevaba la cifra de `cifra_que_lo_define()` —«Bryan Abreu — 495 ponches de por vida»— con el
-    argumento de que un enlace con un número se abre y uno genérico se ignora. El dueño lo quitó el
-    2026-07-30, y tenía razón: **esa cifra se elige por una regla fija y no por lo que define a ese
-    pelotero en concreto.** A un relevista se le acaba resumiendo por un total de carrera que a nadie
-    le dice nada, y a un joven por una cifra pequeña que parece un desaire.
-
-    Un número mal elegido resta más de lo que suma un número cualquiera.
-
-    La firma se queda con `bateo` y `pitcheo` aunque no los use: la tarjeta social de la página SÍ
-    lleva datos (`descripcion_social`), y el día que se quiera una frase mejor —la temporada en curso,
-    por ejemplo— es acá donde va, con lo que hace falta ya a mano.
-    """
-    return player.full_name
+        frase += f" Debutó en {player.debut_date.year}."
+    return frase
 
 
 def _latest_full_season() -> int | None:

@@ -87,10 +87,11 @@
 
           `dgl-compartir-oscuro` porque el hero es navy: los botones de contorno claro desaparecerían.
 
-          El texto lleva la cifra que define al pelotero —«Juan Soto — 245 jonrones de por vida»— y no
-          solo el nombre. Un enlace con un número se abre; uno genérico se ignora.
+          El texto del mensaje es SOLO EL NOMBRE. Llevó la cifra de carrera y el dueño la quitó el
+          2026-07-30: se elegía por una regla fija y no por lo que define a ese pelotero, así que a un
+          relevista lo resumía por un total que no dice nada. Ver `descripcion_social`.
         {% endcomment %}
-        {% compartir request.path texto_compartir "dgl-compartir-fino dgl-compartir-oscuro mt-3" %}
+        {% compartir request.path player.full_name "dgl-compartir-fino dgl-compartir-oscuro mt-3" %}
       </div>
       <div class="d-flex gap-4 text-center flex-wrap">
         {% if is_pitcher and pit_total %}

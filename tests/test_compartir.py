@@ -139,95 +139,56 @@ def test_el_enlace_de_whatsapp_lleva_titulo_y_direccion() -> None:
     assert HOST in texto
 
 
-# ── El texto que se comparte desde el perfil ────────────────────────────────────────────────────
+# ── La descripción social del perfil ────────────────────────────────────────────────────────────
 #
-# Es lo que decide si compartir un perfil sirve de algo. Un enlace que dice «Juan Soto» compite con
-# todo lo demás en un chat; uno que dice «Juan Soto — 245 jonrones de por vida» se abre.
-
-
-class _Carrera:
-    """Lo mínimo de `BattingCareer` / `PitchingCareer` que mira la función."""
-
-    def __init__(self, **kw: object) -> None:
-        self.hr = self.h = self.so = 0
-        self.__dict__.update(kw)
+# La línea que se lee bajo el titular en Google y en la tarjeta de WhatsApp:
+#
+#     Bryan Abreu
+#     Lanzador relevista. Debutó en 2019.
+#     dominicanosengrandesligas.com
 
 
 class _Jugador:
-    """Lo mínimo que miran las dos funciones. `pos` y `debut_date` los usa `descripcion_social`."""
+    """Lo mínimo que mira `descripcion_social`."""
 
-    def __init__(self, nombre: str, pos: str = "P") -> None:
-        self.full_name = nombre
+    def __init__(self, pos: str = "RP", debut: object = None) -> None:
         self.pos = pos
-        self.debut_date = None
+        self.debut_date = debut
 
 
-def test_el_texto_del_perfil_es_solo_el_nombre() -> None:
-    """Llevó la cifra de carrera y el dueño la quitó (2026-07-30), con razón.
+def test_la_descripcion_es_el_oficio_y_el_debut() -> None:
+    import datetime as dt
 
-    La cifra se elegía por una regla fija —ponches si es lanzador, jonrones si no— y no por lo que
-    define a ESE pelotero: a un relevista lo resumía por un total de carrera que no dice nada, y a un
-    joven por una cifra pequeña que parece un desaire. Un número mal elegido resta más de lo que suma
-    un número cualquiera.
-    """
-    from dglweb.profiles.views import texto_compartir
-
-    texto = texto_compartir(_Jugador("Bryan Abreu"), None, _Carrera(so=495))  # type: ignore[arg-type]
-
-    assert texto == "Bryan Abreu"
-    assert "495" not in texto
-    assert "ponches" not in texto
-
-
-def test_la_tarjeta_social_si_sigue_llevando_datos() -> None:
-    """Lo que se quitó fue el TEXTO del mensaje, no la descripción de la tarjeta.
-
-    Son cosas distintas y conviene que no se confundan: el mensaje lo escribe una persona en su chat
-    y ahí un dato suelto estorba; la tarjeta la dibuja la red debajo del enlace, y ahí sí ayuda.
-    """
     from dglweb.profiles.views import descripcion_social
 
-    frase = descripcion_social(_Jugador("Bryan Abreu"), None, _Carrera(so=495))  # type: ignore[arg-type]
-
-    assert "495" in frase
-    assert "ponches" in frase
+    assert descripcion_social(_Jugador(debut=dt.date(2019, 4, 1))) == "Lanzador relevista. Debutó en 2019."  # type: ignore[arg-type]
 
 
-def test_a_un_lanzador_lo_define_el_ponche_y_no_el_jonron() -> None:
-    """Un lanzador con jonrones PERMITIDOS no puede salir presumiendo de ellos.
+def test_no_repite_nada_que_la_tarjeta_ya_diga() -> None:
+    """LA PRUEBA QUE PROTEGE LA BREVEDAD, y por eso enumera lo que se quitó.
 
-    Ya no se usa para compartir —el dueño quitó la cifra del mensaje— pero sí para la descripción de
-    la tarjeta social y para Google, así que la regla sigue importando.
+    La frase empezó siendo «Bryan Abreu, lanzador relevista dominicano, en Grandes Ligas desde 2019.
+    496 ponches de por vida. Estadísticas completas de su carrera.» y se le fue quitando todo lo que
+    repetía algo que la tarjeta ya dice: el nombre (es el título), «dominicano» y «Grandes Ligas» (están
+    en el nombre del sitio y en el dominio), la cifra de carrera y el relleno de palabras clave.
+
+    Cada una de esas piezas es fácil de volver a añadir «para que la descripción sea más rica».
     """
+    import datetime as dt
 
-    from dglweb.profiles.views import cifra_que_lo_define
+    from dglweb.profiles.views import descripcion_social
 
-    cifra = cifra_que_lo_define(_Carrera(hr=2), _Carrera(so=980))  # type: ignore[arg-type]
+    frase = descripcion_social(_Jugador(debut=dt.date(2019, 4, 1)))  # type: ignore[arg-type]
 
-    assert "980 ponches" in cifra
-    assert "jonrones" not in cifra
-
-
-def test_sin_datos_la_descripcion_no_escribe_un_cero() -> None:
-    """«Fulano — 0 jonrones de por vida» es peor que no decir nada.
-
-    Pasa de verdad: hay peloteros en el maestro que debutaron y no acumularon nada, y peloteros de
-    `dom_players` que aún no llegaron a las mayores.
-    """
-    from dglweb.profiles.views import cifra_que_lo_define
-
-    assert cifra_que_lo_define(_Carrera(), _Carrera()) == ""  # type: ignore[arg-type]
+    for sobra in ("dominicano", "Grandes Ligas", "ponches", "jonrones", "Estadísticas completas"):
+        assert sobra not in frase, f"volvió a colarse: {sobra!r}"
+    assert len(frase) < 60, f"demasiado larga: {frase!r}"
 
 
-def test_el_texto_del_perfil_no_arrastra_la_cola_de_seo() -> None:
-    """`descripcion_social` termina en «Estadísticas completas de su carrera», que sirve para Google.
+def test_sin_fecha_de_debut_no_se_inventa_un_ano() -> None:
+    """Pasa de verdad: los de `dom_players` que aún no llegaron a las mayores no tienen debut."""
+    from dglweb.profiles.views import descripcion_social
 
-    En un mensaje de WhatsApp eso es relleno, y las dos frases se parecen lo suficiente como para que
-    alguien reutilice la que no toca.
-    """
-    from dglweb.profiles.views import texto_compartir
+    frase = descripcion_social(_Jugador(pos="SS"))  # type: ignore[arg-type]
 
-    texto = texto_compartir(_Jugador("Juan Soto"), _Carrera(hr=245), None)  # type: ignore[arg-type]
-
-    assert "Estadísticas completas" not in texto
-    assert len(texto) < 80, f"demasiado largo para un mensaje: {texto!r}"
+    assert frase == "Campocorto."
