@@ -390,11 +390,15 @@ resto del sitio, intacto. En el `server` de nginx:
 
 ```nginx
 location ~ ^/(cms|django-admin)(/|$) {
-    allow 73.244.42.221;
+    include /etc/nginx/snippets/ip-del-dueno.conf;
     deny all;
     # … las mismas cabeceras de proxy que `location /`: NO se heredan entre `location`.
 }
 ```
+
+**La IP ya no se escribe acá** (2026-07-30). Vive en un solo archivo que reescribe el cron cuando la
+IP de casa del dueño cambia — antes estaba a mano en este `location` y el cron no lo actualizaba, así
+que seguía funcionando por casualidad. Ver `deploy/nginx-ip-del-dueno.conf`.
 
 **El `(/|$)` importa.** Con solo `^/(cms|django-admin)/`, la URL sin barra final no casa: llega a
 Django, que redirige a `/cms/`. El acceso queda bloqueado igual, pero esa redirección le confirma a
