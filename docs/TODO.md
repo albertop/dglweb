@@ -198,6 +198,17 @@ cortafuegos**, antes de que gaste nada.
 - **Empezar en modo aviso.** Igual que se hizo con los límites: ver a quién habría baneado durante
   unos días antes de dejarlo banear de verdad.
 
+### Los secretos, en 1Password — TAREA DEL DUEÑO (2026-07-30)
+
+**No van en el respaldo, y eso es deliberado**: un volcado con las credenciales dentro convierte cada
+copia en un problema, y las copias se multiplican. Van en el gestor de contraseñas, a mano, una vez.
+
+Lo que hay que guardar está listado en la conversación del 2026-07-30. El orden importa: **el
+registrador del dominio y el proveedor del VPS pesan más que cualquier cosa que viva en el servidor**
+— un servidor perdido se reconstruye en una tarde, un dominio perdido no se recupera.
+
+Mientras eso no esté hecho, el plan de recuperación tiene un agujero que ningún respaldo tapa.
+
 ### La estrategia de respaldo, entera
 
 Hoy existe `deploy/respaldo.sh` y **corre a mano**. Lo que falta son las tres cosas que convierten un
