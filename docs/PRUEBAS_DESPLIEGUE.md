@@ -102,6 +102,25 @@ Copiar antes es seguro porque **el script nunca borra**: los nombres llevan hash
 las dos versiones conviven y quien tenga la página anterior en pantalla sigue encontrando lo suyo. La
 carpeta crece unos megas por despliegue; se limpia a mano, en frío.
 
+### 1.2026.12 — la tarjeta social deja de salir en azul liso
+
+Un solo cambio: la etiqueta `og:image` de la página del artículo. Si la imagen es una banda de
+relleno, se usa la lámina de marca en vez de recortar la banda.
+
+**Ojo con la caché antes de dar nada por malo:** WhatsApp y Telegram guardan la lámina **por URL
+durante días**. Un enlace ya compartido va a seguir saliendo igual aunque el despliegue esté bien.
+Para comprobarlo hace falta un artículo que no se haya compartido nunca, o el mismo con un `?x=1`
+detrás.
+
+- [ ] Pegar en WhatsApp el enlace de un artículo **con banda**: la tarjeta sale con el logotipo, no
+      con el rectángulo azul.
+- [ ] Pegar el de un artículo **con foto de verdad**: sale **su foto**, no la lámina genérica. Es la
+      comprobación que importa — descartar una foto legítima se nota mucho menos que el azul liso y
+      engaña más.
+- [ ] `curl -s <url-del-articulo> | grep 'og:image'` para verlo sin depender de la caché de nadie.
+
+Sin migraciones.
+
 ### 1.2026.11 — lo primero del día que ve el lector
 
 Las dos cosas que cambian en pantalla, más los arreglos del review v14 —que no se ven— y los
