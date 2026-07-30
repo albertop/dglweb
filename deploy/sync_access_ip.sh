@@ -95,13 +95,25 @@ fi
 #
 # No bloquea nada por sí solo —el 22 también está con `LIMIT` desde cualquier sitio— así que un fallo
 # acá no puede dejar a nadie fuera. Por eso va al final y no aborta el script.
+# LA IP SE BUSCA EN LA LÍNEA, NO EN UNA COLUMNA FIJA, y esa es la corrección del primer intento:
+# `ufw status` imprime tres columnas —`22/tcp  ALLOW  1.2.3.4`— y `ufw status verbose` imprime cuatro,
+# porque ahí la acción es `ALLOW IN`. Miré el formato de `verbose`, escribí `$4`, y con el formato real
+# no casaba nada: añadía la regla nueva y dejaba la vieja puesta. Se vio comprobando la salida.
 if command -v ufw >/dev/null && ufw status | grep -q "^Status: active"; then
-    if ! ufw status | grep -qE "^22/tcp[[:space:]]+ALLOW IN[[:space:]]+${IP}\b"; then
-        for vieja in $(ufw status | awk '$1=="22/tcp" && $2=="ALLOW" && $4 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/ {print $4}'); do
-            [[ "$vieja" == "$IP" ]] && continue
-            ufw --force delete allow from "$vieja" to any port 22 proto tcp >/dev/null 2>&1 || true
-        done
+    reglas_del_22() {
+        ufw status | awk '/^22\/tcp/ && /ALLOW/ {
+            for (i = 1; i <= NF; i++) if ($i ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}$/) print $i
+        }'
+    }
+    if ! reglas_del_22 | grep -qxF "$IP"; then
         ufw allow from "$IP" to any port 22 proto tcp >/dev/null 2>&1 || true
-        log "ufw: regla del 22 → $IP"
+        log "ufw: añadida la regla del 22 para $IP"
     fi
+    # Las sobrantes se limpian SIEMPRE, no solo cuando se añade una: si un intento anterior dejó una
+    # colgada, esto la recoge en la siguiente corrida en vez de acumularlas para siempre.
+    for vieja in $(reglas_del_22); do
+        [[ "$vieja" == "$IP" ]] && continue
+        ufw --force delete allow from "$vieja" to any port 22 proto tcp >/dev/null 2>&1 || true
+        log "ufw: borrada la regla del 22 de $vieja"
+    done
 fi
