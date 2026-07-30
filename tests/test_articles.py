@@ -1171,6 +1171,7 @@ def test_una_banda_se_distingue_de_una_foto(caso: str, ancho: int, alto: int, es
     assert (ancho / alto >= PROPORCION_DE_BANDA) is es_banda, caso
 
 
+@pytest.mark.django_db
 def test_sin_imagen_no_es_banda() -> None:
     """Un artículo sin imagen no puede dar `True`: la cabecera ya no la dibuja, pero la propiedad se
     usará en más sitios y devolver «es una banda» cuando no hay nada es una respuesta falsa."""

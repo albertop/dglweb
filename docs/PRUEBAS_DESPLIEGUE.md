@@ -102,6 +102,30 @@ Copiar antes es seguro porque **el script nunca borra**: los nombres llevan hash
 las dos versiones conviven y quien tenga la página anterior en pantalla sigue encontrando lo suyo. La
 carpeta crece unos megas por despliegue; se limpia a mano, en frío.
 
+### 1.2026.11 — lo primero del día que ve el lector
+
+Las dos cosas que cambian en pantalla, más los arreglos del review v14 —que no se ven— y los
+scripts de respaldo, que no viajan en la imagen.
+
+**Lo visible, y las dos se comprueban mirando:**
+
+- [ ] En la portada y en `/articulos/`, la entradilla de las tarjetas llega a **tres líneas** y ya no
+      se corta con «…» habiendo hueco debajo. El caso ajustado es una tarjeta **con etiquetas y
+      titular de tres líneas**: si ahí la tercera línea toca el pie o se ve cortada por la mitad, hay
+      que volver a dos en `.dgl-art .entradilla`.
+- [ ] En un artículo cuya imagen sea una **banda** (`banner-ancho`, `banner-chico`), la cabecera va de
+      los botones de compartir **directo al cuerpo**, sin el rectángulo azul con pie de foto.
+- [ ] Y en uno con **foto de verdad**, la foto sigue saliendo. Es la mitad que prueba que el corte por
+      proporción distingue y no que simplemente dejó de dibujar.
+
+**Lo que no se ve:**
+
+- [ ] `/health/pipeline` en **200**.
+- [ ] Los cuatro dominios responden: el sitio, `promo.`, `sabertables.com` y `baseballsixdegrees.com`.
+
+**Nada de esto trae migraciones**, así que `migrate` no debería hacer nada — si dice que aplicó algo,
+parar y mirar antes de seguir.
+
 ### 1.2026.10 — lo acumulado desde la .7, en una sola imagen
 
 **51 commits.** La .8 y la .9 nunca llegaron al VPS: la decisión del dueño (2026-07-28) fue juntar los
