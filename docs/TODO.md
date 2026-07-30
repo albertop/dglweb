@@ -739,17 +739,17 @@ en esta lista. Ninguna bloquea el lanzamiento; las tres son de la Fase 8 y la 9.
       nginx que hay que entender el día que algo falle. Reevaluar cuando la analítica diga que hay
       volumen — que es justo lo que Umami empezó a medir hoy.
 
-- [ ] **No hay staging.** La Fase 8 pide «staging = réplica de prod» y la Fase 9 «QA end-to-end en
-      staging». Lo que hay es desarrollo local contra la base de dev, que **no es una réplica**: otra
-      imagen (dev, no `Dockerfile.prod`), sin nginx delante, sin `userns-remap` y sin gunicorn.
-
-      Y esa diferencia ya costó: **las tres averías del 2026-07-28 —imágenes que no subían, jobs
-      horarios mudos, permisos del socket— eran invisibles en dev por definición**, porque nacían de
-      cosas que dev no tiene. Un staging de verdad las habría cazado antes de producción.
-
-      No se monta ahora: duplica el coste del VPS y la disciplina de mantenerlo igual. Queda anotado
-      como la deuda que es, con su motivo escrito.
-
+> **Staging — DESCARTADO POR AHORA (dueño, 2026-07-29).** La Fase 8 pedía «staging = réplica de prod»
+> y la Fase 9 «QA end-to-end en staging». No se va a montar: es un VPS más que pagar, mantener y
+> parchear, para un sitio con un solo redactor.
+>
+> Lo que hace que se pueda vivir sin él, y conviene tenerlo presente: el gate corre la suite entera
+> —1.208 pruebas— antes de cada commit, el despliegue construye una imagen etiquetada que se puede
+> revertir apuntando el stack a la anterior, y `/ready` avisa de migraciones pendientes antes de que
+> llegue tráfico. No es lo mismo que un staging, pero cubre los fallos que un staging cazaría.
+>
+> Lo que NO cubre y hay que saber: nada prueba el despliegue EN SÍ contra datos reales. Los dos
+> sustos de hoy —el CSS en 404 y las zonas de anuncio— fueron de esos.
 ## Contenido
 
 - [ ] Escribir los 8–12 artículos semilla (cuello de botella — **ya no está bloqueado**: el CMS
