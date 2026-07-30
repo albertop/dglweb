@@ -280,8 +280,14 @@ def test_el_doble_play_cuenta_como_dos_outs_y_queda_declarado(db: None) -> None:
     """UNA APROXIMACIÓN A PROPÓSITO, fijada para que se sepa que lo es.
 
     Un doble play vale más que dos outs sueltos, pero **la matriz no trae un peso para él** —ni de
-    este lado ni del otro— y el split tampoco manda los pickoffs. Inventarles un número rompería lo
-    que hace comparables a las dos listas, así que el segundo out entra como out genérico.
+    este lado ni del otro— y el split tampoco manda los pickoffs. Inventarle un número sustituiría un
+    sesgo medido por uno que nadie puede auditar, así que el segundo out entra como out genérico.
+
+    LO QUE ESO CUESTA, MEDIDO, porque una aproximación sin magnitud no se puede juzgar: 13,3% de las
+    salidas traen un doble play, el lanzador se lleva 0,271 carreras de más en la mediana, y 8 de 216
+    salidas publicables cruzaron el piso solo por ese crédito. Y no hay bateador al que se le cobre:
+    el que batea para doble play registra un solo out, el suyo. Por eso los dos oficios comparten la
+    heurística de pesos pero no el inventario de eventos (SAB-01 del review v13).
 
     Si algún día la matriz trae el peso del doble play, esta prueba es la que hay que cambiar.
     """
@@ -958,3 +964,37 @@ def test_una_linea_imposible_no_llega_a_la_lista(monkeypatch: pytest.MonkeyPatch
     )
 
     assert [a.player_id for a in salida] == [1], "la línea imposible se colgó en la lista"
+
+
+@pytest.mark.django_db
+def test_el_doble_play_le_da_al_lanzador_un_out_que_no_le_cuesta_a_nadie() -> None:
+    """SAB-01 del review v13: los dos oficios comparten los pesos, NO el inventario de eventos.
+
+    Acá está la asimetría entera en dos líneas. La misma jugada, mirada desde los dos lados:
+
+        el lanzador   `outsPitched` sube 2 y cobra los dos, a +0,273 cada uno
+        el bateador   registra UN out, el suyo — el del corredor no aparece en la línea de nadie
+
+    Así que compartir la matriz no basta para que la comparación sea simétrica, que es justo lo que
+    afirmaba la frase «misma unidad por construcción» que este arreglo quitó.
+
+    MEDIDO sobre 1.307 salidas de dos semanas: 13,3% traen un doble play, 0,271 carreras de crédito de
+    más en la mediana, y 8 de 216 salidas publicables cruzaron el piso solo por eso.
+
+    Esta prueba NO exige que se arregle — arreglarlo de verdad pide jugada a jugada y RE24, que es
+    otro proyecto. Exige que siga siendo verdad lo que la documentación dice que pasa, para que el día
+    que alguien cambie el cálculo se entere de cuál de las dos versiones está tocando.
+    """
+    lanzador = daily.valor_de_pitcheo(_pitcheo(outsPitched=2))
+    un_solo_out = daily.valor_de_pitcheo(_pitcheo(outsPitched=1))
+    bateador = daily.valor_de_bateo(_bateo(AB=1))
+
+    credito_del_lanzador = lanzador - un_solo_out
+    costo_del_bateador = -daily.valor_de_bateo(_bateo()) + -bateador
+
+    assert credito_del_lanzador == pytest.approx(costo_del_bateador), (
+        "el out del bateador y el que el lanzador cobra de más valen lo mismo: la matriz es la misma"
+    )
+    assert daily.valor_de_pitcheo(_pitcheo(outsPitched=2)) > daily.valor_de_pitcheo(_pitcheo(outsPitched=1)), (
+        "el lanzador cobra los DOS outs del doble play mientras el bateador solo declara el suyo"
+    )

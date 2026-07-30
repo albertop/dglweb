@@ -26,8 +26,16 @@ misma lógica que hay detrás del wOBA, aplicada a un juego. Se prefiere a orden
 anotadas porque esas dependen de quién estaba en base: premian la oportunidad, no la actuación.
 
 **Pitcheo: LA MISMA MATRIZ, leída desde el otro lado.** El lanzador resta lo que permitió y suma lo
-que retiró, con los mismos pesos. Así los dos oficios quedan en la misma unidad por construcción y la
-lista mezclada se ordena sin traducir nada.
+que retiró, con los mismos pesos. Así la lista mezclada se ordena sin traducir nada.
+
+Los dos oficios comparten **la misma heurística de pesos lineales, con distinta cobertura de eventos**
+— y esa segunda mitad hace falta. Se escribió «misma unidad **por construcción**», y era decir de más:
+compartir los coeficientes no basta si cada lado los multiplica por cantidades distintas. Los outs del
+bateo salen de `AB - H - K + SF + SH`, que solo cuenta los suyos; los del pitcheo salen de
+`outsPitched`, que incluye el segundo out de un doble play y los corredores sorprendidos fuera de
+base. **Medido**: 13,3% de las salidas traen un doble play, el lanzador se lleva 0,271 carreras de más
+en la mediana, y 8 de 216 salidas publicables cruzaron el piso solo por ese crédito. Está detallado en
+`valor_de_pitcheo`.
 
 Hasta el 2026-07-29 el pitcheo se puntuaba con **Game Score v2 de Tango** y se traducía a carreras
 con `(GS - 50) / 3`. Esa traducción metía a los lanzadores en una escala del doble —un relevista con
@@ -110,8 +118,13 @@ PISO_PITCHEO = 0.82
 #
 # YA NO HAY NINGUNA TRADUCCIÓN, y ese es el arreglo (SAB-02 del review v12, 2026-07-29). Los dos
 # oficios se puntúan con **la misma matriz de pesos lineales**, leída desde cada lado: el bateador
-# suma lo que produjo, el lanzador resta lo que permitió. Están en la misma unidad **por
-# construcción**, no por una equivalencia afirmada.
+# suma lo que produjo, el lanzador resta lo que permitió.
+#
+# LO QUE ESO SÍ ARREGLA es la escala, que era lo roto: ya no hay una constante inventada metiendo a
+# los lanzadores en una unidad del doble. LO QUE NO ARREGLA, y se escribió como si sí (SAB-01 del
+# review v13), es el INVENTARIO DE EVENTOS: los dos lados no cuentan las mismas jugadas, así que la
+# unidad es la misma pero la atribución no es simétrica. El detalle y los números, en
+# `valor_de_pitcheo`.
 #
 # LO QUE HABÍA ANTES, ANOTADO PARA NO REPETIRLO. Se traducía el Game Score con `(GS - 50) / 3`,
 # razonando que el término `-3R` fija el precio de una carrera en tres puntos y que 50 es la salida
@@ -289,11 +302,42 @@ def valor_de_pitcheo(stat: dict[str, Any]) -> float:
     Acá no hay ninguna traducción ni ninguna constante: se usa **la misma matriz de pesos lineales**,
     leída desde el otro lado. El valor del lanzador es el valor de bateo de lo que permitió, con el
     signo cambiado — por eso el `-(...)` envuelve toda la suma en vez de repartirse término a término.
-    Así los dos oficios están en la misma unidad **por construcción**, no por una afirmación.
 
-    LOS OUTS SALEN DE `outsPitched` y no de `AB - H - K`, que es como los deduce el bateo: acá el dato
-    autoritativo existe, y además recoge outs que no son turnos al bate —un corredor eliminado
-    robando, un pisa y corre— que la resta perdería.
+    HASTA DÓNDE LLEGA ESA SIMETRÍA, QUE NO ES HASTA DONDE DECÍA ACÁ
+    ---------------------------------------------------------------
+    Esto decía «los dos oficios están en la misma unidad **por construcción**, no por una afirmación»,
+    y era decir de más (SAB-01 del review v13). Compartir los coeficientes no produce simetría si cada
+    lado los multiplica por cantidades distintas, y es justo lo que pasa con los outs:
+
+        bateo      `AB - H - K + SF + SH`  — solo los outs del propio bateador
+        pitcheo    `outsPitched`           — TODOS los de la entrada
+
+    Así que el segundo out de un doble play le suma al lanzador como out genérico y **no aparece como
+    nada en la línea de nadie**: el bateador que bateó para doble play registra un solo out, el suyo.
+    Un corredor sorprendido fuera de base, igual.
+
+    LOS NÚMEROS, porque «una aproximación» sin magnitud no se puede juzgar. Medido sobre 1.307 salidas
+    de dos semanas, usando el `GIDP` que el propio split de pitcheo trae:
+
+        13,3% de las salidas traen al menos un doble play
+        0,271 carreras de crédito de más en la mediana (un out a +0,273, negado)
+        0,812 en el peor caso
+        8 de 216 salidas publicables cruzaron el piso SOLO por ese crédito  (3,7%)
+
+    Ese 3,7% es el tamaño real del problema en la portada: ocho apariciones en dos semanas que se
+    ganaron con un out que el modelo no le cobra a ningún bateador. No es ruido, y tampoco es lo que
+    decide la lista.
+
+    LO CORRECTO DE VERDAD SERÍA RE24 sobre jugada a jugada, donde el cambio de estado de bases y outs
+    reparte el valor sin inventarle un peso a nada. Eso es otro proyecto: pide una fuente de eventos
+    que hoy no se pide. Mientras tanto la frase honesta es **misma heurística de pesos lineales, con
+    distinta cobertura de eventos** — y por eso el orden de la lista mezclada no se presenta como una
+    comparación sabermétrica exacta.
+
+    LOS OUTS SALEN DE `outsPitched` y no de `AB - H - K` **a sabiendas de lo anterior**: el dato
+    autoritativo existe de este lado, y recoge outs que no son turnos al bate —un corredor eliminado
+    robando, un pisa y corre— que la resta perdería. Deducirlos como hace el bateo cambiaría un sesgo
+    por otro: perdería outs que el lanzador sí provocó.
 
     EL JUEGO DE CORREDORES SÍ ENTRA, y la primera versión de esto decía lo contrario. Yo había
     escrito que las bases robadas y los atrapados robando se omitían «para no cobrarle al lanzador el
@@ -303,18 +347,17 @@ def valor_de_pitcheo(stat: dict[str, Any]) -> float:
 
     De las tres salidas posibles —omitirlos, dejarlos como out genérico, o darles su peso— se eligió
     la tercera, y no por la magnitud (medido: cambia el 15,9% de las salidas, mediana 0,173 carreras,
-    y solo 7 de 1.307 cruzan el piso). Se eligió porque **es la única que hace cierta la frase de
-    arriba**: el bateo cuenta SB y CS, así que si el pitcheo no los contara, los dos oficios no
-    estarían mirando los mismos eventos y toda la comparación se apoyaría en una afirmación falsa.
+    y solo 7 de 1.307 cruzan el piso). Se eligió porque **es la que acerca los dos inventarios**: el
+    bateo cuenta SB y CS, así que si el pitcheo no los contara, los dos oficios estarían mirando menos
+    eventos en común todavía. Acerca; no iguala — de eso trata el bloque de arriba.
 
     LO QUE SIGUE FUERA: el passed ball, que es del receptor, y el error, que es de la defensa. Los dos
     están en la matriz y los dos se dejan a propósito.
 
-    Y UNA APROXIMACIÓN QUE QUEDA DECLARADA: el segundo out de un doble play y los corredores
-    sorprendidos fuera de base cuentan como outs genéricos. Un doble play vale más que dos outs
-    sueltos, pero **la matriz no trae un peso para él** —ni de este lado ni del otro— y el split
-    tampoco manda los pickoffs. Inventarles un número rompería justo lo que hace comparables a las
-    dos listas. Pasa en el 13,3% de las salidas.
+    POR QUÉ EL DOBLE PLAY NO SE ARREGLA CON UN PESO PROPIO, que es lo primero que uno piensa: **la
+    matriz no trae uno** —ni de este lado ni del otro—, y el split tampoco manda los pickoffs.
+    Inventarle un número al doble play sería sustituir un sesgo medido y declarado por uno que nadie
+    puede auditar. Se prefiere la aproximación conocida.
 
     LO QUE TAMBIÉN FALTABA: el **wild pitch** y el **balk**. Los dejé fuera escribiendo que no estaban
     en la matriz, y era falso — están los dos, en la misma columna `average` del mismo archivo.
