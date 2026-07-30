@@ -75,24 +75,114 @@ docker exec dglweb-web-live python manage.py build_daily_standouts --fecha-hoy
       implementa `inert`—: abrir un clip, pulsar Tab cinco o seis veces y comprobar que el foco no se
       escapa a los enlaces de detrás. Cerrar con Escape y ver que vuelve al botón que lo abrió.
 
-### EL ORDEN DEL DESPLIEGUE CAMBIÓ (2026-07-29)
+### EL ORDEN DEL DESPLIEGUE (corregido el 2026-07-30)
 
-Desde que nginx sirve los estáticos hay **un paso más, y va en un orden que no se puede invertir**:
+Desde que nginx sirve los estáticos hay un paso más, y va en un orden que no se puede invertir:
 
 ```bash
 cd /srv/dglweb && git pull --ff-only && ./deploy_dglweb_image.sh
+./deploy/estaticos.sh 1.2026.10          # ← ANTES de tocar el stack, y CON la versión
 #   → actualizar el stack en Portainer (recrea el contenedor)
-./deploy/estaticos.sh
 docker exec dglweb-web-live python manage.py migrate   # solo si la versión trae migraciones
 ```
 
-**`estaticos.sh` va DESPUÉS de recrear el contenedor.** Al revés se copiarían los estáticos de la
-versión anterior mientras el HTML nuevo pide hashes que no existen: el sitio sale sin hojas de estilo
-y sin JavaScript, y en la consola del navegador solo hay 404.
+**`estaticos.sh` va ANTES de recrear el contenedor, y con el número de versión.** Acá decía lo
+contrario —«DESPUÉS», y sin argumento— y estaba mal desde que el script se reescribió el 2026-07-29.
 
-El script **no borra nada**, y eso es lo que evita una ventana de sitio roto: los nombres llevan hash,
-así que las dos versiones conviven y los navegadores que aún tienen la página anterior en pantalla
-siguen encontrando lo suyo. La carpeta crece unos megas por despliegue; se limpia a mano, en frío.
+El motivo del cambio: pasándole la versión, el script copia **de la imagen** con `docker create`, o
+sea sin arrancar nada. Así los archivos están en disco ANTES de que exista el HTML que los pide. Sin
+argumento copia del contenedor que corre, y entonces hay que hacerlo después — dejando unos segundos
+en los que el contenedor nuevo ya sirve HTML con hashes nuevos y los archivos todavía no están.
+
+Esa ventana costó una avería de verdad: el bloque `/static/` llevaba `always` en su `add_header`, así
+que **el 404 salía con caché de un año y marcado como inmutable**, y el navegador de quien entrara ahí
+no volvía a pedir el CSS nunca. Lo del `always` ya está arreglado; el orden es lo que cierra el resto.
+
+Copiar antes es seguro porque **el script nunca borra**: los nombres llevan hash del contenido, así que
+las dos versiones conviven y quien tenga la página anterior en pantalla sigue encontrando lo suyo. La
+carpeta crece unos megas por despliegue; se limpia a mano, en frío.
+
+### 1.2026.10 — lo acumulado desde la .7, en una sola imagen
+
+**51 commits.** La .8 y la .9 nunca llegaron al VPS: la decisión del dueño (2026-07-28) fue juntar los
+cambios y subirlos cuando hubiera algo que lo justificara. Lo de la .8 sigue más abajo y hay que
+comprobarlo igual; acá va lo que se sumó después.
+
+#### Lo que hay que tocar en el servidor, y va antes que nada
+
+Estos NO viajan en la imagen. Si el conf llega sin el de zonas, `nginx -t` falla y el reload se
+rechaza — el sitio se queda con la configuración vieja, que no tumba nada pero deja el despliegue a
+medias sin avisar.
+
+```bash
+sudo cp deploy/nginx-limites.conf /etc/nginx/conf.d/limites.conf   # PRIMERO: declara las zonas
+sudo cp deploy/nginx-dglweb.conf  /etc/nginx/sites-available/dglweb # después: las usa
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+- [ ] `nginx -t` en verde **antes** del reload. Si dice `unknown limit_req zone`, falta el primero.
+- [ ] `ANALITICA_ENVIO_URL` **no** hace falta en el stack: trae un defecto que cubre a Umami Cloud.
+      Solo se pone si Umami vuelve a mover el host de recolección.
+
+#### La analítica, que llevaba días sin contar nada
+
+Umami Cloud baja el script de `cloud.umami.is` y recolecta en `gateway.umami.is`. Cuando cambiaron lo
+segundo, la CSP dejó de cubrirlo: el script cargaba, la página se veía idéntica y **cada envío lo
+bloqueaba el navegador**. Se descubrió en la factura de eventos —2 en todo el mes—, no en una alerta.
+
+- [ ] En el sitio, **F12 → Network → filtro `send` con `All`**: tiene que aparecer una fila con **200**.
+- [ ] En **Console** no puede quedar ninguna línea de `Content Security Policy` sobre `umami`.
+- [ ] En Umami, la vista **Realtime** enseña la visita en segundos.
+
+#### Los límites de tasa, que es lo que puede echar gente fuera
+
+Lo primero que hay que mirar después del reload, porque un límite mal puesto no se nota navegando
+—uno solo hace una petición cada vez— y sí se nota en una hora punta.
+
+```bash
+sudo tail -f /var/log/nginx/error.log | grep limiting
+```
+
+- [ ] Navegar el sitio a ritmo normal **no** produce ninguna línea `limiting requests`.
+- [ ] Ojo con el **CGNAT dominicano**: miles de móviles comparten una IP pública, así que un límite por
+      IP puede afectar a media operadora. Si aparecen 429 de usuarios reales, subir el `rate` antes que
+      cualquier otra cosa.
+
+#### Compartir en redes
+
+- [ ] Los cinco botones salen al final del artículo, en el perfil de jugador y en líderes.
+- [ ] **Copiar enlace** copia de verdad, dice «¡Copiado!» y **el icono sigue ahí** después. (Se borraba:
+      lo cazó una prueba nueva.)
+- [ ] En un teléfono aparece el botón del menú **nativo** del sistema; en escritorio no.
+- [ ] Pegar un enlace en WhatsApp: sale con foto, titular y bajada.
+
+#### Los anuncios, ya sirviendo
+
+Los huecos ya están vivos en producción (`ADSERVER_URL` puesto). Lo que cambia en esta imagen es el
+**aislamiento** y el reparto por tamaños.
+
+- [ ] Cada `<iframe>` de anuncio lleva `sandbox="allow-scripts allow-same-origin allow-popups
+      allow-popups-to-escape-sandbox"`. Sin él, una creatividad de un anunciante puede llevarse al
+      lector con `top.location`.
+- [ ] Un clic en un anuncio **abre en otra pestaña** y llega al destino. Si no abriera, el `sandbox`
+      estaría de más — pero Revive ya usa `target="_blank"`, así que debe funcionar.
+- [ ] En móvil **no** aparece el carril de 300×600, y sí un 320×50 entre los widgets.
+- [ ] En el panel de Revive, las impresiones suben **una por hueco visto**, no tres.
+
+#### Rendimiento y base de datos
+
+- [ ] `docker logs dglweb-web-live | head -20` enseña gunicorn con `gthread` y 4 workers.
+- [ ] El sitio responde normal después de reiniciar **Postgres**: las conexiones persistentes traen
+      `CONN_HEALTH_CHECKS`, así que una conexión muerta se sustituye sin que el visitante vea un 500.
+      Es la mitad que de verdad prueba el ajuste.
+
+#### Lo que no se ve pero cambió
+
+- [ ] `/health/pipeline` sigue en **200**.
+- [ ] En el Backoffice, el log de ingesta: si un derivado falla, el detalle nombra **al derivado**, no
+      a las entradas.
+- [ ] Los destacados de la portada siguen saliendo con 5–6 nombres. Los pisos se recalibraron al p80
+      de la MLB y el de pitcheo quedó en 0,82 **a propósito** por encima del inning limpio de relevo.
 
 ### 1.2026.8 — SIN DESPLEGAR (se acumula a propósito)
 
