@@ -107,6 +107,6 @@ las tres cosas que se rompen por separado.
 - **Una tercera copia fuera de las dos casas.** Un incendio o un robo en 10.0.0.39 deja solo el VPS.
   Con 14 MB por corrida cabe de sobra en cualquier tier gratuito de 10 GB, **cifrada**. Queda como
   fase aparte.
-- **Los valores de las variables de Portainer.** Van en 1Password, y es tarea del dueño.
-- **La cuenta de AWS** (registrador y DNS de los cuatro dominios) **y la de RackNerd**. Son lo único
-  del inventario cuya pérdida no se repara con tiempo y trabajo.
+Los ACCESOS —variables de Portainer, AWS, RackNerd, la clave SSH, GitHub, DuckDNS, Umami, X y Kuma—
+ya no faltan: están en 1Password desde el 2026-07-30. Y siguen sin ir en el respaldo a propósito: un
+volcado con credenciales dentro convierte cada copia en un problema, y las copias se multiplican.

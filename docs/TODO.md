@@ -198,16 +198,21 @@ cortafuegos**, antes de que gaste nada.
 - **Empezar en modo aviso.** Igual que se hizo con los límites: ver a quién habría baneado durante
   unos días antes de dejarlo banear de verdad.
 
-### Los secretos, en 1Password — TAREA DEL DUEÑO (2026-07-30)
+### Los secretos, en 1Password — ✅ HECHO (2026-07-30)
+
+Todo el inventario está guardado: AWS —registrador y DNS de los cuatro dominios—, RackNerd, la clave
+SSH privada, Portainer, GitHub, DuckDNS, Umami Cloud, X y Uptime Kuma.
 
 **No van en el respaldo, y eso es deliberado**: un volcado con las credenciales dentro convierte cada
 copia en un problema, y las copias se multiplican. Van en el gestor de contraseñas, a mano, una vez.
 
-Lo que hay que guardar está listado en la conversación del 2026-07-30. El orden importa: **el
-registrador del dominio y el proveedor del VPS pesan más que cualquier cosa que viva en el servidor**
-— un servidor perdido se reconstruye en una tarde, un dominio perdido no se recupera.
+Con esto el círculo de reconstrucción queda cerrado por sus tres lados: **git** tiene la
+configuración, **el respaldo** tiene los datos, **1Password** tiene los accesos.
 
-Mientras eso no esté hecho, el plan de recuperación tiene un agujero que ningún respaldo tapa.
+Y el orden de importancia, que es contraintuitivo y por eso vale la pena dejarlo escrito: AWS y
+RackNerd pesaban más que cualquier cosa que viva en el servidor. Un servidor perdido se reconstruye
+en una tarde; un dominio perdido no se recupera.
+
 
 ### La estrategia de respaldo — ✅ MONTADA (2026-07-30)
 
