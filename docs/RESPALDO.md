@@ -54,36 +54,10 @@ en 1Password— y por eso una copia en la nube tendría que ir cifrada.
 
 ## Restaurar
 
-### La base
-
-```bash
-# 1. Los roles PRIMERO, o el resto falla al asignar propietarios.
-docker exec -i postgres-postgres-1 psql -U postgres < globales.sql
-
-# 2. Cada base. `-C` la crea; sin él hay que crearla a mano antes.
-docker cp dglweb.dump postgres-postgres-1:/tmp/
-docker exec postgres-postgres-1 pg_restore -U postgres -C -d postgres /tmp/dglweb.dump
-```
-
-### Los archivos — **CON `--numeric-owner`, y esto no es opcional**
-
-```bash
-tar xzf media.tgz --numeric-owner -C /srv/dglweb-datos
-```
-
-Este VPS corre Docker con `userns-remap`, así que esas carpetas pertenecen al uid **101000** —el
-`appuser` del contenedor visto desde el anfitrión— y ese uid no tiene entrada en `/etc/passwd`. Sin la
-bandera, `tar` restaura por NOMBRE de usuario, no lo encuentra, y los archivos acaban en `root`.
-
-Y si acaban en root, **los archivos vuelven pero el CMS no puede subir ni borrar ninguna imagen**. Es
-el fallo que costó una tarde el 2026-07-28, y el peor día para volver a encontrárselo es justo el día
-que uno está restaurando.
-
-### Revive
-
-Los dos volúmenes se restauran igual, en `/var/lib/docker/volumes/`. **`revive_var` importa tanto como
-las imágenes**: si falta, Revive vuelve a la pantalla de instalación con la base llena de campañas, y
-la contraseña de Postgres que guarda dentro tiene que seguir coincidiendo con la del rol.
+**El procedimiento completo está en `docs/RESTAURAR.md`**, escrito para seguirlo un mal día sin tener
+que leer antes este documento. Cubre cinco escenarios —desde recuperar una tabla borrada hasta
+levantar el VPS entero desde cero— y trae los dos errores que más caros salen: el `--numeric-owner` de
+los `tar` y el orden de `globales.sql` antes que las bases.
 
 ## La prueba trimestral
 
@@ -102,11 +76,48 @@ las tres cosas que se rompen por separado.
 |---|---|
 | — | *pendiente: la primera toca en octubre de 2026* |
 
+## La tercera copia: Backblaze B2, cifrada (2026-07-30)
+
+Cubre lo que las otras dos no: que **esta casa** desaparezca —incendio, robo— o que un ransomware
+llegue a 10.0.0.39 por otra vía y cifre también la carpeta de respaldos.
+
+```
+tras verificar el manifiesto  →  tar de la corrida  →  age  →  b2 file upload  →  b2 file info
+```
+
+**Diaria, no semanal.** La primera propuesta fue semanal mirando solo el espacio; lo que importa es
+cuánto se pierde si la casa desaparece un miércoles. Con semanales, hasta siete días de artículos —lo
+único que escribe una persona y no se reconstruye—. Con diarias, uno.
+
+**Retención: 90 días, y la ejecuta B2.** Una *lifecycle rule* del bucket
+(`daysFromUploadingToHiding: 90`), no el script. ~1,3 GB de los 10 GB gratis.
+
+### Las dos propiedades que la hacen valer
+
+**`age` es asimétrico.** En 10.0.0.39 solo vive la clave PÚBLICA (`/root/.age-dgl.pub`). Quien
+comprometa esa máquina encuentra con qué cifrar y **no puede leer nada de lo que ya está en B2**. La
+privada existe únicamente en 1Password. Con `gpg` simétrico la contraseña estaría en el disco y esa
+propiedad se pierde.
+
+**La clave de B2 no sabe borrar.** `listBuckets,listFiles,readFiles,writeFiles`, sin `deleteFiles`,
+acotada al bucket `dglweb`. Si el borrado lo hiciera el script haría falta darle ese permiso, y las
+tres copias volverían al mismo dominio de confianza — que es justo lo que esta tercera viene a romper.
+
+Tampoco puede tocar la regla de ciclo de vida: sin eso, un atacante la pondría en un día y esperaría.
+
+### Restaurar desde B2
+
+En `docs/RESTAURAR.md`, con el comando que pide la clave por el prompt sin que toque el disco ni el
+historial.
+
+**Probado el 2026-07-30**, de punta a punta: subida, descarga, descifrado con la clave de 1Password y
+listado del contenido. Eso es lo que distingue esta copia de una carpeta que crece — una copia cifrada
+que nadie ha intentado descifrar es exactamente igual de inútil que no tenerla.
+
+**La prueba trimestral incluye repetir esto**, no solo restaurar la copia local.
+
 ## Lo que este montaje NO cubre
 
-- **Una tercera copia fuera de las dos casas.** Un incendio o un robo en 10.0.0.39 deja solo el VPS.
-  Con 14 MB por corrida cabe de sobra en cualquier tier gratuito de 10 GB, **cifrada**. Queda como
-  fase aparte.
 Los ACCESOS —variables de Portainer, AWS, RackNerd, la clave SSH, GitHub, DuckDNS, Umami, X y Kuma—
 ya no faltan: están en 1Password desde el 2026-07-30. Y siguen sin ir en el respaldo a propósito: un
 volcado con credenciales dentro convierte cada copia en un problema, y las copias se multiplican.

@@ -229,9 +229,13 @@ avisar de que se murió.
 **Lo que queda:**
 
 - **La prueba de restauración trimestral.** Es lo único que demuestra que todo lo anterior sirve. La
-  primera toca en octubre de 2026; el procedimiento está escrito en `docs/RESPALDO.md`.
-- **Una tercera copia fuera de las dos casas**, cifrada. Con 14 MB por corrida cabe en cualquier tier
-  gratuito de 10 GB. Fase aparte.
+  primera toca en octubre de 2026, y ahora incluye bajar una copia de B2 y descifrarla — así se prueban
+  las tres capas de una vez. El procedimiento completo, en `docs/RESTAURAR.md`.
+- ~~Una tercera copia fuera de las dos casas~~ **HECHA (2026-07-30)**: Backblaze B2, diaria, cifrada
+  con `age` y con retención de 90 días que ejecuta B2. La clave de B2 no tiene `deleteFiles` y la
+  privada de `age` solo vive en 1Password, así que quien comprometa 10.0.0.39 no puede leerlas ni
+  destruirlas. **Probada de punta a punta el mismo día**: subida, descarga, descifrado y listado del
+  contenido. Ver `docs/RESPALDO.md`.
 
 
 ## Antes de salir a producción
