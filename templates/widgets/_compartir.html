@@ -70,7 +70,7 @@ por `window.opener`.
   </a>
 
   <a class="dgl-compartir-boton" data-red="x" rel="noopener" target="_blank"
-     href="https://twitter.com/intent/tweet?text={{ texto_url }}&url={{ url_url }}">
+     href="https://twitter.com/intent/tweet?text={{ texto_url }}&url={{ url_url }}{% if x_via %}&via={{ x_via }}{% endif %}">
     <svg class="dgl-compartir-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path fill="currentColor" d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.58-6.63 7.58H.47l8.6-9.83L0 1.15h7.59l5.25 6.93ZM17.61 20.64h2.04L6.49 3.24H4.3Z"/>
     </svg>

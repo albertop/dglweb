@@ -1445,3 +1445,7 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 .dgl-compartir-oscuro .dgl-compartir-boton:focus-visible {
   background: #fff; border-color: #fff; color: var(--dgl-navy);
 }
+
+/* El enlace a la cuenta del sitio en el pie. Icono al lado del usuario, del tamaño del texto. */
+.dgl-pie-x { display: inline-flex; align-items: center; gap: .35rem; }
+.dgl-pie-x svg { width: .95em; height: .95em; }

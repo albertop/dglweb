@@ -59,6 +59,8 @@
     cuadradito al lado, y en un sitio de fotos de peloteros esa diferencia es la mitad del clic.
   {% endcomment %}
   <meta name="twitter:card" content="summary_large_image">
+  {# `twitter:site` es lo que hace que la tarjeta atribuya el enlace a la cuenta del sitio. #}
+  {% if X_USUARIO %}<meta name="twitter:site" content="@{{ X_USUARIO }}">{% endif %}
   {% comment %}
     Las fuentes y Bootstrap los servimos NOSOTROS. Venían de fonts.googleapis.com y de jsdelivr, y
     eso tenía tres precios que no compensaban:
@@ -231,6 +233,22 @@
         </div>
         <p class="small mb-0" style="max-width:32ch">Béisbol de las Grandes Ligas, visto a través
           del lente dominicano.</p>
+        {% comment %}
+          La cuenta del sitio. Hasta el 2026-07-30 el pie solo enlazaba a la agencia, así que no había
+          ni un enlace a algo del propio sitio — quien quisiera seguirlo no tenía dónde.
+
+          Va en la columna de la marca y no en «Gestionado por»: son dos cosas distintas. Esa es quien
+          lo gestiona; esta es el sitio.
+        {% endcomment %}
+        {% if X_USUARIO %}
+          <a class="dgl-pie-x small d-inline-block mt-2" href="https://x.com/{{ X_USUARIO }}"
+             target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.58-6.63 7.58H.47l8.6-9.83L0 1.15h7.59l5.25 6.93ZM17.61 20.64h2.04L6.49 3.24H4.3Z"/>
+            </svg>
+            @{{ X_USUARIO }}
+          </a>
+        {% endif %}
       </div>
       {% comment %}
         La agencia que gestiona el sitio. El logo va de fondo en CSS y no en un `<img>` a propósito:

@@ -14,16 +14,21 @@ Las redes necesitan la dirección completa, con esquema y dominio. Si la plantil
 Y se usa el HOST DE LA PETICIÓN, igual que hacen el canonical y el Open Graph. Desde el 2026-07-29 el
 `www` redirige al apex en nginx, así que ese host solo puede ser uno.
 
-EL TEXTO NO LLEVA «vía @…»
----------------------------
-El sitio no tiene cuentas propias (decisión del dueño, 2026-07-29). Atribuir a una cuenta inexistente
-—o peor, a la de la agencia— sería meter ruido en el mensaje que escribe otra persona.
+EL «vía @…» APUNTA A LA CUENTA DEL SITIO, NUNCA A UNA PERSONA
+-------------------------------------------------------------
+Estuvo sin `via=` mientras el sitio no tenía cuenta. Se propuso poner la personal del dueño —trae
+seguidores desde el primer día— y se descartó: él no trabaja en el ambiente deportivo y no quiere su
+usuario repetido en cada tuit que comparta un lector.
+
+Con `@dglmlb` (2026-07-30) el parámetro pasa a tener sentido, porque atribuye al SITIO. Sale de
+`settings.X_USUARIO`, así que si algún día cambia la cuenta no hay que buscarlo por las plantillas.
 """
 
 from typing import Any
 from urllib.parse import quote
 
 from django import template
+from django.conf import settings
 from django.http import HttpRequest
 
 register = template.Library()
@@ -47,6 +52,8 @@ def compartir(context: dict[str, Any], url: str, titulo: str, clase: str = "") -
     return {
         "url": url,
         "titulo": titulo,
+        # Sin arroba: X la añade solo. Con ella, el tuit sale con «vía @@dglmlb».
+        "x_via": settings.X_USUARIO,
         "url_url": quote(url, safe=""),
         "texto_url": quote(titulo, safe=""),
         "clase": clase,

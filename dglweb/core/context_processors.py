@@ -57,3 +57,20 @@ def analitica(request: HttpRequest) -> dict[str, Any]:
     if not (settings.ANALITICA_URL and settings.ANALITICA_ID):
         return {"analitica": None}
     return {"analitica": {"url": settings.ANALITICA_URL, "id": settings.ANALITICA_ID}}
+
+
+def redes(request: HttpRequest) -> dict[str, Any]:
+    """`X_USUARIO`, la cuenta del sitio en X. La usan el pie y la tarjeta social, o sea todas las páginas.
+
+    Va acá y no en cada vista por lo mismo que el resto de este módulo: `base.html` lo necesita en
+    todas, y depender de que cada vista se acuerde de ponerlo es dejar el pie a medias en la que se
+    olvide.
+
+    Vacío si no está configurado, y entonces las plantillas no dibujan ni el enlace ni el
+    `twitter:site`. Eso es lo correcto: un enlace a una cuenta que no existe es peor que ningún enlace.
+    """
+    # El import va dentro, como en `analitica`: este módulo lo carga Django al construir el motor de
+    # plantillas, y a nivel de módulo tocaría los ajustes antes de que estén listos.
+    from django.conf import settings
+
+    return {"X_USUARIO": settings.X_USUARIO}

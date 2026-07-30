@@ -97,6 +97,9 @@ TEMPLATES = [
                 "dglweb.core.context_processors.paginas_legales",
                 # `analitica`, el script de Umami. Vacío en desarrollo, así que en dev no se dibuja.
                 "dglweb.core.context_processors.analitica",
+                # `X_USUARIO`, la cuenta del sitio en X: la usan el pie y el `twitter:site` de la
+                # tarjeta social, así que tampoco puede depender de cada vista.
+                "dglweb.core.context_processors.redes",
             ],
         },
     },
@@ -290,6 +293,18 @@ ANALITICA_ID = env.str("ANALITICA_ID", default="")
 # `script-src`: el anuncio va en un `iframe` y el servidor NUNCA ejecuta código en nuestras páginas.
 # Ver `docs/ADSERVER.md`.
 ADSERVER_URL = env.str("ADSERVER_URL", default="").rstrip("/")
+
+# La cuenta del sitio en X. Va como ajuste y no escrita a mano porque la usan TRES sitios —el pie, el
+# `twitter:site` de la tarjeta social y el `via=` del botón de compartir— y un usuario que cambia en
+# dos de los tres es un enlace roto que nadie mira.
+#
+# Sin barra ni arroba: cada sitio le pone lo que necesita. `@` para leerlo, `via=` sin él.
+#
+# Y es del SITIO, no del dueño (decisión del 2026-07-30). Publicar desde su cuenta personal ataría
+# esto a su nombre en cada tuit que compartiera un lector, y él no trabaja en el ambiente deportivo.
+# Los seguidores además se acumulan en el activo: si algún día entra alguien más a escribir, o el sitio
+# cambia de manos, la audiencia se queda con el sitio.
+X_USUARIO = env.str("X_USUARIO", default="dglmlb")
 
 # --- Wagtail ---
 WAGTAIL_SITE_NAME = "Dominicanos en Grandes Ligas"
