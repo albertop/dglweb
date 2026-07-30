@@ -14,6 +14,16 @@ JavaScript**. La mejora progresiva la pone `static/js/compartir.js`: en un telé
 por el menú nativo del sistema —el que ya tiene WhatsApp, Instagram y lo que la persona use— y hace
 que «Copiar enlace» copie de verdad.
 
+LOS ICONOS VAN EN SVG DENTRO DEL HTML, y por la misma razón: una tipografía de iconos —Font Awesome y
+compañía— es otra carga de un tercero, y encima obligaría a bajar cientos de glifos para usar cuatro.
+Acá son cuatro trazados, van con el HTML y no cuestan ni una petición.
+
+`fill="currentColor"` es lo que hace que el icono cambie de color solo al pasar el mouse: hereda el
+del texto, así que el CSS solo tiene que preocuparse de una cosa.
+
+`aria-hidden="true"` en los cuatro: al lado va el nombre escrito, y un lector de pantalla que anunciara
+«imagen WhatsApp, enlace WhatsApp» lo diría dos veces.
+
 WHATSAPP PRIMERO, y no es el orden de costumbre. En República Dominicana es donde se comparte deporte;
 X y Facebook van detrás porque tocan ponerlos, no porque vayan a mover el tráfico.
 
@@ -28,18 +38,41 @@ por `window.opener`.
 
   {# El botón nativo. Nace oculto y `compartir.js` lo enseña solo donde el navegador lo soporta. #}
   <button type="button" class="dgl-compartir-boton d-none" data-compartir-nativo hidden>
-    Compartir…
+    <svg class="dgl-compartir-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M18 16.08a2.9 2.9 0 0 0-1.96.77L8.91 12.7a3.3 3.3 0 0 0 0-1.4l7.05-4.11a3 3 0 1 0-.96-2.19c0 .24.03.47.08.7L8.04 9.81a3 3 0 1 0 0 4.38l7.12 4.16c-.05.21-.08.43-.08.65a2.92 2.92 0 1 0 2.92-2.92Z"/>
+    </svg>
+    <span>Compartir…</span>
   </button>
 
   <a class="dgl-compartir-boton" data-red="whatsapp" rel="noopener" target="_blank"
-     href="https://wa.me/?text={{ texto_url }}%20{{ url_url }}">WhatsApp</a>
+     href="https://wa.me/?text={{ texto_url }}%20{{ url_url }}">
+    <svg class="dgl-compartir-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.28-.1-.47-.15-.67.15s-.77.97-.94 1.16c-.18.2-.35.23-.65.08-.3-.15-1.25-.47-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.18-.3-.02-.46.13-.61.14-.13.3-.35.45-.52.14-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.66-1.61-.91-2.2-.25-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.87 1.22 3.07c.15.2 2.1 3.2 5.08 4.49.7.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.34M12.05 21.8a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26A9.88 9.88 0 0 1 12.05 2c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.82 11.82 0 0 0 12.05.1C5.5.1.16 5.44.16 12c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65A11.88 11.88 0 0 0 12.05 24c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.41"/>
+    </svg>
+    <span>WhatsApp</span>
+  </a>
 
   <a class="dgl-compartir-boton" data-red="x" rel="noopener" target="_blank"
-     href="https://twitter.com/intent/tweet?text={{ texto_url }}&url={{ url_url }}">X</a>
+     href="https://twitter.com/intent/tweet?text={{ texto_url }}&url={{ url_url }}">
+    <svg class="dgl-compartir-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.41l-5.8-7.58-6.63 7.58H.47l8.6-9.83L0 1.15h7.59l5.25 6.93ZM17.61 20.64h2.04L6.49 3.24H4.3Z"/>
+    </svg>
+    <span>X</span>
+  </a>
 
   <a class="dgl-compartir-boton" data-red="facebook" rel="noopener" target="_blank"
-     href="https://www.facebook.com/sharer/sharer.php?u={{ url_url }}">Facebook</a>
+     href="https://www.facebook.com/sharer/sharer.php?u={{ url_url }}">
+    <svg class="dgl-compartir-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M24 12.07C24 5.44 18.63.07 12 .07S0 5.44 0 12.07c0 5.99 4.39 10.95 10.13 11.86v-8.39H7.08v-3.47h3.05V9.43c0-3.01 1.79-4.67 4.53-4.67 1.31 0 2.69.24 2.69.24v2.95h-1.51c-1.5 0-1.96.93-1.96 1.87v2.25h3.33l-.53 3.47h-2.8v8.39C19.61 23.02 24 18.06 24 12.07"/>
+    </svg>
+    <span>Facebook</span>
+  </a>
 
   {# Sin JavaScript es un enlace al propio artículo: no copia, pero tampoco miente ni queda muerto. #}
-  <a class="dgl-compartir-boton" data-copiar href="{{ url }}">Copiar enlace</a>
+  <a class="dgl-compartir-boton" data-copiar href="{{ url }}">
+    <svg class="dgl-compartir-icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M3.9 12a5.1 5.1 0 0 1 5.1-5.1h3v1.93H9a3.17 3.17 0 0 0 0 6.34h3V17H9A5.1 5.1 0 0 1 3.9 12m4.1-1h8v2H8Zm7-4.1h-3v1.93h3a3.17 3.17 0 1 1 0 6.34h-3V17h3a5.1 5.1 0 0 0 0-10.1"/>
+    </svg>
+    <span>Copiar enlace</span>
+  </a>
 </div>

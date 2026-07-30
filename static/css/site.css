@@ -1410,7 +1410,7 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 /* Botones de contorno y no macizos: son una acción secundaria. Un artículo tiene UNA acción
    principal —leerlo— y cuatro botones de color pleno debajo del texto compiten con ella. */
 .dgl-compartir-boton {
-  display: inline-block; padding: .3rem .7rem; border: 1px solid var(--dgl-line, #dfe3e9);
+  display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .7rem; border: 1px solid var(--dgl-line, #dfe3e9);
   border-radius: 999px; background: #fff; color: var(--dgl-navy); text-decoration: none;
   font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .78rem; line-height: 1.4;
   cursor: pointer; transition: background-color .12s, border-color .12s;
@@ -1422,3 +1422,21 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
    titular que tiene encima. */
 .dgl-compartir-fino .dgl-compartir-boton { padding: .15rem .55rem; font-size: .72rem; }
 .dgl-compartir-fino .dgl-compartir-etiqueta { font-size: .65rem; }
+
+/* El icono. `em` y no `px`: así sigue al tamaño del texto del botón, y la variante fina de la cabecera
+   se encoge sola sin necesitar su propia regla.
+
+   `flex-shrink: 0` porque el botón es flexible: sin esto, un nombre largo aplastaría el icono en vez
+   de dejar que el botón crezca. */
+.dgl-compartir-icono { width: 1em; height: 1em; flex-shrink: 0; }
+
+/* En la fila fina de la cabecera se ve SOLO EL ICONO: va bajo la firma, y cuatro nombres escritos ahí
+   pesarían más que el titular que tienen encima. El nombre sigue en el HTML —lo lee un lector de
+   pantalla y lo encuentra una búsqueda en la página— pero no se dibuja.
+
+   Y el icono crece un poco al quedarse solo: a .72rem de texto sería un cuadradito de 11px,
+   demasiado chico para acertarle con el dedo. */
+.dgl-compartir-fino .dgl-compartir-boton > span { position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.dgl-compartir-fino .dgl-compartir-boton { padding: .35rem .5rem; }
+.dgl-compartir-fino .dgl-compartir-icono { width: 1.15rem; height: 1.15rem; }
