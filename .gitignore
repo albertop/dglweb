@@ -41,3 +41,5 @@ media/*
 # El corredor de pruebas del JavaScript. `package.json` y `package-lock.json` SÍ se versionan —el
 # lock es lo que hace reproducible la corrida del CI— pero las dependencias descargadas no.
 node_modules/
+# El store de pnpm: binarios SQLite de una caché local, nunca del repositorio.
+.pnpm-store/
