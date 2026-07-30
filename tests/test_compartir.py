@@ -154,42 +154,69 @@ class _Carrera:
 
 
 class _Jugador:
-    def __init__(self, nombre: str) -> None:
+    """Lo mínimo que miran las dos funciones. `pos` y `debut_date` los usa `descripcion_social`."""
+
+    def __init__(self, nombre: str, pos: str = "P") -> None:
         self.full_name = nombre
+        self.pos = pos
+        self.debut_date = None
 
 
-def test_el_texto_del_perfil_lleva_la_cifra_que_define_al_pelotero() -> None:
+def test_el_texto_del_perfil_es_solo_el_nombre() -> None:
+    """Llevó la cifra de carrera y el dueño la quitó (2026-07-30), con razón.
+
+    La cifra se elegía por una regla fija —ponches si es lanzador, jonrones si no— y no por lo que
+    define a ESE pelotero: a un relevista lo resumía por un total de carrera que no dice nada, y a un
+    joven por una cifra pequeña que parece un desaire. Un número mal elegido resta más de lo que suma
+    un número cualquiera.
+    """
     from dglweb.profiles.views import texto_compartir
 
-    texto = texto_compartir(_Jugador("Juan Soto"), _Carrera(hr=245, h=1200), None)  # type: ignore[arg-type]
+    texto = texto_compartir(_Jugador("Bryan Abreu"), None, _Carrera(so=495))  # type: ignore[arg-type]
 
-    assert texto.startswith("Juan Soto")
-    assert "245" in texto, "sin el número, el enlace no invita a nada"
+    assert texto == "Bryan Abreu"
+    assert "495" not in texto
+    assert "ponches" not in texto
+
+
+def test_la_tarjeta_social_si_sigue_llevando_datos() -> None:
+    """Lo que se quitó fue el TEXTO del mensaje, no la descripción de la tarjeta.
+
+    Son cosas distintas y conviene que no se confundan: el mensaje lo escribe una persona en su chat
+    y ahí un dato suelto estorba; la tarjeta la dibuja la red debajo del enlace, y ahí sí ayuda.
+    """
+    from dglweb.profiles.views import descripcion_social
+
+    frase = descripcion_social(_Jugador("Bryan Abreu"), None, _Carrera(so=495))  # type: ignore[arg-type]
+
+    assert "495" in frase
+    assert "ponches" in frase
 
 
 def test_a_un_lanzador_lo_define_el_ponche_y_no_el_jonron() -> None:
-    """Un lanzador con jonrones PERMITIDOS no puede salir presumiendo de ellos."""
-    from dglweb.profiles.views import texto_compartir
+    """Un lanzador con jonrones PERMITIDOS no puede salir presumiendo de ellos.
 
-    texto = texto_compartir(
-        _Jugador("Cristian Javier"),  # type: ignore[arg-type]
-        _Carrera(hr=2),  # type: ignore[arg-type]
-        _Carrera(so=980),  # type: ignore[arg-type]
-    )
+    Ya no se usa para compartir —el dueño quitó la cifra del mensaje— pero sí para la descripción de
+    la tarjeta social y para Google, así que la regla sigue importando.
+    """
 
-    assert "980 ponches" in texto
-    assert "jonrones" not in texto
+    from dglweb.profiles.views import cifra_que_lo_define
+
+    cifra = cifra_que_lo_define(_Carrera(hr=2), _Carrera(so=980))  # type: ignore[arg-type]
+
+    assert "980 ponches" in cifra
+    assert "jonrones" not in cifra
 
 
-def test_sin_datos_se_queda_solo_el_nombre_y_no_un_cero() -> None:
+def test_sin_datos_la_descripcion_no_escribe_un_cero() -> None:
     """«Fulano — 0 jonrones de por vida» es peor que no decir nada.
 
     Pasa de verdad: hay peloteros en el maestro que debutaron y no acumularon nada, y peloteros de
     `dom_players` que aún no llegaron a las mayores.
     """
-    from dglweb.profiles.views import texto_compartir
+    from dglweb.profiles.views import cifra_que_lo_define
 
-    assert texto_compartir(_Jugador("Recién Llegado"), _Carrera(), _Carrera()) == "Recién Llegado"  # type: ignore[arg-type]
+    assert cifra_que_lo_define(_Carrera(), _Carrera()) == ""  # type: ignore[arg-type]
 
 
 def test_el_texto_del_perfil_no_arrastra_la_cola_de_seo() -> None:

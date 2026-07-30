@@ -38,6 +38,23 @@
   <meta property="og:description" content="{% block og_descripcion %}Béisbol de las Grandes Ligas, visto a través del lente dominicano.{% endblock %}">
   <meta property="og:image" content="{% block og_imagen %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-default.png' %}{% endblock %}">
   {% comment %}
+    EL TAMAÑO DECLARADO, y no es opcional aunque lo parezca.
+
+    WhatsApp y Facebook **no se descargan la imagen para medirla** cuando arman la vista previa: si el
+    tamaño no viene escrito, muchas veces la descartan y dibujan la tarjeta sin foto. Es exactamente lo
+    que pasaba — comprobado el 2026-07-30 pidiendo la página con el user-agent de WhatsApp: las
+    etiquetas llegaban bien, la imagen respondía 200 y medía 1200×630, y la vista previa salía pelada.
+
+    Los valores son fijos porque las dos imágenes que usa el sitio miden lo mismo: la genérica es
+    1200×630 y la del artículo se recorta a `fill-1200x630`. Si algún día se pone otra de otra medida,
+    hay que sobrescribir estos dos bloques con ella — declarar un tamaño falso es peor que no
+    declararlo.
+  {% endcomment %}
+  <meta property="og:image:width" content="{% block og_imagen_ancho %}1200{% endblock %}">
+  <meta property="og:image:height" content="{% block og_imagen_alto %}630{% endblock %}">
+  {# `og:image:alt` describe la imagen para quien no la ve; las redes lo usan tal cual. #}
+  <meta property="og:image:alt" content="{% block og_imagen_alt %}Dominicanos en Grandes Ligas{% endblock %}">
+  {% comment %}
     `summary_large_image` y no `summary`: la tarjeta grande usa la imagen a lo ancho en vez de un
     cuadradito al lado, y en un sitio de fotos de peloteros esa diferencia es la mitad del clic.
   {% endcomment %}

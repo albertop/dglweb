@@ -154,16 +154,21 @@ def cifra_que_lo_define(bateo: BattingCareer | None, pitcheo: PitchingCareer | N
 
 
 def texto_compartir(player: Player, bateo: BattingCareer | None, pitcheo: PitchingCareer | None) -> str:
-    """Lo que se escribe en el mensaje al compartir el perfil.
+    """Lo que se escribe en el mensaje al compartir el perfil: SOLO EL NOMBRE.
 
-    NO es `descripcion_social`, y la diferencia importa. Aquella es una frase larga para Google, con
-    cola de SEO —«Estadísticas completas de su carrera»— que en un WhatsApp sobra y estorba.
+    Llevaba la cifra de `cifra_que_lo_define()` —«Bryan Abreu — 495 ponches de por vida»— con el
+    argumento de que un enlace con un número se abre y uno genérico se ignora. El dueño lo quitó el
+    2026-07-30, y tenía razón: **esa cifra se elige por una regla fija y no por lo que define a ese
+    pelotero en concreto.** A un relevista se le acaba resumiendo por un total de carrera que a nadie
+    le dice nada, y a un joven por una cifra pequeña que parece un desaire.
 
-    Acá va corto y CON UN NÚMERO: «Juan Soto — 245 jonrones de por vida». Un enlace con una cifra se
-    abre; uno que solo dice el nombre del sitio se ignora. Es lo que decide si esto sirve de algo.
+    Un número mal elegido resta más de lo que suma un número cualquiera.
+
+    La firma se queda con `bateo` y `pitcheo` aunque no los use: la tarjeta social de la página SÍ
+    lleva datos (`descripcion_social`), y el día que se quiera una frase mejor —la temporada en curso,
+    por ejemplo— es acá donde va, con lo que hace falta ya a mano.
     """
-    cifra = cifra_que_lo_define(bateo, pitcheo)
-    return f"{player.full_name} — {cifra}" if cifra else player.full_name
+    return player.full_name
 
 
 def _latest_full_season() -> int | None:
