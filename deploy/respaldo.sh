@@ -129,7 +129,10 @@ if [ "$TABLAS" -lt 50 ]; then
 fi
 
 # ── 4. Publicar de una sola vez ─────────────────────────────────────────────────────────────────
-( cd "$TRABAJO" && sha256sum ./* > MANIFIESTO )
+# SE LISTAN LAS EXTENSIONES Y NO `*`, y no es estilo: bash prepara la redirección ANTES de expandir el
+# comodín, así que `MANIFIESTO` ya existe —vacío— cuando el `*` se evalúa. Se incluiría a sí mismo con
+# el hash de un archivo vacío, y el `sha256sum -c` del otro lado fallaría SIEMPRE.
+( cd "$TRABAJO" && sha256sum -- *.dump *.sql *.tgz > MANIFIESTO )
 mv "$TRABAJO" "$DESTINO/$FECHA"
 
 # ── 5. Podar ────────────────────────────────────────────────────────────────────────────────────
