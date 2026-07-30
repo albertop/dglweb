@@ -168,8 +168,17 @@ responde 429 barato, así que banear ahorra poco. Se vuelve peligrosa justo el d
 - **Mirar unos días qué caza antes de confiar en ella.** Es el modo aviso que se planteó desde el
   principio: `fail2ban-client status nginx-404-scan` y comprobar que las IP acumuladas son escáneres y
   no lectores.
-- **Los otros dos sitios del VPS** (`sabertables`, `sixdegrees`) tienen el mismo defecto heredado y el
-  mismo arreglo de una línea. Son webs del dueño ajenas a este repositorio, así que va por separado.
+- ~~Los otros dos sitios del VPS~~ **RESUELTO EN EL MISMO PASO.** No hacía falta arreglarlos: el
+  servidor sirve seis dominios y **ninguno declara `access_log` propio**, así que todos escriben en
+  `/var/log/nginx/access.log` — el que leen estas jails. Las cuatro genéricas cubren los tres sitios.
+
+  Sus dos jails específicas se **borraron**: apuntaban a `/opt/sabertables/…` y `/opt/sixdegrees/…`,
+  directorios que ya no existen porque ambos corren en contenedores. Que el `logpath` estuviera roto no
+  se veía porque el `backend` roto lo tapaba —con `systemd`, fail2ban ni intenta abrir el archivo—, así
+  que arreglar solo el backend habría destapado el otro fallo en el peor momento.
+
+  Efecto secundario aceptado a conciencia: esas dos webs tenían `maxretry = 20` y quedan bajo el 5 de
+  `nginx-404-scan`. El dueño confirmó que ninguna produce 404 en uso normal.
 
 ### El plan original de fail2ban (2026-07-29)
 

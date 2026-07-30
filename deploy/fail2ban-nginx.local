@@ -27,8 +27,28 @@
 # NO se toca el `[DEFAULT]` global: `sshd` sí escribe al journal y funciona. Un `[DEFAULT]` acá se
 # aplicaría a TODAS las jails, incluida esa, y rompería lo único que sí protegía.
 #
-# Los otros dos sitios del servidor (`sabertables`, `sixdegrees`) tienen sus propios `.local` con el
-# mismo defecto heredado y el mismo arreglo de una línea.
+#
+# ESTAS CUATRO JAILS PROTEGEN LOS TRES SITIOS DEL VPS, NO SOLO ESTE
+# ------------------------------------------------------------------
+# El servidor sirve seis dominios —`dominicanosengrandesligas.com`, `promo.`, `sabertables.com`,
+# `baseballsixdegrees.com`, `docker.prdm0.com` y `pgadmin.prdm0.com`— y **ninguno declara `access_log`
+# propio**: todos escriben en `/var/log/nginx/access.log`, que es el que leen estas jails. Comprobado
+# con `nginx -T`, que vuelca la configuración efectiva y no la que uno cree que hay.
+#
+# Por eso se BORRARON `sabertables-404-scan.local` y `sixdegrees-404-scan.local` (2026-07-30) en vez de
+# arreglarlas: apuntaban a `/opt/sabertables/…` y `/opt/sixdegrees/…`, **directorios que ya no
+# existen** —los dos sitios corren en contenedores desde entonces— y además eran redundantes.
+#
+# Que el `logpath` estuviera roto no se veía porque el `backend` roto lo tapaba: con `systemd`
+# fail2ban ni intenta abrir el archivo, así que nunca reportó el error. Dos fallos escondiéndose uno a
+# otro — arreglar solo el backend habría destapado el otro en el peor momento.
+#
+# CONSECUENCIA A TENER PRESENTE: esas dos webs tenían `maxretry = 20` y ahora quedan bajo el 5 de
+# `nginx-404-scan`, cuatro veces más estricto. Se aceptó a conciencia — el dueño confirmó que ninguna
+# de las dos produce 404 en uso normal. Si alguna empieza a hacerlo, sube el 5 antes que nada.
+#
+# Y un baneo es de cortafuegos, o sea POR IP: quien escanee sabertables queda fuera de los tres sitios.
+# Es lo deseable, pero conviene saberlo antes de que sorprenda.
 
 [nginx-botsearch]
 enabled = true
