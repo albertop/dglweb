@@ -48,6 +48,11 @@ from dglweb.articles.blocks import CuerpoStreamBlock
 # ya lo compensa.
 PALABRAS_POR_MINUTO = 200
 
+# A partir de qué proporción una imagen deja de ser una foto y pasa a ser una banda decorativa. Las
+# que genera `static_data/scripts/hacer_banners.py` son 8,6:1 y 4,9:1; una fotografía de prensa va
+# entre 1:1 y 2:1, y un panorámico de 21:9 se queda en 2,3:1. Ver `ArticlePage.imagen_es_banda`.
+PROPORCION_DE_BANDA = 3.0
+
 # El reparto del índice, en el orden en que se leen. La suma —seis— es lo que se ve al abrir.
 #
 # Vive acá y no en la plantilla porque son cortes de una lista, y hacerlos con `forloop.counter` en el
@@ -385,6 +390,35 @@ class ArticlePage(Page):
     class Meta:
         verbose_name = "artículo"
         verbose_name_plural = "artículos"
+
+    @property
+    def imagen_es_banda(self) -> bool:
+        """¿La imagen es una banda de relleno y no una fotografía?
+
+        POR QUÉ HACE FALTA DISTINGUIRLAS
+        ---------------------------------
+        `static_data/scripts/hacer_banners.py` genera dos bandas —`banner-ancho` de 2400x280 y
+        `banner-chico` de 1280x260— para que un artículo SIN foto no salga con una tarjeta de puro
+        texto. Ahí cumplen: se recortan a la franja de la tarjeta y se ven como parte del diseño.
+
+        Pero `imagen` alimenta también la cabecera del artículo, y ahí la misma banda se pinta a ancho
+        completo con pie de foto — **y parece un anuncio**. Se vio en el artículo de Virgil: entre los
+        botones de compartir y la foto de verdad aparecía un rectángulo azul con el escudo y la
+        palabra «banner-ancho» debajo.
+
+        POR QUÉ POR PROPORCIÓN Y NO POR NOMBRE NI POR COLECCIÓN
+        --------------------------------------------------------
+        Por nombre sería frágil: basta que alguien renombre la imagen al subirla. Por colección
+        obligaría a una disciplina que hoy no existe —las 20 imágenes de la biblioteca están en
+        `Root`— y que se rompe el primer día que alguien sube una con prisa.
+
+        La proporción es lo que de verdad las separa, y no se puede olvidar: una banda decorativa es
+        **8,6:1 y 4,9:1**; una fotografía de prensa va entre 1:1 y 2:1, y hasta un panorámico de 21:9
+        se queda en 2,3:1. Nada por encima de 3:1 es una foto.
+        """
+        if not self.imagen or not self.imagen.height:
+            return False
+        return self.imagen.width / self.imagen.height >= PROPORCION_DE_BANDA
 
     @property
     def minutos(self) -> int:

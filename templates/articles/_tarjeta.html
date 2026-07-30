@@ -34,10 +34,22 @@ imagen que no cargó.
     {% if articulo.categoria %}<div class="dgl-kicker">{{ articulo.categoria }}</div>{% endif %}
     <h3><a href="{{ articulo.url }}">{{ articulo.title }}</a></h3>
     {% comment %}
-      La entradilla completa solo en el destacado. En la retícula se recorta: cuatro tarjetas con
-      párrafos de distinto largo dejan los pies a alturas distintas y la fila se ve rota.
+      LA ENTRADILLA VA ENTERA, y el recorte lo hace el CSS.
+
+      Acá había un `truncatechars:110` que cortaba con puntos suspensivos aunque quedara sitio de
+      sobra debajo — se veía en la portada: dos líneas, el «…», y un hueco vacío hasta el pie. El
+      argumento escrito era que párrafos de distinto largo dejarían los pies a alturas distintas, y
+      es falso: la tarjeta tiene alto fijo y `.pie` lleva `margin-top: auto`, así que el pie se pega
+      abajo pase lo que pase.
+
+      Eran DOS recortes sobre el mismo texto, y este contaba caracteres sin saber cuántos caben. El
+      del CSS cuenta LÍNEAS, que es lo que de verdad ocupa espacio: 110 caracteres son dos líneas
+      largas o casi tres cortas, y con un `line-clamp` el límite se ajusta solo a lo que hay.
+
+      El límite real es del publisher: `max_length=400` en el modelo. Si una entradilla se corta,
+      hay que acortarla en el CMS — no que la plantilla decida por él.
     {% endcomment %}
-    <p class="entradilla">{% if destacado %}{{ articulo.entradilla }}{% else %}{{ articulo.entradilla|truncatechars:110 }}{% endif %}</p>
+    <p class="entradilla">{{ articulo.entradilla }}</p>
     <div class="pie">
       {% if articulo.hashtags.all %}
         <div class="dgl-art-tags">

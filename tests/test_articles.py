@@ -1140,3 +1140,38 @@ def test_en_la_portada_el_grande_es_uno_solo(indice: ArticleIndexPage, client: C
     html = client.get("/").content.decode()
 
     assert html.count('class="dgl-art dgl-art-destacado"') == 1
+
+
+# ── La banda de relleno no es una foto de portada (2026-07-30) ──────────────────────────────────
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("caso", "ancho", "alto", "es_banda"),
+    [
+        ("banner-ancho, la generada para el destacado", 2400, 280, True),
+        ("banner-chico, la de la retícula", 1280, 260, True),
+        ("una foto apaisada normal", 1200, 800, False),
+        ("un retrato", 800, 1200, False),
+        ("un panorámico 21:9, que sigue siendo foto", 2560, 1097, False),
+        ("justo en el corte", 900, 300, True),
+    ],
+)
+def test_una_banda_se_distingue_de_una_foto(caso: str, ancho: int, alto: int, es_banda: bool) -> None:
+    """POR PROPORCIÓN Y NO POR NOMBRE, que es lo que hace que no haya que mantener una lista.
+
+    Por nombre sería frágil —basta renombrar la imagen al subirla— y por colección obligaría a una
+    disciplina que hoy no existe: las 20 imágenes de la biblioteca están en `Root`.
+
+    El panorámico está en la lista a propósito: es el caso que un corte demasiado bajo rompería,
+    dejando sin foto de portada a un artículo que sí la tiene.
+    """
+    from dglweb.articles.models import PROPORCION_DE_BANDA
+
+    assert (ancho / alto >= PROPORCION_DE_BANDA) is es_banda, caso
+
+
+def test_sin_imagen_no_es_banda() -> None:
+    """Un artículo sin imagen no puede dar `True`: la cabecera ya no la dibuja, pero la propiedad se
+    usará en más sitios y devolver «es una banda» cuando no hay nada es una respuesta falsa."""
+    assert ArticlePage(imagen=None).imagen_es_banda is False

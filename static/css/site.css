@@ -978,11 +978,28 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 .dgl-art h3 a { color: var(--dgl-ink); }
 .dgl-art h3 a:hover { color: var(--dgl-blue); text-decoration: none; }
-/* La entradilla en serif, como el cuerpo del artículo: adelanta cómo se va a leer adentro. */
+/* La entradilla en serif, como el cuerpo del artículo: adelanta cómo se va a leer adentro.
+
+   TRES LÍNEAS, y eran dos hasta el 2026-07-30. Las subió el dueño por lo mismo que había subido las
+   del titular dos días antes: vio una entradilla cortada con puntos suspensivos teniendo la tarjeta
+   medio vacía debajo.
+
+   Había DOS recortes sobre el mismo texto y el otro se quitó — la plantilla llevaba un
+   `truncatechars:110` que contaba CARACTERES sin saber cuántos caben. Este cuenta LÍNEAS, que es lo
+   que de verdad ocupa alto: 110 caracteres son dos líneas largas o casi tres cortas, y con el clamp
+   el límite se ajusta solo al ancho que haya.
+
+   Por qué 3 y no 4: la tarjeta mide 300px fijos. Descontando la banda (65), los rellenos, el
+   antetítulo, el titular de hasta tres líneas y el pie, quedan 69,5px con etiquetas y 94,5 sin
+   ellas — o sea 3,2 y 4,4 líneas de 21,6px. El peor caso manda, y con tres entra por unos 5px.
+
+   `flex-shrink: 0` sigue haciendo falta: `.pie` lleva `margin-top: auto` y cuando el contenido no
+   deja hueco el flex se cobra la diferencia ENCOGIENDO a sus hermanos, dejando la última línea
+   cortada por la mitad. No es el clamp fallando, es el flex apretando. */
 .dgl-art .entradilla {
   font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
   font-size: .9rem; line-height: 1.5; color: #4b5563; margin-bottom: .6rem;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
   overflow: hidden; flex-shrink: 0;
 }
 /* La meta pegada abajo, para que las tarjetas de una fila la alineen aunque los títulos midan

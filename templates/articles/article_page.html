@@ -76,7 +76,19 @@ de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde c
       {% compartir page.url page.title "dgl-compartir-fino mt-3" que="este artículo" %}
     </header>
 
-    {% if page.imagen %}
+    {% comment %}
+      LA BANDA DE RELLENO NO SE PINTA ACÁ, y esa es la única condición nueva.
+
+      `imagen` alimenta la tarjeta Y esta cabecera. Cuando el artículo no tiene foto, el editor le
+      pone una de las bandas generadas —`banner-ancho`, `banner-chico`—, que en la tarjeta se recortan
+      a su franja y se ven como parte del diseño.
+
+      Pintadas acá a ancho completo y con pie de foto, en cambio, **parecen un anuncio**: un
+      rectángulo azul con el escudo entre los botones de compartir y la foto de verdad del cuerpo.
+
+      Se distinguen por PROPORCIÓN y no por nombre — ver `ArticlePage.imagen_es_banda`.
+    {% endcomment %}
+    {% if page.imagen and not page.imagen_es_banda %}
       <figure class="dgl-articulo-foto mb-4">
         {% image page.imagen width-1200 alt=page.imagen.title %}
         {% if page.imagen.title %}<figcaption class="dgl-meta mt-2">{{ page.imagen.title }}</figcaption>{% endif %}
