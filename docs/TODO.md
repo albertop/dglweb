@@ -209,27 +209,25 @@ registrador del dominio y el proveedor del VPS pesan más que cualquier cosa que
 
 Mientras eso no esté hecho, el plan de recuperación tiene un agujero que ningún respaldo tapa.
 
-### La estrategia de respaldo, entera
+### La estrategia de respaldo — ✅ MONTADA (2026-07-30)
 
-Hoy existe `deploy/respaldo.sh` y **corre a mano**. Lo que falta son las tres cosas que convierten un
-script en una estrategia:
+Dos procesos que no se coordinan: `respaldo.sh` genera y publica en el VPS a las 5:30;
+`traer_respaldos.sh` corre en 10.0.0.39 a las 7:00, trae lo nuevo, **verifica el manifiesto** y rota
+(14 diarias + 8 semanales). Unos 14 MB por corrida. Todo en `docs/RESPALDO.md`.
 
-1. **Colgarlo del cron.** Un respaldo que depende de que alguien se acuerde no es un respaldo.
-2. **Sacarlo del VPS.** Escribe en `/srv/respaldos`, o sea en el mismo disco que protege. Eso cubre el
-   error humano —borrar una tabla— y no cubre nada de lo que de verdad se teme: que el servidor se
-   pierda. Y como Postgres ahora lo comparten dglweb y Revive, en el mismo golpe se irían las
-   campañas y las creatividades que subió Adcio.
-3. **PROBAR UNA RESTAURACIÓN COMPLETA.** Es el punto que más se salta y el único que demuestra algo.
-   Un respaldo que nunca se restauró es una suposición, y se descubre falsa el peor día posible. Hay
-   que levantar la base en otro sitio desde el volcado y comprobar que el sitio arranca contra ella.
+Las tres decisiones que lo sostienen, por si alguien las quiere «simplificar»: **la casa va a buscar y
+el VPS no empuja** —con push, quien comprometa el VPS borra los respaldos antes de cifrar nada—; **la
+clave SSH no abre sesión** (`command="rrsync -ro …"`, comprobado pidiéndole una sesión a propósito); y
+**el aviso es por AUSENCIA**, un monitor Push de Kuma a 48 h, porque un script que se muere no puede
+avisar de que se murió.
 
-**Y hay algo que ya no está en el respaldo y debería**: las 41 zonas de Revive y sus enlaces con las
-creatividades se crearon con SQL directo sobre la base `revive`. El SQL está en el historial de git
-—los commits de las zonas— pero los banners subidos viven en el volumen `revive_images`, y eso no lo
-respalda nadie. Una creatividad que un cliente mandó por correo hace ocho meses no se puede
-reconstruir.
+**Lo que queda:**
 
----
+- **La prueba de restauración trimestral.** Es lo único que demuestra que todo lo anterior sirve. La
+  primera toca en octubre de 2026; el procedimiento está escrito en `docs/RESPALDO.md`.
+- **Una tercera copia fuera de las dos casas**, cifrada. Con 14 MB por corrida cabe en cualquier tier
+  gratuito de 10 GB. Fase aparte.
+
 
 ## Antes de salir a producción
 
