@@ -121,4 +121,7 @@ ultima=$(ls -1d 20*/ 2>/dev/null | sort -r | head -1 | tr -d /)
 total=$(du -sh "$DESTINO" | cut -f1)
 echo "$(date '+%F %T')  ok  nuevas=$nuevas  ultima=$ultima  copias=$(ls -1d 20*/ | wc -l)  total=$total"
 
-[ -n "$PUSH_KUMA" ] && curl -fsS -m 15 "$PUSH_KUMA&msg=ok&ping=$nuevas" -o /dev/null || true
+# Se recorta lo que venga despues de `?`: Kuma enseña la URL de ejemplo CON parametros ya puestos
+# (`?status=up&msg=OK&ping=`), y pegarla tal cual duplicaria `msg`. Asi funciona con la URL pelada y
+# con la de ejemplo, que es la que uno copia sin mirar.
+[ -n "$PUSH_KUMA" ] && curl -fsS -m 15 "${PUSH_KUMA%%?*}?status=up&msg=nuevas-$nuevas" -o /dev/null || true
