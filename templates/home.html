@@ -56,9 +56,14 @@
     —el hueco que el dueño señaló como «horrible»—. Y no se arreglaba estirando el anuncio: eso
     convertía el hueco en un 300×300 que no es un formato vendible.
 
-    Medido: la fila del destacado son 324px y la de «Últimos artículos» con su título 336. **Las dos
-    juntas, 660.** Un 300×600 no cabe en una —sobresaldría 276px— pero cabe en las dos con 60 de
-    sobra. Así que el formato pide la maquetación: un carril lateral, como en cualquier revista.
+    Medido: la fila del destacado son 324px y la de las dos tarjetas 316. **Las dos juntas, 664.** Un
+    300×600 no cabe en una —sobresaldría 276px— pero cabe en las dos con sitio de sobra. Así que el
+    formato pide la maquetación: un carril lateral, como en cualquier revista.
+
+    Vuelto a medir el 2026-07-31 a 1400px, después de quitar el título «Últimos artículos»: la fila
+    sigue en 664 y la columna del carril en 640, o sea 40 de aire alrededor del anuncio en vez de los
+    60 de antes. El margen se estrechó y el 300×600 sigue entrando; si algún día se le quita algo más
+    a este bloque, esto es lo primero que hay que volver a medir.
 
     Lo que se gana además de cerrar el hueco: **el 300×600 (media página) se vende más caro que dos
     300×250**, y ahora el carril acompaña al lector durante todo el bloque editorial en vez de
@@ -74,12 +79,18 @@
       {% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}
 
       {% if articulos %}
-        <h2 class="dgl-section-title mt-4">Últimos artículos</h2>
         {% comment %}
+          SIN TÍTULO DE SECCIÓN, por decisión del dueño (2026-07-31). Decía «Últimos artículos» encima
+          de dos tarjetas de artículo, debajo de otra tarjeta de artículo, en la portada de un sitio
+          de artículos: no le decía nada a nadie que la propia cuadrícula no dijera ya.
+
+          El `mt-4` que traía el título pasa a la fila, porque ese aire sí hacía falta: separa el
+          destacado de las dos tarjetas y sin él se leen como un solo bloque de tres.
+
           Dos artículos y no tres: el carril se queda con 324px del contenedor, así que acá entran dos
           celdas de ~300px justas. Con tres, el último caería solo en una segunda fila.
         {% endcomment %}
-        <div class="row g-3">
+        <div class="row g-3 mt-4">
           {% for otro in articulos %}
             <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
           {% endfor %}
@@ -89,8 +100,8 @@
 
     {% comment %}
       CENTRADO VERTICAL, para que el carril quede entre los mismos márgenes que el bloque de
-      artículos. La columna se estira a lo que mida la fila —660px medidos— y el anuncio son 600
-      exactos, así que sobran 60: repartidos, quedan 30 arriba y 30 abajo.
+      artículos. La columna se estira a lo que mida la fila —640px medidos— y el anuncio son 600
+      exactos, así que sobran 40: repartidos, quedan 20 arriba y 20 abajo.
 
       `d-flex align-items-center` y no `align-self-center`: lo segundo centraría la COLUMNA dentro de
       la fila y la columna mide lo mismo que el anuncio, así que no haría nada. Lo que hay que centrar
