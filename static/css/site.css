@@ -1085,26 +1085,32 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   font-size: 1.08rem; line-height: 1.7; color: var(--dgl-ink);
 }
 .dgl-bloque-parrafo p { margin-bottom: 1.1rem; }
-/* LOS ENLACES DEL CUERPO NO VAN SUBRAYADOS (decisión del dueño, 2026-07-30).
-   Acá había un `text-decoration: underline` que anulaba el del resto del sitio, y en un párrafo con
-   cuatro nombres seguidos —«Tatis en primera, Castillo en segunda…»— el subrayado troceaba la frase.
+/* LOS ENLACES DEL CUERPO NO VAN SUBRAYADOS — NI EN REPOSO NI AL PASAR EL RATÓN.
+   Decisión del dueño (2026-07-30). Acá había un `text-decoration: underline` propio, y además está el
+   `a:hover` global del sitio, así que hay que anular los dos. En un párrafo con cuatro nombres
+   seguidos —«Tatis en primera, Castillo en segunda…»— el subrayado troceaba la frase.
 
-   PERO SIN SUBRAYADO EL COLOR ES LO ÚNICO QUE DISTINGUE UN ENLACE, y el de marca no daba.
-   Medido: `--dgl-blue` (#1f4e9b) contra el texto del cuerpo (#1a1d21) es **2,11:1**, y la referencia
-   para separar un enlace de la prosa solo por color es 3:1. En un azul oscuro sobre casi negro eso no
-   es un tecnicismo: se pierden de vista.
+   SIN SUBRAYADO, EL COLOR ES LO ÚNICO QUE DISTINGUE UN ENLACE, y el de marca no daba. Medido:
 
-   Así que el azul se aclara SOLO ACÁ, sin tocar el de marca del resto del sitio:
+       #1f4e9b   2,11:1 contra el texto del cuerpo   ← el de marca, no llega
+       #2a6fd4   3,48:1                              ← este
+       referencia para separar un enlace de la prosa solo por color: 3:1
 
-       #1f4e9b   2,11:1 contra el texto   8,01:1 contra el fondo   ← el de marca, no llega
-       #2a6fd4   3,48:1                   4,86:1                   ← este
+   Un azul oscuro sobre casi negro no es un tecnicismo de accesibilidad: se pierde de vista. Y con la
+   idea de enlazar las fichas de jugador desde los artículos, un enlace que no se ve es un enlace que
+   no se pulsa. Se aclara SOLO acá; el azul de marca del resto del sitio no se toca. Mismo tono —217°
+   contra 213°— con la luminosidad que hace falta.
 
-   Sigue siendo el mismo tono —217° contra 213°— así que no rompe la paleta; solo tiene la luminosidad
-   que hace falta para verse dentro de un párrafo.
+   LO QUE SUSTITUYE AL SUBRAYADO en cada caso:
 
-   El subrayado al pasar el ratón lo sigue poniendo el `a:hover` global, así que la señal secundaria no
-   se pierde. */
-.dgl-bloque-parrafo a { color: #2a6fd4; }
+       ratón     el color cambia al azul de marca — visible, y no trocea la línea
+       teclado   un recuadro de foco, que no es un subrayado
+
+   El del teclado no es opcional: quien navega con Tab no dispara ningún `hover`, así que sin él se
+   queda sin saber dónde está. */
+.dgl-bloque-parrafo a { color: #2a6fd4; text-decoration: none; }
+.dgl-bloque-parrafo a:hover { color: var(--dgl-blue); text-decoration: none; }
+.dgl-bloque-parrafo a:focus-visible { outline: 2px solid var(--dgl-blue); outline-offset: 2px; }
 /* Los subtítulos vuelven a la tipografía del sitio: el serif es para leer seguido, y un rótulo que
    corta el texto se lee mejor con la letra de los rótulos. */
 .dgl-bloque-titulo {
