@@ -20,7 +20,12 @@ typecheck: ; docker compose run --rm --no-deps web mypy .
 # El JavaScript, con vitest sobre jsdom. En su propio contenedor y no en `web`: la imagen del sitio
 # es Python puro y meterle Node solo para probar sería cargar el runtime de producción con una
 # herramienta de desarrollo. Así tampoco hace falta tener Node instalado en la máquina.
-testjs: ; docker run --rm -v "$(CURDIR)":/app -w /app node:22-alpine sh -c "npm ci --silent && npm test"
+#
+# `MSYS_NO_PATHCONV=1` es para Git Bash, que es desde donde se corre esto en Windows. MSYS traduce
+# solo los argumentos que PARECEN rutas de Unix, así que el `/app` de `-v ...:/app` se salva por venir
+# detrás de dos puntos y el de `-w /app` no: Docker lo recibía como `C:/Program Files/Git/app` y
+# abortaba. En Linux y en el CI la variable sencillamente no la mira nadie.
+testjs: ; MSYS_NO_PATHCONV=1 docker run --rm -v "$(CURDIR)":/app -w /app node:22-alpine sh -c "npm ci --silent && npm test"
 
 # ── Lo que NO es Python ni JavaScript ───────────────────────────────────────────────────────────
 #
