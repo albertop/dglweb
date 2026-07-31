@@ -121,30 +121,19 @@ class Juego:
 
     @property
     def con_dominicanos(self) -> bool:
-        return bool(self.visitante.nuestros or self.local.nuestros)
+        """Si hay alguien nuestro en este juego. **Manda la banderita Y el panel: son la misma cosa.**
 
-    @property
-    def abridor_nuestro(self) -> bool:
-        """Si el abridor probable de alguno de los dos lados es dominicano."""
-        return any(nuestro.abridor for lado in self.lados for nuestro in lado.nuestros)
+        Antes eran dos condiciones —`con_dominicanos` para la bandera, un `detallable` aparte para el
+        panel— y la segunda pedía además que alguien tuviera línea. Se separaban solas: un juego
+        terminado cuyas cifras del día todavía no publica MLB enseñaba la bandera y no abría nada. La
+        bandera prometía dominicanos y al pasar el mouse no había a dónde llegar.
 
-    @property
-    def detallable(self) -> bool:
-        """Si vale la pena abrir el panel al pasar el mouse.
-
-        Dos casos, y por motivos distintos:
-
-        * **Terminado o en curso**, con alguien nuestro que haya hecho algo. Ahí el panel enseña qué
-          hizo cada uno, que es el dato.
-        * **Sin empezar, con un abridor probable dominicano.** Ahí no hay líneas que enseñar, pero
-          «hoy lanza uno de los nuestros» es noticia por sí sola y merece poder mirarse.
-
-        Un juego que no ha empezado y solo tiene bateadores anunciados queda fuera: abrir un panel
-        con cinco nombres y ninguna línea al lado es prometer un dato que todavía no existe.
+        Una sola propiedad para las dos cosas hace que eso no pueda volver a pasar por definición, sea
+        cual sea el hueco de datos que venga después. El precio es que a veces el panel se abre con
+        los nombres y sin cifras al lado —el juego que no ha empezado, el que acaba de terminar—, y
+        eso es lo correcto: los nombres también son el dato, y quien pulsa la bandera vino a verlos.
         """
-        if self.estado == PROGRAMADO:
-            return self.abridor_nuestro
-        return self.estado in (FINAL, VIVO) and any(nuestro.linea for lado in self.lados for nuestro in lado.nuestros)
+        return bool(self.visitante.nuestros or self.local.nuestros)
 
 
 @dataclass(frozen=True)
@@ -271,10 +260,10 @@ def _accion_del_dia(client: MlbProxyClient, dia: date, universo: set[int]) -> _A
     )
 
 
-def _pide_boxscore(juego: dict[str, Any]) -> bool:
+def _pide_boxscore(juego: dict[str, Any], universo: set[int], con_linea: set[int]) -> bool:
     """Si a este juego no le alcanza el total del día y hay que preguntarle a él directamente.
 
-    Dos casos, y solo dos, porque cada uno cuesta una llamada:
+    Tres casos, y solo tres, porque cada uno cuesta una llamada:
 
     * **En curso.** `byDateRange` no publica nada de un juego hasta que termina — está medido: con un
       juego vivo, sus dos equipos son los únicos de los treinta que no aparecen en la consulta del
@@ -282,24 +271,44 @@ def _pide_boxscore(juego: dict[str, Any]) -> bool:
     * **Doble cartelera.** Los dos juegos son del mismo día y de los mismos dos equipos, así que el
       total del día son los dos sumados. Sin esto, quien jugó los dos aparece con las mismas cifras
       en ambos, y quien jugó solo el segundo aparece también en el primero.
+    * **Recién terminado, con anunciados nuestros que el día todavía no cubre.** `byDateRange` tampoco
+      publica AL terminar: hay un rezago. Medido el 2026-07-30 a media tarde, con diez juegos en el
+      calendario, la consulta del día traía 94 líneas —tres o cuatro juegos— y WSH@ATL, ya *Final*,
+      no estaba: sus tres dominicanos anunciados salían con la bandera puesta y `None` por línea.
+
+    El tercer caso se pregunta por jugador y no por juego a propósito. «Terminado» a secas pediría
+    quince boxscores por refresco; «terminado y con alguien nuestro sin cifras» pide cero en régimen
+    normal —cuando el día ya cubre a todos— y solo uno por juego mientras dura el rezago, que es
+    exactamente donde está el problema y por cuánto tiempo.
 
     Un juego que no ha empezado no entra: su boxscore está vacío y sería una llamada regalada.
     """
     estado = _ESTADOS.get(str((juego.get("status") or {}).get("abstractGameState")), PROGRAMADO)
     if estado == VIVO:
         return True
-    return estado == FINAL and str(juego.get("doubleHeader") or "N") != "N"
+    if estado != FINAL:
+        return False
+    if str(juego.get("doubleHeader") or "N") != "N":
+        return True
+
+    nuestros = (_anunciados(juego, visitante=True) | _anunciados(juego, visitante=False)) & universo
+    return bool(nuestros - con_linea)
 
 
-def _accion_por_juego(client: MlbProxyClient, crudos: list[dict[str, Any]], universo: set[int]) -> _Accion:
+def _accion_por_juego(
+    client: MlbProxyClient, crudos: list[dict[str, Any]], universo: set[int], con_linea: set[int]
+) -> _Accion:
     """El detalle de los juegos que lo necesitan, uno por uno. Ver `_pide_boxscore` para cuáles.
 
     Se guarda por `(juego, equipo)` y no por jugador: en una doble cartelera el mismo jugador tiene
     dos líneas distintas el mismo día, y un diccionario por jugador solo podría quedarse con una.
+
+    `con_linea` son los jugadores que el total del día ya cubre; sirve para no pedir el boxscore de un
+    juego terminado cuyas cifras ya están.
     """
     por_lado: dict[tuple[int, int], dict[int, str]] = {}
     for juego in crudos:
-        if not _pide_boxscore(juego) or (pk := juego.get("gamePk")) is None:
+        if not _pide_boxscore(juego, universo, con_linea) or (pk := juego.get("gamePk")) is None:
             continue
         try:
             payload = client.get(f"/api/v1/game/{pk}/boxscore")
@@ -460,7 +469,7 @@ def jornada(client: MlbProxyClient, dia: date, crudos: list[dict[str, Any]], uni
         return ()
 
     accion = _accion_del_dia(client, dia, universo)
-    detalle = _accion_por_juego(client, crudos, universo)
+    detalle = _accion_por_juego(client, crudos, universo, set(accion.lineas))
     accion.por_lado.update(detalle.por_lado)
 
     candidatos = {pid for equipo in accion.por_equipo.values() for pid in equipo}

@@ -391,7 +391,8 @@ def test_playing_only_the_nightcap_does_not_put_you_in_the_opener(monkeypatch: p
 
 @pytest.mark.django_db
 def test_only_the_doubleheader_pays_for_the_extra_calls(monkeypatch: pytest.MonkeyPatch) -> None:
-    """El precio se paga donde está el problema: un día sin doble cartelera no cuesta ni una llamada."""
+    """El precio se paga donde está el problema: los dos juegos 3 y 4, terminados y sin nadie nuestro
+    anunciado, no cuestan ni una llamada."""
     proxy = _Proxy([_juego(pk=1, doble="S"), _juego(pk=2, doble="S"), _juego(pk=3), _juego(pk=4)])
     _instalar(monkeypatch, proxy)
 
@@ -404,8 +405,50 @@ def test_only_the_doubleheader_pays_for_the_extra_calls(monkeypatch: pytest.Monk
 
 
 @pytest.mark.django_db
-def test_a_game_that_has_not_started_does_not_open_a_panel(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Se sabe quién está anunciado, pero un panel de nombres sin líneas promete un dato que no hay."""
+def test_a_game_that_just_ended_does_not_wait_for_the_day_totals(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`byDateRange` no publica un juego al terminar: hay un rezago, y ahí se caía la tarjeta.
+
+    Medido en producción el 2026-07-30: WSH@ATL, ya *Final*, con tres dominicanos anunciados y `None`
+    por línea porque la consulta del día —94 líneas para diez juegos— todavía no lo cubría. Salía la
+    bandera y no había nada detrás.
+    """
+    _jugador(1, "José", "Tena")
+    proxy = _Proxy(
+        [_juego(alineacion={"away": [1]})],
+        accion=[],  # el total del día todavía no publica este juego
+        boxscores={800001: _boxscore([(1, _bateo(AB=4, H=2, X2B=1))])},
+    )
+    _instalar(monkeypatch, proxy)
+
+    juego = _hoy(_armada()).juegos[0]
+
+    assert [(n.nombre, n.linea) for n in juego.visitante.nuestros] == [("J. Tena", "2-4, 2B")]
+
+
+@pytest.mark.django_db
+def test_a_finished_game_the_day_already_covers_costs_no_extra_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    """El rezago se pregunta por JUGADOR y no por juego, y por eso en régimen normal cuesta cero.
+
+    «Terminado» a secas pediría quince boxscores por refresco. «Terminado y con alguien nuestro sin
+    cifras» pide uno mientras dura el rezago y ninguno después.
+    """
+    _jugador(1, "José", "Tena")
+    proxy = _Proxy([_juego(alineacion={"away": [1]})], accion=[(1, 135, "hitting", {"AB": 4, "H": 2, "X2B": 1})])
+    _instalar(monkeypatch, proxy)
+
+    juego = _hoy(_armada()).juegos[0]
+
+    assert [r for r in proxy.llamadas if r.endswith("/boxscore")] == []
+    assert [(n.nombre, n.linea) for n in juego.visitante.nuestros] == [("J. Tena", "2-4, 2B")]
+
+
+@pytest.mark.django_db
+def test_a_game_that_has_not_started_still_opens_its_panel(monkeypatch: pytest.MonkeyPatch) -> None:
+    """La bandera y el panel son la misma condición: si una promete, el otro tiene que abrir.
+
+    Antes el panel exigía además que alguien tuviera línea, y un juego de las ocho enseñaba la bandera
+    sin nada detrás. Los nombres anunciados también son el dato.
+    """
     _jugador(1, "Juan", "Soto")
     proxy = _Proxy([_juego(estado="Preview", detallado="Scheduled", alineacion={"away": [1]})])
     _instalar(monkeypatch, proxy)
@@ -413,7 +456,6 @@ def test_a_game_that_has_not_started_does_not_open_a_panel(monkeypatch: pytest.M
     juego = _hoy(_armada()).juegos[0]
 
     assert juego.con_dominicanos is True
-    assert juego.detallable is False
 
 
 @pytest.mark.django_db
@@ -425,7 +467,7 @@ def test_a_dominican_probable_starter_opens_the_panel_before_first_pitch(monkeyp
 
     juego = _hoy(_armada()).juegos[0]
 
-    assert juego.detallable is True
+    assert juego.con_dominicanos is True
     assert [(n.nombre, n.abridor) for n in juego.local.nuestros] == [("C. Sánchez", True)]
 
 

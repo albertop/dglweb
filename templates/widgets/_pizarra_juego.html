@@ -13,8 +13,14 @@ se veía la banderita prometiendo dominicanos y no había forma de llegar a ello
 comportamiento no depende de JavaScript para existir —el panel se abre con un clic, que un `div` con
 `role="button"` ya anuncia— y la tarjeta es el único camino al contenido.
 {% endcomment %}
-<div class="dgl-juego{% if juego.detallable %} dgl-con-detalle{% endif %}"
-     {% if juego.detallable %}role="button" tabindex="0" aria-expanded="false"
+{% comment %}
+`con_dominicanos` decide la bandera Y el panel, y ese es el punto: la bandera es lo que promete que
+hay algo detrás, así que la que la pinta tiene que ser la misma condición que abre la puerta. Cuando
+eran dos —había una `detallable` que además exigía líneas— se separaban solas y quedaba una bandera
+que al pulsarla no llevaba a ninguna parte. Ver la propiedad en `scoreboard.py`.
+{% endcomment %}
+<div class="dgl-juego{% if juego.con_dominicanos %} dgl-con-detalle{% endif %}"
+     {% if juego.con_dominicanos %}role="button" tabindex="0" aria-expanded="false"
      aria-controls="pizarra-detalle"
      aria-label="Ver los dominicanos de {{ juego.visitante.codigo }} en {{ juego.local.codigo }}"{% endif %}>
   <div class="dgl-juego-estado{% if juego.estado == 'vivo' %} dgl-vivo{% endif %}">
@@ -25,16 +31,20 @@ comportamiento no depende de JavaScript para existir —el panel se abre con un 
 
       Imagen y no el emoji 🇩🇴: Windows no trae los glifos de banderas y lo dibuja como «DO». El `alt`
       lleva el significado porque la bandera ES el dato, no un adorno.
+
+      «Hay dominicanos» y no «en acción»: la bandera sale también en el juego que empieza a las ocho,
+      donde lo único que hay es una alineación anunciada. Decir «en acción» ahí era sencillamente
+      falso.
     {% endcomment %}
     {% if juego.con_dominicanos %}
       <img class="dgl-bandera" src="{% static 'img/bandera-rd.svg' %}" width="17" height="11"
-           alt="Con dominicanos en acción" title="Con dominicanos en acción">
+           alt="Hay dominicanos en este juego" title="Hay dominicanos en este juego">
     {% endif %}
   </div>
   {% include "widgets/_pizarra_lado.html" with lado=juego.visitante %}
   {% include "widgets/_pizarra_lado.html" with lado=juego.local %}
 
-  {% if juego.detallable %}
+  {% if juego.con_dominicanos %}
     <template class="dgl-juego-detalle">
       <div class="dgl-detalle-caja">
         {% for lado in juego.lados %}
