@@ -132,9 +132,7 @@ class GraficoBlock(blocks.StructBlock):
         icon = "table"
         template = "articles/blocks/_grafico.html"
 
-    def get_context(
-        self, value: blocks.StructValue, parent_context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    def get_context(self, value: blocks.StructValue, parent_context: dict[str, Any] | None = None) -> dict[str, Any]:
         """Convierte los datos en geometría. Toda la cuenta pasa acá; la plantilla solo pinta.
 
         La plantilla de Django no sabe restar ni dividir, así que si esto no se calculara en Python
@@ -238,9 +236,7 @@ class JugadorBlock(blocks.StructBlock):
         icon = "user"
         template = "articles/blocks/_jugador.html"
 
-    def get_context(
-        self, value: blocks.StructValue, parent_context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    def get_context(self, value: blocks.StructValue, parent_context: dict[str, Any] | None = None) -> dict[str, Any]:
         """Añade el enlace y el retrato, que el modelo `Player` no sabe dar por su cuenta.
 
         `Player` es la fila del maestro y no conoce las URLs del sitio ni dónde viven las fotos;
@@ -271,6 +267,74 @@ class JugadorBlock(blocks.StructBlock):
         return contexto
 
 
+class TablaHtmlBlock(blocks.TextBlock):
+    """Una tabla pegada como HTML, filtrada por lista blanca. Ver `articles/tablas.py`.
+
+    Convive con el bloque `tabla` en vez de sustituirlo, y no es indecisión: para cuatro filas por
+    cinco columnas la cuadrícula del editor es más cómoda que pegar etiquetas. Este es para lo que
+    aquella no puede — encabezados de dos niveles, notas al pie, y cientos de filas que salen de un
+    script y nadie va a teclear a mano.
+
+    SE GUARDA YA LIMPIO, Y ADEMÁS SE VUELVE A LIMPIAR AL PINTAR
+    -----------------------------------------------------------
+    `clean` devuelve el HTML filtrado, así que en la base queda la versión de 36 KB y no los 216 KB
+    del archivo original — y el editor VE lo que sobrevivió, que es la mejor manera de enterarse de
+    que algo se cayó.
+
+    Y `get_context` lo filtra otra vez antes de pintar. Parece redundante y no lo es: lo primero
+    depende de que el valor haya entrado por el formulario, y una importación, una migración de datos
+    o un `StreamField` escrito a mano no pasan por ahí. Lo que se marca como seguro se acaba de
+    revisar en esta misma petición, y eso no depende de la historia del registro.
+
+    Que las dos pasadas usen la MISMA función obliga a que lo guardado se pueda volver a leer. La
+    primera versión no cumplía eso —guardaba la tabla sin su `<table>`, que era justo lo que la
+    función necesitaba para encontrarla— y el bloque quedaba imposible de reeditar. Ver `tablas.py`.
+    """
+
+    # Las del sitio, las mismas de la ficha del jugador. Van acá y no en el filtro: la presentación es
+    # de esta capa, y al guardar se llama sin ellas para que en la base quede estructura pura.
+    CLASES = "table table-sm table-striped dgl-stats-table mb-0"
+
+    class Meta:
+        label = "Tabla (HTML)"
+        icon = "table"
+        template = "articles/blocks/_tabla_html.html"
+        help_text = (
+            "Pega el HTML de la tabla. Se conservan colspan, rowspan, scope, <caption> y <tfoot>; "
+            "se descarta el estilo, que lo pone el sitio. Para alinear, una vez por columna: "
+            '<colgroup><col class="izq"><col class="der">…</colgroup> — izq, centro o der.'
+        )
+
+    def clean(self, value: str) -> str:
+        from django.core.exceptions import ValidationError
+
+        from dglweb.articles import tablas
+
+        limpio = super().clean(value)
+        try:
+            return tablas.limpiar(limpio)
+        except tablas.SinTablaError as error:
+            raise ValidationError(str(error)) from error
+
+    def get_context(self, value: str, parent_context: dict[str, Any] | None = None) -> dict[str, Any]:
+        from django.utils.safestring import mark_safe
+
+        from dglweb.articles import tablas
+
+        contexto = super().get_context(value, parent_context)
+        try:
+            # `mark_safe` sobre la salida del filtro y no sobre lo pegado. Es la única forma de que un
+            # `colspan` llegue al navegador, y es segura justo porque lo de la línea de arriba acaba
+            # de decidir qué puede llegar.
+            contexto["contenido"] = mark_safe(tablas.limpiar(value, clases=self.CLASES))
+        except tablas.SinTablaError:
+            # Un artículo publicado no se rompe por una tabla mala: se queda sin ella. El bloque no
+            # debería poder llegar acá —`clean` no lo deja pasar— así que esto cubre lo que entró por
+            # otra puerta.
+            contexto["contenido"] = ""
+        return contexto
+
+
 class CuerpoStreamBlock(blocks.StreamBlock):
     """Lo que puede llevar un artículo. El orden es el del menú del editor: lo común primero."""
 
@@ -286,9 +350,7 @@ class CuerpoStreamBlock(blocks.StreamBlock):
         features=["bold", "italic", "link", "ol", "ul", "letra-chica"],
         template="articles/blocks/_parrafo.html",
     )
-    titulo = blocks.CharBlock(
-        max_length=120, label="Subtítulo", icon="title", template="articles/blocks/_titulo.html"
-    )
+    titulo = blocks.CharBlock(max_length=120, label="Subtítulo", icon="title", template="articles/blocks/_titulo.html")
     imagen = blocks.StructBlock(
         [
             ("imagen", ImageChooserBlock(label="Imagen")),
@@ -308,6 +370,9 @@ class CuerpoStreamBlock(blocks.StreamBlock):
         template="articles/blocks/_cita.html",
     )
     tabla = TableBlock(label="Tabla", template="articles/blocks/_tabla.html")
+    # Debajo de la cuadrícula porque es la excepción: la de arriba para lo del día a día, esta para la
+    # tabla que sale de un script y no cabe en una cuadrícula.
+    tabla_html = TablaHtmlBlock()
     grafico = GraficoBlock()
     jugador = JugadorBlock()
 

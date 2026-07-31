@@ -1,0 +1,13 @@
+{% comment %}
+Una tabla pegada desde fuera — típicamente la salida de un script de R o de Python.
+
+`contenido` es la tabla ENTERA, con sus clases ya puestas: viene de `articles/tablas.py`, que la
+devuelve completa porque lo que se guarda es su salida y tiene que poder volver a leerse. Las clases
+las decide el bloque, no el filtro; el porqué está en los dos módulos.
+
+Ya pasó por la lista blanca y viene marcada como segura.
+
+Va envuelta en `.table-responsive` como la otra tabla: una de trece columnas no cabe en un teléfono y
+sin esto empuja la página entera a lo ancho en vez de desplazarse ella sola.
+{% endcomment %}
+<div class="table-responsive dgl-bloque-tabla">{{ contenido }}</div>

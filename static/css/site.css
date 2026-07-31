@@ -1201,6 +1201,20 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 .dgl-bloque-tabla tbody th {
   background: transparent; color: var(--dgl-ink); text-align: left; font-weight: 700;
 }
+/* ALINEACIÓN POR COLUMNA en la tabla pegada. El editor la declara una sola vez, en el `<colgroup>`
+   del propio HTML, y `articles/tablas.py` la baja a cada celda — CSS no puede alinear texto desde un
+   `<col>`, que es por lo que esa etiqueta parece no servir para nada.
+
+   `.dgl-stats-table` alinea a la derecha y deja la primera columna a la izquierda, que es lo correcto
+   para la tabla de una ficha —año y cifras— y no para una tabla cualquiera, donde los nombres pueden
+   estar en la 2 y en la 5.
+
+   El selector lleva las TRES clases a propósito. Con `.dgl-bloque-tabla .der` no bastaba: la regla de
+   la primera columna es `.dgl-stats-table th:first-child`, que puntúa más alto, y la columna 1 —la
+   única que uno querría mover— se quedaba sin obedecer. */
+.dgl-bloque-tabla .dgl-stats-table th.izq, .dgl-bloque-tabla .dgl-stats-table td.izq { text-align: left; }
+.dgl-bloque-tabla .dgl-stats-table th.centro, .dgl-bloque-tabla .dgl-stats-table td.centro { text-align: center; }
+.dgl-bloque-tabla .dgl-stats-table th.der, .dgl-bloque-tabla .dgl-stats-table td.der { text-align: right; }
 
 /* La tarjeta de la portada ya no necesita reglas propias: el alto fijo, el recorte a dos lineas y
    el relleno viven en `.dgl-art`, que los aplica a TODAS las tarjetas del sitio. Quedo asi cuando el
