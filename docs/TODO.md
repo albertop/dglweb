@@ -15,6 +15,30 @@ un TODO que describe trabajo ya hecho es peor que uno incompleto, porque se lee 
 y guía decisiones. Pasó: al preguntar "¿qué queda pendiente?" recomendé priorizar deuda técnica
 "antes de Fildeo" — que ya había pasado.
 
+## `byDateRange` no publica un juego al terminar (medido el 2026-07-30)
+
+**No es urgente y no hay nada roto ahora mismo.** Se anota porque el mismo rezago produjo dos
+síntomas distintos en un día, y el segundo solo se entendió rápido porque el primero estaba medido.
+
+EL DATO. Con diez juegos en el calendario, a media tarde, la consulta del día traía 94 líneas —tres o
+cuatro juegos—. WSH@ATL figuraba como *Final* en el calendario y `byDateRange` no devolvía ni una
+línea suya. O sea: el estado del juego y la publicación de sus cifras **no llegan juntos**.
+
+DÓNDE PEGÓ:
+
+* **La pizarra.** Arreglado en `ca8685a`: `_pide_boxscore` gana un tercer caso y pide el boxscore del
+  juego terminado cuyos anunciados nuestros el día todavía no cubre.
+* **Los destacados.** `build_daily_standouts --fecha-hoy` decide qué equipos guardar con
+  `equipos_terminados`, que sale de la pizarra — así que dio WSH por cubierto y guardó 9 filas en vez
+  de 18. Las tres mejores líneas del día, entre ellas el 3-5 con 2B, 3B y HR de Luis García, no
+  estuvieron en la portada de producción hasta la corrida siguiente.
+
+LO QUE FALTA. El job horario se cura solo, así que el daño máximo es una hora de retraso en el
+widget: por eso no se arregló en caliente. Pero el patrón es el mismo —dar un equipo por cubierto
+porque su juego cerró, sin comprobar que las cifras llegaron— y merece decidirse a propósito: o
+guardar solo los equipos que además aparecen en el split, o aceptar el retraso y dejarlo escrito
+donde se lea. Hoy no está escrito en ningún lado salvo acá.
+
 ## Lo que queda para el lanzamiento (cerrado el 2026-07-30 por la noche)
 
 **Los tres puntos de resiliencia están hechos.** Lo que queda ya no es infraestructura:
