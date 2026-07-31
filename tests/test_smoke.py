@@ -45,17 +45,25 @@ def test_home_shows_the_articles_section_once_there_are_articles():
 
     Ahora sale del contenido publicado, así que el test tiene que publicar algo. La otra mitad —qué
     pasa cuando no hay nada— está en el test siguiente.
+
+    Se comprueba por los TÍTULOS y no por un rótulo de sección. Lo comprobaba por «Últimos artículos»
+    hasta que el dueño quitó ese título el 2026-07-31 —decía lo que la propia cuadrícula ya decía— y
+    entonces el test dejó de hablar de si la sección aparece: hablaba de si aparecía un rótulo. Lo que
+    tiene que estar son los artículos.
     """
     from tests.test_articles import _articulo, _indice_de_articulos
 
     indice = _indice_de_articulos()
-    for numero in range(2):
+    for numero in range(3):
         _articulo(indice, f"Un articulo {numero}")
 
     response = Client().get("/")
 
-    assert "Últimos artículos".encode() in response.content
-    assert b"Un articulo 0" in response.content
+    # El más nuevo va de destacado y los otros dos en la cuadrícula de debajo; los tres tienen que
+    # salir, que es lo que significa «la sección está».
+    for numero in range(3):
+        assert f"Un articulo {numero}".encode() in response.content
+    assert b"Ver m" in response.content  # y el enlace al índice, que solo sale con contenido
 
 
 @pytest.mark.django_db
@@ -67,7 +75,7 @@ def test_home_leaves_the_articles_section_out_when_there_is_nothing_published():
     """
     response = Client().get("/")
 
-    assert "Últimos artículos".encode() not in response.content
+    assert b"dgl-art" not in response.content  # ni una tarjeta de artículo
     assert b"Ver m" not in response.content  # tampoco el enlace al índice
 
 
