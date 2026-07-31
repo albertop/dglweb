@@ -1117,10 +1117,27 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 1.3rem; font-weight: 800; letter-spacing: -.02em; margin: 2rem 0 .8rem;
 }
+/* LA IMAGEN NO SE AGRANDA: se centra. Decisión del dueño, 2026-07-31.
+
+   Estaba en `width: 100%`, que estira la imagen hasta los 820px de la columna venga de donde venga.
+   Con una foto grande no se nota —solo se achica— pero con un gráfico de 400px lo escalaba al doble
+   y salía borroso: un gráfico tiene el tamaño que tiene, y agrandarlo no añade un solo píxel de
+   información.
+
+   `max-width` en vez de `width` es toda la diferencia: nunca crece, y sigue achicándose cuando no
+   cabe, que es lo que hace falta en un teléfono. El `margin-inline: auto` la centra en la columna, y
+   el pie se centra con ella para que no quede colgando a un lado de una imagen estrecha.
+
+   La plantilla NO hacía falta tocarla: está medido que `width-1000` de Wagtail no agranda — un
+   original de 765px sale de 765px. El archivo servido siempre tuvo el tamaño bueno; era el CSS el
+   que lo estiraba al pintarlo. */
 .dgl-bloque-imagen { margin: 1.6rem 0; }
-.dgl-bloque-imagen img { width: 100%; height: auto; border-radius: .5rem; }
+.dgl-bloque-imagen img {
+  display: block; margin-inline: auto;
+  max-width: 100%; height: auto; border-radius: .5rem;
+}
 .dgl-bloque-imagen figcaption {
-  color: var(--dgl-muted); font-size: .82rem; margin-top: .5rem;
+  color: var(--dgl-muted); font-size: .82rem; margin-top: .5rem; text-align: center;
   font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 /* La cita con una barra roja a la izquierda, como los títulos de sección: es el mismo gesto del
