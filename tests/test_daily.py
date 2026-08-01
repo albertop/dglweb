@@ -436,28 +436,33 @@ def _guardar_jornada(bateadores: int, lanzadores: int) -> None:
 
 @pytest.mark.django_db
 def test_una_jornada_corta_cabe_entera_sin_boton(temporada: SeasonDates) -> None:
-    """Seis es la capacidad del marco —2 columnas por 3 filas—, así que hasta ahí no hay nada que
-    desplegar y el botón no debe aparecer."""
-    _guardar_jornada(bateadores=3, lanzadores=2)
+    """Cuatro es el pliegue del MÓVIL, así que con cuatro o menos no hay botón en ninguna pantalla."""
+    _guardar_jornada(bateadores=2, lanzadores=2)
 
     datos = daily.portada()
 
     assert datos is not None
-    assert len(datos["visibles"]) == 5
+    assert len(datos["visibles"]) == 4
     assert datos["de_mas"] == []
 
 
 @pytest.mark.django_db
-def test_pasados_los_seis_el_resto_queda_detras_del_boton(temporada: SeasonDates) -> None:
-    """Las pestañas por oficio se retiraron: una sola lista y un «ver más». Ver `_destacados.html`."""
+def test_las_diez_se_mandan_y_el_boton_cuenta_el_pliegue_del_movil(temporada: SeasonDates) -> None:
+    """Las diez van SIEMPRE al navegador; quién las esconde es el CSS, que es el único que sabe de qué
+    ancho es la pantalla.
+
+    En escritorio caben las diez en cinco filas y el botón está oculto. En móvil el marco se recorta a
+    cuatro filas y el botón dice cuántas quedan detrás: seis. Que `de_mas` cuadre con `VISIBLES`
+    importa, porque ese número es lo que el botón promete.
+    """
     _guardar_jornada(bateadores=6, lanzadores=4)
 
     datos = daily.portada()
 
     assert datos is not None
     assert len(datos["destacados"]) == 10
-    assert len(datos["visibles"]) == daily.VISIBLES
-    assert len(datos["de_mas"]) == 4
+    assert len(datos["visibles"]) == daily.VISIBLES == 4
+    assert len(datos["de_mas"]) == 6
 
 
 @pytest.mark.django_db

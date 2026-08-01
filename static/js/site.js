@@ -42,15 +42,19 @@
   );
 })();
 
-// El «ver más» de un widget que esconde parte de su lista. Hoy lo usa el de destacados.
+// El «ver más» de un widget que esconde parte de su lista. SOLO ACTÚA EN MÓVIL, y no porque el
+// JavaScript lo sepa: el CSS es el que recorta el marco por debajo de 992px y el que enseña el botón.
+// Acá solo se pone y se quita la clase; en escritorio el botón está oculto y esto nunca se dispara.
+//
+// Existe otra vez desde el 2026-07-31. Se había borrado al quitar los botones, y volvió cuando se vio
+// que en un teléfono la rejilla arma UNA columna: las diez cajas que en escritorio son cinco filas
+// allí son diez, y el widget se convertía en un scroll interminable.
 //
 // Delegado y genérico: el botón dice a qué contenedor pertenece con `data-desplegar`, así que sumar
-// otro widget con la misma mecánica no pide JavaScript nuevo. Y va acá y no en un archivo propio
-// porque son diez líneas — un archivo más sería una petición más por visita para esto.
+// otro widget con la misma mecánica no pide JavaScript nuevo.
 //
 // NO mide nada, a diferencia del widget de líderes: aquel tiene una rejilla que cambia de columnas
-// con el ancho y hay que preguntarle al navegador cuántas cajas caben. La de destacados es fija —2
-// por 3— así que el corte lo decide el servidor y acá solo se abre y se cierra.
+// con el ancho y hay que preguntarle al navegador cuántas cajas caben.
 (function () {
   document.addEventListener("click", function (evento) {
     var boton = evento.target.closest("[data-desplegar]");
@@ -68,4 +72,43 @@
       boton.textContent = boton.dataset.textoCerrado;
     }
   });
+})();
+
+// EL TOOLTIP DE LA LÍNEA QUE NO CABE. Sirve a los tres paneles de la franja —destacados y las dos
+// rachas— porque los tres usan `.dgl-destacado-linea`.
+//
+// Va en JavaScript y no en la plantilla a propósito. La línea se manda ENTERA y el CSS la corta con
+// `text-overflow: ellipsis` cuando no cabe; si cabe o no depende del ancho de la ventana, de la
+// fuente que acabó cargando y de cuántas columnas armó la rejilla — cosas que el servidor no sabe.
+// Antes esto se resolvía recortando la línea en Python con un tope de cinco cifras, y el resultado
+// era peor por los dos lados: en pantalla ancha sobraba sitio y se había tirado dato igual, y en una
+// estrecha seguía sin caber.
+//
+// `title` y no un tooltip propio: sale en cualquier navegador, no pide CSS y lo lee un lector de
+// pantalla. La contrapartida es que en un teléfono no hay hover — pero ahí la caja es más ancha
+// (una sola columna) y es justo donde la línea SÍ cabe entera.
+//
+// Se vuelve a mirar al cambiar el tamaño porque el corte cambia con él: al ensanchar la ventana una
+// línea deja de estar cortada, y quedarse con el `title` puesto sería prometer algo que ya se ve.
+(function () {
+  function revisar() {
+    document.querySelectorAll(".dgl-destacado-linea").forEach(function (linea) {
+      // Un píxel de margen: los anchos son fraccionarios y comparar exacto marca como cortadas
+      // líneas que entran justas.
+      if (linea.scrollWidth > linea.clientWidth + 1) {
+        linea.setAttribute("title", linea.textContent.trim());
+      } else {
+        linea.removeAttribute("title");
+      }
+    });
+  }
+
+  var pendiente;
+  window.addEventListener("resize", function () {
+    clearTimeout(pendiente);
+    pendiente = setTimeout(revisar, 150);
+  });
+  // `load` y no `DOMContentLoaded`: con las fuentes todavía sin cargar los anchos son los de la
+  // tipografía de reserva, y la medida saldría de otra letra que la que se va a leer.
+  window.addEventListener("load", revisar);
 })();

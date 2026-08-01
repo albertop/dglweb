@@ -2,10 +2,10 @@
 Los destacados de la jornada, en el mismo estilo de cajas que el widget de líderes de al lado: las
 dos mitades de la franja tienen que rimar.
 
-UNA SOLA LISTA, SIN PESTAÑAS (decisión del dueño, 2026-07-27). Las que había nunca llegaron a
-dibujarse —se activaban pasados los 6 destacados y la portada pedía como mucho 5— así que la rama
-estuvo muerta desde que se escribió. Un «ver más» hace el mismo trabajo sin esconder la mitad del
-contenido detrás de un clic que nadie da.
+UNA SOLA LISTA, SIN PESTAÑAS (decisión del dueño, 2026-07-27) Y SIN «VER MÁS» (2026-07-31). Las
+pestañas nunca llegaron a dibujarse —se activaban pasados los 6 destacados y la portada pedía como
+mucho 5— así que la rama estuvo muerta desde que se escribió. Al botón lo jubiló el marco de cinco
+filas: con las diez cajas a la vista no queda nada que desplegar.
 
 Bateadores primero y lanzadores después, sin reordenar entre sí: sus valores no están en la misma
 escala y mezclarlos por número daría a entender una comparación que no existe.
@@ -15,7 +15,7 @@ no esté a que esté hueco.
 {% endcomment %}
 {% if destacados %}
 <section class="dgl-panel p-3 h-100" aria-labelledby="destacados-titulo">
-  <div class="dgl-destacados">
+  <div class="dgl-destacados" id="destacados-caja">
     <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
       {% comment %}
         El título ya NO lleva la fecha dentro. La llevaba —«Destacados del 26 Jul»— cuando el widget
@@ -27,15 +27,24 @@ no esté a que esté hueco.
         solas con su etiqueta «Ayer». Sin ella, en el receso del Juego de Estrellas el lector no
         tendría forma de saber que lo que ve es de hace cuatro días.
       {% endcomment %}
+      {% comment %}
+        «AYER Y HOY» EN EL TÍTULO (decisión del dueño, 2026-07-31). El widget mezcla dos jornadas —lo
+        de hoy entra por arriba según van cerrando los juegos y lo de ayer llena lo que falte— y sin
+        decirlo, las seis cajas se leen como si todas fueran del mismo día.
+
+        Lo dice ahora el título y no solo la etiqueta de cada fila, que es un dato por caja y obliga a
+        recorrerlas para entender el conjunto. Y hace falta más desde que abajo hay dos widgets de
+        catorce días: sin la aclaración, tres paneles seguidos parecen contar el mismo horizonte.
+      {% endcomment %}
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="destacados-titulo">
-        Destacados
+        <span class="dgl-widget-icono" aria-hidden="true">⭐</span>Destacados ayer y hoy
       </h2>
       <span class="dgl-destacados-fecha">{{ destacados.dia|date:"j M" }}</span>
     </div>
 
     {% comment %}
-      El marco cabe seis cajas: es una rejilla de 2 columnas por 3 filas, y por eso el corte está en
-      seis y no en un número redondo cualquiera. Al desplegar crece hacia abajo — ver `site.js`.
+      El marco cabe diez cajas: es una rejilla de 2 columnas por 5 filas, y por eso `MAXIMO` vale diez
+      y no un número redondo cualquiera. Ya no despliega: la lista entera está a la vista.
     {% endcomment %}
     <div class="dgl-destacados-marco">
       <div class="dgl-destacados-lista">
@@ -44,7 +53,7 @@ no esté a que esté hueco.
             Misma anatomía que una caja del top 10 —logo, retrato y una columna de dos renglones— para
             que las dos midan lo mismo: el alto lo marca el retrato en ambas.
           {% endcomment %}
-          <article class="dgl-destacado-caja{% if forloop.counter0 >= 6 %} dgl-destacado-de-mas{% endif %}">
+          <article class="dgl-destacado-caja">
             {% if actuacion.logo %}
               <img class="dgl-destacado-logo" src="{% static actuacion.logo %}" width="20" height="20"
                    alt="{{ actuacion.team }}">
@@ -69,7 +78,7 @@ no esté a que esté hueco.
                 {% comment %}
                   La jornada de la que viene la actuación, solo cuando NO es la de arriba. El widget
                   mezcla dos días para no quedarse hueco mientras los juegos de hoy van terminando, y
-                  sin esta marca las seis filas se leerían como si todas fueran de la misma jornada.
+                  sin esta marca las diez filas se leerían como si todas fueran de la misma jornada.
 
                   Va después del televisor y no antes: el nombre y su video son una unidad, y meter
                   la fecha en medio los separa. Lleva la fecha —«26 JUL»— y no «Ayer»: decir «ayer»
@@ -88,13 +97,15 @@ no esté a que esté hueco.
     </div>
 
     {% comment %}
-      El botón solo existe cuando hay algo que desplegar, y dice CUÁNTOS quedan: «ver 4 más» permite
-      decidir si vale la pena el clic, cosa que «ver más» no. Cuando no hay nada de más, queda un
-      hueco vacío que reserva el renglón — el widget de líderes de al lado sí lleva botón siempre, y
-      están uno junto al otro donde cualquier diferencia de alto los desalinea.
+      EL BOTÓN SOLO SE VE EN MÓVIL — lo esconde el CSS por encima de 992px. En escritorio las diez
+      cajas caben en las cinco filas del marco y no habría nada que desplegar; en un teléfono la
+      rejilla arma una columna, el marco se recorta a cuatro filas y el botón es la única salida.
+
+      El hueco de reserva se queda para cuando NO hay botón: el widget de líderes de al lado lleva el
+      suyo siempre, y están uno junto al otro donde cualquier diferencia de alto los desalinea.
     {% endcomment %}
     {% if destacados.de_mas %}
-      <button type="button" class="dgl-lideres-mas" data-desplegar=".dgl-destacados"
+      <button type="button" class="dgl-lideres-mas" data-desplegar="#destacados-caja"
               aria-expanded="false">Ver {{ destacados.de_mas|length }} más</button>
     {% else %}
       <div class="dgl-lideres-mas esta-de-mas" aria-hidden="true">&nbsp;</div>

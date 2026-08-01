@@ -131,6 +131,22 @@ a:hover { text-decoration: underline; }
   font-weight: 800; font-size: 1.05rem; letter-spacing: -.01em;
   border-left: 4px solid var(--dgl-red); padding-left: .6rem; margin-bottom: 1rem;
 }
+/* EL ICONO DEL TÍTULO DE UN WIDGET (2026-07-31). Un emoji y no un SVG: son cuatro conceptos que el
+   estándar ya dibuja —trofeo, fuego, hielo, marca— así que meter cuatro archivos al repositorio para
+   redibujarlos sería trabajo y peso a cambio de nada.
+
+   No es el mismo caso que la banderita de la pizarra, que SÍ es un SVG: Windows no trae los glifos de
+   banderas y pintaba «DO» en su lugar. Estos cuatro los trae cualquier sistema.
+
+   `font-size` propio y no heredado: los emoji se dibujan con una tipografía distinta de la del texto
+   y a la misma medida se ven más grandes que la letra de al lado.
+
+   `aria-hidden` va en el HTML. Sin él, un lector de pantalla anuncia «fuego Quemando la liga», que
+   es ruido: el título ya dice lo que el icono repite. */
+.dgl-widget-icono {
+  font-size: .9em; margin-right: .35rem; line-height: 1;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
 
 /* ---------- Cards / articles ---------- */
 .card { border-color: var(--dgl-line); }
@@ -335,6 +351,25 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 .dgl-destacado-quien { flex: 1 1 auto; min-width: 0; }
 .dgl-destacado-logo { flex: 0 0 auto; }
+/* EL LOGO SE VA EN PANTALLA ANCHA, y suena al revés hasta que se miran los anchos.
+
+   La rejilla es `minmax(250px, 1fr)`, así que el número de columnas lo decide el CONTENEDOR y no la
+   pantalla. En un teléfono el widget ocupa el ancho entero y la rejilla saca UNA columna de ~350px;
+   en escritorio el widget vive en media fila (`col-lg-6`) y saca DOS de ~260. O sea que la caja es
+   más ancha en el teléfono, y la línea que allí cabe entera acá se corta con puntos suspensivos —
+   `.dgl-destacado-linea` lleva `text-overflow: ellipsis`.
+
+   Entre 508px y 991px el widget también saca dos columnas, pero de ~365px, que sí dan de sí. Por eso
+   el corte va en 992 y no antes.
+
+   Se sacrifica el logo y no la línea porque la línea ES el dato: «17 H, 2B, 6 HR, 9 RBI, 13 R»
+   truncada en «17 H, 2B, 6 HR, 9 R…» esconde justo lo que hace notable la actuación. El equipo, en
+   cambio, se puede mirar en la ficha del jugador, que está a un clic desde el propio nombre.
+
+   Decisión del dueño, 2026-07-31, para los cuatro widgets de la franja. */
+@media (min-width: 992px) {
+  .dgl-destacado-logo { display: none; }
+}
 /* Blanco bajo el recorte transparente: le da al retrato su propio disco, que es lo que lo separa del
    gris de la caja cuando el pelotero tiene el pelo oscuro. */
 .dgl-destacado-foto {
@@ -862,9 +897,17 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    que dé el contenido, saltarían de sitio los artículos de abajo al cambiar de pestaña.
    Sin `overflow: hidden` a propósito: recortaría las capas flotantes de las cajas de la última fila.
    Lo que sobra lo esconde `.dgl-fila-de-mas`. */
+/* Cinco filas en escritorio y cuatro en móvil, igual que los otros tres paneles de la franja. Acá el
+   alto SÍ es fijo y no `max-height`: la lista trae siempre unas treinta filas, así que nunca sobra
+   sitio, y la expansión de este widget FLOTA por encima en vez de empujar — necesita un marco de alto
+   conocido contra el que posicionarse. `lideres.js` cuenta las mismas filas; los dos números tienen
+   que decir lo mismo. */
 .dgl-lideres-marco {
   position: relative;
-  height: calc(3 * var(--caja) + 2 * var(--hueco));
+  height: calc(5 * var(--caja) + 4 * var(--hueco));
+}
+@media (max-width: 991.98px) {
+  .dgl-lideres-marco { height: calc(4 * var(--caja) + 3 * var(--hueco)); }
 }
 .dgl-fila-de-mas { display: none; }
 .dgl-lideres-lista.is-flotante {
@@ -886,6 +929,21 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   color: var(--dgl-blue); cursor: pointer;
 }
 .dgl-lideres-mas:hover { text-decoration: underline; }
+/* El «Cerrar» que cierra la capa desde su propio final. Existe siempre en el HTML —uno por lista— y
+   solo se ve cuando esa lista está flotando: cerrada, sería un botón que no cierra nada.
+
+   Mismo aspecto que el «ver menos» de arriba a propósito: son el mismo control visto desde los dos
+   extremos de una lista larga, y darles dos formas distintas los haría parecer dos cosas.
+
+   `grid-column: 1 / -1` porque la lista es una rejilla: sin eso el botón ocuparía una celda y se
+   pondría al lado de la última fila en vez de debajo. */
+.dgl-lideres-cerrar { display: none; }
+.dgl-lideres-lista.is-flotante .dgl-lideres-cerrar {
+  display: block; grid-column: 1 / -1; width: 100%; margin-top: .4rem; padding: .3rem;
+  background: none; border: 0; border-top: 1px solid var(--dgl-line); font: inherit;
+  font-size: .72rem; line-height: 1.4; color: var(--dgl-blue); cursor: pointer;
+}
+.dgl-lideres-lista.is-flotante .dgl-lideres-cerrar:hover { text-decoration: underline; }
 /* Un control que sobra hoy pero puede hacer falta mañana: se apaga sin quitarse, para que el widget
    mida igual con él y sin él. Los dos de la franja están uno al lado del otro y cualquier diferencia
    de alto los desalinea. Vale para el «ver N más» y para la fila de pestañas. */
@@ -933,9 +991,38 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    depender de que la fila los estire.
    Con `overflow: hidden` —al revés que en líderes— porque acá no hay capas flotantes que recortar:
    los destacados no se despliegan. Es lo que garantiza que una jornada larga no lo haga crecer. */
-.dgl-destacados-marco {
-  height: calc(3 * var(--caja) + 2 * var(--hueco));
-  overflow: hidden;
+/* EL MARCO YA NO TIENE ALTO FIJO (2026-07-31). Mide lo que mida su lista, y nada más.
+
+   Lo tenía —tres filas primero, cinco después— con `overflow: hidden`, y eso solo servía para
+   esconder lo que el botón «ver N más» desplegaba. Al quitar el botón, el alto fijo dejó de recortar
+   un extra opcional y pasó a recortar contenido sin salida.
+
+   Y NO ERA UN CASO RARO: la rejilla es `minmax(250px, 1fr)`, así que en un teléfono arma UNA columna
+   y diez cajas son diez filas. Medido a 375px: marco de 344px, contenido de 696 — **cinco de las diez
+   cajas invisibles y sin ningún control para llegar a ellas**. En escritorio no se veía, porque ahí
+   las dos columnas hacen que diez cajas quepan justo en las cinco filas.
+
+   Sin alto fijo se arregla eso y, de paso, lo que pidió el dueño: con cuatro cajas el panel mide
+   cuatro filas en vez de dejar un rectángulo blanco esperando a las que no llegaron.
+
+   EN MÓVIL SÍ SE RECORTA, A CUATRO FILAS, Y VUELVE EL BOTÓN (2026-07-31). Diez cajas en una columna
+   son diez filas de scroll dentro de un widget, y hay cuatro widgets seguidos. Se recorta con
+   `max-height` y no con `height`: así una lista de tres cajas mide tres y no deja el hueco blanco.
+
+   El corte es 992px, el mismo `lg` que ya usa el resto del sitio. Entre 508 y 991 la rejilla arma dos
+   columnas, así que ahí cuatro filas son ocho cajas — no es exactamente «cuatro tarjetas», es cuatro
+   filas, que es lo que gobierna el alto y lo que se pidió. */
+.dgl-destacados-marco { min-height: 0; }
+/* El botón solo existe en móvil: en escritorio la lista entera está a la vista y no desplegaría nada.
+   Se apunta con `.dgl-destacados` para no tocar el del widget de líderes, que lo lleva siempre. */
+.dgl-destacados .dgl-lideres-mas { display: none; }
+@media (max-width: 991.98px) {
+  .dgl-destacados-marco {
+    max-height: calc(4 * var(--caja) + 3 * var(--hueco));
+    overflow: hidden;
+  }
+  .dgl-destacados.esta-desplegado .dgl-destacados-marco { max-height: none; overflow: visible; }
+  .dgl-destacados .dgl-lideres-mas { display: block; }
 }
 
 /* El anuncio que se queda a la vista mientras se baja y aterriza sobre el pie de página al llegar al
@@ -1461,12 +1548,9 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 /* El «ver más» de los destacados. Las cajas de más existen en el HTML desde el principio —no las
    trae ningún fetch— así que desplegar es instantáneo y funciona igual si el JS tarda: sin él se ven
    las seis primeras, que es información correcta, solo que menos. */
-.dgl-destacado-de-mas { display: none; }
-.dgl-destacados.esta-desplegado .dgl-destacado-de-mas { display: flex; }
 /* El marco recorta a seis con `overflow: hidden`; al desplegar tiene que soltar el alto o las cajas
    nuevas quedarían dibujadas fuera de la vista, que es el fallo que más cuesta descubrir porque el
    botón parece no hacer nada. */
-.dgl-destacados.esta-desplegado .dgl-destacados-marco { height: auto; max-height: none; overflow: visible; }
 
 /* De qué jornada viene una actuación, cuando no es la de arriba. El widget mezcla dos días para no
    quedarse hueco mientras los juegos de hoy van terminando.
@@ -1491,6 +1575,13 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
    correría el retrato y el nombre a la izquierda y las cajas dejarían de formar columnas. */
 .dgl-lider-escudo {
   flex: 0 0 18px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+}
+/* Fuera en pantalla ancha, igual que en los otros tres widgets de la franja — el porqué está junto a
+   `.dgl-destacado-logo`. Va ACÁ y no allá arriba con los otros: la regla de la línea anterior tiene
+   la misma especificidad y viene después, así que allá arriba la pisaba y el escudo seguía saliendo.
+   Se vio midiendo en el navegador, no leyendo el CSS. */
+@media (min-width: 992px) {
+  .dgl-lider-escudo { display: none; }
 }
 
 /* La columna de la temporada en curso, en la rejilla de Puestos. Un «#2» de este año y uno de 2015

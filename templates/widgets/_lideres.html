@@ -25,11 +25,20 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
     {% endcomment %}
     <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
       {% comment %}
-        El año en el título y no suelto en una esquina: sin él, «en el top 10» se lee como algo
-        permanente, y es una foto de la temporada en curso que cambia cada hora.
+        «DE LA LIGA» Y NO EL AÑO (decisión del dueño, 2026-07-31).
+
+        Llevaba el año —«En el top 10 del 2026»— para que no se leyera como algo permanente, ya que
+        es una foto de la temporada en curso que cambia cada hora. El dueño lo cambió por «de la
+        liga», que dice lo que de verdad hacía falta aclarar: contra QUIÉN es ese top 10.
+
+        Es la diferencia con los dos widgets de racha de más abajo, cuyo corte se calcula solo entre
+        dominicanos. Acá el ranking sale del que publica MLB, así que «de la liga» es literal.
+
+        Lo de la temporada no se pierde del todo: la fila de cada líder enlaza a la página de
+        Líderes, que sí la lleva escrita.
       {% endcomment %}
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="lideres-titulo">
-        En el top 10 del {{ lideres.temporada }}
+        <span class="dgl-widget-icono" aria-hidden="true">🏆</span>En el top 10 de la liga
       </h2>
       {% comment %}
         Se dibuja siempre, aunque hoy sobre: apagada reserva su alto, y así el widget mide igual con
@@ -78,6 +87,18 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
           </article>
           {% endwith %}
         {% endfor %}
+        {% comment %}
+          EL «CERRAR» DEL FINAL, y solo se ve con la capa abierta (decisión del dueño, 2026-07-31).
+
+          Este widget no crece hacia abajo: al desplegarse, la lista FLOTA por encima con sus treinta
+          filas. El «ver menos» de arriba sigue existiendo, pero queda DEBAJO de esa capa y a cuatro
+          filas de distancia, así que para cerrar había que subir a buscarlo pasando por encima de
+          todo lo que se acababa de abrir.
+
+          Va dentro de la lista y no en el marco: la lista es la que flota, así que puesto acá el
+          botón viaja con ella y aterriza siempre en su último renglón, mida lo que mida.
+        {% endcomment %}
+        <button type="button" class="dgl-lideres-cerrar" data-cerrar-lideres>Cerrar</button>
       </div>
     {% endfor %}
     </div>

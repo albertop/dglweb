@@ -1,4 +1,4 @@
-// El widget de líderes: tres filas de cajas, y las dos expansiones que flotan sin empujar nada.
+// El widget de líderes: cinco filas de cajas, y las dos expansiones que flotan sin empujar nada.
 //
 // Las pestañas NO están acá: las mueve `pestanas.js`, que es común a este widget y al de destacados.
 // Este archivo solo escucha `dgl:pestana` para volver a su estado de llegada.
@@ -12,12 +12,19 @@
 
   var listas = Array.prototype.slice.call(caja.querySelectorAll('.dgl-lideres-lista'));
 
-  // ── Tres filas, y el resto flotando por encima ──────────────────────────────────────────────
+  // ── Cinco filas, y el resto flotando por encima ──────────────────────────────────────────────
   //
-  // Cuántas cajas son tres filas depende de cuántas columnas armó la retícula —dos en escritorio,
+  // Cuántas cajas son cinco filas depende de cuántas columnas armó la retícula —dos en escritorio,
   // una en móvil— así que se mide en vez de contarse: las cajas de una misma fila comparten
   // `offsetTop`, y se corta después del tercer valor distinto.
-  var FILAS = 3;
+  // Cinco filas en escritorio y cuatro en móvil, como los otros tres paneles de la franja. El número
+  // tiene que decir lo mismo que el alto del marco en `site.css`: si se separan, o sobra sitio en
+  // blanco o se recorta una fila que el botón cree estar enseñando.
+  //
+  // Se lee al arrancar y no se vuelve a mirar. Girar el teléfono cruzando los 992px dejaría el corte
+  // viejo hasta la siguiente recarga, y es un caso que no compensa la complejidad de escucharlo: el
+  // que gira una tablet ve una fila de más o de menos, no un widget roto.
+  var FILAS = window.matchMedia('(min-width: 992px)').matches ? 5 : 4;
   var marco = caja.querySelector('.dgl-lideres-marco');
   var verTodas = caja.querySelector('.dgl-lideres-mas');
   var desplegado = false;
@@ -93,6 +100,13 @@
     verTodas.setAttribute('aria-expanded', 'true');
     verTodas.textContent = 'ver menos';
   }
+
+  // El «Cerrar» del final de la capa. Va delegado y no uno por lista: hay una lista por oficio y
+  // todas llevan el suyo, así que enganchar uno por uno obligaría a recorrerlas y a acordarse de la
+  // que se añada mañana.
+  caja.addEventListener('click', function (evento) {
+    if (evento.target.closest('[data-cerrar-lideres]')) cerrar();
+  });
 
   if (verTodas && marco) {
     recortar();

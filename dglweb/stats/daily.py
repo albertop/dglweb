@@ -677,19 +677,23 @@ class Destacado:
         return nombre_corto(self.player.full_name)
 
 
-# Cuántos destacados caben en el panel sin desplegar. NO es un número de diseño elegido a ojo: el
-# marco es una rejilla de 2 columnas por 3 filas con `overflow: hidden`, medida en el navegador, así
-# que seis es exactamente su capacidad. Poner otro número dejaría un hueco o cortaría una caja.
+# EL PLIEGUE DEL MÓVIL, y solo del móvil (decisión del dueño, 2026-07-31). Ver el mismo bloque en
+# `stats/ventana.py`, que gobierna los otros dos paneles de la franja.
 #
-# Las pestañas por oficio que había acá se retiraron (decisión del dueño, 2026-07-27). Nunca llegaron
-# a dibujarse: se activaban pasados los 6 destacados y la portada pedía como mucho 5, así que la rama
-# estuvo muerta desde que se escribió. Un botón de «ver más» hace el mismo trabajo sin esconder la
-# mitad del contenido detrás de un clic.
-VISIBLES = 6
+# En escritorio la rejilla arma dos columnas y las diez cajas entran en las cinco filas del marco, sin
+# botón. En un teléfono arma UNA columna —diez filas de scroll— así que el marco se recorta a cuatro y
+# vuelve el «Ver N más». Este número es ese pliegue: lo que queda detrás del botón.
+#
+# Eran seis, en tres filas, hasta el 2026-07-31.
+#
+# Las pestañas por oficio que había acá se retiraron antes (dueño, 2026-07-27). Nunca llegaron a
+# dibujarse: se activaban pasados los 6 destacados y la portada pedía como mucho 5.
+VISIBLES = 4
 
-# El tope de lo que se llega a mandar al navegador. Medido sobre 14 jornadas con el piso puesto: la
-# mejor dio 11 destacados. Doce deja margen sin que una jornada excepcional arme una lista infinita.
-MAXIMO = 12
+# El tope de lo que se manda al navegador: la capacidad del marco en escritorio, 2 columnas x 5 filas.
+# Medido sobre 14 jornadas con el piso puesto, la mejor dio 11 destacados — o sea que se pierde uno en
+# el día más generoso del mes, a cambio de que lo que se manda sea exactamente lo que cabe.
+MAXIMO = 10
 
 
 def _pasan_el_piso() -> Any:  # noqa: ANN401 — es un `Q` de Django, tipado como Any para no importarlo arriba
