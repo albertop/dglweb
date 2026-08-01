@@ -784,6 +784,19 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 /* Las pestañas son `.dgl-pill`, el mismo control redondeado del perfil y de Líderes. Acá solo se
    ajusta la separación; el aspecto viene de allá para que un pill se vea igual en todo el sitio. */
 .dgl-pestanas { display: flex; gap: .4rem; }
+/* Más chicas que las pastillas de filtro del resto del sitio: acá viven en la línea del título de un
+   widget, no en una barra de herramientas, y a tamaño completo eran el elemento más alto de esa línea.
+   Acotado a `.dgl-pestanas` para no tocar las de categorías del índice de artículos. */
+.dgl-pestanas .dgl-pill { font-size: .72rem; padding: .15rem .7rem; }
+
+/* LA CABECERA DE UN WIDGET, con alto reservado. Los cuatro paneles de la franja van dos y dos, y sus
+   filas tienen que arrancar a la misma altura: si no, dos listas idénticas se leen como escalonadas.
+   Medido antes de esto: la de líderes medía 28px —lo que ocupan sus pestañas— contra 18 de las otras
+   tres, que solo llevan una fecha. Diez píxeles de desfase en todas las filas.
+   No se arregla achicando las pestañas: para bajar de 28 a 18 la letra tendría que quedar en 9px.
+   El alto lo fija la más alta y las demás lo reservan, que es lo mismo que ya hace el hueco del
+   «ver más». */
+.dgl-widget-cabecera { min-height: 1.75rem; }
 
 /* Una caja por categoría. Se lee sola —qué estadística, quién la encabeza, cuánto— y por eso tiene
    marco propio en vez de ser un renglón más de una lista. */
