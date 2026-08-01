@@ -116,9 +116,20 @@
           Dos artículos y no tres: el carril se queda con 324px del contenedor, así que acá entran dos
           celdas de ~300px justas. Con tres, el último caería solo en una segunda fila.
         {% endcomment %}
-        <div class="row g-3 mt-4">
+        <div class="row g-3 mt-4" id="portada-articulos">
           {% for otro in articulos %}
             <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
+          {% endfor %}
+          {% comment %}
+            LOS TRES DEL BOTÓN DE MÓVIL. Van dentro de esta misma rejilla y no en un bloque aparte
+            para que al desplegarse continúen la fila en vez de empezar otra cosa debajo.
+
+            `dgl-art-de-mas` los esconde SIEMPRE en escritorio —ahí «Ver más artículos» sigue llevando
+            al índice, y tres tarjetas más estirarían la fila que sostiene el anuncio de 300x600— y en
+            móvil los esconde hasta que se pulsa el botón. Ver `site.css`.
+          {% endcomment %}
+          {% for otro in articulos_de_mas %}
+            <div class="col-md-6 dgl-art-de-mas">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
           {% endfor %}
         </div>
       {% endif %}
@@ -152,9 +163,30 @@
     </div>
   </div>
 
+  {% comment %}
+    DOS CONTROLES DISTINTOS PARA LA MISMA FRASE, y los separa el CSS (dueño, 2026-08-01).
+
+    * **En escritorio**, un enlace al índice, como siempre.
+    * **En un teléfono**, un botón que despliega las tres tarjetas de arriba sin salir de la portada.
+      Quien baja la portada en el celular ya está leyendo, y mandarlo a otra página para ver tres
+      tarjetas más le cobra una carga entera.
+
+    El botón solo existe si hay algo detrás. Sin artículos de más no se dibuja **nada** en móvil: un
+    control que no despliega nada promete contenido que no existe. Al índice se sigue llegando por
+    «Artículos» en el menú, que está en todas las páginas.
+
+    Los dos se mandan siempre y el CSS enseña uno: el servidor no sabe de qué ancho es la pantalla.
+    Y `data-desplegar` es el mismo mecanismo delegado de los widgets — ver `site.js`.
+  {% endcomment %}
   {% if indice %}
-    <div class="text-center my-4">
+    <div class="text-center my-4 dgl-solo-ancha">
       <a href="{{ indice }}" class="btn btn-outline-primary btn-sm px-4">Ver más artículos</a>
+    </div>
+  {% endif %}
+  {% if articulos_de_mas %}
+    <div class="text-center my-4 dgl-solo-angosta">
+      <button type="button" class="btn btn-outline-primary btn-sm px-4"
+              data-desplegar="#portada-articulos" aria-expanded="false">Ver más artículos</button>
     </div>
   {% endif %}
   {% endif %}

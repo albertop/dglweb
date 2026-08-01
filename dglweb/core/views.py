@@ -22,6 +22,21 @@ PORTADA_DESTACADO = 1
 # al último a una segunda fila él solo — una tarjeta y dos huecos, que se lee como un error.
 PORTADA_RESTO = 2
 
+# LOS QUE ESPERAN DETRÁS DEL BOTÓN, Y SOLO EN MÓVIL (dueño, 2026-08-01).
+#
+# En escritorio «Ver más artículos» lleva al índice y eso se queda igual. En un teléfono el dueño
+# prefiere que despliegue los tres siguientes ahí mismo: el que baja la portada en el celular ya está
+# leyendo, y mandarlo a otra página para ver tres tarjetas más le cobra una carga entera.
+#
+# TRES Y NO MÁS. Son los que caben sin convertir la portada en el índice — para eso ya está el índice,
+# y el enlace del menú sigue ahí. Se mandan SIEMPRE al navegador, en las dos pantallas, y quien los
+# esconde es el CSS: el servidor no sabe de qué ancho es la pantalla.
+#
+# En escritorio no se dibujan nunca, y eso importa más de lo que parece: la fila del bloque editorial
+# mide 664px medidos y es lo que justifica el anuncio de 300x600 del carril. Tres tarjetas más la
+# estirarían y romperían esa cuenta.
+PORTADA_MOVIL_EXTRA = 3
+
 # Los jobs que corren cada hora y alimentan módulos que el visitante VE. Se vigilan aparte del
 # refresco diario porque fallan distinto: el diario se nota al día siguiente, y estos dejan la
 # portada enseñando dato viejo con cara de fresco. Ver `_horarios_atrasados()`.
@@ -50,7 +65,7 @@ def home(request: HttpRequest) -> HttpResponse:
     from dglweb.articles.models import ArticlePage, para_tarjetas
     from dglweb.stats import daily, mlb_leaders, scoreboard, ventana
 
-    cuantos = PORTADA_DESTACADO + PORTADA_RESTO
+    cuantos = PORTADA_DESTACADO + PORTADA_RESTO + PORTADA_MOVIL_EXTRA
     # `para_tarjetas` y no un `select_related` propio: la portada usa la misma plantilla de tarjeta
     # que el índice, así que tiene que traer lo mismo. Ver su docstring.
     # `-fijado` primero, igual que el índice: es lo que deja al dueño elegir qué encabeza la portada
@@ -68,7 +83,10 @@ def home(request: HttpRequest) -> HttpResponse:
             # p80 de una corrida y un p20 de otra.
             "rachas": ventana.portada(),
             "articulo": articulos[0] if articulos else None,
-            "articulos": articulos[PORTADA_DESTACADO:],
+            "articulos": articulos[PORTADA_DESTACADO : PORTADA_DESTACADO + PORTADA_RESTO],
+            # Los del botón de móvil. Vacío si no hay más, y entonces el botón no se dibuja: un
+            # control que no despliega nada es peor que no tenerlo — promete contenido que no existe.
+            "articulos_de_mas": articulos[PORTADA_DESTACADO + PORTADA_RESTO :],
             "indice": _url_del_indice(),
         },
     )
