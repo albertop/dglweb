@@ -184,9 +184,34 @@
     </div>
   {% endif %}
   {% if articulos_de_mas %}
+    {% comment %}
+      ES UN ENLACE DE VERDAD, Y EL JS LO ASCIENDE A DESPLEGABLE (FE-01 del review v19).
+
+      Era un `<button>` sin `href`, y eso lo dejaba muerto si `site.js` no llega a ejecutarse — por
+      CSP, por un error anterior en el archivo, o por un navegador sin JavaScript. El lector veía un
+      control y al pulsarlo no pasaba nada. Es la misma regla que ya cerró el caso del marco recortado
+      en móvil: un control visible que no hace nada es peor que no tenerlo.
+
+      Ahora las dos rutas funcionan. Sin JavaScript navega al índice, que es exactamente lo que hacía
+      antes de este cambio; con JavaScript, `site.js` corta la navegación y despliega las tres
+      tarjetas. La mejora es opcional, no un requisito.
+
+      `aria-controls` dice QUÉ región abre ese `aria-expanded`. Sin él, un lector de pantalla anuncia
+      «contraído» sin decir contraído qué.
+
+      Sin índice publicado —restringido o inexistente— no hay a dónde caer, así que ahí sí va un
+      `<button>`: el despliegue es todo lo que puede ofrecer.
+    {% endcomment %}
     <div class="text-center my-4 dgl-solo-angosta">
-      <button type="button" class="btn btn-outline-primary btn-sm px-4"
-              data-desplegar="#portada-articulos" aria-expanded="false">Ver más artículos</button>
+      {% if indice %}
+        <a href="{{ indice }}" class="btn btn-outline-primary btn-sm px-4"
+           data-desplegar="#portada-articulos" aria-controls="portada-articulos"
+           aria-expanded="false">Ver más artículos</a>
+      {% else %}
+        <button type="button" class="btn btn-outline-primary btn-sm px-4"
+                data-desplegar="#portada-articulos" aria-controls="portada-articulos"
+                aria-expanded="false">Ver más artículos</button>
+      {% endif %}
     </div>
   {% endif %}
   {% endif %}

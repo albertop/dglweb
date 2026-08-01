@@ -61,6 +61,13 @@
     if (!boton) return;
     var caja = document.querySelector(boton.dataset.desplegar);
     if (!caja) return;
+    // EL ENLACE NO NAVEGA CUANDO ESTE JS ESTÁ VIVO (FE-01 del review v19). El «Ver más artículos» de
+    // la portada es un `<a href>` de verdad para que funcione sin JavaScript; acá se le corta la
+    // navegación y se despliega en su lugar. En un `<button>` esta línea no hace nada.
+    //
+    // Va DESPUÉS de comprobar que la caja existe, y a propósito: si el destino no está en la página,
+    // más vale que el enlace se comporte como enlace y lleve al índice.
+    evento.preventDefault();
     var abierto = caja.classList.toggle("esta-desplegado");
     boton.setAttribute("aria-expanded", abierto ? "true" : "false");
     // El texto tiene que cambiar: un botón que sigue diciendo «Ver 4 más» con las cuatro ya a la

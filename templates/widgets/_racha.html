@@ -88,7 +88,7 @@ título prometía de más; desde el estudio del 2026-07-31 los umbrales son los 
       donde este botón se llega a pulsar. Ver `stats/ventana.py`.
     {% endcomment %}
     {% if racha.de_mas %}
-      <button type="button" class="dgl-lideres-mas" data-desplegar="#{{ id }}"
+      <button type="button" class="dgl-lideres-mas" data-desplegar="#{{ id }}" aria-controls="{{ id }}"
               aria-expanded="false">Ver {{ racha.de_mas|length }} más</button>
     {% endif %}
   </div>

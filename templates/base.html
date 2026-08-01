@@ -86,12 +86,20 @@
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   <link href="{% static 'vendor/bootstrap.min.css' %}" rel="stylesheet">
   {% comment %}
-    EL `?v=` SUBE CADA VEZ QUE SE TOCA `site.css`. No es opcional y es fácil de olvidar: el navegador
-    tiene guardada la respuesta con esta misma dirección, así que sin cambiarla sirve la copia vieja y
-    el estilo nuevo no aparece — el HTML sale perfecto y uno busca el fallo donde no está.
+    EL `?v=` SUBE CADA VEZ QUE SE TOCA EL ARCHIVO — `site.css` y también cada `.js` de más abajo. Es
+    fácil de olvidar: el navegador tiene guardada la respuesta con esta misma dirección, así que sin
+    cambiarla sirve la copia vieja y el cambio no aparece. El HTML sale perfecto y uno busca el fallo
+    donde no está. Pasó el 2026-07-31 con la alineación por columna de la tabla pegada: las clases
+    llegaban a cada celda, la regla estaba en el archivo, y en pantalla no se movía nada.
 
-    Pasó el 2026-07-31 con la alineación por columna de la tabla pegada: las clases llegaban a cada
-    celda, la regla estaba en el archivo, y en pantalla no se movía nada.
+    Y ESTO PROTEGE SOBRE TODO EN DESARROLLO, que es un matiz que faltaba acá (2026-08-01). Producción
+    sirve los estáticos con el hash del contenido EN EL NOMBRE —`site.c7ef48ff3322.css`,
+    `buscador.45cfd6dafdb2.js`— así que allá el archivo cambiado ya llega por una dirección que
+    ningún navegador ha visto, con `?v=` o sin él. `runserver` no hace eso: sirve
+    `/static/css/site.css` a secas, y ahí el `?v=` es lo único que hay.
+
+    O sea que olvidarlo no rompe el sitio publicado: rompe la revisión del dueño, que es donde se
+    decide si algo sale o no. No es menos grave por eso.
   {% endcomment %}
   <link href="{% static 'css/site.css' %}?v=141" rel="stylesheet">
   {% if analitica %}{% comment %}
@@ -349,7 +357,7 @@
   al portapapeles. SIN este script los botones siguen funcionando — son enlaces planos.
 {% endcomment %}
 <script src="{% static 'js/compartir.js' %}?v=1" defer></script>
-<script src="{% static 'js/site.js' %}?v=4" defer></script>
+<script src="{% static 'js/site.js' %}?v=5" defer></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

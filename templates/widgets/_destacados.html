@@ -116,7 +116,7 @@ no esté a que esté hueco.
       suyo siempre, y están uno junto al otro donde cualquier diferencia de alto los desalinea.
     {% endcomment %}
     {% if destacados.de_mas %}
-      <button type="button" class="dgl-lideres-mas" data-desplegar="#destacados-caja"
+      <button type="button" class="dgl-lideres-mas" data-desplegar="#destacados-caja" aria-controls="destacados-caja"
               aria-expanded="false">Ver {{ destacados.de_mas|length }} más</button>
     {% else %}
       <div class="dgl-lideres-mas esta-de-mas" aria-hidden="true">&nbsp;</div>
