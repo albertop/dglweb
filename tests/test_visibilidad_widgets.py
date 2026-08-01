@@ -94,7 +94,7 @@ def _ids(estructura: object, hondo: int = 0) -> set[int]:
 
 
 @pytest.mark.django_db
-def test_los_destacados_del_dia_no_ensenan_a_un_oculto() -> None:
+def test_los_destacados_del_dia_no_ensenan_a_un_oculto(temporada_en_curso: object) -> None:
     from dglweb.stats import daily
 
     visible = _jugador(910001, oculto=False)
@@ -110,7 +110,7 @@ def test_los_destacados_del_dia_no_ensenan_a_un_oculto() -> None:
 
 
 @pytest.mark.django_db
-def test_si_el_unico_destacado_esta_oculto_el_widget_no_sale() -> None:
+def test_si_el_unico_destacado_esta_oculto_el_widget_no_sale(temporada_en_curso: object) -> None:
     """El caso que habría roto un arreglo a medias, y por eso tiene prueba propia.
 
     Si la fecha de referencia se eligiera contando al jugador oculto pero las filas lo excluyeran, el
@@ -183,7 +183,9 @@ def test_reactivar_a_un_jugador_lo_devuelve_sin_reconstruir_nada() -> None:
 
 @pytest.fixture
 def temporada_en_curso(db: None) -> object:
-    """Las rachas solo se publican del día 15 de temporada en adelante — ver `ventana.se_puede_publicar`.
+    """Los cuatro widgets de temporada exigen una activa para `sports_id = 1` — ver `season_window.se_publica`.
+
+    Las rachas piden además catorce días de rampa; «Destacados ayer y hoy» ninguno.
 
     Sin esto, `portada()` devolvería `None` por la fecha y las pruebas de visibilidad pasarían sin
     comprobar nada: la de «el único está oculto» sería verde aunque el filtro no existiera.

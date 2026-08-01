@@ -419,6 +419,7 @@ def test_each_pitching_role_is_judged_against_its_own_cut(temporada: object) -> 
 def temporada(db: None) -> object:
     from dglweb.stats.models import SeasonDates
     from dglweb.stats.season_window import MLB
+    from dglweb.stats.season_window import MLB
 
     return SeasonDates.objects.create(
         season=2026, sports_id=MLB,
@@ -442,9 +443,15 @@ def test_los_widgets_aparecen_el_dia_quince(temporada: object) -> None:
 
 @pytest.mark.django_db
 def test_los_widgets_desaparecen_al_terminar_la_temporada(temporada: object) -> None:
-    """«Últimos 14 días» en enero es una afirmación falsa: no ha habido catorce días de pelota."""
+    """«Últimos 14 días» en enero es una afirmación falsa: no ha habido catorce días de pelota.
+
+    Con UN día de holgura (dueño, 2026-08-01): la Serie Mundial termina de noche y sin él los widgets
+    se iban de madrugada, justo cuando alguien entra a ver cómo les fue a los nuestros en el último
+    juego del año.
+    """
     assert ventana.se_puede_publicar(date(2026, 9, 28)) is True, "el último día todavía cuenta"
-    assert ventana.se_puede_publicar(date(2026, 9, 29)) is False
+    assert ventana.se_puede_publicar(date(2026, 9, 29)) is True, "el día siguiente, por la holgura"
+    assert ventana.se_puede_publicar(date(2026, 9, 30)) is False, "al segundo día ya no"
     assert ventana.se_puede_publicar(date(2027, 1, 15)) is False
 
 
@@ -456,6 +463,36 @@ def test_sin_temporada_marcada_no_se_publica() -> None:
 
 
 @pytest.mark.django_db
+def test_quitar_la_marca_de_temporada_en_curso_apaga_los_widgets(temporada: object) -> None:
+    """Es la palanca del Backoffice: el administrador desmarca «Temporada en curso» y los dos widgets
+    se van de la portada en la siguiente petición, sin tocar código ni esperar a un job."""
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    assert ventana.se_puede_publicar(date(2026, 7, 31)) is True
+
+    SeasonDates.objects.filter(sports_id=MLB).update(is_active=False)
+
+    assert ventana.se_puede_publicar(date(2026, 7, 31)) is False
+
+
+@pytest.mark.django_db
+def test_una_temporada_de_otro_deporte_no_habilita_los_widgets(temporada: object) -> None:
+    """La condición es `sports_id = 1`. Si algún día entra otro deporte en la tabla, su temporada
+    activa no puede encender un widget que solo habla de las Grandes Ligas."""
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    SeasonDates.objects.filter(sports_id=MLB).update(is_active=False)
+    SeasonDates.objects.create(
+        season=2026, sports_id=MLB + 1, is_active=True,
+        season_start_date=date(2026, 3, 26), season_end_date=date(2026, 9, 28),
+    )  # fmt: skip
+
+    assert ventana.se_puede_publicar(date(2026, 7, 31)) is False
+
+
+@pytest.mark.django_db
 def test_la_portada_calla_en_la_primera_quincena() -> None:
     """Con datos de sobra en la tabla, el widget no sale igual: la fecha manda.
 
@@ -463,6 +500,7 @@ def test_la_portada_calla_en_la_primera_quincena() -> None:
     comprueba que `portada()` de verdad lo obedece.
     """
     from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
     from dglweb.stats.season_window import MLB
 
     # Una temporada que arrancó hace cinco días: estamos dentro de la primera quincena.

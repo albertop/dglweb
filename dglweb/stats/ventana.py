@@ -627,28 +627,30 @@ def se_puede_publicar(hoy: date | None = None) -> bool:
       una liga en marcha. Con media ventana, el valor acumulado de todos es más chico y el corte deja
       fuera a gente que sí está quemando la liga; y al revés, el umbral de PA y de IP tampoco se
       alcanza. Los widgets aparecen **el día 15**, contado desde `season_start_date`.
-    * **Después del último día, tampoco.** «Últimos 14 días» en enero es una afirmación falsa: no ha
-      habido catorce días de pelota. El widget desaparece en cuanto pasa `season_end_date`.
+    * **Después del último día, tampoco** — pero con **un día de holgura** (dueño, 2026-08-01). La
+      Serie Mundial termina de noche, y con el corte pegado a `season_end_date` los widgets
+      desaparecían de madrugada, justo cuando alguien entra a ver cómo le fue a los nuestros en el
+      último juego del año. El día siguiente todavía es noticia; el segundo ya no.
 
     La fecha sale de `SeasonDates`, que es la misma tabla que gobierna los jobs — no de una constante
     ni del calendario civil, para que una temporada que empiece antes o se alargue no obligue a tocar
     código.
+
+    Y TIENE QUE HABER UNA TEMPORADA MARCADA COMO EN CURSO, para `sports_id = 1`. Es la condición que
+    hace esto gobernable desde el Backoffice sin tocar código: el administrador quita la marca
+    «Temporada en curso» y los dos widgets desaparecen de la portada en la siguiente petición.
 
     SE COMPRUEBA AL PUBLICAR Y NO AL CALCULAR, igual que la visibilidad de los jugadores. El job
     horario puede seguir corriendo en la primera quincena: escribe una foto que nadie lee y que se
     reemplaza sola, y el día 15 ya está lista sin esperar a la siguiente hora. Bloquearlo al calcular
     no ganaría nada y añadiría una segunda regla que mantener de acuerdo con esta.
     """
-    from dglweb.stats.models import SeasonDates
-    from dglweb.stats.season_window import MLB
+    from dglweb.stats import season_window
 
-    dia = hoy or timezone.localdate()
-    temporada = SeasonDates.objects.filter(sports_id=MLB, is_active=True).order_by("-season").first()
-    if temporada is None:
-        # Sin temporada marcada no se publica. Es el mismo criterio que `season_window`: callar es
-        # mejor que afirmar sobre una ventana que nadie definió.
-        return False
-    return temporada.season_start_date + timedelta(days=DIAS) <= dia <= temporada.season_end_date
+    # La regla vive en `season_window` y no acá: la comparten estos dos widgets y «Destacados ayer y
+    # hoy», y tres copias de una condición sobre fechas de temporada son tres formas de que se
+    # separen. Lo único propio de este widget es la rampa.
+    return season_window.se_publica(hoy, rampa=DIAS)
 
 
 def _clase(registro: WindowStandout) -> str:

@@ -84,9 +84,20 @@ def test_the_widget_zone_shows_the_stored_standouts(db):
     """La franja de arriba es dato real, no la maqueta: si hay jornada guardada, sale la jornada."""
     from datetime import date
 
+    from django.utils import timezone
+
     from dglweb.players.models import Player
-    from dglweb.stats.models import DailyStandout
+    from dglweb.stats.models import DailyStandout, SeasonDates
+    from dglweb.stats.season_window import MLB
     from tests.test_players import _other_player
+
+    # Desde el 2026-08-01 el widget exige una temporada en curso: fuera de ella no se dibuja, para no
+    # decir «Destacados ayer y hoy» encima de un juego de octubre durante cinco meses de invierno.
+    hoy = timezone.localdate()
+    SeasonDates.objects.create(
+        season=hoy.year, sports_id=MLB, is_active=True,
+        season_start_date=date(hoy.year, 1, 1), season_end_date=date(hoy.year, 12, 31),
+    )  # fmt: skip
 
     jugador = Player.objects.create(**_other_player(full_name="Rafael Devers"))
     DailyStandout.objects.create(

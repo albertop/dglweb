@@ -30,6 +30,51 @@ MLB = 1
 # juego de la Serie Mundial no.
 GRACIA_FINAL = timedelta(days=2)
 
+# La misma idea, pero PARA PUBLICAR, y por eso es un día y no dos (dueño, 2026-08-01).
+#
+# Los dos días de arriba son margen para un job que se atrasa o se reintenta — un coste de cero. Acá
+# no hay reintentos: es cuánto tiempo después del último juego un widget puede seguir hablando de «la
+# jornada» o de «los últimos 14 días» sin mentir.
+#
+# Uno, porque la Serie Mundial termina de noche y con el corte pegado a `season_end_date` los widgets
+# se irían de madrugada, justo cuando alguien entra a ver cómo les fue a los nuestros en el último
+# juego del año. Al segundo día ya no es noticia.
+HOLGURA_AL_PUBLICAR = timedelta(days=1)
+
+
+def se_publica(hoy: date | None = None, *, rampa: int = 0, sports_id: int = MLB) -> bool:
+    """Si HOY un widget de temporada tiene derecho a dibujarse.
+
+    Es la pregunta del que PINTA, no la del que calcula, y por eso no es `evaluate()`:
+
+    * La holgura del final es distinta —un día contra dos— porque responden a cosas distintas. Ver
+      `HOLGURA_AL_PUBLICAR`.
+    * No deja fila en el log de ingesta. Un widget que no se dibuja porque estamos en enero no es un
+      job que no corrió; anotarlo llenaría el log de ruido cada vez que alguien abre la portada.
+
+    `rampa` son los días que el widget necesita ANTES de poder afirmar lo suyo. «Destacados ayer y
+    hoy» no necesita ninguno: le basta una jornada, y mientras no haya filas no se dibuja solo. Las
+    dos rachas piden catorce, porque prometen «los últimos 14 días» y el día 3 esa frase es falsa.
+
+    Y ES LA MISMA PALANCA QUE LOS JOBS: exige una temporada marcada como en curso para `sports_id`.
+    El administrador desmarca «Temporada en curso» en el Backoffice y los widgets desaparecen de la
+    portada en la siguiente petición, sin tocar código ni esperar a ningún job.
+    """
+    from dglweb.stats.models import SeasonDates
+
+    dia = hoy or timezone.localdate()
+    temporada = SeasonDates.objects.filter(sports_id=sports_id, is_active=True).order_by("-season").first()
+    if temporada is None:
+        # Callar es mejor que afirmar sobre una ventana que nadie definió. Mismo criterio que
+        # `evaluate()`, que para el caso de los jobs sí lo grita en el log.
+        return False
+
+    return (
+        temporada.season_start_date + timedelta(days=rampa)
+        <= dia
+        <= temporada.season_end_date + HOLGURA_AL_PUBLICAR
+    )
+
 
 @dataclass(frozen=True)
 class Ventana:

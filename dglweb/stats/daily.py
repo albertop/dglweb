@@ -54,7 +54,7 @@ from typing import Any
 from django.utils.formats import date_format
 
 from dglweb.mlb.client import MlbProxyClient
-from dglweb.stats import scoreboard
+from dglweb.stats import scoreboard, season_window
 from dglweb.stats._download import fetch_team_codes
 
 logger = logging.getLogger(__name__)
@@ -782,6 +782,20 @@ def portada() -> dict[str, Any] | None:
     #
     # Anclando en la referencia, «Ayer» significa siempre lo mismo: el día anterior a la jornada que
     # se está enseñando. Es la única lectura que no obliga al lector a saber qué día es hoy.
+    # FUERA DE TEMPORADA NO SE DIBUJA (dueño, 2026-08-01). Este widget no tenía ninguna regla de
+    # fechas: enseñaba la jornada más reciente que hubiera guardada, viniera de donde viniera.
+    #
+    # En noviembre eso significa un titular que dice «Destacados **ayer y hoy**» encima de un 3-4 del
+    # 28 de octubre. Y no se limpiaba solo: las filas viejas las borra `podar()`, que llama este mismo
+    # comando, que está saltando por estar fuera de temporada. O sea cinco meses afirmando que la
+    # Serie Mundial fue hoy.
+    #
+    # Sin rampa, al revés que las dos rachas: a este widget le basta UNA jornada, y el día de apertura
+    # por la mañana todavía no hay filas — devuelve `None` y no se dibuja solo. El caso vacío ya lo
+    # cubre, así que pedirle días de más sería esconderlo cuando sí tiene algo que decir.
+    if not season_window.se_publica():
+        return None
+
     referencia = _publicables().order_by("-fecha").values_list("fecha", flat=True).first()
     if referencia is None:
         return None
