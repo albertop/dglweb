@@ -134,8 +134,9 @@ IP_POR_JUEGO = 1.0
 # decisión mirada dos veces.
 APARICIONES_RELEVO = 4
 
-# LOS CORTES, EN CARRERAS SOBRE EL PROMEDIO. Cuatro constantes: p85 y p15 de cada oficio, sacados de
-# LA LIGA ENTERA. Llegaron ahí en tres pasos y los tres dejaron algo aprendido.
+# LOS CORTES, EN CARRERAS SOBRE EL PROMEDIO. Seis constantes: p85 y p15 de cada una de las TRES clases
+# —bateo, abridor y relevista—, sacadas de LA LIGA ENTERA. Llegaron ahí en cuatro pasos, y los cuatro
+# dejaron algo aprendido.
 #
 # 1. DE LA LIGA Y NO DE LOS NUESTROS. La tabla solo guarda dominicanos, así que lo natural era sacar
 #    el percentil de ella. Medido: con cuarenta jugadores el corte de arriba se movió de +3,02 a +3,54
@@ -429,11 +430,25 @@ def _califica(stat: dict[str, Any], grupo: str, juegos: int) -> str:
     # —GS=1, 8 apariciones, +3,59— sí habría pasado el corte de relevista de haber sido nuestro.
     #
     # El orden importa: se prueba PRIMERO el listón de abridor. Un abridor de verdad lo cruza y se
-    # mide contra los abridores; el que no, se mide contra los relevistas, que es la población cuyo
-    # uso se parece al suyo. Un abridor con dos aperturas malas tampoco entra por la puerta de atrás:
-    # dos aperturas son dos apariciones y el umbral de relevo pide cuatro.
+    # mide contra los abridores.
+    #
+    # PERO EL RESPALDO PIDE QUE EL RELEVO HAYA SIDO SU USO PRINCIPAL (SAB-01 del review v17). La
+    # primera versión solo miraba `G >= 4`, y eso metía en la población de relevistas a un lanzador
+    # con dos aperturas de cuatro salidas: su uso fue mitad y mitad, pero se le medía con el corte de
+    # relevista, que es el más permisivo de los dos (+2,4 contra +5,7).
+    #
+    # `GS * 2 < G` dice exactamente «más de la mitad de sus salidas fueron de relevo». Con eso, el
+    # opener de una apertura en ocho salidas entra y el swingman de dos en cuatro no. Medido en la
+    # ventana del 18 al 31 de julio: de los 15 que caían al respaldo, entran 10 y quedan fuera 5, los
+    # cinco de dos aperturas. Ninguno de los cinco era dominicano.
+    #
+    # Y QUEDAR FUERA ES LA RESPUESTA CORRECTA para ese perfil, aunque suene a pérdida: un swingman
+    # que no llega al listón de abridor no es comparable con ninguna de las dos poblaciones, así que
+    # no enseñarlo es más honesto que enseñarlo medido con la vara que no le toca.
     if _numero(stat, "GS") > 0 and _oportunidades(stat, "IP") >= IP_POR_JUEGO * juegos:
         return "abridor"
+    if _numero(stat, "GS") * 2 >= _numero(stat, "G"):
+        return ""
     return "relevista" if _numero(stat, "G") >= APARICIONES_RELEVO else ""
 
 
@@ -658,7 +673,7 @@ def _fila(registro: WindowStandout) -> Fila:
     )
 
 
-def portada() -> dict[str, Any] | None:
+def portada(hoy: date | None = None) -> dict[str, Any] | None:
     """Los dos widgets, o `None` si no hay con qué dibujarlos.
 
     Devuelve los dos juntos porque salen de la misma consulta y de los mismos cortes: pedirlos por
@@ -672,8 +687,14 @@ def portada() -> dict[str, Any] | None:
     Devuelve `None` cuando no queda nadie en ninguna de las dos puntas. Puede pasar de verdad —en el
     receso, o el día que se recalcula la ventana en pretemporada— y un panel hueco se lee como un
     sitio roto.
+
+    `hoy` es para reproducir: `build_window_standouts --hasta` calcula la ventana de otra fecha y
+    tenía que poder enseñarla. Sin el parámetro, el comando guardaba la foto de abril y decidía si se
+    podía publicar con la fecha de hoy, así que en invierno imprimía «no alcanza para partir en
+    quintos» cuando la causa real era el calendario (QA-01 del review v17). En producción no se pasa:
+    la portada siempre pregunta por hoy.
     """
-    if not se_puede_publicar():
+    if not se_puede_publicar(hoy):
         return None
 
     registros = list(_publicables().select_related("player").order_by("-valor"))

@@ -534,3 +534,46 @@ def test_la_linea_mas_larga_posible_cabe_en_la_columna() -> None:
     assert tope is not None
     assert len(maxima) < tope
     assert len(ventana.linea_de_pitcheo({"IP": "100.2", "ER": "40", "K": "120", "BB": "55"})) < 160
+
+
+# ── Los bordes que encontró el review v17 ───────────────────────────────────────────────────────
+
+
+def test_el_swingman_no_entra_por_la_puerta_del_relevo() -> None:
+    """SAB-01 del v17. El respaldo pide que el relevo haya sido su USO PRINCIPAL, no solo que tenga
+    cuatro salidas.
+
+    Con `G >= 4` a secas, un lanzador con dos aperturas de cuatro salidas —uso mitad y mitad— se medía
+    contra el corte de relevista, que es el más permisivo de los dos (+2,4 contra +5,7). Medido en la
+    ventana del 18 al 31 de julio, eran 5 de los 15 que caían al respaldo.
+    """
+    swingman = {"GS": "2", "G": "4", "outsPitched": "20"}  # 6.2 IP, mitad aperturas
+
+    assert ventana._califica(swingman, "pitching", juegos=13) == ""
+
+
+def test_el_opener_de_verdad_sigue_entrando() -> None:
+    """Y la mitad buena del arreglo no se pierde: una apertura en ocho salidas ES relevo."""
+    assert ventana._califica({"GS": "1", "G": "8", "outsPitched": "24"}, "pitching", juegos=13) == "relevista"
+    # Justo en el filo: una apertura de cuatro salidas son tres de relevo, o sea más de la mitad.
+    assert ventana._califica({"GS": "1", "G": "4", "outsPitched": "18"}, "pitching", juegos=13) == "relevista"
+
+
+def test_el_relevista_puro_no_se_ve_afectado() -> None:
+    """`GS = 0` nunca puede fallar la comprobación de rol dominante."""
+    assert ventana._califica({"GS": "0", "G": "4", "outsPitched": "12"}, "pitching", juegos=13) == "relevista"
+
+
+@pytest.mark.django_db
+def test_la_muestra_del_comando_usa_la_fecha_de_la_ventana(temporada: object) -> None:
+    """QA-01 del v17. `--hasta` reproduce una foto vieja, y la muestra decidía con la fecha de HOY.
+
+    Con una ventana de la primera quincena, `portada()` sin fecha diría que sí se publica —porque hoy
+    estamos en julio— y con la fecha de la ventana dice que no. El comando existe para depurar: una
+    señal falsa ahí manda a mirar donde no es.
+    """
+    _guardar([(9.0, "bateo"), (-9.0, "bateo")])
+    en_la_primera_quincena = date(2026, 4, 2)
+
+    assert ventana.portada() is not None, "hoy sí se publica"
+    assert ventana.portada(en_la_primera_quincena) is None, "el 2 de abril no, y la muestra tiene que decirlo"

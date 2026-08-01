@@ -56,9 +56,18 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(self.style.SUCCESS(f"{guardadas} actuaciones guardadas, ventana hasta {hasta}."))
-        foto = ventana.portada()
+
+        # CON LA FECHA DE LA VENTANA Y NO CON HOY (QA-01 del review v17). Con `--hasta` se reproduce
+        # una foto vieja, y sin pasarle la fecha esto decidía si se puede publicar mirando el
+        # calendario de hoy: en invierno imprimía un motivo falso justo cuando alguien está depurando.
+        foto = ventana.portada(hasta)
         if foto is None:
-            self.stdout.write("  (menos de cinco: no alcanza para partir en quintos)")
+            # El motivo, y no un mensaje único: las tres causas se arreglan de forma distinta y
+            # confundirlas manda a mirar donde no es.
+            if not ventana.se_puede_publicar(hasta):
+                self.stdout.write(f"  (el {hasta} los widgets no se publican: fuera de la ventana de temporada)")
+            else:
+                self.stdout.write("  (nadie cruzó su corte; ver CORTES en stats/ventana.py)")
             return
         for etiqueta, clave in (("🔥", "quemando"), ("🥶", "pasando")):
             for fila in foto[clave]["visibles"][:3]:
