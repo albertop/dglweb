@@ -469,8 +469,27 @@ def linea_de_bateo(stat: dict[str, Any]) -> str:
 
 
 def linea_de_pitcheo(stat: dict[str, Any]) -> str:
-    """«7.0 IP, 9 K, 0 ER (W)» — las entradas primero, que es lo que sitúa la actuación."""
-    partes = [f"{stat.get('IP', '0.0')} IP", f"{int(_numero(stat, 'K'))} K", f"{int(_numero(stat, 'ER'))} ER"]
+    """«7.0 IP, 0 ER, 9 K, 1 BB (W)» — las entradas primero, que es lo que sitúa la actuación.
+
+    LOS BOLETOS ENTRARON EL 2026-07-31, a pedido del dueño, y el orden pasó a IP, ER, K, BB. Faltaban
+    desde siempre y el motivo para ponerlos no es de gusto: **el valor sí los cuenta** —pesan -0,326
+    carreras cada uno, la misma matriz que castiga al bateador que los recibe— así que sin ellos la
+    línea no explicaba su propio número. La misma razón por la que la del bateador lleva el promedio.
+
+    El orden lo comparte con `ventana.linea_de_pitcheo`: los tres paneles de la franja están uno
+    debajo del otro y leerse distinto los haría parecer cosas distintas. Lo único que no comparten es
+    la decisión, que allá se quita porque en catorce días es de un juego suelto.
+
+    Las filas ya guardadas conservan el formato viejo hasta que se reprocese su jornada con
+    `build_daily_standouts --fecha`. No se reescriben en masa: son texto de lectura, y una jornada de
+    mayo sin boletos no dice nada falso — dice menos.
+    """
+    partes = [
+        f"{stat.get('IP', '0.0')} IP",
+        f"{int(_numero(stat, 'ER'))} ER",
+        f"{int(_numero(stat, 'K'))} K",
+        f"{int(_numero(stat, 'BB'))} BB",
+    ]
     for clave in ("W", "SV", "HLD"):
         if _numero(stat, clave):
             partes.append(f"({'H' if clave == 'HLD' else clave})")

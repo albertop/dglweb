@@ -338,8 +338,13 @@ def test_two_of_the_same_are_counted(db: None) -> None:
 
 @pytest.mark.django_db
 def test_the_pitching_line_leads_with_innings_and_flags_the_decision(db: None) -> None:
-    """Las entradas primero porque son lo que sitúa la actuación; la decisión al final."""
-    assert daily.linea_de_pitcheo(_pitcheo(IP="7.0", K=9, ER=0, W=1)) == "7.0 IP, 9 K, 0 ER, (W)"
+    """Las entradas primero porque son lo que sitúa la actuación; la decisión al final.
+
+    Y LOS BOLETOS, desde el 2026-07-31: el valor los cuenta —pesan -0,326 carreras— así que sin ellos
+    la línea no explicaba su propio número. Mismo orden que `ventana.linea_de_pitcheo`, porque los
+    tres paneles de la franja van uno debajo del otro.
+    """
+    assert daily.linea_de_pitcheo(_pitcheo(IP="7.0", K=9, ER=0, BB=1, W=1)) == "7.0 IP, 0 ER, 9 K, 1 BB, (W)"
     assert "(SV)" in daily.linea_de_pitcheo(_pitcheo(IP="1.0", SV=1))
 
 
