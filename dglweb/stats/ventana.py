@@ -46,8 +46,6 @@ from datetime import date, timedelta
 from statistics import quantiles
 from typing import Any
 
-from django.utils import timezone
-
 from dglweb.mlb.client import MlbProxyClient
 from dglweb.stats.models import WindowStandout
 

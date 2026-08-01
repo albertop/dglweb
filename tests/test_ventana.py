@@ -419,7 +419,6 @@ def test_each_pitching_role_is_judged_against_its_own_cut(temporada: object) -> 
 def temporada(db: None) -> object:
     from dglweb.stats.models import SeasonDates
     from dglweb.stats.season_window import MLB
-    from dglweb.stats.season_window import MLB
 
     return SeasonDates.objects.create(
         season=2026, sports_id=MLB,
@@ -500,7 +499,6 @@ def test_la_portada_calla_en_la_primera_quincena() -> None:
     comprueba que `portada()` de verdad lo obedece.
     """
     from dglweb.stats.models import SeasonDates
-    from dglweb.stats.season_window import MLB
     from dglweb.stats.season_window import MLB
 
     # Una temporada que arrancó hace cinco días: estamos dentro de la primera quincena.

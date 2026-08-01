@@ -42,8 +42,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from dglweb.mlb.client import MlbProxyClient, MlbProxyError
-from dglweb.stats.leagues import team_code
 from dglweb.stats import season_window
+from dglweb.stats.leagues import team_code
 
 logger = logging.getLogger(__name__)
 
