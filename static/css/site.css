@@ -1045,8 +1045,21 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 
    Apilado, NUNCA con la imagen al lado del texto: la banda arriba y el texto debajo, a todo el
    ancho. Antes esto era `flex-direction: row` con la imagen ocupando un tercio. */
-.dgl-art-destacado h3 { font-size: 1.5rem; line-height: 1.2; }
-.dgl-art-destacado .entradilla { font-size: 1rem; }
+/* EL DESTACADO SOLO ES MÁS GRANDE CUANDO ADEMÁS ES MÁS ANCHO (2026-07-31, decisión del dueño).
+
+   El titular a 1,5rem contra los .95rem del resto dice «este es el importante», y eso se entiende
+   porque al lado hay tarjetas más chicas con las que compararlo. Apiladas en un teléfono no hay tal
+   comparación: las tres ocupan el mismo ancho, van una debajo de otra, y lo único que queda del
+   contraste es un titular que se come tres renglones de pantalla.
+
+   El corte va en el `md` de Bootstrap porque es exactamente donde las tarjetas dejan de medir todas
+   lo mismo: por debajo de 768px `col-md-6` se apila y la retícula entera es de una columna. No es un
+   número elegido por «esto ya parece un móvil», es el punto donde el argumento del tamaño deja de
+   ser cierto. */
+@media (min-width: 768px) {
+  .dgl-art-destacado h3 { font-size: 1.5rem; line-height: 1.2; }
+  .dgl-art-destacado .entradilla { font-size: 1rem; }
+}
 
 /* Las categorías. El aspecto es el de `.nav-pills`, el mismo control de Líderes y del perfil; lo
    único que añade esta clase es que la fila se deslice en móvil en vez de apilarse en tres
