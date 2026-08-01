@@ -33,14 +33,14 @@ def _fila(valor: float, grupo: str = "bateo") -> ventana.Fila:
 # ── El umbral ───────────────────────────────────────────────────────────────────────────────────
 
 
-def test_the_threshold_comes_from_what_was_actually_played() -> None:
+def test_the_team_games_come_from_what_was_actually_played() -> None:
     """Catorce días no son catorce juegos: hay días libres, dobles carteleras y el receso.
 
     Un número escrito a mano quedaría largo en julio y corto en septiembre sin que nada lo dijera.
     """
     splits = [{"stat": {"G": str(j)}} for j in [4, 6, 8, 10, 11, 11, 12, 12, 12, 12, 12, 13]]
 
-    assert ventana._umbral(splits, ventana.PA_POR_JUEGO) == pytest.approx(3.1 * 12)
+    assert ventana.juegos_del_equipo(splits) == 12
 
 
 def test_the_denominator_is_the_p90_and_not_the_maximum() -> None:
@@ -52,12 +52,12 @@ def test_the_denominator_is_the_p90_and_not_the_maximum() -> None:
     normales = [{"stat": {"G": "10"}} for _ in range(20)]
     uno_que_jugo_de_mas = [{"stat": {"G": "20"}}]
 
-    assert ventana._umbral(normales + uno_que_jugo_de_mas, 1.0) == pytest.approx(10.0)
+    assert ventana.juegos_del_equipo(normales + uno_que_jugo_de_mas) == 10
 
 
 def test_an_empty_window_does_not_divide_by_anything() -> None:
     """En pretemporada no hay splits, y eso no puede ser una excepción sin atrapar."""
-    assert ventana._umbral([], 3.1) == 0.0
+    assert ventana.juegos_del_equipo([]) == 0
 
 
 # ── El reparto entre oficios ────────────────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ def _guardar(valores: list[tuple[float, str]]) -> None:
 
 
 @pytest.mark.django_db
-def test_the_two_ends_come_from_the_same_cut() -> None:
+def test_the_two_ends_come_from_the_same_cut(temporada: object) -> None:
     """Son las dos puntas de UNA distribución, no dos preguntas: se calculan a la vez."""
     _guardar([(float(v), "bateo") for v in range(-10, 11)])
 
@@ -140,7 +140,7 @@ def test_the_two_ends_come_from_the_same_cut() -> None:
 
 
 @pytest.mark.django_db
-def test_nobody_reaching_either_cut_draws_nothing() -> None:
+def test_nobody_reaching_either_cut_draws_nothing(temporada: object) -> None:
     """Una tanda entera del montón no llena ninguna de las dos puntas, y un panel hueco se lee como
     un sitio roto. Pasa de verdad en el receso."""
     _guardar([(0.5, "bateo"), (1.0, "bateo"), (-1.0, "pitcheo"), (0.0, "bateo")])
@@ -149,13 +149,13 @@ def test_nobody_reaching_either_cut_draws_nothing() -> None:
 
 
 @pytest.mark.django_db
-def test_nothing_stored_draws_nothing() -> None:
+def test_nothing_stored_draws_nothing(temporada: object) -> None:
     """En pretemporada la tabla está vacía y la portada no puede dibujar un panel hueco."""
     assert ventana.portada() is None
 
 
 @pytest.mark.django_db
-def test_the_cut_is_the_fixed_league_one_and_not_one_derived_from_the_table() -> None:
+def test_the_cut_is_the_fixed_league_one_and_not_one_derived_from_the_table(temporada: object) -> None:
     """LA REGRESIÓN que importa. La tabla solo tiene dominicanos, así que un percentil sacado de ella
     sería la vara de cuarenta personas: medido, se movía de +3,02 a +3,54 en quince días.
 
@@ -169,11 +169,11 @@ def test_the_cut_is_the_fixed_league_one_and_not_one_derived_from_the_table() ->
     # Solo los que pasan su propio corte: +3,5 en bateo y +3,7 en pitcheo. Un percentil sobre estos
     # cinco habría dejado entrar al de 2,1, que no llega al listón de la liga.
     assert [f.valor for f in foto["quemando"]["lista"]] == [5.0, 3.5]
-    assert all(f.valor >= ventana.CORTES[f.grupo][0] for f in foto["quemando"]["lista"])
+    assert all(f.valor >= ventana.CORTES["bateo"][0] for f in foto["quemando"]["lista"])
 
 
 @pytest.mark.django_db
-def test_each_office_is_judged_against_its_own_distribution() -> None:
+def test_each_office_is_judged_against_its_own_distribution(temporada: object) -> None:
     """Lo vio el dueño mirando el widget: en «Pasando trabajo» los lanzadores estaban hundidos y los
     bateadores solo flojos. Medido, las dos distribuciones no se parecen — el p15 del bateo es -3,0 y
     el del pitcheo -2,0— así que un corte único exigía cosas distintas a cada oficio.
@@ -207,6 +207,7 @@ def test_saving_replaces_the_whole_snapshot() -> None:
                 "player_id": nuevo.player_id,
                 "team": "MIA",
                 "grupo": "bateo",
+                "abridor": False,
                 "linea": "nueva",
                 "valor": 2.0,
                 "juegos": 10,
@@ -230,6 +231,7 @@ def test_a_player_the_master_does_not_know_is_skipped() -> None:
                 "player_id": 999999,
                 "team": "MIA",
                 "grupo": "bateo",
+                "abridor": False,
                 "linea": "x",
                 "valor": 1.0,
                 "juegos": 1,
@@ -353,27 +355,121 @@ def test_the_innings_are_real_innings_and_not_baseball_notation() -> None:
     assert ventana._oportunidades({"PA": "45"}, "PA") == 45
 
 
-def test_the_pitching_threshold_counts_appearances_and_not_team_games() -> None:
-    """CONGELA EL CONTRATO que SAB-01 señaló como ambiguo.
+def test_the_starter_qualifies_by_the_official_rule() -> None:
+    """1 IP por juego del EQUIPO, que es la regla real — y para el abridor sí funciona."""
+    con_13 = {"GS": "2", "G": "2", "outsPitched": "39"}  # 13.0 IP en 2 aperturas
+    con_12 = {"GS": "2", "G": "2", "outsPitched": "36"}  # 12.0
 
-    `G` en pitcheo son APARICIONES del lanzador, no juegos del equipo — medido, mediana 3 y p90 6
-    contra 10 y 13 en bateo. Así que el piso de pitcheo es de volumen (6 IP en dos semanas) y NO la
-    regla oficial de 1 IP por juego del equipo prorrateada, que daría ~13 IP.
+    assert ventana._califica(con_13, "pitching", juegos=13) == "abridor"
+    assert ventana._califica(con_12, "pitching", juegos=13) == ""
 
-    Se deja así a propósito: con 13 IP el widget se quedaría sin un solo relevista, y «Quemando la
-    liga» no podría premiar nunca a un cerrador dominante. Lo que no puede es llamarse otra cosa.
+
+def test_the_reliever_qualifies_by_appearances_because_the_rule_would_erase_him() -> None:
+    """SAB-01 del review v15, y el número que lo decide.
+
+    La regla de 1 IP por juego del equipo NO es la de calificación de los lanzadores: es la del título
+    de efectividad, que es de abridores — en una temporada completa tampoco califica un cerrador.
+    Medido en la ventana del 18 al 31 de julio, con el equipo jugando 13: a 13 IP calificaban 54
+    lanzadores en toda la MLB, los 54 abridores, y **cero de 288 relevistas**. El que más lanzó en
+    toda la liga llegó a 10,7.
+
+    Con esa regla «Quemando la liga» no podría premiar nunca a un cerrador dominante, que es justo la
+    clase de racha que el widget existe para contar.
     """
-    juegos_del_equipo = 13
-    # La forma real de una ventana de pitcheo, medida: mediana 3, p90 6, máximo 8.
-    apariciones = [1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6, 6, 7, 8, 8]
-    como_bateo = [{"stat": {"G": str(g)}} for g in [8, 9, 10, 10, 11, 11, 12, 12, 12, 13, 13, 13, 13, 14]]
+    cerrador = {"GS": "0", "G": "6", "outsPitched": "18"}  # 6 IP en 6 apariciones
+    el_que_subio_dos_veces = {"GS": "0", "G": "2", "outsPitched": "6"}
 
-    corte_pitcheo = ventana._umbral([{"stat": {"G": str(g)}} for g in apariciones], ventana.IP_POR_JUEGO)
-    corte_bateo = ventana._umbral(como_bateo, ventana.PA_POR_JUEGO)
+    assert ventana._califica(cerrador, "pitching", juegos=13) == "relevista"
+    assert ventana._califica(el_que_subio_dos_veces, "pitching", juegos=13) == ""
 
-    # El de pitcheo sale de apariciones y queda MUY por debajo de los juegos del equipo. Si algún día
-    # alguien lo «arregla» para que use el calendario, esta prueba se pone roja y hay que decidirlo.
-    assert corte_pitcheo < juegos_del_equipo * ventana.IP_POR_JUEGO / 1.5
-    assert 5 <= corte_pitcheo <= 8
-    # El de bateo sí se pega a los juegos del equipo, que es de donde viene la confusión.
-    assert corte_bateo == pytest.approx(ventana.PA_POR_JUEGO * juegos_del_equipo)
+
+def test_the_batter_qualifies_by_plate_appearances_per_team_game() -> None:
+    assert ventana._califica({"PA": "45"}, "hitting", juegos=13) == "bateo"
+    assert ventana._califica({"PA": "30"}, "hitting", juegos=13) == ""
+
+
+@pytest.mark.django_db
+def test_each_pitching_role_is_judged_against_its_own_cut(temporada: object) -> None:
+    """Un abridor y un relevista no son la misma población: medido sobre nueve ventanas, el p85 del
+    abridor es +5,7 carreras y el del relevista +2,4, porque uno acumula durante seis entradas y el
+    otro durante una.
+
+    Con el corte único que hubo antes pasaba lo contrario de lo que uno supondría: a los abridores
+    les sobraba —entraban por debajo de su propio p85— y a los relevistas les faltaba.
+    """
+    hoy = HOY
+    for pid, abre, valor in ((3001, True, 4.0), (3002, False, 4.0)):
+        WindowStandout.objects.create(
+            player=_jugador(pid, "Juan", f"Rol{pid}"), desde=hoy - timedelta(days=13), hasta=hoy,
+            grupo=WindowStandout.Grupo.PITCHEO, abridor=abre, team="SDN",
+            linea="x", valor=valor, juegos=5, oportunidades=10,
+        )  # fmt: skip
+
+    foto = ventana.portada()
+
+    assert foto is not None
+    # El mismo +4,0: al relevista le basta (su corte es 2,4) y al abridor no (5,7).
+    assert [f.player.player_id for f in foto["quemando"]["lista"]] == [3002]
+
+
+# ── Cuándo tienen derecho a existir (decisión del dueño, 2026-08-01) ────────────────────────────
+
+
+@pytest.fixture
+def temporada(db: None) -> object:
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    return SeasonDates.objects.create(
+        season=2026, sports_id=MLB,
+        season_start_date=date(2026, 3, 26), season_end_date=date(2026, 9, 28), is_active=True,
+    )  # fmt: skip
+
+
+@pytest.mark.django_db
+def test_los_widgets_no_salen_en_los_primeros_catorce_dias(temporada: object) -> None:
+    """La ventana estaría a medias: el día 3 son tres días de juegos, no catorce, y los cortes se
+    midieron sobre ventanas llenas de una liga en marcha."""
+    assert ventana.se_puede_publicar(date(2026, 3, 26)) is False, "el día de la apertura"
+    assert ventana.se_puede_publicar(date(2026, 4, 8)) is False, "el día 14, con la ventana aún corta"
+
+
+@pytest.mark.django_db
+def test_los_widgets_aparecen_el_dia_quince(temporada: object) -> None:
+    """«El día 15 a partir del start season» — palabras del dueño."""
+    assert ventana.se_puede_publicar(date(2026, 4, 9)) is True
+
+
+@pytest.mark.django_db
+def test_los_widgets_desaparecen_al_terminar_la_temporada(temporada: object) -> None:
+    """«Últimos 14 días» en enero es una afirmación falsa: no ha habido catorce días de pelota."""
+    assert ventana.se_puede_publicar(date(2026, 9, 28)) is True, "el último día todavía cuenta"
+    assert ventana.se_puede_publicar(date(2026, 9, 29)) is False
+    assert ventana.se_puede_publicar(date(2027, 1, 15)) is False
+
+
+@pytest.mark.django_db
+def test_sin_temporada_marcada_no_se_publica() -> None:
+    """Mismo criterio que `season_window`: callar es mejor que afirmar sobre una ventana que nadie
+    definió."""
+    assert ventana.se_puede_publicar(date(2026, 7, 31)) is False
+
+
+@pytest.mark.django_db
+def test_la_portada_calla_en_la_primera_quincena() -> None:
+    """Con datos de sobra en la tabla, el widget no sale igual: la fecha manda.
+
+    Es la prueba que importa de las cinco: las otras comprueban el cálculo de la fecha, esta
+    comprueba que `portada()` de verdad lo obedece.
+    """
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    # Una temporada que arrancó hace cinco días: estamos dentro de la primera quincena.
+    SeasonDates.objects.create(
+        season=2026, sports_id=MLB, is_active=True,
+        season_start_date=HOY - timedelta(days=5), season_end_date=HOY + timedelta(days=150),
+    )  # fmt: skip
+    _guardar([(9.0, "bateo"), (-9.0, "bateo")])
+
+    assert ventana.portada() is None

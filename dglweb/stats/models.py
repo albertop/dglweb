@@ -1789,7 +1789,14 @@ class WindowStandout(models.Model):
     linea = models.CharField(max_length=160, verbose_name="Línea")
     valor = models.FloatField(verbose_name="Valor")
     juegos = models.PositiveSmallIntegerField(default=0, verbose_name="Juegos")
-    oportunidades = models.FloatField(default=0, verbose_name="PA o IP")
+    oportunidades = models.FloatField(default=0, verbose_name="PA, IP o apariciones")
+    # SI ABRIÓ AL MENOS UN JUEGO EN LA VENTANA. Decide dos cosas, y por eso se guarda en vez de
+    # recalcularse: con qué umbral calificó y contra qué percentil se le compara.
+    #
+    # Un abridor y un relevista no son la misma población — medido sobre nueve ventanas, el p85 del
+    # abridor es +5,7 carreras y el del relevista +2,4, porque uno acumula durante seis entradas y el
+    # otro durante una. Ver `CORTES` en `stats/ventana.py`.
+    abridor = models.BooleanField(default=False, verbose_name="Abrió")
 
     class Meta:
         db_table = "dgl_window_standout"

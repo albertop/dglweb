@@ -20,8 +20,15 @@ porque es **por jugador**: el que vuelve de una lesión trae sus diez juegos rep
 semanas, así que su ventana no es la de los demás y las dos cifras dejan de ser comparables. Con
 catorce días naturales todos miden lo mismo y el umbral se encarga del que apenas jugó.
 
-EL CORTE ES EL DE LA LIGA, ES FIJO, Y ES POR OFICIO (2026-07-31)
------------------------------------------------------------------
+TRES POBLACIONES Y NO DOS: BATEO, ABRIDOR Y RELEVISTA (SAB-01 del review v15)
+-----------------------------------------------------------------------------
+Cada una califica con su propia regla y se juzga contra su propio percentil. El abridor usa la regla
+oficial —1 IP por juego del equipo— y el relevista NO puede usarla: aplicada a catorce días deja
+fuera a los 288 relevistas de la liga, porque es la regla del título de efectividad y ese título es
+de abridores. Está contestado entero, con los números, en `APARICIONES_RELEVO`.
+
+EL CORTE ES EL DE LA LIGA, ES FIJO, Y ES POR CLASE (2026-07-31)
+----------------------------------------------------------------
 La tabla guarda solo dominicanos, pero el umbral **no se calcula con ellos**: son percentiles de las
 mayores enteras, escritos como constantes. Ver `CORTES`, que lleva el estudio con números.
 
@@ -38,6 +45,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from statistics import quantiles
 from typing import Any
+
+from django.utils import timezone
 
 from dglweb.mlb.client import MlbProxyClient
 from dglweb.stats.models import WindowStandout
@@ -66,22 +75,64 @@ VISIBLES = 4
 # Diez como mucho, repartidos **5 bateadores y 5 lanzadores**, y si un oficio no llega a cinco se
 # completa con el otro: tres lanzadores dejan sitio a siete bateadores.
 #
-# El corte del percentil se hace ANTES y sobre la lista entera, no por oficio. Es lo que pidió el
-# dueño y además es lo correcto: partir primero por oficio daría dos percentiles distintos y un
-# lanzador podría entrar en «Quemando la liga» con un valor que a un bateador no le alcanza.
+# El corte se aplica ANTES del reparto, y cada uno contra el de SU clase — ver `CORTES`. El reparto
+# es solo de PRESENTACIÓN: decide a quién se le da sitio en pantalla, no quién califica. Sin él, el
+# widget se llenaría del oficio que ese día haya tenido la ventana más generosa, y en una semana de
+# abridores dominados no saldría un solo bateador.
 #
-# El reparto es solo de PRESENTACIÓN — decide a quién se le da sitio en pantalla, no quién califica.
-# Sin él, el widget se llenaría del oficio que ese día haya tenido la ventana más generosa, y en una
-# semana de abridores dominados no saldría un solo bateador.
+# El reparto es por OFICIO —cinco bateadores y cinco lanzadores— y no por las tres clases del corte.
+# Es deliberado: al lector le importa ver bateo y pitcheo, no que le repartan las cajas entre
+# abridores y relevistas, que es un detalle de cómo se decide quién entra.
 MAXIMO = 10
 POR_OFICIO = 5
 
-# EL UMBRAL, POR JUEGO. No son números de acá: los fija `qualifier.py` como los umbrales de temporada
-# completa divididos entre 162, y están comprobados contra los overrides que el dueño puso a mano
-# para 1958, 1981, 1994 y 2020. Se reusan tal cual para no tener dos autoridades diciendo cuándo
-# alguien «jugó lo suficiente».
+# EL UMBRAL, POR JUEGO DEL EQUIPO. No son números de acá: los fija `qualifier.py` como los umbrales
+# de temporada completa divididos entre 162, y están comprobados contra los overrides que el dueño
+# puso a mano para 1958, 1981, 1994 y 2020. Se reusan tal cual para no tener dos autoridades
+# diciendo cuándo alguien «jugó lo suficiente».
 PA_POR_JUEGO = 3.1
 IP_POR_JUEGO = 1.0
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# POR QUÉ EL RELEVISTA NO CALIFICA CON «1 IP POR JUEGO DEL EQUIPO»
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+#
+# Es la pregunta obvia al leer esto —el abridor usa esa regla y el relevista no— así que va contestada
+# entera. Corrige SAB-01 del review v15, y la pregunta la hizo el dueño con estas palabras: «si en un
+# periodo hay 11 J, entonces los lanzadores que califican son esos con 11 o más IP».
+#
+# LA REGLA ES CIERTA, PERO NO ES LO QUE PARECE. «1 IP por juego del equipo» no es la regla de
+# calificación de los lanzadores en general: es la del **título de efectividad**, y ese título es de
+# abridores. No es una interpretación nuestra — en una temporada COMPLETA tampoco califica un
+# relevista: Mariano Rivera no calificó para un título de ERA en toda su carrera, porque 70 entradas
+# al año no llegan a 162. La regla no está excluyendo relevistas por accidente al prorratearla a dos
+# semanas; los excluye por diseño, también en su escala original.
+#
+# QUÉ PASA SI SE APLICA IGUAL. Medido en la ventana del 18 al 31 de julio, con el equipo jugando 13:
+#
+#     con >= 13 IP    califican 54 lanzadores en TODA la MLB
+#                     los 54 son abridores. CERO relevistas. 2 dominicanos.
+#     el relevista que más lanzó de toda la liga en esos 14 días:  10,7 IP
+#     relevistas que llegarían a 13 IP:  0 de 288
+#
+# No es que entren pocos: no entra ninguno, y no puede entrar ninguno. Un relevista bueno lanza entre
+# 5 y 8 entradas en dos semanas porque ese es su oficio, no porque le esté yendo mal.
+#
+# Y ESO ROMPERÍA EL WIDGET, no lo haría más riguroso. «Quemando la liga» existe para contar rachas de
+# dos semanas, y un cerrador con siete entradas sin carrera limpia ES una racha de dos semanas —
+# Bryan Abreu y Ángel Chivilli están saliendo hoy justamente así. Con el umbral de 13 el panel se
+# quedaría con dos abridores dominicanos y no podría volver a nombrar a un relevista nunca.
+#
+# LO QUE SE HACE EN SU LUGAR. El relevista califica por **apariciones**: cuatro en dos semanas. No es
+# un umbral de rendimiento, es uno de presencia — «lo usaron con regularidad»— y deja fuera al que
+# subió una vez y al que estuvo lesionado media ventana. Da 173 relevistas por ventana, contra los 64
+# abridores.
+#
+# Y POR ESO TAMBIÉN TIENEN CORTES DISTINTOS. Si dos poblaciones califican con reglas distintas, no se
+# pueden juzgar con el mismo percentil: el abridor acumula durante seis entradas y el relevista
+# durante una, así que su p85 es +5,7 contra +2,4. Ver `CORTES`. Las dos decisiones son la misma
+# decisión mirada dos veces.
+APARICIONES_RELEVO = 4
 
 # LOS CORTES, EN CARRERAS SOBRE EL PROMEDIO. Cuatro constantes: p85 y p15 de cada oficio, sacados de
 # LA LIGA ENTERA. Llegaron ahí en tres pasos y los tres dejaron algo aprendido.
@@ -93,8 +144,8 @@ IP_POR_JUEGO = 1.0
 #
 # 2. UNO POR OFICIO. Empezó siendo un corte único para los dos, y el dueño vio el problema mirando el
 #    widget: en «Pasando trabajo» los lanzadores estaban hundidos y los bateadores solo flojos. Las
-#    distribuciones no se parecen —el p15 del bateo es -3,0 y el del pitcheo -2,0— así que un número
-#    común le pedía a cada uno una cosa distinta.
+#    distribuciones no se parecen —el p15 del bateo es -3,0 y el del pitcheo rondaba -2,0— así que un
+#    número común le pedía a cada uno una cosa distinta.
 #
 # 3. p85/p15 Y NO p80/p20. Con el 20% salían listas de nueve y diez: si uno de cada cinco «está
 #    quemando la liga», la frase pierde fuerza. El 15% deja una punta de verdad.
@@ -106,11 +157,13 @@ IP_POR_JUEGO = 1.0
 #
 # NUEVE VENTANAS DE CATORCE DÍAS SIN SOLAPE, del 2026-03-28 al 2026-07-31:
 #
-#                       media   mediana   desv    rango            n medio
-#     bateo    p15      -3,08    -2,99    0,45   [-3,96, -2,40]      172
-#     bateo    p85       3,47     3,44    0,37   [ 2,94,  4,03]
-#     pitcheo  p15      -2,18    -1,98    0,39   [-2,79, -1,69]      223
-#     pitcheo  p85       3,73     3,71    0,22   [ 3,49,  4,19]
+#                        mediana   desv    rango            n medio   dominicanos
+#     bateo      p15      -2,99    0,45   [-3,96, -2,40]      172
+#     bateo      p85       3,44    0,37   [ 2,94,  4,03]
+#     abridor    p15      -2,38    0,84   [-3,06, -0,49]       64          5,0
+#     abridor    p85       5,70    0,46   [ 4,62,  6,23]
+#     relevista  p15      -1,44    0,28   [-2,02, -1,21]      173         15,8
+#     relevista  p85       2,42    0,24   [ 2,20,  2,86]
 #
 # Se toma la MEDIANA y no la media: abril y mayo dejaron dos colas de bateo muy largas —-3,55 y -3,96—
 # que arrastran el promedio hacia un corte más permisivo que el de una quincena normal. Y se redondea
@@ -125,9 +178,21 @@ IP_POR_JUEGO = 1.0
 #
 # Y ESTOS NÚMEROS CADUCAN, igual que los pisos de `daily`: el entorno de carreras cambia de una
 # temporada a otra. Antes de dar por buena la 2027 hay que rehacer el estudio.
+# 4. UNO POR ROL DENTRO DEL PITCHEO (SAB-01 del review v15). Empezó con un solo corte para los dos, y
+#    la medición sobre las nueve ventanas dice que son poblaciones incomparables:
+#
+#                    n medio   p15      p85
+#        abridor        64    -2,38    +5,70
+#        relevista     173    -1,44    +2,42
+#
+#    Un abridor necesita **+5,7** carreras para estar en su 15% mejor y un relevista **+2,4**, porque
+#    el abridor acumula durante seis entradas y el relevista durante una. Con el corte único de +3,7
+#    pasaba lo contrario de lo que uno supondría: a los abridores les sobraba —entraban con un valor
+#    por debajo de su propio p85— y a los relevistas les faltaba. Lo mismo al revés en la punta baja.
 CORTES = {
     "bateo": (3.5, -3.0),
-    "pitcheo": (3.7, -2.0),
+    "abridor": (5.7, -2.4),
+    "relevista": (2.4, -1.4),
 }
 
 # EN QUÉ ORDEN SE ESCRIBE LA LÍNEA DE BATEO. Es el de siempre salvo por el final: **el boleto va
@@ -294,42 +359,50 @@ def _oportunidades(stat: dict[str, Any], campo: str) -> float:
     return _numero(stat, campo)
 
 
-def _umbral(splits: list[dict[str, Any]], por_aparicion: float) -> float:
-    """El piso de volumen de la ventana: `por_aparicion` x el p90 de `G` de la propia población.
+def juegos_del_equipo(splits_de_bateo: list[dict[str, Any]]) -> int:
+    """Cuántos juegos jugó un equipo en la ventana, deducido de los bateadores de toda la liga.
 
-    Se calcula y no se fija: catorce días no son catorce juegos. Hay días libres, dobles carteleras y
-    el receso del Juego de Estrellas, así que un número escrito a mano quedaría largo en julio y corto
-    en septiembre sin que nada lo dijera.
+    Se deduce y no se pregunta al calendario porque ya está en la respuesta: `G` de un bateador son
+    juegos disputados, y el que juega todos los días juega los del equipo. El p90 de esa columna es
+    «los que jugaron casi todo», que es la referencia buena — el máximo lo pone uno solo y bastaría
+    una doble cartelera para subirle el listón a los treinta, y la mediana la baja el que estuvo
+    lesionado media ventana, que es justo a quien el umbral tiene que dejar fuera.
 
-    El multiplicador es el **p90 de `G`** y no el máximo ni la mediana. El máximo lo pone un solo
-    jugador y bastaría una doble cartelera para subirle el listón a los demás; la mediana la baja el
-    que estuvo lesionado media ventana, que es justo a quien hay que dejar fuera. El p90 es «los que
-    jugaron casi todo».
+    NO SE SACA DE `G` EN PITCHEO, y ese fue el error que corrige SAB-01 del review v15: ahí `G` son
+    APARICIONES del lanzador, otra cosa. Medido en la misma ventana: bateo mediana 10 y p90 13,
+    pitcheo mediana 3 y p90 6, con el equipo jugando los mismos 13.
 
-    CUIDADO: `G` NO SIGNIFICA LO MISMO EN LOS DOS OFICIOS (SAB-01 del review v15)
-    ---------------------------------------------------------------------------
-    En bateo es juegos disputados y se pega a los juegos del equipo. En pitcheo es APARICIONES del
-    lanzador, que es otra cosa. Medido en la misma ventana de catorce días:
-
-        bateo     mediana 10, p90 13, max 14      (el equipo jugó ~13)
-        pitcheo   mediana  3, p90  6, max  8      (el equipo jugó los mismos ~13)
-
-    Así que para el lanzador esto NO es «la regla oficial de 1 IP por juego del equipo prorrateada»,
-    aunque `IP_POR_JUEGO` viniera de ahí. Es un piso de volumen de 6,0 IP en dos semanas, y la
-    diferencia importa: con la regla oficial serían ~13 IP y **el widget se quedaría sin un solo
-    relevista** —uno bueno lanza 6 o 7 en quince días— o sea que «Quemando la liga» no podría premiar
-    nunca a un cerrador dominante.
-
-    Se deja como está a propósito, pero con el nombre corregido: el parámetro es `por_aparicion` y no
-    `por_juego`, porque eso es lo que multiplica. Una prueba congela el contrato.
-
-    Medido el 2026-07-31: 37,2 PA y 6,0 IP, que dejan 182 y 224 jugadores en las mayores.
+    Catorce días no son catorce juegos: hay días libres, dobles carteleras y el receso del Juego de
+    Estrellas. Medido sobre las nueve ventanas de 2026, salió entre 10 y 13.
     """
-    apariciones = sorted(_numero(s.get("stat") or {}, "G") for s in splits)
-    if not apariciones:
-        return 0.0
-    p90 = quantiles(apariciones, n=10)[8] if len(apariciones) > 9 else apariciones[-1]
-    return por_aparicion * int(p90)
+    juegos = sorted(_numero(s.get("stat") or {}, "G") for s in splits_de_bateo)
+    if not juegos:
+        return 0
+    p90 = quantiles(juegos, n=10)[8] if len(juegos) > 9 else juegos[-1]
+    return int(p90)
+
+
+def _califica(stat: dict[str, Any], grupo: str, juegos: int) -> str:
+    """La clase a la que pertenece la actuación, o cadena vacía si no llega al umbral de la suya.
+
+    Devuelve la clase y no un booleano porque las dos cosas se deciden con el mismo dato —si abrió o
+    no— y separarlas invitaría a que el umbral y el corte del percentil dejaran de estar de acuerdo
+    sobre a quién están mirando.
+
+    Los tres umbrales, y por qué cada uno:
+
+    * **bateo**: 3,1 PA por juego del equipo. El qualifier de temporada, prorrateado.
+    * **abridor**: 1,0 IP por juego del equipo. El mismo qualifier, y acá sí es la regla oficial.
+    * **relevista**: cuatro APARICIONES, no entradas. La regla de «1 IP por juego» es la del título
+      de efectividad y ese título es de abridores: aplicada a catorce días deja fuera a **los 288
+      relevistas de la liga**, no a algunos. El porqué completo, con los números, está en
+      `APARICIONES_RELEVO`.
+    """
+    if grupo == "hitting":
+        return "bateo" if _numero(stat, "PA") >= PA_POR_JUEGO * juegos else ""
+    if _numero(stat, "GS") > 0:
+        return "abridor" if _oportunidades(stat, "IP") >= IP_POR_JUEGO * juegos else ""
+    return "relevista" if _numero(stat, "G") >= APARICIONES_RELEVO else ""
 
 
 def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[dict[str, Any]]:
@@ -345,24 +418,25 @@ def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[di
     # El split trae del equipo solo `id`, `name` y `link` — comprobado, no viene la sigla. La misma
     # tabla que ya usa `daily.destacados`, así que las tres cajas de la franja escriben «SDN» igual.
     codigos = fetch_team_codes(client, hasta.year)
+
+    # El bateo se pide primero porque de él sale el denominador de los TRES umbrales: los juegos que
+    # jugó el equipo en la ventana.
+    splits = {"hitting": _splits(client, "hitting", desde, hasta)}
+    splits["pitching"] = _splits(client, "pitching", desde, hasta)
+    juegos = juegos_del_equipo(splits["hitting"])
+    logger.info(
+        "Ventana %s..%s: %s bateadores y %s lanzadores en las mayores, el equipo jugó %s",
+        desde, hasta, len(splits["hitting"]), len(splits["pitching"]), juegos,
+    )  # fmt: skip
+
     salida: list[dict[str, Any]] = []
-
-    for grupo, campo, por_juego, valorar, describir in (
-        # La línea de bateo es la de ACÁ y no la de `daily`: en catorce días «17-43» obliga a dividir
-        # y el promedio de una muestra así dice más del azar que del bateador. Ver `linea_de_bateo`.
-        ("hitting", "PA", PA_POR_JUEGO, daily.valor_de_bateo, linea_de_bateo),
-        # También la de acá: la de `daily` cierra con la decisión, que en catorce días es de UN juego
-        # de los que hay dentro. Ver `linea_de_pitcheo`.
-        ("pitching", "IP", IP_POR_JUEGO, daily.valor_de_pitcheo, linea_de_pitcheo),
+    for grupo, valorar, describir in (
+        # La línea de bateo es la de ACÁ y no la de `daily`: abre con el promedio. Y la de pitcheo
+        # también, que va sin la decisión. Ver las dos funciones.
+        ("hitting", daily.valor_de_bateo, linea_de_bateo),
+        ("pitching", daily.valor_de_pitcheo, linea_de_pitcheo),
     ):
-        splits = _splits(client, grupo, desde, hasta)
-        corte = _umbral(splits, por_juego)
-        logger.info(
-            "Ventana %s..%s (%s): %s en las mayores, umbral %.1f %s",
-            desde, hasta, grupo, len(splits), corte, campo,
-        )  # fmt: skip
-
-        for split in splits:
+        for split in splits[grupo]:
             jugador_id = (split.get("player") or {}).get("id")
             if jugador_id not in universo:
                 continue
@@ -374,23 +448,26 @@ def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[di
                 quien = (split.get("player") or {}).get("fullName") or jugador_id
                 logger.warning("ventana: línea imposible descartada — %s (%s): %s", quien, grupo, motivo)
                 continue
-            oportunidades = _oportunidades(stat, campo)
-            if oportunidades < corte:
+            clase = _califica(stat, grupo, juegos)
+            if not clase:
                 continue
-
-            # ENTERA. No se recorta acá: quien sabe si cabe es el navegador. El CSS la corta con
-            # puntos suspensivos y `site.js` le pone el tooltip solo cuando de verdad la cortó.
-            linea = describir(stat)
 
             salida.append(
                 {
                     "player_id": jugador_id,
                     "team": codigos.get((split.get("team") or {}).get("id") or 0, ""),
                     "grupo": WindowStandout.Grupo.BATEO if grupo == "hitting" else WindowStandout.Grupo.PITCHEO,
-                    "linea": linea[:160],
+                    "abridor": clase == "abridor",
+                    # ENTERA. No se recorta acá: quien sabe si cabe es el navegador. El CSS la corta
+                    # con puntos suspensivos y `site.js` le pone el tooltip solo cuando la cortó.
+                    "linea": describir(stat)[:160],
                     "valor": valorar(stat),
                     "juegos": int(_numero(stat, "G")),
-                    "oportunidades": oportunidades,
+                    # Lo que se comparó con el umbral de SU clase: PA, entradas o apariciones. Es el
+                    # único dato que permite comprobar después por qué alguien entró o quedó fuera.
+                    "oportunidades": _oportunidades(stat, "PA" if grupo == "hitting" else "IP")
+                    if clase != "relevista"
+                    else _numero(stat, "G"),
                     "desde": desde,
                     "hasta": hasta,
                 }
@@ -422,6 +499,7 @@ def guardar(filas: list[dict[str, Any]]) -> int:
             desde=f["desde"],
             hasta=f["hasta"],
             grupo=f["grupo"],
+            abridor=f["abridor"],
             player_id=f["player_id"],
             team=f["team"],
             linea=f["linea"],
@@ -484,6 +562,52 @@ def _publicables() -> Any:  # noqa: ANN401 — un `QuerySet[WindowStandout]`, si
     return only_visible(WindowStandout.objects.all())
 
 
+def se_puede_publicar(hoy: date | None = None) -> bool:
+    """Si hoy los dos widgets tienen derecho a existir. Decisión del dueño, 2026-08-01.
+
+    DOS PUNTAS, Y LAS DOS POR EL MISMO MOTIVO: el widget promete «los últimos 14 días» y solo puede
+    prometerlo cuando esos catorce días existen de verdad.
+
+    * **Los primeros catorce días de la temporada, no.** La ventana estaría a medias —el día 3 son
+      tres días de juegos, no catorce— y los cortes de `CORTES` se midieron sobre ventanas llenas de
+      una liga en marcha. Con media ventana, el valor acumulado de todos es más chico y el corte deja
+      fuera a gente que sí está quemando la liga; y al revés, el umbral de PA y de IP tampoco se
+      alcanza. Los widgets aparecen **el día 15**, contado desde `season_start_date`.
+    * **Después del último día, tampoco.** «Últimos 14 días» en enero es una afirmación falsa: no ha
+      habido catorce días de pelota. El widget desaparece en cuanto pasa `season_end_date`.
+
+    La fecha sale de `SeasonDates`, que es la misma tabla que gobierna los jobs — no de una constante
+    ni del calendario civil, para que una temporada que empiece antes o se alargue no obligue a tocar
+    código.
+
+    SE COMPRUEBA AL PUBLICAR Y NO AL CALCULAR, igual que la visibilidad de los jugadores. El job
+    horario puede seguir corriendo en la primera quincena: escribe una foto que nadie lee y que se
+    reemplaza sola, y el día 15 ya está lista sin esperar a la siguiente hora. Bloquearlo al calcular
+    no ganaría nada y añadiría una segunda regla que mantener de acuerdo con esta.
+    """
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    dia = hoy or timezone.localdate()
+    temporada = SeasonDates.objects.filter(sports_id=MLB, is_active=True).order_by("-season").first()
+    if temporada is None:
+        # Sin temporada marcada no se publica. Es el mismo criterio que `season_window`: callar es
+        # mejor que afirmar sobre una ventana que nadie definió.
+        return False
+    return temporada.season_start_date + timedelta(days=DIAS) <= dia <= temporada.season_end_date
+
+
+def _clase(registro: WindowStandout) -> str:
+    """Contra qué corte se mide esta fila: `bateo`, `abridor` o `relevista`. Ver `CORTES`.
+
+    Una función y no una columna: el rol ya está guardado en `abridor`, y una tercera forma de decir
+    lo mismo es una tercera forma de que se contradigan.
+    """
+    if registro.grupo == WindowStandout.Grupo.BATEO:
+        return "bateo"
+    return "abridor" if registro.abridor else "relevista"
+
+
 def _fila(registro: WindowStandout) -> Fila:
     return Fila(
         player=registro.player,
@@ -498,27 +622,30 @@ def _fila(registro: WindowStandout) -> Fila:
 def portada() -> dict[str, Any] | None:
     """Los dos widgets, o `None` si no hay con qué dibujarlos.
 
-    Devuelve los dos juntos porque salen de la misma consulta y de los mismos dos cortes: pedirlos por
-    separado abriría la puerta a que la portada enseñara un p80 de una corrida y un p20 de otra.
+    Devuelve los dos juntos porque salen de la misma consulta y de los mismos cortes: pedirlos por
+    separado abriría la puerta a que la portada enseñara un p85 de una corrida y un p15 de otra.
 
-    LOS CORTES SON FIJOS Y SALEN DE LA LIGA — ver `P80` y `P20`. No se recalculan con lo que hay en la
-    tabla, que son solo dominicanos: con cuarenta jugadores el percentil lo mueve uno solo, y está
-    medido que así el corte de arriba se movía medio punto de una quincena a la otra. Una vara que
-    cambia sola no permite decir «está entre el 20% mejor» dos semanas seguidas.
+    LOS CORTES SON FIJOS, SALEN DE LA LIGA Y HAY UNO POR CLASE — ver `CORTES`. No se recalculan con
+    lo que hay en la tabla, que son solo dominicanos: con cuarenta jugadores el percentil lo mueve uno
+    solo, y está medido que así el corte de arriba se movía medio punto de una quincena a la otra.
+    Una vara que cambia sola no permite decir «está entre los mejores» dos semanas seguidas.
 
     Devuelve `None` cuando no queda nadie en ninguna de las dos puntas. Puede pasar de verdad —en el
     receso, o el día que se recalcula la ventana en pretemporada— y un panel hueco se lee como un
     sitio roto.
     """
+    if not se_puede_publicar():
+        return None
+
     registros = list(_publicables().select_related("player").order_by("-valor"))
 
-    # EL CORTE PRIMERO Y EL REPARTO DESPUÉS. El umbral vale para los dos oficios juntos y solo
-    # entonces se decide a quién se le da sitio en pantalla. Al revés darían dos varas distintas y un
-    # lanzador entraría con un valor que a un bateador no le alcanza.
-    arriba = repartir([_fila(r) for r in registros if r.valor >= CORTES[r.grupo][0]])
+    # EL CORTE PRIMERO Y EL REPARTO DESPUÉS. Cada uno se mide contra el corte de SU clase —bateo,
+    # abridor o relevista— y solo entonces se decide a quién se le da sitio en pantalla. Al revés, el
+    # reparto elegiría antes de saber quién califica de verdad.
+    arriba = repartir([_fila(r) for r in registros if r.valor >= CORTES[_clase(r)][0]])
     # De peor a mejor: el que peor la está pasando encabeza, igual que el mejor encabeza el otro. Sin
     # esto el widget de abajo se leería al revés que el de arriba y habría que explicarlo.
-    abajo = repartir([_fila(r) for r in reversed(registros) if r.valor <= CORTES[r.grupo][1]])
+    abajo = repartir([_fila(r) for r in reversed(registros) if r.valor <= CORTES[_clase(r)][1]])
 
     if not arriba and not abajo:
         return None

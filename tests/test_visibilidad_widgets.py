@@ -181,6 +181,23 @@ def test_reactivar_a_un_jugador_lo_devuelve_sin_reconstruir_nada() -> None:
     assert 910008 in _ids(roster_moves.portada()), "reactivar tiene que devolverlo de inmediato"
 
 
+@pytest.fixture
+def temporada_en_curso(db: None) -> object:
+    """Las rachas solo se publican del día 15 de temporada en adelante — ver `ventana.se_puede_publicar`.
+
+    Sin esto, `portada()` devolvería `None` por la fecha y las pruebas de visibilidad pasarían sin
+    comprobar nada: la de «el único está oculto» sería verde aunque el filtro no existiera.
+    """
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    hoy = timezone.localdate()
+    return SeasonDates.objects.create(
+        season=hoy.year, sports_id=MLB, is_active=True,
+        season_start_date=hoy - timedelta(days=60), season_end_date=hoy + timedelta(days=60),
+    )  # fmt: skip
+
+
 def _en_la_ventana(jugador: Player, valor: float = 99) -> WindowStandout:
     """Muy por encima del corte: la prueba tiene que fallar por la visibilidad, nunca por el umbral."""
     hoy = timezone.localdate()
@@ -198,7 +215,7 @@ def _en_la_ventana(jugador: Player, valor: float = 99) -> WindowStandout:
 
 
 @pytest.mark.django_db
-def test_las_rachas_no_ensenan_a_un_oculto() -> None:
+def test_las_rachas_no_ensenan_a_un_oculto(temporada_en_curso: object) -> None:
     """QA-01 del review v15. La ventana de catorce días es una superficie pública más, y se escribió
     copiando el patrón de `daily` sin copiar su filtro de visibilidad."""
     from dglweb.stats import ventana
@@ -216,7 +233,7 @@ def test_las_rachas_no_ensenan_a_un_oculto() -> None:
 
 
 @pytest.mark.django_db
-def test_si_el_unico_de_la_racha_esta_oculto_el_widget_no_sale() -> None:
+def test_si_el_unico_de_la_racha_esta_oculto_el_widget_no_sale(temporada_en_curso: object) -> None:
     """El panel entero desaparece, no queda con el título y el cuerpo vacío."""
     from dglweb.stats import ventana
 
@@ -226,7 +243,7 @@ def test_si_el_unico_de_la_racha_esta_oculto_el_widget_no_sale() -> None:
 
 
 @pytest.mark.django_db
-def test_el_oculto_tampoco_sale_por_la_punta_de_abajo() -> None:
+def test_el_oculto_tampoco_sale_por_la_punta_de_abajo(temporada_en_curso: object) -> None:
     """«Pasando trabajo» lee la MISMA consulta, pero por el otro extremo. Un arreglo que solo mirara
     el orden descendente dejaría al oculto saliendo en el panel de abajo."""
     from dglweb.stats import ventana
