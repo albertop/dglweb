@@ -1,0 +1,22 @@
+{% comment %}
+Un video de MLB en el cuerpo del artículo.
+
+EL DOMINIO LO ESCRIBE ESTA PLANTILLA, no el editor. De lo que se pega solo sobrevive la ruta —ver
+`ruta_de_streamable`— así que el `src` publicado empieza siempre por `https://streamable.com/`, pegue
+lo que pegue quien redacta.
+
+La ruta va entera, con su cadena de consulta: MLB reparte `/m/<slug>?partnerId=…` y ese parámetro es
+suyo. Quitarlo sería adivinar que no hace falta.
+
+Mismo marco y mismo CSS que el de YouTube — `.dgl-video-marco`, 16/9 por proporción y no por alto
+fijo. Son dos bloques distintos porque aceptan enlaces distintos, no porque se vean distinto.
+{% endcomment %}
+<figure class="dgl-bloque-video">
+  <div class="dgl-video-marco">
+    <iframe src="https://streamable.com/{{ ruta }}"
+            title="{% if value.pie %}{{ value.pie }}{% else %}Video de MLB{% endif %}"
+            loading="lazy" allowfullscreen
+            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"></iframe>
+  </div>
+  {% if value.pie %}<figcaption class="dgl-meta mt-2">{{ value.pie }}</figcaption>{% endif %}
+</figure>

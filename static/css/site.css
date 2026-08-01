@@ -1335,6 +1335,17 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
    La plantilla NO hacía falta tocarla: está medido que `width-1000` de Wagtail no agranda — un
    original de 765px sale de 765px. El archivo servido siempre tuvo el tamaño bueno; era el CSS el
    que lo estiraba al pintarlo. */
+/* El video de YouTube del cuerpo del artículo. `aspect-ratio` y no un alto fijo: la columna cambia de
+   ancho en cada tamaño de pantalla, y con `height` puesto el marco se descuadra en cuanto lo hace.
+   El 16/9 es la proporción en que YouTube sirve casi todo; un Short saldrá con bandas a los lados, y
+   eso es preferible a recortarle la imagen. */
+.dgl-bloque-video { margin: 1.6rem 0; }
+.dgl-video-marco {
+  aspect-ratio: 16 / 9; width: 100%; background: #000; border-radius: .5rem; overflow: hidden;
+}
+.dgl-video-marco iframe { width: 100%; height: 100%; border: 0; display: block; }
+.dgl-bloque-video figcaption { text-align: center; }
+
 .dgl-bloque-imagen { margin: 1.6rem 0; }
 .dgl-bloque-imagen img {
   display: block; margin-inline: auto;

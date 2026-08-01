@@ -454,13 +454,20 @@ def test_los_anuncios_entran_por_frame_src_y_no_por_script_src() -> None:
     """
     politica = csp.publica(anuncios=ANUNCIOS)
 
-    assert f"frame-src {ANUNCIOS};" in politica
+    assert ANUNCIOS in next(d for d in politica.split("; ") if d.startswith("frame-src"))
     assert "script-src 'self';" in politica, "el servidor de anuncios NO ejecuta código en el sitio"
 
 
-def test_sin_anuncios_frame_src_vuelve_a_none() -> None:
-    """El sitio no incrusta nada más, así que sin publicidad la puerta queda cerrada del todo."""
-    assert "frame-src 'none';" in csp.publica()
+def test_sin_anuncios_frame_src_solo_deja_los_videos() -> None:
+    """Decía «vuelve a `'none'`», y era cierto hasta el 2026-08-01: el sitio no incrustaba nada más.
+
+    Ahora incrusta videos de YouTube en los artículos, así que sin publicidad la puerta no queda
+    cerrada del todo — queda abierta para uno solo. La prueba se cambia porque cambió la decisión, y
+    lo que sigue protegiendo es lo mismo: que ahí no entre nadie que no se haya declarado.
+    """
+    marcos = next(d for d in csp.publica().split("; ") if d.startswith("frame-src"))
+
+    assert marcos == f"frame-src {csp.VIDEO_YOUTUBE} {csp.VIDEO_MLB_INCRUSTADO}"
 
 
 @pytest.mark.django_db

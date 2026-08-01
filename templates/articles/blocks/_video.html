@@ -1,0 +1,31 @@
+{% comment %}
+Un video de YouTube en el cuerpo del artículo.
+
+`youtube-nocookie.com` Y NO `youtube.com`. Es el dominio que YouTube publica para incrustar sin dejar
+cookies de seguimiento mientras el visitante no le dé al play. No elimina la conexión —Google ve la IP
+igual, y eso está declarado en el aviso de privacidad— pero es la diferencia entre que te vean pasar y
+que además te dejen un identificador puesto.
+
+El `src` lo arma el servidor con el identificador que sacó `id_de_youtube`, once caracteres validados
+contra un alfabeto cerrado. La URL que el editor pegó NO llega nunca al HTML: si llegara, un enlace
+mal copiado acabaría siendo un `src` publicado.
+
+`rel=0` pide que los videos sugeridos del final salgan del mismo canal en vez de ser cualquier cosa
+de YouTube. No es una garantía —YouTube dejó de respetarlo del todo en 2018— pero cuesta cero.
+
+EL ALTO SALE DE LA PROPORCIÓN, no de un número fijo: `aspect-ratio: 16/9` en el CSS. Con `height`
+fijo, el marco se descuadra en cuanto la columna cambia de ancho, y esta cambia en cada tamaño de
+pantalla.
+
+`loading="lazy"` porque un video a media página no tiene por qué pedirse al abrir el artículo, y
+`title` porque un `iframe` sin nombre es un elemento mudo para un lector de pantalla.
+{% endcomment %}
+<figure class="dgl-bloque-video">
+  <div class="dgl-video-marco">
+    <iframe src="https://www.youtube-nocookie.com/embed/{{ video_id }}?rel=0"
+            title="{% if value.pie %}{{ value.pie }}{% else %}Video de YouTube{% endif %}"
+            loading="lazy" allowfullscreen
+            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"></iframe>
+  </div>
+  {% if value.pie %}<figcaption class="dgl-meta mt-2">{{ value.pie }}</figcaption>{% endif %}
+</figure>

@@ -24,6 +24,7 @@ alimentara solo de `Batting` tendría que saber de temporadas, filtros y umbrale
 artículo que quisiera comparar otra cosa se quedaría sin bloque.
 """
 
+import re
 from decimal import Decimal
 from typing import Any, ClassVar
 
@@ -216,6 +217,155 @@ class GraficoBlock(blocks.StructBlock):
         return contexto
 
 
+# DE DÓNDE SE SACA EL IDENTIFICADOR. Las tres formas en que YouTube reparte un enlace, y ninguna más:
+# el de la barra de direcciones, el de «Compartir», y el de un Short. Se aceptan las tres porque el
+# editor va a pegar la que le dé la página en la que esté, no la que a nosotros nos convenga.
+_YOUTUBE = (
+    re.compile(r"^https?://(?:www\.)?youtube\.com/watch\?(?:.*&)?v=([A-Za-z0-9_-]{11})"),
+    re.compile(r"^https?://youtu\.be/([A-Za-z0-9_-]{11})"),
+    re.compile(r"^https?://(?:www\.)?youtube\.com/shorts/([A-Za-z0-9_-]{11})"),
+)
+
+
+def id_de_youtube(url: str) -> str:
+    """Los once caracteres del video, o cadena vacía si eso no es un enlace de YouTube.
+
+    Once exactos y con el alfabeto acotado: un identificador de YouTube siempre los tiene. Aceptar
+    cualquier cosa dejaría que un error de copiar y pegar acabara en un `src` del HTML publicado.
+    """
+    for patron in _YOUTUBE:
+        if encontrado := patron.match((url or "").strip()):
+            return encontrado.group(1)
+    return ""
+
+
+class VideoBlock(blocks.StructBlock):
+    """Un video de YouTube incrustado en el cuerpo del artículo.
+
+    SE ARMA EL `iframe` A MANO Y NO SE USA `EmbedBlock`, que es la pieza que Wagtail trae para esto.
+    El motivo es concreto: `EmbedBlock` resuelve el enlace por oEmbed y devuelve **lo que YouTube le
+    dé**, que es un marco de `youtube.com`. Nosotros incrustamos desde `youtube-nocookie.com`, que es
+    el dominio que YouTube publica justamente para no dejar cookies de seguimiento hasta que el
+    visitante le da al play.
+
+    Con `EmbedBlock` esa garantía dependería de que un tercero no cambie su respuesta. Armándolo acá,
+    la única URL que puede salir al HTML es la que escribe esta clase.
+
+    LO QUE ESTE BLOQUE ARRASTRA, y por eso no existía hasta hoy:
+
+    * **La CSP.** `frame-src` tuvo que dejar entrar a `youtube-nocookie.com`. Era una lista de uno
+      —el servidor de anuncios— y ahora son dos. Ver `core/csp.py`.
+    * **El aviso de privacidad.** El sitio declaraba que la analítica era el único tercero que carga
+      la parte pública. Ya no lo es, y eso está escrito en `legal/privacidad.html` y en la política de
+      cookies.
+
+    No es papeleo: al abrir un artículo con video, el navegador del lector se conecta a Google y le
+    deja su IP, haya pulsado o no el play. Se elige `nocookie` para que al menos no le dejen también
+    un identificador persistente.
+    """
+
+    url = blocks.URLBlock(
+        label="Enlace de YouTube",
+        help_text="Pega el enlace tal cual: el de la barra, el de «Compartir» o el de un Short.",
+    )
+    pie = blocks.CharBlock(max_length=200, required=False, label="Pie", help_text="Opcional: qué se ve.")
+
+    class Meta:
+        label = "Video de YouTube"
+        icon = "media"
+        template = "articles/blocks/_video.html"
+
+    def clean(self, value: blocks.StructValue) -> blocks.StructValue:
+        """Rechaza al guardar lo que no sea YouTube, y no al pintar.
+
+        Un enlace de Vimeo o una dirección con una errata tienen que parar en el CMS, con el editor
+        delante y pudiendo corregirlo. Dejarlo pasar significaría o un marco vacío en el artículo
+        publicado, o —peor— un `iframe` a un dominio que la CSP no permite y que el lector ve como un
+        hueco blanco sin explicación.
+        """
+        from django.core.exceptions import ValidationError
+
+        limpio = super().clean(value)
+        if not id_de_youtube(limpio.get("url") or ""):
+            raise ValidationError(
+                "Eso no parece un enlace de YouTube.",
+                params={"url": ["Se aceptan youtube.com/watch, youtu.be y youtube.com/shorts."]},
+            )
+        return limpio
+
+    def get_context(self, value: blocks.StructValue, parent_context: dict[str, Any] | None = None) -> dict[str, Any]:
+        contexto = super().get_context(value, parent_context)
+        contexto["video_id"] = id_de_youtube(value.get("url") or "")
+        return contexto
+
+
+# EL HOST DE LOS VIDEOS DE MLB. `mlb.com` reparte sus clips para incrustar a través de Streamable: el
+# botón de compartir de una página de video devuelve un `<iframe>` apuntando acá, con un `partnerId`
+# suyo en la consulta. Comprobado por el dueño copiándolo de mlb.com.
+#
+# Se acepta con o sin `www.` porque las dos formas circulan, y NADA MÁS: el patrón está anclado al
+# principio, así que `streamable.com.otro-sitio.test` no cuela.
+_STREAMABLE = re.compile(r"^https://(?:www\.)?streamable\.com/([^\s\"'<>]+)$")
+
+
+def ruta_de_streamable(url: str) -> str:
+    """Lo que va después del dominio, o cadena vacía si eso no es un enlace de Streamable.
+
+    Se conserva la ruta ENTERA, con su cadena de consulta. MLB reparte `/m/<slug>?partnerId=…` y ese
+    `partnerId` es suyo; quitarlo sería adivinar que no hace falta. Lo que sí se garantiza es el
+    dominio: la URL que sale al HTML la vuelve a armar esta función, así que por muy raro que sea lo
+    que peguen, el `src` publicado empieza siempre por `https://streamable.com/`.
+    """
+    encontrado = _STREAMABLE.match((url or "").strip())
+    return encontrado.group(1) if encontrado else ""
+
+
+class VideoMlbBlock(blocks.StructBlock):
+    """Un video de MLB incrustado en el cuerpo del artículo.
+
+    EL ENLACE ES DE `streamable.com` Y ESO NO ES UN ERROR. MLB usa Streamable para repartir sus clips
+    incrustables: el botón de compartir de una página de video de `mlb.com` devuelve un `<iframe>`
+    apuntando ahí. Es el enlace que el dueño va a pegar, así que es el que este bloque acepta.
+
+    NO ES LO MISMO QUE EL TELEVISORCITO de la pizarra y los destacados. Aquel sirve el `.mp4` directo
+    desde `*.mlb.com` en un `<video>` nuestro, y solo tiene los clips que la API asocia a un dominicano
+    en una jornada. Este acepta cualquier video de MLB que el redactor encuentre y quiera citar, al
+    precio de incrustar un documento ajeno.
+
+    Del enlace pegado solo sobrevive la RUTA: el dominio lo escribe la plantilla. Así, pegue lo que
+    pegue el editor, el `src` publicado no puede apuntar a otro sitio.
+    """
+
+    url = blocks.URLBlock(
+        label="Enlace del video de MLB",
+        help_text="El que da mlb.com al compartir. Empieza por streamable.com — pégalo tal cual.",
+    )
+    pie = blocks.CharBlock(max_length=200, required=False, label="Pie", help_text="Opcional: qué se ve.")
+
+    class Meta:
+        label = "Video de MLB"
+        icon = "media"
+        template = "articles/blocks/_video_mlb.html"
+
+    def clean(self, value: blocks.StructValue) -> blocks.StructValue:
+        from django.core.exceptions import ValidationError
+
+        limpio = super().clean(value)
+        if not ruta_de_streamable(limpio.get("url") or ""):
+            raise ValidationError(
+                "Ese no es el enlace que da MLB.",
+                params={
+                    "url": ["Tiene que empezar por https://streamable.com/ — es lo que devuelve el botón de compartir."]
+                },
+            )
+        return limpio
+
+    def get_context(self, value: blocks.StructValue, parent_context: dict[str, Any] | None = None) -> dict[str, Any]:
+        contexto = super().get_context(value, parent_context)
+        contexto["ruta"] = ruta_de_streamable(value.get("url") or "")
+        return contexto
+
+
 class JugadorBlock(blocks.StructBlock):
     """Una mención a un pelotero, enlazada a su ficha.
 
@@ -375,6 +525,8 @@ class CuerpoStreamBlock(blocks.StreamBlock):
     tabla_html = TablaHtmlBlock()
     grafico = GraficoBlock()
     jugador = JugadorBlock()
+    video = VideoBlock()
+    video_mlb = VideoMlbBlock()
 
     class Meta:
         # `ClassVar` porque es configuración del bloque, no un valor por instancia — Wagtail lo lee

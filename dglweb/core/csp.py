@@ -25,8 +25,9 @@ LO QUE SÍ SE PERMITE, Y POR QUÉ
   quitarlos es mucho ruido para poco: un estilo inyectado puede afear la página, no ejecutar código.
   `script-src` es donde está el peligro de verdad, y ese va estricto.
 - `img-src` lleva `data:` por los SVG y los favicons incrustados.
-- `frame-src` lleva **el servidor de anuncios y nada más**. Estuvo en `'none'` hasta que entró la
-  publicidad; sigue siendo una lista de una.
+- `frame-src` lleva **tres, y cada uno se declaró a mano**: el servidor de anuncios, YouTube y el
+  Streamable por el que MLB reparte sus clips incrustables. Estuvo en `'none'` hasta que entró la
+  publicidad, y en una lista de uno hasta que los artículos pudieron llevar video (2026-08-01).
 
 EL CMS VA APARTE
 ----------------
@@ -64,6 +65,28 @@ from django.http import HttpRequest, HttpResponse
 # importa —`script-src`— sigue en `'self'` a secas.
 VIDEO_MLB = "https://*.mlb.com"
 IMAGEN_MLB = "https://*.mlbstatic.com"
+
+# EL SEGUNDO INQUILINO DE `frame-src` (2026-08-01). Los artículos pueden incrustar un video de
+# YouTube, y sin esto el marco sale en blanco sin decir por qué.
+#
+# `youtube-nocookie.com` y NO `youtube.com`, que es el punto entero del asunto: es el dominio que
+# YouTube publica para incrustar sin dejar cookies de seguimiento hasta que el visitante pulsa play.
+# Se declara el host exacto y no `https://*.youtube.com`, porque un comodín acá dejaría entrar
+# también al dominio con cookies y la elección quedaría en manos de quien escriba una plantilla.
+#
+# Sin comodín tampoco hay el riesgo que justifica el de `VIDEO_MLB`: la URL de incrustación de
+# YouTube lleva más de una década en este host, y el `iframe` lo arma nuestro propio servidor —no un
+# tercero— así que si algún día cambia, lo cambiamos nosotros y se nota al instante.
+VIDEO_YOUTUBE = "https://www.youtube-nocookie.com"
+
+# Y EL TERCERO: los videos de MLB incrustados en un artículo. El enlace dice `streamable.com` y no es
+# un error — MLB reparte sus clips incrustables a través de ellos, y es lo que devuelve el botón de
+# compartir de una página de video de `mlb.com`.
+#
+# No confundir con `VIDEO_MLB` de arriba, que es el `.mp4` que sirve el televisorcito de la pizarra y
+# los destacados. Aquel va en `media-src` porque lo pinta un `<video>` nuestro; este va en `frame-src`
+# porque es un documento ajeno dentro de un marco.
+VIDEO_MLB_INCRUSTADO = "https://streamable.com"
 
 
 def publica(analitica: str = "", anuncios: str = "", envio: str = "") -> str:
@@ -121,9 +144,14 @@ def publica(analitica: str = "", anuncios: str = "", envio: str = "") -> str:
     # ejecución para un PHP público en TODAS nuestras páginas. Con el `iframe`, el anuncio vive en su
     # propio documento y **el servidor de anuncios no puede tocar el nuestro**.
     #
-    # `frame-src` estaba en `'none'` justamente porque el sitio no incrustaba nada. Ahora incrusta una
-    # cosa, y sigue siendo una lista de una. Ver `core/templatetags/anuncios.py`.
-    marcos = anuncios or "'none'"
+    # `frame-src` estaba en `'none'` justamente porque el sitio no incrustaba nada. Estuvo en una lista
+    # de uno mientras el anuncio fue lo único incrustado, y desde el 2026-08-01 son DOS: entró el video
+    # de YouTube de los artículos. Ver `core/templatetags/anuncios.py` y `articles/blocks.VideoBlock`.
+    #
+    # YouTube va siempre y el anuncio solo si está configurado, y no es una asimetría descuidada: el
+    # servidor de anuncios sale de `settings` y puede no existir —en desarrollo no existe—, mientras
+    # que el bloque de video es una capacidad del sitio que está ahí lo configure quien lo configure.
+    marcos = " ".join(filter(None, (anuncios, VIDEO_YOUTUBE, VIDEO_MLB_INCRUSTADO))) or "'none'"
     return (
         "default-src 'self'; "
         f"script-src 'self'{extra}; "
