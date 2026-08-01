@@ -398,10 +398,36 @@ def _califica(stat: dict[str, Any], grupo: str, juegos: int) -> str:
       relevistas de la liga**, no a algunos. El porqué completo, con los números, está en
       `APARICIONES_RELEVO`.
     """
+    # SIN DENOMINADOR NO CALIFICA NADIE (DEV-01 del review v16). `juegos` en cero no significa «el
+    # equipo no jugó»: significa que la consulta de bateo vino vacía y no sabemos cuánto se jugó.
+    # Sin esta línea, `0 >= 3,1 x 0` es cierto y **califica todo el mundo** — un bateador sin turnos y
+    # un lanzador sin outs incluidos. El caso peligroso no es la pretemporada limpia, es una respuesta
+    # parcial del proxy en plena temporada: la foto se reemplaza entera, así que publicaría una lista
+    # de gente que no pasó ningún umbral. Ante un dato incompleto se calla, no se publica.
+    if juegos <= 0:
+        return ""
+
     if grupo == "hitting":
         return "bateo" if _numero(stat, "PA") >= PA_POR_JUEGO * juegos else ""
-    if _numero(stat, "GS") > 0:
-        return "abridor" if _oportunidades(stat, "IP") >= IP_POR_JUEGO * juegos else ""
+
+    # EL QUE ABRIÓ PERO NO LLEGA AL LISTÓN DE ABRIDOR CAE AL DE RELEVISTA (SAB-01 del review v16).
+    #
+    # `GS > 0` no quiere decir «pertenece a la población de abridores» en el béisbol de hoy: está el
+    # opener que lanza una entrada, el bullpen game y el relevista largo que abrió una vez. Con la
+    # regla anterior ese lanzador quedaba atrapado — no llegaba a las 13 entradas del abridor y
+    # tampoco se le dejaba intentar por apariciones, así que desaparecía del widget por una apertura
+    # administrativa.
+    #
+    # Medido en la ventana del 18 al 31 de julio: **15 lanzadores en toda la MLB** caían en ese hueco,
+    # 3 dominicanos. Ninguno de los tres habría entrado ese día por su valor, pero Mason Montgomery
+    # —GS=1, 8 apariciones, +3,59— sí habría pasado el corte de relevista de haber sido nuestro.
+    #
+    # El orden importa: se prueba PRIMERO el listón de abridor. Un abridor de verdad lo cruza y se
+    # mide contra los abridores; el que no, se mide contra los relevistas, que es la población cuyo
+    # uso se parece al suyo. Un abridor con dos aperturas malas tampoco entra por la puerta de atrás:
+    # dos aperturas son dos apariciones y el umbral de relevo pide cuatro.
+    if _numero(stat, "GS") > 0 and _oportunidades(stat, "IP") >= IP_POR_JUEGO * juegos:
+        return "abridor"
     return "relevista" if _numero(stat, "G") >= APARICIONES_RELEVO else ""
 
 
@@ -458,8 +484,15 @@ def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[di
                     "team": codigos.get((split.get("team") or {}).get("id") or 0, ""),
                     "grupo": WindowStandout.Grupo.BATEO if grupo == "hitting" else WindowStandout.Grupo.PITCHEO,
                     "abridor": clase == "abridor",
-                    # ENTERA. No se recorta acá: quien sabe si cabe es el navegador. El CSS la corta
-                    # con puntos suspensivos y `site.js` le pone el tooltip solo cuando la cortó.
+                    # ENTERA: no se recorta por criterio editorial. Quien decide si cabe en pantalla
+                    # es el navegador, que la corta con puntos suspensivos, y `site.js` le pone el
+                    # tooltip solo cuando la cortó de verdad.
+                    #
+                    # El `[:160]` es el largo de la COLUMNA y no una decisión de contenido (DEV-02
+                    # del review v16). Es una red para que un dato absurdo del proxy no tumbe la
+                    # corrida entera con un error de base: la línea más larga que se puede construir
+                    # —promedio y las siete estadísticas con dos cifras cada una— ronda los 50
+                    # caracteres, así que este corte no llega a activarse. Hay una prueba que lo fija.
                     "linea": describir(stat)[:160],
                     "valor": valorar(stat),
                     "juegos": int(_numero(stat, "G")),

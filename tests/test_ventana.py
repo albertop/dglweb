@@ -473,3 +473,64 @@ def test_la_portada_calla_en_la_primera_quincena() -> None:
     _guardar([(9.0, "bateo"), (-9.0, "bateo")])
 
     assert ventana.portada() is None
+
+
+# ── Los bordes que encontró el review v16 ───────────────────────────────────────────────────────
+
+
+def test_sin_denominador_no_califica_nadie() -> None:
+    """DEV-01. `juegos` en cero no es «el equipo no jugó»: es «la consulta de bateo vino vacía».
+
+    Sin el guard, `0 >= 3,1 x 0` es cierto y califica TODO EL MUNDO — un bateador sin turnos y un
+    lanzador sin outs. Y como la foto se reemplaza entera, una respuesta parcial del proxy en plena
+    temporada publicaría una lista de gente que no pasó ningún umbral.
+    """
+    assert ventana._califica({"PA": "0"}, "hitting", juegos=0) == ""
+    assert ventana._califica({"PA": "600"}, "hitting", juegos=0) == ""
+    assert ventana._califica({"GS": "1", "outsPitched": "0", "G": "9"}, "pitching", juegos=0) == ""
+
+
+def test_el_que_abrio_una_vez_pero_relevó_el_resto_entra_como_relevista() -> None:
+    """SAB-01 del v16. El opener, el bullpen game y el relevista largo que abrió una vez.
+
+    Antes quedaban atrapados: no llegaban a las entradas del abridor y tampoco se les dejaba intentar
+    por apariciones, así que desaparecían por una apertura administrativa. Medido: 15 lanzadores en
+    toda la MLB caían en ese hueco, 3 dominicanos.
+    """
+    opener = {"GS": "1", "G": "8", "outsPitched": "24"}  # 8 IP en 8 salidas, abrió una
+
+    assert ventana._califica(opener, "pitching", juegos=13) == "relevista"
+
+
+def test_un_abridor_con_dos_aperturas_malas_no_entra_por_la_puerta_de_atras() -> None:
+    """El respaldo no puede convertirse en un colador: dos aperturas son dos apariciones, y el
+    umbral de relevo pide cuatro."""
+    abridor_flojo = {"GS": "2", "G": "2", "outsPitched": "21"}  # 7 IP en 2 aperturas
+
+    assert ventana._califica(abridor_flojo, "pitching", juegos=13) == ""
+
+
+def test_la_linea_mas_larga_posible_cabe_en_la_columna() -> None:
+    """DEV-02. El `[:160]` de `calcular()` es el largo de la columna, no una decisión de contenido.
+
+    Esta prueba fija que no se llega a activar: si algún día la línea creciera —otra estadística, otro
+    formato— se pone roja antes de que el truncado silencioso empiece a comerse datos de verdad.
+    """
+    maxima = ventana.linea_de_bateo(
+        {
+            "AVG": ".444",
+            "H": "40",
+            "AB": "90",
+            "X2B": "12",
+            "X3B": "11",
+            "HR": "15",
+            "RBI": "44",
+            "R": "38",
+            "BB": "27",
+            "SB": "19",
+        }
+    )
+    tope = WindowStandout._meta.get_field("linea").max_length
+    assert tope is not None
+    assert len(maxima) < tope
+    assert len(ventana.linea_de_pitcheo({"IP": "100.2", "ER": "40", "K": "120", "BB": "55"})) < 160

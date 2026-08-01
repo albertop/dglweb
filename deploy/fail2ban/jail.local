@@ -23,7 +23,7 @@
 # y este `[DEFAULT]` lo hereda TODO — así que las jails de nginx estuvieron desde su instalación
 # leyendo el journal en vez de sus archivos, con cero coincidencias históricas y cara de funcionar.
 #
-# Por eso `deploy/fail2ban-nginx.local` pone `backend = auto` **en cada jail** y no toca este
+# Por eso `deploy/fail2ban/jail.d/nginx.local` pone `backend = auto` **en cada jail** y no toca este
 # `[DEFAULT]`: cambiarlo acá arreglaría nginx y rompería `sshd`, que es lo único que sí protegía.
 #
 #
