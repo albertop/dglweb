@@ -125,12 +125,12 @@ IP_POR_JUEGO = 1.0
 #
 # LO QUE SE HACE EN SU LUGAR. El relevista califica por **apariciones**: cuatro en dos semanas. No es
 # un umbral de rendimiento, es uno de presencia — «lo usaron con regularidad»— y deja fuera al que
-# subió una vez y al que estuvo lesionado media ventana. Da 173 relevistas por ventana, contra los 64
+# subió una vez y al que estuvo lesionado media ventana. Da 186 relevistas por ventana, contra los 64
 # abridores.
 #
 # Y POR ESO TAMBIÉN TIENEN CORTES DISTINTOS. Si dos poblaciones califican con reglas distintas, no se
 # pueden juzgar con el mismo percentil: el abridor acumula durante seis entradas y el relevista
-# durante una, así que su p85 es +5,7 contra +2,4. Ver `CORTES`. Las dos decisiones son la misma
+# durante una, así que su p85 es +5,7 contra +2,5. Ver `CORTES`. Las dos decisiones son la misma
 # decisión mirada dos veces.
 APARICIONES_RELEVO = 4
 
@@ -158,12 +158,12 @@ APARICIONES_RELEVO = 4
 # NUEVE VENTANAS DE CATORCE DÍAS SIN SOLAPE, del 2026-03-28 al 2026-07-31:
 #
 #                        mediana   desv    rango            n medio   dominicanos
-#     bateo      p15      -2,99    0,45   [-3,96, -2,40]      172
+#     bateo      p15      -3,03    0,45   [-3,96, -2,40]      172         21,1
 #     bateo      p85       3,44    0,37   [ 2,94,  4,03]
 #     abridor    p15      -2,38    0,84   [-3,06, -0,49]       64          5,0
 #     abridor    p85       5,70    0,46   [ 4,62,  6,23]
-#     relevista  p15      -1,44    0,28   [-2,02, -1,21]      173         15,8
-#     relevista  p85       2,42    0,24   [ 2,20,  2,86]
+#     relevista  p15      -1,44    0,29   [-2,02, -1,21]      186         17,2
+#     relevista  p85       2,46    0,25   [ 2,20,  2,86]
 #
 # Se toma la MEDIANA y no la media: abril y mayo dejaron dos colas de bateo muy largas —-3,55 y -3,96—
 # que arrastran el promedio hacia un corte más permisivo que el de una quincena normal. Y se redondea
@@ -172,9 +172,15 @@ APARICIONES_RELEVO = 4
 # COMPROBADO CONTRA LAS NUEVE VENTANAS: «Quemando» va de 3 a 10 y «Pasando» de 6 a 11, y no hay una
 # sola en que alguno de los dos baje de tres. Los paneles se sostienen todo el año, no solo en julio.
 #
-# EL MENOS ESTABLE es el p15 del pitcheo (desviación 0,39 sobre una media de -2,18). Los relevistas
-# entran y salen de la ventana según cuánto los usen, y eso mueve la cola de abajo. Si un día «Pasando
-# trabajo» sale con demasiados lanzadores, ese es el primer número que hay que remedir.
+# RECALIBRADO EL 2026-08-01, después de que el arreglo del opener (review v16) cambiara la población:
+# los relevistas pasaron de 173 a 186 por ventana. El p85 se movió de 2,42 a 2,46 y el p15 no se
+# movió, así que los seis números siguen dentro del redondeo y no se tocó ninguno. Los trece nuevos
+# son el 7% del grupo y se reparten por toda la distribución en vez de amontonarse en una punta.
+#
+# EL MENOS ESTABLE ES EL p15 DEL ABRIDOR: desviación **0,84**, contra 0,45 del bateo y 0,29 del
+# relevista. Son solo 64 abridores por ventana y la cola de abajo la mueve una apertura desastrosa;
+# el rango va de -3,06 a -0,49, que es medio punto y pico de recorrido. Si algún día «Pasando
+# trabajo» se llena o se vacía de abridores sin motivo aparente, ese es el primer número a remedir.
 #
 # Y ESTOS NÚMEROS CADUCAN, igual que los pisos de `daily`: el entorno de carreras cambia de una
 # temporada a otra. Antes de dar por buena la 2027 hay que rehacer el estudio.
