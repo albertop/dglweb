@@ -1059,6 +1059,41 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   paso FIX-10 y FIX-11, cerrados el 27-07—. Un documento que describe problemas resueltos manda a
   arreglar lo que ya está bien, que es peor que no tenerlo.
 
+## Widget de invierno: los totales de la temporada, donde iban los destacados (2026-08-01)
+
+**Pedido del dueño.** Cuando la temporada se acaba, «Destacados ayer y hoy» se apaga —regla nueva del
+2026-08-01, ver `season_window.se_publica`— y esa mitad de la franja queda vacía cinco meses.
+
+Hay que llenarla con un widget que enseñe **los números acumulados totales de los mejores de la
+temporada YYYY**: la foto del año que acaba de terminar, no la de un día.
+
+CUÁNDO APARECE: exactamente cuando el otro desaparece — no hay temporada activa **y** `hoy >
+season_end_date + 1`. Los dos son excluyentes por construcción, así que la franja siempre tiene
+cuatro paneles y nunca cinco ni tres.
+
+Lo que ya está resuelto y no hay que volver a decidir:
+
+* **La regla de fechas existe y está probada.** `season_window.se_publica()` para el de temporada y
+  `temporada_terminada(season)` para saber si la de unos datos concretos ya acabó. El widget nuevo es
+  el negado del primero, con la misma holgura de un día.
+* **El de líderes ya hace algo parecido y sirve de modelo**: sobrevive al invierno con
+  `hay_temporada_empezada()` y cambia su título a «En el top 10 del 2026» cuando la temporada muere.
+  Este widget debería nombrar el año igual, y por el mismo motivo.
+* **El CSS y la plantilla se reusan.** Los tres paneles de caja comparten `.dgl-destacados*` y
+  `_racha.html` ya está parametrizado (título, subtítulo, lista, id). Puede que baste con una lista
+  nueva y ningún estilo.
+
+LO QUE HAY QUE DECIDIR, y es del dueño:
+
+* **Qué significa «los mejores» en un total de temporada.** ¿La misma matriz de pesos lineales
+  acumulada todo el año —que favorece al que jugó 162 juegos—, o una tasa? No es la misma pregunta
+  que la de una jornada, y el widget de rachas ya enseñó que acumular y promediar dan listas
+  distintas.
+* **De dónde sale el dato.** Las tablas propias (`Batting`/`Pitching` de temporada) ya tienen los
+  totales y no haría falta tocar el proxy. Habría que confirmar que la temporada terminada quedó
+  cerrada y cuadrada — para eso está `parity_batting`.
+* **Bateo y pitcheo mezclados o separados**, como se decidió para las rachas.
+
 ## Incidente — el aviso del respaldo llevaba dos días roto y nadie se enteró (2026-08-01)
 
 **El respaldo NUNCA falló.** Corrió los dos días, en el VPS y en linuxbox. Lo que estaba roto era el
