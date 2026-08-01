@@ -43,6 +43,7 @@ from django.utils.dateparse import parse_date
 
 from dglweb.mlb.client import MlbProxyClient, MlbProxyError
 from dglweb.stats.leagues import team_code
+from dglweb.stats import season_window
 
 logger = logging.getLogger(__name__)
 
@@ -516,7 +517,18 @@ def del_dia() -> Pizarra | None:
     Dos cachés a propósito. La corta evita pedirle al proxy una vez por visita. La larga guarda la
     última que salió bien: si el proxy se cae, la portada muestra un marcador de hace unos minutos en
     vez de un hueco. Un marcador levemente viejo es un problema mucho menor que un widget en blanco.
+
+    FUERA DE TEMPORADA NO SE DIBUJA (dueño, 2026-08-01), con la misma regla que los otros cuatro
+    widgets: temporada activa para `sports_id = 1`, desde el día de apertura hasta un día después del
+    cierre. Sin rampa — la pizarra habla del día de hoy, así que le basta con que haya temporada.
     """
+    # ANTES DE LAS CACHÉS Y NO DESPUÉS, que es lo que lo hace correcto y además barato. La caché de
+    # respaldo dura seis horas: puesta después, la pizarra del último día de la Serie Mundial seguiría
+    # saliendo hasta seis horas entrada la temporada muerta. Y acá se ahorra además la llamada al
+    # proxy, que en invierno no tendría nada que contestar.
+    if not season_window.se_publica():
+        return None
+
     fresca = cache.get(_CLAVE)
     if fresca is not None:
         return fresca  # type: ignore[no-any-return]

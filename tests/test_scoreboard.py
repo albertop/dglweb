@@ -28,6 +28,26 @@ def _hoy_fijo(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(timezone, "localdate", lambda: HOY)
 
 
+@pytest.fixture(autouse=True)
+def _temporada_en_curso(db: None) -> None:
+    """Desde el 2026-08-01 la pizarra exige una temporada activa — ver `season_window.se_publica`.
+
+    Va como `autouse` y no test por test porque la exigencia es del widget entero: **todos** estos
+    tests piden `del_dia()`, y sin esto los 26 devolverían `None` por el calendario en vez de por lo
+    que cada uno dice estar probando. Un test que pasa porque el widget no se dibuja no prueba nada.
+
+    Las fechas cubren el año de `HOY` con holgura: acá lo que se comprueba es la pizarra, no la regla
+    de publicación, que tiene sus propias pruebas en `test_ventana`.
+    """
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    SeasonDates.objects.create(
+        season=HOY.year, sports_id=MLB, is_active=True,
+        season_start_date=date(HOY.year, 1, 1), season_end_date=date(HOY.year, 12, 31),
+    )  # fmt: skip
+
+
 def _juego(
     *,
     estado: str = "Final",
@@ -620,3 +640,43 @@ def test_un_juego_programado_muestra_su_hora_y_no_revienta() -> None:
     detalle = _detalle(juego, "PROGRAMADO")
 
     assert detalle.endswith(("am", "pm")), detalle
+
+
+# ── Fuera de temporada ──────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_fuera_de_temporada_la_pizarra_no_se_dibuja(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Misma regla que los otros cuatro widgets (dueño, 2026-08-01): sin temporada activa no hay
+    pizarra. En enero no hay juegos de «ayer y hoy» que enseñar.
+    """
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    _instalar(monkeypatch, _Proxy([_juego()]))
+    assert scoreboard.del_dia() is not None, "en temporada sí se dibuja"
+
+    cache.clear()
+    SeasonDates.objects.filter(sports_id=MLB).update(is_active=False)
+
+    assert scoreboard.del_dia() is None
+
+
+@pytest.mark.django_db
+def test_sin_temporada_no_se_le_pregunta_al_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """La comprobación va ANTES de las cachés y de la llamada, no después.
+
+    Dos motivos, y el primero es de corrección: la caché de respaldo dura seis horas, así que puesta
+    después la pizarra del último juego del año seguiría saliendo media temporada muerta. El segundo
+    es que en invierno el proxy no tiene nada que contestar y no hay por qué molestarlo.
+    """
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    proxy = _Proxy([_juego()])
+    _instalar(monkeypatch, proxy)
+    cache.clear()
+    SeasonDates.objects.filter(sports_id=MLB).update(is_active=False)
+
+    assert scoreboard.del_dia() is None
+    assert proxy.llamadas == [], "se llamó al proxy estando fuera de temporada"
