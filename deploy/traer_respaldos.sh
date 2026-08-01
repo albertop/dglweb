@@ -195,4 +195,18 @@ echo "$(date '+%F %T')  ok  nuevas=$nuevas  ultima=$ultima  copias=$(ls -1d 20*/
 # (`?status=up&msg=OK&ping=`), y pegarla tal cual duplicaria `msg`. Asi funciona con la URL pelada y
 # con la de ejemplo, que es la que uno copia sin mirar.
 # Se nombra B2 solo si de verdad se subio algo, por lo mismo que el mensaje de ufw en el otro script.
-[ -n "$PUSH_KUMA" ] && curl -fsS -m 15 "${PUSH_KUMA%%?*}?status=up&msg=nuevas-$nuevas" -o /dev/null || true
+# EL `?` VA ESCAPADO, y no es un detalle de estilo: sin la barra invertida, `?` es el comodín de UN
+# carácter del shell, así que `${PUSH_KUMA%%?*}` borra desde el primer carácter y deja la variable
+# VACÍA. Estuvo así desde que se escribió — comprobado en el registro de linuxbox, el 31 de julio y el
+# 1 de agosto:
+#
+#     2026-08-01 07:00:22  ok  nuevas=1  ultima=2026-08-01_0530  copias=4  total=60M
+#     curl: (3) URL rejected: No host part in the URL
+#
+# El respaldo se trajo perfecto las dos veces y el monitor de Kuma se quedó en rojo, así que el dueño
+# creyó durante dos días que el respaldo no estaba corriendo. Un aviso roto es peor que no tener
+# aviso: no dice «no sé», dice «está mal».
+#
+# El recorte SÍ hace falta —permite que `PUSH_KUMA` venga con su propia cadena de consulta sin acabar
+# con dos `?` en la URL— y con el escape funciona: deja la URL entera si no la trae.
+[ -n "$PUSH_KUMA" ] && curl -fsS -m 15 "${PUSH_KUMA%%\?*}?status=up&msg=nuevas-$nuevas" -o /dev/null || true
