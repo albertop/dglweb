@@ -191,7 +191,16 @@ install -m 755 /srv/dglweb/deploy/sync_access_ip.sh /usr/local/bin/
 /usr/local/bin/change_nginx_allow_ip.sh      # pone la IP del dueño en los cinco sitios
 fail2ban-client reload
 
-# 10. Y volver a montar el respaldo, que ahora apunta a un servidor nuevo:
+# 10. El drop-in que reinicia el scheduler cuando arranca el demonio de Docker.
+#     NO es opcional: sin él, cualquier reinicio de `docker.service` —una actualización
+#     automática de paquetes basta— deja el pipeline sin correr y sin avisar. El porqué,
+#     con las horas medidas del incidente, está dentro del propio archivo.
+mkdir -p /etc/systemd/system/docker.service.d
+install -m 644 /srv/dglweb/deploy/systemd/reiniciar-scheduler.conf \
+               /etc/systemd/system/docker.service.d/reiniciar-scheduler.conf
+systemctl daemon-reload
+
+# 11. Y volver a montar el respaldo, que ahora apunta a un servidor nuevo:
 #     la clave pública de 10.0.0.39 en `authorized_keys` con su `command="rrsync -ro …"`.
 ```
 

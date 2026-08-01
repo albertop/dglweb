@@ -64,6 +64,19 @@ checkstacks:
 	  PGADMIN_PASSWORD=x PGADMIN_DEFAULT_EMAIL=x \
 	  docker compose -f deploy/postgres/stack.yml config -q && echo ok
 	@printf "  %-42s " "deploy/adserver/stack.yml"; docker compose -f deploy/adserver/stack.yml config -q && echo ok
+# El drop-in de systemd reinicia el scheduler por NOMBRE de contenedor. Si alguien renombra el
+# servicio en el stack, ese arreglo deja de funcionar y no lo dice nadie — que es exactamente el modo
+# de fallo del incidente que lo motivó (2026-08-01, ver `docs/TODO.md`). Acá se atan los dos.
+#
+# Se comprueba en ESTE sentido —del drop-in al stack y no al revés— para que renombrar el servicio en
+# los dos sitios a la vez siga pasando. Lo que no puede pasar es que el drop-in reinicie un nombre que
+# ya no existe, porque eso falla en silencio.
+	@printf "  %-42s " "systemd <-> stack.yml"; \
+	  nombre=$$(grep -oE 'docker restart [a-zA-Z0-9_.-]+' deploy/systemd/reiniciar-scheduler.conf | awk '{print $$3}'); \
+	  test -n "$$nombre" || { echo "FALLA: el drop-in no reinicia ningún contenedor"; exit 1; }; \
+	  grep -q "container_name: *$$nombre\b" deploy/stack.yml \
+	    || { echo "FALLA: el drop-in reinicia '$$nombre', que no existe en deploy/stack.yml"; exit 1; }; \
+	  echo "ok ($$nombre)"
 
 # Full quality gate. Run before every commit.
 #

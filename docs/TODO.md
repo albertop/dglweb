@@ -1059,6 +1059,78 @@ Medidos, no asumidos. Ver `docs/reviews/code_review_v3.md`.
   paso FIX-10 y FIX-11, cerrados el 27-07—. Un documento que describe problemas resueltos manda a
   arreglar lo que ya está bien, que es peor que no tenerlo.
 
+## Incidente — el aviso del respaldo llevaba dos días roto y nadie se enteró (2026-08-01)
+
+**El respaldo NUNCA falló.** Corrió los dos días, en el VPS y en linuxbox. Lo que estaba roto era el
+aviso, y por eso el dueño pasó dos días creyendo que no había copia.
+
+DOS FALLOS EN CADENA, y hacen falta los dos para que nadie se entere:
+
+1. **El script no avisaba.** En `traer_respaldos.sh`, `${PUSH_KUMA%%?*}` deja la variable **vacía**:
+   sin escapar, `?` es el comodín de un carácter del shell, así que el patrón borra desde el primer
+   carácter. `curl` recibía una URL sin host. Estaba así desde que se escribió. En el registro:
+
+       2026-08-01 07:00:22  ok  nuevas=1  ultima=2026-08-01_0530  copias=4  total=60M
+       curl: (3) URL rejected: No host part in the URL
+
+   Corregido a `${PUSH_KUMA%%\?*}`, con el porqué al lado en el propio script.
+
+2. **El monitor de Kuma no tenía marcada la notificación de Telegram.** Kuma sabía que no llegaban
+   pulsos y no tenía a quién decírselo.
+
+LA LECCIÓN, que es más grande que este script: **un aviso roto es peor que no tener aviso.** No dice
+«no sé si corrió», dice «no corrió» — o peor, se calla y parece que todo está bien. Y un monitor que
+nunca ha demostrado que avisa no cuenta como aviso.
+
+PENDIENTE (del dueño, en la interfaz de Kuma):
+
+* **Revisar los demás monitores uno por uno**: que cada uno tenga marcada la notificación. El de
+  respaldo se creó después que los otros y por eso se quedó sin ella; puede no ser el único.
+* **Probar cada uno provocando el fallo** —pausar y reanudar, o dejar vencer un ciclo— y confirmar que
+  el mensaje llega. Sin eso, «tengo monitor» es una suposición.
+* Lo del respaldo es lo más urgente de la lista: es lo único del sistema que no se puede rehacer.
+
+## Incidente — un reinicio del demonio de Docker paró el pipeline 12,5 horas (2026-08-01)
+
+**Cerrado con un arreglo permanente**, pero anotado porque el modo de fallo es el peor que tiene este
+sistema y conviene reconocerlo la próxima vez.
+
+QUÉ PASÓ, con las horas medidas:
+
+    04:20:00 UTC   último job bueno (build_mlb_leaders)
+    04:22:18 UTC   arranca el demonio de Docker
+    desde ahí      todo job falla en 3 ms: "cannot connect to Docker endpoint"
+    06:53 UTC      Kuma avisa — exactamente 3h después, que es el umbral
+    16:41 UTC      se reinicia el scheduler a mano y vuelve
+
+El servidor **no se reinició**: llevaba dos días arriba. Solo `docker.service`, probablemente por una
+actualización automática. Al arrancar recrea `/var/run/docker.sock` y el montaje del scheduler queda
+apuntando al inodo viejo.
+
+LAS TRES COSAS QUE HAY QUE RECORDAR:
+
+1. **`restart: unless-stopped` no protege de esto.** El contenedor no se cayó — siguió vivo,
+   registrando sus siete jobs y disparándolos puntualmente contra un socket muerto. `docker ps` lo
+   enseñaba sano. Un contenedor caído se ve; uno vivo e inútil no.
+2. **`IngestRun` no puede registrar un job que nunca arrancó.** Durante doce horas el log de ingesta
+   se vio limpio porque no había nada que registrar. Es el mismo agujero del incidente del 26 de
+   julio, por otro camino.
+3. **Lo que sí funcionó fue el semáforo.** `/health/pipeline` pregunta «¿corrió algo?» y no «¿falló
+   algo?», y por eso se puso rojo a las tres horas. Esa distinción es la razón de que ese endpoint
+   esté escrito así, y acá se ganó el sueldo.
+
+EL ARREGLO: `deploy/systemd/reiniciar-scheduler.conf`, un drop-in que reinicia el scheduler cada vez
+que arranca el demonio. Instalado en el paso 10 de `docs/RESTAURAR.md`.
+
+PENDIENTE, Y NO ES CHICO:
+
+* **Kuma avisó UNA VEZ y se calló doce horas.** Solo notifica el cambio de estado. Hay que poner
+  «Resend Notification if Down» en 20 (con intervalo de 60s, un recordatorio cada 20 minutos) en
+  `dglweb-pipeline` — y revisar si los demás monitores tienen el mismo hueco. Es tarea del dueño,
+  en la interfaz de Kuma.
+* **Averiguar si fue `unattended-upgrades`.** `journalctl -u docker --since '2026-08-01 04:00'`. Si lo
+  fue, esto se repite cada pocas semanas y el drop-in pasa de conveniente a imprescindible.
+
 ## Incidente — el scheduler llevaba días sin correr (2026-07-26)
 
 **Encontrado por accidente**, midiendo duraciones de jobs para evaluar QA-01 del review v6: los
