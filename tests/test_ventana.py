@@ -615,3 +615,67 @@ def test_la_muestra_del_comando_usa_la_fecha_de_la_ventana(temporada: object) ->
 
     assert ventana.portada() is not None, "hoy sí se publica"
     assert ventana.portada(en_la_primera_quincena) is None, "el 2 de abril no, y la muestra tiene que decirlo"
+
+
+# ── La regla del widget de líderes ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_los_lideres_sobreviven_al_invierno() -> None:
+    """«Forever los mejores de la última temporada que se jugó» — palabras del dueño.
+
+    Es la diferencia con los otros cuatro paneles: en febrero «los mejores de la liga» sigue siendo
+    cierto sobre la temporada recién terminada, y «los destacados de ayer y hoy» no lo sería.
+    """
+    from dglweb.stats import season_window
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    SeasonDates.objects.create(
+        season=2026, sports_id=MLB, is_active=False,
+        season_start_date=date(2026, 3, 25), season_end_date=date(2026, 10, 31),
+    )  # fmt: skip
+
+    assert season_window.hay_temporada_empezada(date(2027, 2, 14)) is True, "en febrero siguen valiendo"
+    assert season_window.se_publica(date(2027, 2, 14)) is False, "los otros widgets sí se apagan"
+
+
+@pytest.mark.django_db
+def test_una_temporada_futura_no_apaga_los_lideres() -> None:
+    """LA TRAMPA. El administrador carga el calendario de 2027 en diciembre, que es cuando toca.
+
+    Con «la temporada más reciente» a secas, en noviembre de 2026 la más reciente sería 2027, su
+    inicio no habría pasado, y el widget se apagaría medio invierno — lo contrario de «forever». Por
+    eso la regla es «la más reciente que YA EMPEZÓ».
+
+    `SeasonDates` no la escribe ningún job: es una tabla del Backoffice. Eso no hace el caso menos
+    probable, lo hace más difícil de diagnosticar — nadie va a relacionar «cargué el calendario» con
+    «desapareció un widget».
+    """
+    from dglweb.stats import season_window
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    for temporada_, inicio, fin in ((2026, date(2026, 3, 25), date(2026, 10, 31)),
+                                    (2027, date(2027, 3, 25), date(2027, 10, 31))):
+        SeasonDates.objects.create(
+            season=temporada_, sports_id=MLB, is_active=False,
+            season_start_date=inicio, season_end_date=fin,
+        )  # fmt: skip
+
+    assert season_window.hay_temporada_empezada(date(2026, 11, 20)) is True
+
+
+@pytest.mark.django_db
+def test_antes_de_la_primera_temporada_no_hay_nada_que_ensenar() -> None:
+    """Un calendario cargado pero sin ninguna jornada jugada todavía: el widget no se dibuja."""
+    from dglweb.stats import season_window
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    SeasonDates.objects.create(
+        season=2027, sports_id=MLB, is_active=True,
+        season_start_date=date(2027, 3, 25), season_end_date=date(2027, 10, 31),
+    )  # fmt: skip
+
+    assert season_window.hay_temporada_empezada(date(2027, 1, 10)) is False

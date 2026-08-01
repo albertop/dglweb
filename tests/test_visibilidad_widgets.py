@@ -124,7 +124,7 @@ def test_si_el_unico_destacado_esta_oculto_el_widget_no_sale(temporada_en_curso:
 
 
 @pytest.mark.django_db
-def test_los_lideres_mlb_no_ensenan_a_un_oculto() -> None:
+def test_los_lideres_mlb_no_ensenan_a_un_oculto(temporada_en_curso: object) -> None:
     from dglweb.stats import mlb_leaders
 
     metrica = Metric.objects.filter(visible_en_widget_lideres=True).first() or Metric.objects.create(

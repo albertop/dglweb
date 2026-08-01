@@ -42,6 +42,38 @@ GRACIA_FINAL = timedelta(days=2)
 HOLGURA_AL_PUBLICAR = timedelta(days=1)
 
 
+def hay_temporada_empezada(hoy: date | None = None, *, sports_id: int = MLB) -> bool:
+    """Si alguna temporada de ese deporte ya arrancó. **No mira `is_active`, y es a propósito.**
+
+    Es la regla del widget «En el top 10 de la liga», y es distinta de `se_publica()` por lo que ese
+    widget afirma: los liderazgos de la temporada más reciente **no caducan**. En febrero, «los
+    mejores de la liga» sigue siendo una frase cierta sobre la temporada que se acaba de jugar; «los
+    destacados de ayer y hoy» no lo es. Decisión del dueño, 2026-08-01: *«lo que quiero es presentar
+    forever los mejores de la última temporada que se jugó»*.
+
+    Por eso tampoco mira `season_end_date`: la temporada terminada es justo la que hay que enseñar.
+
+    LA TEMPORADA ES LA MÁS RECIENTE QUE YA EMPEZÓ, y ese matiz importa. La regla tal cual se pidió
+    —«la más reciente del calendario, y visible si su inicio ya pasó»— se rompe el día que alguien
+    cargue el calendario de la temporada siguiente. Con la fila de 2027 en la tabla, en noviembre de
+    2026 «la más reciente» sería 2027, su inicio todavía no habría pasado, y el widget se apagaría
+    medio invierno. Justo lo contrario de «forever».
+
+    Y ESA FILA LA CARGA UNA PERSONA, no un job: `SeasonDates` solo se escribe desde el Backoffice
+    —comprobado, ningún comando la toca— y el momento natural para cargar 2027 es diciembre, antes de
+    que arranque. Que sea manual no lo hace menos probable: lo hace **más difícil de diagnosticar**.
+    Un importador automático deja rastro y hora; un administrador que carga un calendario en
+    diciembre no va a relacionar eso con un widget que dejó de salir.
+
+    Filtrando por inicio pasado, hoy da el mismo resultado —71 filas, la más nueva 2026, ya
+    arrancada— y el día que exista esa fila sigue dando el correcto.
+    """
+    from dglweb.stats.models import SeasonDates
+
+    dia = hoy or timezone.localdate()
+    return SeasonDates.objects.filter(sports_id=sports_id, season_start_date__lt=dia).exists()
+
+
 def se_publica(hoy: date | None = None, *, rampa: int = 0, sports_id: int = MLB) -> bool:
     """Si HOY un widget de temporada tiene derecho a dibujarse.
 

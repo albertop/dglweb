@@ -209,9 +209,20 @@ def portada(metricas: int = 5) -> dict[str, Any] | None:
 
     Devuelve `None` con la tabla vacía —temporada sin empezar, o el refresco horario nunca corrió—
     para que la plantilla no dibuje un panel hueco.
+
+    ESTE WIDGET NO SE APAGA FUERA DE TEMPORADA, al revés que los otros cuatro (dueño, 2026-08-01).
+    Solo pide que ALGUNA temporada haya empezado ya. El motivo es lo que cada uno afirma: en febrero,
+    «los mejores de la liga» sigue siendo cierto sobre la temporada que se acaba de jugar, mientras
+    que «los destacados de ayer y hoy» sería mentira. La tabla es una foto que se reescribe entera en
+    cada refresco, así que fuera de temporada conserva sola la última buena. Ver
+    `season_window.hay_temporada_empezada`.
     """
     from dglweb.players.visibility import only_visible
+    from dglweb.stats import season_window
     from dglweb.stats.models import MlbLeader
+
+    if not season_window.hay_temporada_empezada():
+        return None
 
     # `only_visible` saca a los jugadores dados de baja. Va acá al leer y no al construir: el dato
     # crudo debe seguir entrando, así reactivar a alguien es instantáneo y no exige otro refresco.
