@@ -1,0 +1,95 @@
+{% load static %}{% comment %}
+Un widget de racha: «Quemando la liga» o «Pasando trabajo». LOS DOS SALEN DE ACÁ.
+
+UNA SOLA PLANTILLA PARA LOS DOS, y no dos calcadas. Son idénticos salvo el título, el subtítulo y la
+lista; si fueran dos archivos, el primer cambio de estilo dejaría uno viejo. Es la misma razón por la
+que `articles/_tarjeta.html` la comparten la portada y el índice.
+
+Y ES CASI IGUAL A `_destacados.html`, del que hereda TODO el CSS (`.dgl-destacados*`). No se fundió
+con él porque aquel tiene cosas que acá no existen —la fecha de la jornada, la etiqueta de «ayer», el
+botón de video— y meterlas detrás de banderas habría dejado una plantilla que hay que leer entera
+para entender cualquiera de los tres paneles.
+
+Parámetros:
+  titulo     lo que va arriba
+  icono      el emoji que lo precede, ya decidido por quien incluye
+  subtitulo  el contexto, al costado — hoy «Últimos 14 días»
+  racha      `{lista, visibles, de_mas}` — lo arma `stats/ventana.portada()`
+  id         OBLIGATORIO Y ÚNICO POR PANEL. Cuelga el `aria-labelledby` de su
+             título, y con dos paneles en la página un id repetido haría que un
+             lector de pantalla anunciara los dos con el mismo nombre.
+
+INCLÚYELA SIEMPRE CON `only`, por lo mismo que la tarjeta de artículo: hereda el contexto de la
+página y la portada ya tiene una variable `destacados` que no es esta.
+
+EL SUBTÍTULO DICE LA VENTANA, y solo eso: «Últimos 14 días» (decisión del dueño, 2026-07-31). Llevó
+un rato «Top 20% dominicano · 14 días» y el dueño lo quitó: el título es el nombre del widget, no una
+ficha metodológica.
+
+Y ya no hace falta la salvedad. Cuando eso se escribió, el corte se calculaba entre dominicanos y el
+título prometía de más; desde el estudio del 2026-07-31 los umbrales son los de la liga entera —ver
+`CORTES` en `stats/ventana.py`— así que «Quemando la liga» es literal.
+{% endcomment %}
+{% if racha and racha.lista %}
+<section class="dgl-panel p-3 h-100" aria-labelledby="{{ id }}-titulo">
+  <div class="dgl-destacados" id="{{ id }}">
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+      {% comment %}
+        `aria-hidden` en el icono: sin él, un lector de pantalla anuncia «fuego Quemando la liga», y
+        el título ya dice lo que el emoji repite.
+      {% endcomment %}
+      <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="{{ id }}-titulo">
+        <span class="dgl-widget-icono" aria-hidden="true">{{ icono }}</span>{{ titulo }}
+      </h2>
+      <span class="dgl-destacados-fecha">{{ subtitulo }}</span>
+    </div>
+
+    {# El marco cabe diez cajas: 2 columnas por 5 filas, y la lista nunca trae más. Sin despliegue. #}
+    <div class="dgl-destacados-marco">
+      <div class="dgl-destacados-lista">
+        {% for fila in racha.lista %}
+          <article class="dgl-destacado-caja">
+            {% if fila.logo %}
+              <img class="dgl-destacado-logo" src="{% static fila.logo %}" width="20" height="20" alt="{{ fila.team }}">
+            {% endif %}
+            {# `alt` vacío: el nombre está al lado y repetirlo hace que un lector de pantalla lo diga dos veces. #}
+            <img class="dgl-destacado-foto" src="{{ fila.foto }}" alt="" loading="lazy" data-quitar-si-falta>
+            <div class="dgl-destacado-quien">
+              <span class="dgl-destacado-nombre">
+                <a class="nombre" href="{% url 'player_detail' fila.player.slug %}"
+                   title="{{ fila.player.full_name }}">{{ fila.nombre }}</a>
+                {% comment %}
+                  Los juegos disputados, donde `_destacados.html` pone la fecha de la jornada. Acá la
+                  fecha no cambia de fila en fila —la ventana es la misma para todos— y lo que sí
+                  cambia es cuánto jugó cada uno, que es el contexto que falta para leer la línea:
+                  «17-43 en 12 juegos» y «17-43 en 6» no dicen lo mismo.
+                {% endcomment %}
+                <span class="dgl-destacado-cuando">{{ fila.juegos }} J</span>
+              </span>
+              {% comment %}
+                Sin `title` acá: lo pone `site.js` y SOLO cuando el navegador cortó la línea de
+                verdad. Puesto desde el servidor haría falta saber si cabe, y eso depende del ancho de
+                la pantalla — que es lo único que el servidor no puede saber.
+              {% endcomment %}
+              <span class="dgl-destacado-linea">{{ fila.linea }}</span>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% comment %}
+      EL BOTÓN SOLO SE VE EN MÓVIL, y quien lo decide es el CSS — acá se dibuja siempre. En escritorio
+      las diez cajas caben en cinco filas y no habría nada que desplegar; en un teléfono la rejilla
+      arma una columna y el marco se recorta a cuatro filas, que es donde el botón hace falta.
+
+      Por eso la cuenta es contra `VISIBLES`, que vale 4: es el pliegue del móvil, el único sitio
+      donde este botón se llega a pulsar. Ver `stats/ventana.py`.
+    {% endcomment %}
+    {% if racha.de_mas %}
+      <button type="button" class="dgl-lideres-mas" data-desplegar="#{{ id }}"
+              aria-expanded="false">Ver {{ racha.de_mas|length }} más</button>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

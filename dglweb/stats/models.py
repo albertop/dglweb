@@ -1747,6 +1747,62 @@ class DailyStandout(models.Model):
         return f"{self.fecha} {self.player} ({self.linea})"
 
 
+class WindowStandout(models.Model):
+    """Cómo le ha ido a un dominicano en los últimos catorce días. Alimenta «Quemando la liga» y
+    «Pasando trabajo».
+
+    NO ES `DailyStandout` SUMADA
+    ----------------------------
+    Aquella guarda la jornada: `linea` y `valor` de un día. Sumar catorce de sus filas daría el valor
+    acumulado, pero **no las PA ni los IP**, que no son columnas suyas — y sin ellos no se puede
+    aplicar el umbral, que es lo que separa al que se fue de 8-20 del que se fue de 1-3. Por eso esto
+    se pide aparte al proxy en vez de derivarlo: son dos llamadas, una por oficio.
+
+    ES UNA FOTO, NO UN ARCHIVO
+    --------------------------
+    Se borra entera y se reescribe en cada corrida, como `MlbLeader`. Una ventana móvil no tiene
+    historia que guardar: la de ayer ya no es cierta, y conservarla haría creer que sigue siéndolo.
+
+    EL UMBRAL NO ES INVENTADO
+    -------------------------
+    Sale de `qualifier.py`, que fija 3,1 PA y 1,0 IP **por juego** — los umbrales de temporada
+    completa divididos entre 162, comprobados contra los overrides que el dueño puso a mano temporada
+    por temporada. Acá se escalan a los juegos que de verdad se jugaron en la ventana. Medido el
+    2026-07-31 sobre catorce días: 37,2 PA y 6,0 IP, que dejan 182 y 224 jugadores en las mayores.
+
+    `oportunidades` guarda ese denominador —PA para el bateador, IP para el lanzador— porque es lo
+    único que permite comprobar después por qué alguien entró o se quedó fuera. Sin él, un umbral mal
+    calculado es indistinguible de un jugador que no jugó.
+    """
+
+    class Grupo(models.TextChoices):
+        BATEO = "bateo", "Bateo"
+        PITCHEO = "pitcheo", "Pitcheo"
+
+    desde = models.DateField(verbose_name="Desde")
+    hasta = models.DateField(verbose_name="Hasta")
+    grupo = models.CharField(max_length=8, choices=Grupo.choices, verbose_name="Oficio")
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="ventanas", verbose_name="Jugador")
+    team = models.CharField(max_length=4, blank=True, verbose_name="Equipo")
+    # Ya escrita («17-43, 2B, 6 HR, 9 RBI, 13 R»), por lo mismo que en `DailyStandout`: es texto de
+    # lectura y rearmarlo en la plantilla llevaría allá las reglas de qué se nombra y qué se calla.
+    linea = models.CharField(max_length=160, verbose_name="Línea")
+    valor = models.FloatField(verbose_name="Valor")
+    juegos = models.PositiveSmallIntegerField(default=0, verbose_name="Juegos")
+    oportunidades = models.FloatField(default=0, verbose_name="PA o IP")
+
+    class Meta:
+        db_table = "dgl_window_standout"
+        ordering = ["-valor"]
+        verbose_name = "actuación de los últimos días"
+        verbose_name_plural = "actuaciones de los últimos días"
+        constraints = [models.UniqueConstraint(fields=["grupo", "player"], name="unique_window_standout")]
+        indexes = [models.Index(fields=["-valor"], name="dgl_window_widget_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.player} {self.valor:+.2f} ({self.linea})"
+
+
 class MlbLeader(models.Model):
     """Un dominicano dentro de los diez primeros de las mayores, en una categoría de la temporada.
 

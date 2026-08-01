@@ -48,7 +48,7 @@ def home(request: HttpRequest) -> HttpResponse:
     que contar `forloop` en el HTML.
     """
     from dglweb.articles.models import ArticlePage, para_tarjetas
-    from dglweb.stats import daily, mlb_leaders, scoreboard
+    from dglweb.stats import daily, mlb_leaders, scoreboard, ventana
 
     cuantos = PORTADA_DESTACADO + PORTADA_RESTO
     # `para_tarjetas` y no un `select_related` propio: la portada usa la misma plantilla de tarjeta
@@ -63,6 +63,10 @@ def home(request: HttpRequest) -> HttpResponse:
             "destacados": daily.portada(),
             "pizarra": scoreboard.del_dia(),
             "lideres": mlb_leaders.portada(),
+            # Los DOS widgets de racha en una sola clave, porque salen de la misma consulta y de los
+            # mismos dos cortes. Pedirlos por separado abriría la puerta a que la portada enseñara un
+            # p80 de una corrida y un p20 de otra.
+            "rachas": ventana.portada(),
             "articulo": articulos[0] if articulos else None,
             "articulos": articulos[PORTADA_DESTACADO:],
             "indice": _url_del_indice(),

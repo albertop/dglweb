@@ -57,6 +57,10 @@ HORARIOS = (
     # la pizarra qué terminó— el comando lo registra como fallo justamente para que este renglón no
     # se lo trague. Ver `build_daily_standouts`.
     Vigilado("build_daily_standouts", alcance=ALCANCE_EN_CURSO, sanos=("success", "skipped")),
+    # Exige `SUCCESS` a secas, al revés que el de arriba. Este no tiene un caso legítimo de salto
+    # dentro de temporada: pregunta por una ventana de catorce días, así que siempre hay algo que
+    # contestar aunque hoy no se haya jugado. Un `skipped` acá sí es una avería.
+    Vigilado("build_window_standouts"),
 )
 
 # Los jobs horarios que a propósito NO se vigilan, con el motivo. Existe para que la prueba que lee

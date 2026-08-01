@@ -28,6 +28,32 @@
   </div>
 
   {% comment %}
+    LAS DOS RACHAS, debajo de la franja de arriba y encima de los artículos.
+
+    El horizonte de esta fila son catorce días, entre el de un día de la fila de arriba y el de la
+    temporada entera del widget de líderes. Puesta en ese orden, la franja se lee de lo inmediato a
+    lo acumulado sin saltos.
+
+    Las dos salen de la MISMA plantilla —solo cambian el título, la salvedad y la lista— para que no
+    se separen con el tiempo. El `id` es obligatorio y distinto en cada una: el «ver más» resuelve su
+    objetivo con `querySelector`, así que dos paneles con el mismo selector harían que los dos
+    botones abrieran el primero.
+
+    `only` en las dos, como en la tarjeta de artículo: sin él se colaría la variable `destacados` de
+    la portada, que no es esta.
+  {% endcomment %}
+  {% if rachas %}
+    <div class="row g-4 mb-4">
+      <div class="col-lg-6">
+        {% include "widgets/_racha.html" with titulo="Quemando la liga" icono="🔥" subtitulo="Últimos 14 días" racha=rachas.quemando id="racha-quemando" only %}
+      </div>
+      <div class="col-lg-6">
+        {% include "widgets/_racha.html" with titulo="Pasando trabajo" icono="🧊" subtitulo="Últimos 14 días" racha=rachas.pasando id="racha-pasando" only %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% comment %}
     SOLO EN MÓVIL, entre los widgets y el primer artículo. En pantalla ancha ese sitio no necesita nada
     —el carril de la derecha ya acompaña al bloque editorial— pero apilado el lector se come dos
     widgets largos antes de llegar al contenido, y ahí es donde el anuncio tiene sentido.
