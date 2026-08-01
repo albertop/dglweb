@@ -642,15 +642,15 @@ def test_los_lideres_sobreviven_al_invierno() -> None:
 
 @pytest.mark.django_db
 def test_una_temporada_futura_no_apaga_los_lideres() -> None:
-    """LA TRAMPA. El administrador carga el calendario de 2027 en diciembre, que es cuando toca.
+    """LA TRAMPA, y cae en el peor día del año.
 
-    Con «la temporada más reciente» a secas, en noviembre de 2026 la más reciente sería 2027, su
-    inicio no habría pasado, y el widget se apagaría medio invierno — lo contrario de «forever». Por
-    eso la regla es «la más reciente que YA EMPEZÓ».
+    El administrador carga la fila de la temporada nueva **la noche anterior al primer lanzamiento**.
+    Con «la temporada más reciente» a secas, esa noche la más reciente sería 2027, su inicio no habría
+    llegado, y el widget se apagaría — esa víspera y el día de apertura, que son justo cuando vuelve
+    el que estuvo cinco meses sin pelota.
 
-    `SeasonDates` no la escribe ningún job: es una tabla del Backoffice. Eso no hace el caso menos
-    probable, lo hace más difícil de diagnosticar — nadie va a relacionar «cargué el calendario» con
-    «desapareció un widget».
+    Con «la más reciente que YA EMPEZÓ», esos dos días siguen enseñando los líderes del año anterior,
+    que es lo correcto: la temporada nueva todavía no tiene ninguno.
     """
     from dglweb.stats import season_window
     from dglweb.stats.models import SeasonDates
@@ -663,7 +663,8 @@ def test_una_temporada_futura_no_apaga_los_lideres() -> None:
             season_start_date=inicio, season_end_date=fin,
         )  # fmt: skip
 
-    assert season_window.hay_temporada_empezada(date(2026, 11, 20)) is True
+    assert season_window.hay_temporada_empezada(date(2027, 3, 24)) is True, "la víspera"
+    assert season_window.hay_temporada_empezada(date(2027, 3, 25)) is True, "el día de apertura"
 
 
 @pytest.mark.django_db
@@ -679,3 +680,35 @@ def test_antes_de_la_primera_temporada_no_hay_nada_que_ensenar() -> None:
     )  # fmt: skip
 
     assert season_window.hay_temporada_empezada(date(2027, 1, 10)) is False
+
+
+@pytest.mark.django_db
+def test_el_titulo_del_top_10_nombra_el_año_cuando_la_temporada_termina() -> None:
+    """En curso dice «de la liga»; terminada, «del 2026». Sin eso, en febrero «la liga» se lee como
+    la de ahora y el widget afirma algo falso durante cinco meses.
+
+    Se pregunta por la temporada DE LOS DATOS y no por la fecha suelta: el día de apertura de 2027 la
+    tabla todavía tiene los líderes de 2026 —el refresco horario no ha corrido— y el título tiene que
+    seguir diciendo «del 2026» hasta que esos datos cambien.
+    """
+    from dglweb.stats import season_window
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    SeasonDates.objects.create(
+        season=2026, sports_id=MLB, is_active=True,
+        season_start_date=date(2026, 3, 25), season_end_date=date(2026, 10, 31),
+    )  # fmt: skip
+
+    assert season_window.temporada_terminada(2026, date(2026, 8, 1)) is False, "en plena temporada"
+    assert season_window.temporada_terminada(2026, date(2026, 11, 1)) is False, "el día de holgura"
+    assert season_window.temporada_terminada(2026, date(2026, 11, 2)) is True
+    assert season_window.temporada_terminada(2026, date(2027, 3, 25)) is True, "el día de apertura del año nuevo"
+
+
+@pytest.mark.django_db
+def test_sin_calendario_de_esa_temporada_no_se_afirma_que_termino() -> None:
+    """Callar el año es mejor que afirmar que terminó algo de lo que no se sabe la fecha."""
+    from dglweb.stats import season_window
+
+    assert season_window.temporada_terminada(1998, date(2026, 8, 1)) is False

@@ -275,6 +275,13 @@ def portada(metricas: int = 5) -> dict[str, Any] | None:
         "con_pestanas": len(grupos) > 1,
         "visibles": metricas,
         "temporada": temporada,
+        # EL TÍTULO CAMBIA CUANDO LA TEMPORADA SE ACABA (dueño, 2026-08-01). En curso dice «En el top
+        # 10 de la liga»; terminada, «En el top 10 del 2026». Es la única forma de que el widget siga
+        # siendo cierto los cinco meses de invierno en que enseña la temporada anterior: sin el año,
+        # «la liga» se lee como la de ahora.
+        #
+        # La decisión es de Python porque es una regla de fechas; las palabras son de la plantilla.
+        "terminada": season_window.temporada_terminada(temporada),
     }
 
 

@@ -25,11 +25,15 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
     {% endcomment %}
     <div class="dgl-widget-cabecera d-flex align-items-center justify-content-between gap-2 mb-3">
       {% comment %}
-        «DE LA LIGA» Y NO EL AÑO (decisión del dueño, 2026-07-31).
+        «DE LA LIGA» EN TEMPORADA, EL AÑO CUANDO TERMINA (dueño, 2026-07-31 y 2026-08-01).
 
-        Llevaba el año —«En el top 10 del 2026»— para que no se leyera como algo permanente, ya que
-        es una foto de la temporada en curso que cambia cada hora. El dueño lo cambió por «de la
-        liga», que dice lo que de verdad hacía falta aclarar: contra QUIÉN es ese top 10.
+        Llevaba el año siempre —«En el top 10 del 2026»— para que no se leyera como algo permanente.
+        Se cambió por «de la liga», que aclara lo que de verdad hacía falta: contra QUIÉN es ese top
+        10. Pero este widget es el único que **sobrevive al invierno**: sigue enseñando la temporada
+        anterior hasta que arranque la siguiente, y ahí «la liga» a secas se lee como la de ahora.
+
+        Así que el título cambia solo cuando la temporada de los datos se acaba. El corte lo decide
+        `season_window.temporada_terminada`, un día después del último juego.
 
         Es la diferencia con los dos widgets de racha de más abajo, cuyo corte se calcula solo entre
         dominicanos. Acá el ranking sale del que publica MLB, así que «de la liga» es literal.
@@ -38,7 +42,7 @@ El panel entero desaparece si no hay nada: un widget vacío se lee como un sitio
         Líderes, que sí la lleva escrita.
       {% endcomment %}
       <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="lideres-titulo">
-        <span class="dgl-widget-icono" aria-hidden="true">🏆</span>En el top 10 de la liga
+        <span class="dgl-widget-icono" aria-hidden="true">🏆</span>{% if lideres.terminada %}En el top 10 del {{ lideres.temporada }}{% else %}En el top 10 de la liga{% endif %}
       </h2>
       {% comment %}
         Se dibuja siempre, aunque hoy sobre: apagada reserva su alto, y así el widget mide igual con

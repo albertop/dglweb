@@ -53,25 +53,57 @@ def hay_temporada_empezada(hoy: date | None = None, *, sports_id: int = MLB) -> 
 
     Por eso tampoco mira `season_end_date`: la temporada terminada es justo la que hay que enseñar.
 
-    LA TEMPORADA ES LA MÁS RECIENTE QUE YA EMPEZÓ, y ese matiz importa. La regla tal cual se pidió
-    —«la más reciente del calendario, y visible si su inicio ya pasó»— se rompe el día que alguien
-    cargue el calendario de la temporada siguiente. Con la fila de 2027 en la tabla, en noviembre de
-    2026 «la más reciente» sería 2027, su inicio todavía no habría pasado, y el widget se apagaría
-    medio invierno. Justo lo contrario de «forever».
+    LA TEMPORADA ES LA MÁS RECIENTE QUE YA EMPEZÓ, y ese matiz importa aunque el hueco sea corto.
 
-    Y ESA FILA LA CARGA UNA PERSONA, no un job: `SeasonDates` solo se escribe desde el Backoffice
-    —comprobado, ningún comando la toca— y el momento natural para cargar 2027 es diciembre, antes de
-    que arranque. Que sea manual no lo hace menos probable: lo hace **más difícil de diagnosticar**.
-    Un importador automático deja rastro y hora; un administrador que carga un calendario en
-    diciembre no va a relacionar eso con un widget que dejó de salir.
+    La regla tal cual se pidió —«la más reciente del calendario, visible si su inicio ya pasó»— se
+    rompe en cuanto entra la fila de la temporada siguiente: pasaría a ser «la más reciente», su
+    inicio no habría llegado, y el widget se apagaría.
 
-    Filtrando por inicio pasado, hoy da el mismo resultado —71 filas, la más nueva 2026, ya
-    arrancada— y el día que exista esa fila sigue dando el correcto.
+    ESA FILA LA CARGA UNA PERSONA, y según el dueño **la noche anterior al primer lanzamiento**.
+    `SeasonDates` solo se escribe desde el Backoffice; ningún comando la toca, está comprobado. Así
+    que el hueco no son meses: son esa noche y el día de apertura —el inicio se compara con `<`
+    estricto— y se acabó.
+
+    Dos días, entonces. Y son **los dos peores del año** para que el widget desaparezca: la víspera y
+    el día de la inauguración, cuando el sitio recibe la visita del que vuelve a la pelota después del
+    invierno. Además nadie ataría las dos cosas: quien carga un calendario a las once de la noche no
+    va a relacionarlo con un panel que no sale al día siguiente.
+
+    Filtrando por inicio pasado, la víspera y el día de apertura siguen enseñando los líderes del año
+    anterior —que es lo correcto, porque el nuevo todavía no tiene ninguno— y el cambio ocurre cuando
+    el refresco horario escribe los primeros datos de la temporada nueva.
     """
     from dglweb.stats.models import SeasonDates
 
     dia = hoy or timezone.localdate()
     return SeasonDates.objects.filter(sports_id=sports_id, season_start_date__lt=dia).exists()
+
+
+def temporada_terminada(season: int, hoy: date | None = None, *, sports_id: int = MLB) -> bool:
+    """Si ESA temporada ya se acabó. Para saber si un dato suyo todavía se puede llamar «la liga».
+
+    Lo usa el título del widget de líderes: en curso dice «En el top 10 de la liga» y terminada dice
+    «En el top 10 del 2026», porque en febrero «la liga» sin más se lee como la de ahora.
+
+    Pregunta por una TEMPORADA CONCRETA y no por la fecha en abstracto, y esa es la diferencia que la
+    hace exacta. El día de apertura de 2027 los datos guardados todavía son los de 2026 —el refresco
+    horario no ha corrido— y una regla basada solo en «¿hay temporada en curso?» pondría «de la liga»
+    encima de una tabla del año pasado durante unas horas. Preguntando por el 2026 se dice la verdad
+    hasta el momento exacto en que los datos cambian.
+
+    El corte es el mismo `HOLGURA_AL_PUBLICAR` que usa `se_publica()`: el día siguiente al último
+    juego todavía es «la liga».
+
+    Sin fila para esa temporada devuelve `False` — con el calendario incompleto, callar el año es
+    mejor que afirmar que terminó algo de lo que no se sabe la fecha.
+    """
+    from dglweb.stats.models import SeasonDates
+
+    dia = hoy or timezone.localdate()
+    fila = SeasonDates.objects.filter(sports_id=sports_id, season=season).first()
+    if fila is None:
+        return False
+    return dia > fila.season_end_date + HOLGURA_AL_PUBLICAR
 
 
 def se_publica(hoy: date | None = None, *, rampa: int = 0, sports_id: int = MLB) -> bool:
