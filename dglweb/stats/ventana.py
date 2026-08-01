@@ -275,26 +275,61 @@ def _splits(client: MlbProxyClient, grupo: str, desde: date, hasta: date) -> lis
     return [split for bloque in (payload.get("stats") or []) for split in (bloque.get("splits") or [])]
 
 
-def _umbral(splits: list[dict[str, Any]], por_juego: float) -> float:
-    """Cuántas PA (o IP) hay que tener para entrar, según lo que se jugó DE VERDAD en la ventana.
+def _oportunidades(stat: dict[str, Any], campo: str) -> float:
+    """El denominador del umbral: PA para el bateador, entradas DE VERDAD para el lanzador.
 
-    Se calcula y no se fija: catorce días no son catorce juegos. Hay días libres, hay dobles
-    carteleras y está el receso del Juego de Estrellas, así que un número escrito a mano quedaría
-    largo en julio y corto en septiembre sin que nada lo dijera.
+    `IP` NO ES UN NÚMERO DECIMAL (SAB-01 del review v15). Es notación de béisbol: «6.2» son seis
+    entradas y dos tercios, o sea 6,667 — no 6,2. Pasarlo por `float()` inventa una cifra que no
+    existe, y estaba pasando en **219 de 400 lanzadores** de una ventana normal.
 
-    El denominador es el **p90 de juegos disputados** y no el máximo ni la mediana. El máximo lo pone
-    un solo jugador y bastaría una doble cartelera para subir el listón a todos; la mediana la baja
-    el que estuvo lesionado la mitad de la ventana, que es justo a quien el umbral tiene que dejar
-    fuera. El p90 es «los que jugaron casi todo», que es la referencia correcta.
+    En la comparación con el umbral el efecto es chico —el error máximo es de 0,47 entradas y hoy no
+    mueve a nadie del corte de 6,0— pero `oportunidades` se guarda para poder comprobar después por
+    qué alguien entró o quedó fuera, y un dato de auditoría que miente no sirve de nada.
 
-    Medido el 2026-07-31 sobre catorce días: p90 de 12 juegos en bateo y 6 en pitcheo, o sea 37,2 PA
-    y 6,0 IP. Dejaron 182 y 224 jugadores en las mayores, y 22 y 20 dominicanos.
+    `outsPitched / 3` es la cifra real. El propio `models.py` ya lo advierte para las tablas de
+    temporada: para sumar entradas se usan outs, nunca la notación.
     """
-    juegos = sorted(_numero(s.get("stat") or {}, "G") for s in splits)
-    if not juegos:
+    if campo == "IP":
+        return _numero(stat, "outsPitched") / 3
+    return _numero(stat, campo)
+
+
+def _umbral(splits: list[dict[str, Any]], por_aparicion: float) -> float:
+    """El piso de volumen de la ventana: `por_aparicion` x el p90 de `G` de la propia población.
+
+    Se calcula y no se fija: catorce días no son catorce juegos. Hay días libres, dobles carteleras y
+    el receso del Juego de Estrellas, así que un número escrito a mano quedaría largo en julio y corto
+    en septiembre sin que nada lo dijera.
+
+    El multiplicador es el **p90 de `G`** y no el máximo ni la mediana. El máximo lo pone un solo
+    jugador y bastaría una doble cartelera para subirle el listón a los demás; la mediana la baja el
+    que estuvo lesionado media ventana, que es justo a quien hay que dejar fuera. El p90 es «los que
+    jugaron casi todo».
+
+    CUIDADO: `G` NO SIGNIFICA LO MISMO EN LOS DOS OFICIOS (SAB-01 del review v15)
+    ---------------------------------------------------------------------------
+    En bateo es juegos disputados y se pega a los juegos del equipo. En pitcheo es APARICIONES del
+    lanzador, que es otra cosa. Medido en la misma ventana de catorce días:
+
+        bateo     mediana 10, p90 13, max 14      (el equipo jugó ~13)
+        pitcheo   mediana  3, p90  6, max  8      (el equipo jugó los mismos ~13)
+
+    Así que para el lanzador esto NO es «la regla oficial de 1 IP por juego del equipo prorrateada»,
+    aunque `IP_POR_JUEGO` viniera de ahí. Es un piso de volumen de 6,0 IP en dos semanas, y la
+    diferencia importa: con la regla oficial serían ~13 IP y **el widget se quedaría sin un solo
+    relevista** —uno bueno lanza 6 o 7 en quince días— o sea que «Quemando la liga» no podría premiar
+    nunca a un cerrador dominante.
+
+    Se deja como está a propósito, pero con el nombre corregido: el parámetro es `por_aparicion` y no
+    `por_juego`, porque eso es lo que multiplica. Una prueba congela el contrato.
+
+    Medido el 2026-07-31: 37,2 PA y 6,0 IP, que dejan 182 y 224 jugadores en las mayores.
+    """
+    apariciones = sorted(_numero(s.get("stat") or {}, "G") for s in splits)
+    if not apariciones:
         return 0.0
-    p90 = quantiles(juegos, n=10)[8] if len(juegos) > 9 else juegos[-1]
-    return por_juego * int(p90)
+    p90 = quantiles(apariciones, n=10)[8] if len(apariciones) > 9 else apariciones[-1]
+    return por_aparicion * int(p90)
 
 
 def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[dict[str, Any]]:
@@ -339,7 +374,7 @@ def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[di
                 quien = (split.get("player") or {}).get("fullName") or jugador_id
                 logger.warning("ventana: línea imposible descartada — %s (%s): %s", quien, grupo, motivo)
                 continue
-            oportunidades = _numero(stat, campo)
+            oportunidades = _oportunidades(stat, campo)
             if oportunidades < corte:
                 continue
 
@@ -431,6 +466,24 @@ def repartir(filas: list[Fila]) -> list[Fila]:
     return [f for i, f in enumerate(filas) if i in elegidos][:MAXIMO]
 
 
+def _publicables() -> Any:  # noqa: ANN401 — un `QuerySet[WindowStandout]`, sin importarlo arriba
+    """Las filas que PUEDEN salir al público: las de un jugador que no esté oculto.
+
+    `Player.hidden` promete que un jugador deshabilitado desaparece del sitio, y esta superficie no
+    cumplía esa promesa: `portada()` leía la tabla entera (QA-01 del review v15). Se copió el patrón
+    de `daily` sin copiar su filtro, que es la forma más fácil de romper un contrato — el widget
+    nuevo se ve bien y la regla vieja deja de valer en un sitio donde nadie mira.
+
+    VA AL LEER Y NO AL GUARDAR, igual que en `daily`. El dato crudo sigue entrando en la tabla, así
+    que reactivar a un jugador lo devuelve a la portada en la siguiente petición en vez de tener que
+    esperar al próximo recálculo de la ventana. Deshabilitar es reversible; ocultarlo al guardar lo
+    haría irreversible hasta la hora siguiente.
+    """
+    from dglweb.players.visibility import only_visible
+
+    return only_visible(WindowStandout.objects.all())
+
+
 def _fila(registro: WindowStandout) -> Fila:
     return Fila(
         player=registro.player,
@@ -457,7 +510,7 @@ def portada() -> dict[str, Any] | None:
     receso, o el día que se recalcula la ventana en pretemporada— y un panel hueco se lee como un
     sitio roto.
     """
-    registros = list(WindowStandout.objects.select_related("player").order_by("-valor"))
+    registros = list(_publicables().select_related("player").order_by("-valor"))
 
     # EL CORTE PRIMERO Y EL REPARTO DESPUÉS. El umbral vale para los dos oficios juntos y solo
     # entonces se decide a quién se le da sitio en pantalla. Al revés darían dos varas distintas y un

@@ -1,7 +1,13 @@
 # Las jails de nginx, para `/etc/fail2ban/jail.d/nginx.local` en el VPS.
 #
-#   sudo cp deploy/fail2ban-nginx.local /etc/fail2ban/jail.d/nginx.local
+#   sudo cp deploy/fail2ban/jail.d/nginx.local /etc/fail2ban/jail.d/nginx.local
 #   sudo fail2ban-client reload && fail2ban-client status nginx-404-scan
+#
+# La ruta de arriba decía `deploy/fail2ban-nginx.local`, que era donde vivía este archivo antes de
+# que la configuración se organizara en carpetas (OPS-01 del review v15). Un path viejo en un
+# comentario cuesta más que un error de sintaxis: no falla nunca, salvo el día que alguien lo
+# necesita de verdad — una recuperación desde cero o una rotación de servidor. `docs/RESTAURAR.md`
+# es la fuente operativa y ahí ya estaba bien.
 #
 # Se versiona acá igual que los `nginx-*.conf`: vivía solo en el servidor, y una configuración que
 # solo existe en una máquina se pierde entera el día que esa máquina se reinstale — con el porqué de

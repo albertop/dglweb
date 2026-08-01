@@ -335,3 +335,45 @@ def test_the_pitching_line_names_the_walks() -> None:
 def test_a_pitcher_with_no_walks_says_so() -> None:
     """«0 BB» es una afirmación, no un hueco: en un lanzador, no regalar nada es parte del mérito."""
     assert ventana.linea_de_pitcheo({"IP": "7.0", "K": "8", "ER": "0"}) == "7.0 IP, 0 ER, 8 K, 0 BB"
+
+
+# ── El contrato del umbral (SAB-01 del review v15) ──────────────────────────────────────────────
+
+
+def test_the_innings_are_real_innings_and_not_baseball_notation() -> None:
+    """«6.2 IP» son seis entradas y DOS TERCIOS: 6,667, no 6,2.
+
+    Pasarlo por `float()` inventa una cifra que no existe, y estaba pasando en 219 de 400 lanzadores
+    de una ventana normal. `oportunidades` se guarda para poder comprobar después por qué alguien
+    entró o quedó fuera; un dato de auditoría que miente no sirve.
+    """
+    assert ventana._oportunidades({"IP": "6.2", "outsPitched": "20"}, "IP") == pytest.approx(6.667, abs=0.001)
+    assert ventana._oportunidades({"IP": "4.1", "outsPitched": "13"}, "IP") == pytest.approx(4.333, abs=0.001)
+    # El bateador no tiene notación rara: sus PA son un entero.
+    assert ventana._oportunidades({"PA": "45"}, "PA") == 45
+
+
+def test_the_pitching_threshold_counts_appearances_and_not_team_games() -> None:
+    """CONGELA EL CONTRATO que SAB-01 señaló como ambiguo.
+
+    `G` en pitcheo son APARICIONES del lanzador, no juegos del equipo — medido, mediana 3 y p90 6
+    contra 10 y 13 en bateo. Así que el piso de pitcheo es de volumen (6 IP en dos semanas) y NO la
+    regla oficial de 1 IP por juego del equipo prorrateada, que daría ~13 IP.
+
+    Se deja así a propósito: con 13 IP el widget se quedaría sin un solo relevista, y «Quemando la
+    liga» no podría premiar nunca a un cerrador dominante. Lo que no puede es llamarse otra cosa.
+    """
+    juegos_del_equipo = 13
+    # La forma real de una ventana de pitcheo, medida: mediana 3, p90 6, máximo 8.
+    apariciones = [1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6, 6, 7, 8, 8]
+    como_bateo = [{"stat": {"G": str(g)}} for g in [8, 9, 10, 10, 11, 11, 12, 12, 12, 13, 13, 13, 13, 14]]
+
+    corte_pitcheo = ventana._umbral([{"stat": {"G": str(g)}} for g in apariciones], ventana.IP_POR_JUEGO)
+    corte_bateo = ventana._umbral(como_bateo, ventana.PA_POR_JUEGO)
+
+    # El de pitcheo sale de apariciones y queda MUY por debajo de los juegos del equipo. Si algún día
+    # alguien lo «arregla» para que use el calendario, esta prueba se pone roja y hay que decidirlo.
+    assert corte_pitcheo < juegos_del_equipo * ventana.IP_POR_JUEGO / 1.5
+    assert 5 <= corte_pitcheo <= 8
+    # El de bateo sí se pega a los juegos del equipo, que es de donde viene la confusión.
+    assert corte_bateo == pytest.approx(ventana.PA_POR_JUEGO * juegos_del_equipo)

@@ -290,5 +290,10 @@ Más el CMS cerrado por IP (2026-07-29) y el panel de anuncios igual.
       publiquen versiones nuevas del navegador. Lo protege `tests/test_cabeceras_seguridad.py`, que
       falla si alguien lo enciende — para que sea una decisión y no un descuido de una línea.
 
-- [ ] **fail2ban sobre los registros de nginx**, para que los escaneos repetidos se corten en el
-      cortafuegos y no lleguen a gastar workers.
+- [x] **fail2ban sobre los registros de nginx** — hecho el 2026-07-30. El filtro, la jail y la línea
+      base están versionados en `deploy/fail2ban/`, y `docs/RESTAURAR.md` lleva los comandos de
+      instalación. Lo que queda no es montarlo:
+
+- [ ] **Observar unos días qué captura `nginx-404-scan`** antes de subirle la mano. Está puesto para
+      cazar escaneos, pero el filtro activo casa CUALQUIER 404 —el estrecho quedó comentado al
+      lado— así que conviene mirar el registro de baneos antes de darlo por afinado.

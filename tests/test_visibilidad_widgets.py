@@ -29,13 +29,13 @@ vacío.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from django.utils import timezone
 
 from dglweb.players.models import Player
-from dglweb.stats.models import DailyStandout, Metric, MlbLeader, RosterMove
+from dglweb.stats.models import DailyStandout, Metric, MlbLeader, RosterMove, WindowStandout
 
 
 def _jugador(pid: int, *, oculto: bool) -> Player:
@@ -179,3 +179,65 @@ def test_reactivar_a_un_jugador_lo_devuelve_sin_reconstruir_nada() -> None:
     jugador.save(update_fields=["hidden"])
 
     assert 910008 in _ids(roster_moves.portada()), "reactivar tiene que devolverlo de inmediato"
+
+
+def _en_la_ventana(jugador: Player, valor: float = 99) -> WindowStandout:
+    """Muy por encima del corte: la prueba tiene que fallar por la visibilidad, nunca por el umbral."""
+    hoy = timezone.localdate()
+    return WindowStandout.objects.create(
+        player=jugador,
+        desde=hoy - timedelta(days=13),
+        hasta=hoy,
+        grupo=WindowStandout.Grupo.BATEO,
+        linea=".400, 6 HR, 14 RBI",
+        valor=valor,
+        juegos=12,
+        oportunidades=45,
+        team="NYA",
+    )
+
+
+@pytest.mark.django_db
+def test_las_rachas_no_ensenan_a_un_oculto() -> None:
+    """QA-01 del review v15. La ventana de catorce días es una superficie pública más, y se escribió
+    copiando el patrón de `daily` sin copiar su filtro de visibilidad."""
+    from dglweb.stats import ventana
+
+    visible = _jugador(910101, oculto=False)
+    oculto = _jugador(910102, oculto=True)
+    _en_la_ventana(visible)
+    _en_la_ventana(oculto)
+
+    salida = ventana.portada()
+    assert salida is not None, "con un jugador visible el widget tiene que salir"
+    vistos = _ids(salida)
+    assert 910101 in vistos, "el jugador visible tiene que seguir saliendo"
+    assert 910102 not in vistos, "SALE UN JUGADOR DESHABILITADO en «Quemando la liga»"
+
+
+@pytest.mark.django_db
+def test_si_el_unico_de_la_racha_esta_oculto_el_widget_no_sale() -> None:
+    """El panel entero desaparece, no queda con el título y el cuerpo vacío."""
+    from dglweb.stats import ventana
+
+    _en_la_ventana(_jugador(910103, oculto=True))
+
+    assert ventana.portada() is None, "widget con título y sin contenido"
+
+
+@pytest.mark.django_db
+def test_el_oculto_tampoco_sale_por_la_punta_de_abajo() -> None:
+    """«Pasando trabajo» lee la MISMA consulta, pero por el otro extremo. Un arreglo que solo mirara
+    el orden descendente dejaría al oculto saliendo en el panel de abajo."""
+    from dglweb.stats import ventana
+
+    visible = _jugador(910104, oculto=False)
+    oculto = _jugador(910105, oculto=True)
+    _en_la_ventana(visible, valor=-99)
+    _en_la_ventana(oculto, valor=-99)
+
+    salida = ventana.portada()
+    assert salida is not None
+    vistos = _ids(salida["pasando"])
+    assert 910104 in vistos
+    assert 910105 not in vistos, "SALE UN JUGADOR DESHABILITADO en «Pasando trabajo»"
