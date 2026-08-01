@@ -201,6 +201,28 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 }
 .dgl-fecha b { font-size: 1rem; font-weight: 800; }
 .dgl-fecha-hoy { background: var(--dgl-red); }
+/* EN MÓVIL LA FECHA SE PEGA DESPUÉS DE LA FLECHA, NO AL BORDE (2026-08-01).
+
+   Ahí las flechas van una en cada punta, y la izquierda ocupa los mismos 34px donde la fecha se pega
+   al desplazar. Con `z-index` 3 contra 2, la flecha ganaba: medido, tapaba 34 de los 51px de la
+   etiqueta y en pantalla se veía media franja roja cortada.
+
+   No se arregla subiéndole el `z-index` a la fecha — entonces la fecha taparía la flecha y el botón
+   dejaría de poder pulsarse justo al principio de la tira, que es donde más se usa.
+
+   La tira gana un relleno izquierdo del ancho de la flecha y la fecha se pega a `left: 0`, que en un
+   contenedor con relleno es el borde de la CAJA DE RELLENO — o sea justo donde la flecha termina.
+   Medido: la flecha acaba en 46px y la etiqueta se queda clavada en 46 en cualquier posición.
+
+   El `left` NO se pone también a 2,1rem, aunque parezca lo simétrico: los dos se suman y dejan 33px
+   de blanco entre la flecha y la fecha. Está medido, se probó primero así.
+
+   En escritorio no hace falta: ahí las dos flechas están a la derecha y el borde izquierdo está libre.
+   Fue justo el efecto secundario que se ganó al juntarlas, y volvió al separarlas otra vez en móvil. */
+@media (max-width: 991.98px) {
+  .dgl-tira { padding-left: 2.1rem; }
+  .dgl-fecha { left: 0; }
+}
 
 /* El ancho mínimo lo pide la línea de estado —«Alta del 7» más la banderita—, no los dos lados, que
    con sus cuatro piezas caben en menos. A 10,5rem sobraba un hueco entre el código del equipo y su
@@ -382,6 +404,23 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    en los dos porque un hijo flex no baja de su ancho de contenido sin él, y sin eso el nombre
    empujaría al icono fuera de la caja en vez de recortarse. */
 .dgl-destacado-nombre { display: flex; align-items: center; gap: .3rem; min-width: 0; }
+/* EL NOMBRE COMPLETO EN MÓVIL Y EL ABREVIADO EN ESCRITORIO (dueño, 2026-08-01).
+
+   Suena al revés y es por lo mismo que el logo del equipo: la rejilla es `minmax(250px, 1fr)`, así
+   que en un teléfono arma UNA columna de ~350px y en escritorio DOS de ~260. La caja es más ancha en
+   el teléfono, y ahí «Fernando Tatis Jr.» cabe donde en escritorio solo cabe «F. Tatis Jr.».
+
+   Los dos vienen en el HTML y acá se elige, porque el servidor no sabe de qué ancho es la pantalla.
+   El corte es el `lg` de siempre — entre 768 y 991 la caja mide ~365px, todavía más que en
+   escritorio, así que el nombre largo también le sirve.
+
+   Solo aplica a los tres paneles que usan `.dgl-destacado-nombre`: destacados y las dos rachas. El de
+   líderes tiene su propia anatomía y no lo pidió el dueño. */
+.dgl-nombre-largo { display: none; }
+@media (max-width: 991.98px) {
+  .dgl-nombre-corto { display: none; }
+  .dgl-nombre-largo { display: inline; }
+}
 .dgl-destacado-quien .nombre {
   min-width: 0; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

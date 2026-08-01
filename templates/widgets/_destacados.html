@@ -72,8 +72,19 @@ no esté a que esté hueco.
                 en caja.
               {% endcomment %}
               <span class="dgl-destacado-nombre">
+                {% comment %}
+                  LOS DOS NOMBRES EN EL HTML, y el CSS elige (decisión del dueño, 2026-08-01). En un
+                  teléfono la rejilla arma una sola columna y la caja mide ~350px, más que los ~260 de
+                  escritorio, así que ahí el nombre completo cabe y se lee mejor que «J. Peña».
+
+                  Se mandan los dos y no se decide en el servidor por la misma razón de siempre: el
+                  servidor no sabe de qué ancho es la pantalla. Son unos pocos bytes por caja.
+
+                  `display: none` los saca del árbol de accesibilidad, así que un lector de pantalla
+                  anuncia UNO solo — el que se está viendo. Por eso no llevan `aria-hidden`.
+                {% endcomment %}
                 <a class="nombre" href="{% url 'player_detail' actuacion.player.slug %}"
-                   title="{{ actuacion.player.full_name }}">{{ actuacion.nombre }}</a>
+                   title="{{ actuacion.player.full_name }}"><span class="dgl-nombre-corto">{{ actuacion.nombre }}</span><span class="dgl-nombre-largo">{{ actuacion.player.full_name }}</span></a>
                 {% include "widgets/_video_boton.html" with clips=actuacion.clips %}
                 {% comment %}
                   La jornada de la que viene la actuación, solo cuando NO es la de arriba. El widget

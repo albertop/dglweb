@@ -56,8 +56,9 @@ título prometía de más; desde el estudio del 2026-07-31 los umbrales son los 
             <img class="dgl-destacado-foto" src="{{ fila.foto }}" alt="" loading="lazy" data-quitar-si-falta>
             <div class="dgl-destacado-quien">
               <span class="dgl-destacado-nombre">
+                {# Los dos nombres, y el CSS elige según el ancho. El porqué, en `_destacados.html`. #}
                 <a class="nombre" href="{% url 'player_detail' fila.player.slug %}"
-                   title="{{ fila.player.full_name }}">{{ fila.nombre }}</a>
+                   title="{{ fila.player.full_name }}"><span class="dgl-nombre-corto">{{ fila.nombre }}</span><span class="dgl-nombre-largo">{{ fila.player.full_name }}</span></a>
                 {% comment %}
                   Los juegos disputados, donde `_destacados.html` pone la fecha de la jornada. Acá la
                   fecha no cambia de fila en fila —la ventana es la misma para todos— y lo que sí
