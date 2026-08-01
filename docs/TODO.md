@@ -1154,8 +1154,20 @@ LAS TRES COSAS QUE HAY QUE RECORDAR:
    algo?», y por eso se puso rojo a las tres horas. Esa distinción es la razón de que ese endpoint
    esté escrito así, y acá se ganó el sueldo.
 
-EL ARREGLO: `deploy/systemd/reiniciar-scheduler.conf`, un drop-in que reinicia el scheduler cada vez
-que arranca el demonio. Instalado en el paso 10 de `docs/RESTAURAR.md`.
+EL ARREGLO, INSTALADO Y PROBADO EL 2026-08-01: `deploy/systemd/reiniciar-con-docker.conf`, un drop-in
+que reinicia los contenedores con el socket montado cada vez que arranca el demonio. Va en el paso 10
+de `docs/RESTAURAR.md` y `make checkstacks` ata su nombre al del stack.
+
+**Son DOS contenedores y no uno**, y eso se aprendió doce horas después: por la tarde, en mitad de un
+despliegue, Portainer contestó `Dial unix /var/run/docker.sock: connect: connection refused`. El mismo
+fallo, la misma causa y desde la misma hora. El reinicio del demonio deja inservible a *todo*
+contenedor con el socket montado, no solo al que se nota primero — y a Portainer solo se entra cuando
+hace falta, así que estuvo roto medio día sin que nadie lo mirara.
+
+PROBADO DE VERDAD, no dado por bueno: se corrió `systemctl restart docker` y Ofelia volvió sola
+registrando sus siete jobs, el sitio y el semáforo respondieron 200, y Portainer cargó su lista de
+contenedores. Si algún día se monta un tercero con el socket —un `watchtower`, un agente de métricas—
+tiene que entrar en la lista del drop-in, porque nada lo va a avisar.
 
 PENDIENTE, Y NO ES CHICO:
 
