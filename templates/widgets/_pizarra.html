@@ -12,8 +12,6 @@ portada, no hay dos versiones que se vayan separando.
 <section class="dgl-banner" id="pizarra" aria-label="Pizarra de resultados"
          data-vivo="{% if pizarra.hay_vivos %}1{% else %}0{% endif %}">
 
-  <button class="dgl-flecha dgl-flecha-izq" type="button" data-mover="-1" aria-label="Juegos anteriores">‹</button>
-
   <div class="dgl-tira">
     {% for jornada in pizarra.jornadas %}
       <div class="dgl-fecha{% if jornada.es_hoy %} dgl-fecha-hoy{% endif %}"
@@ -26,7 +24,19 @@ portada, no hay dos versiones que se vayan separando.
     {% endfor %}
   </div>
 
-  <button class="dgl-flecha dgl-flecha-der" type="button" data-mover="1" aria-label="Juegos siguientes">›</button>
+  {% comment %}
+    UN SOLO MARCADO PARA LAS DOS COLOCACIONES. Dónde acaban las flechas lo decide el CSS: juntas a la
+    derecha con ratón y una en cada punta en teléfono — ver `.dgl-flechas` en `site.css`, que explica
+    por qué. Acá no hay ningún `{% if %}` de tamaño de pantalla, y es a propósito: el servidor no sabe
+    en qué pantalla se va a ver, así que decidirlo acá obligaría a dos plantillas que se separarían.
+
+    Van DESPUÉS de la tira en el HTML aunque floten encima, para que el orden de tabulación sea el de
+    la lectura: primero los juegos, luego los controles que los mueven.
+  {% endcomment %}
+  <div class="dgl-flechas">
+    <button class="dgl-flecha dgl-flecha-izq" type="button" data-mover="-1" aria-label="Juegos anteriores">‹</button>
+    <button class="dgl-flecha dgl-flecha-der" type="button" data-mover="1" aria-label="Juegos siguientes">›</button>
+  </div>
 
   {% comment %}
     El detalle del hover se pinta acá y no dentro de la tira: la tira recorta lo que se sale de ella,

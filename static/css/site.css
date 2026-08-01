@@ -220,15 +220,47 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
 .dgl-lado .score { font-weight: 800; font-size: .9rem; min-width: 1.2rem; text-align: right;
   font-variant-numeric: tabular-nums; }
 
+/* LAS FLECHAS CAMBIAN DE SITIO SEGÚN EL DISPOSITIVO (2026-07-31, decisión del dueño).
+
+   * **Con ratón (≥992px): las dos juntas a la derecha**, como en Baseball Savant. Una en cada punta
+     obliga a cruzar la pantalla entera para retroceder y volver a avanzar; juntas, el puntero se
+     queda donde está y solo cambia de botón.
+   * **En teléfono (<992px): una en cada punta**, como estaban siempre. Ahí no hay puntero que
+     recorra nada: el pulgar ya está sobre la pantalla y llega a las dos esquinas sin moverse, y
+     además cada flecha señala hacia donde va el contenido. La diferencia no es el tamaño de la
+     pantalla, es que una la mueve un ratón y la otra un dedo.
+
+   El punto de corte es el `lg` de Bootstrap, el mismo que el sitio ya usa para el carril de anuncios.
+
+   Van así con `display: contents` en el envoltorio: en móvil desaparece y los dos botones se
+   posicionan cada uno contra `.dgl-banner`; en escritorio vuelve a ser una caja flex y los alinea.
+   Sin eso harían falta dos marcados distintos en la plantilla para el mismo widget.
+
+   Más grandes en las dos, y en NEGRITA y en tinta: de 1,6rem de ancho y 1,2rem de glifo a 2,1 y 1,5.
+   El `--dgl-muted` las dejaba al nivel de un texto secundario, que es lo contrario de lo que son —
+   son la ÚNICA forma de ver los juegos que no caben. El peso hace más por que se vean que el tamaño:
+   un glifo fino y grande se sigue leyendo como decoración. */
+.dgl-flechas { display: contents; }
 .dgl-flecha {
-  position: absolute; top: 0; bottom: 0; z-index: 3; width: 1.6rem; padding: 0;
-  border: 0; border-left: 1px solid var(--dgl-line); background: var(--dgl-card);
-  color: var(--dgl-muted); font-size: 1.2rem; line-height: 1; cursor: pointer;
+  position: absolute; top: 0; bottom: 0; z-index: 3;
+  width: 2.1rem; padding: 0; border: 0;
+  background: var(--dgl-card); color: var(--dgl-ink);
+  font-size: 1.5rem; font-weight: 800; line-height: 1; cursor: pointer;
 }
-.dgl-flecha:hover { color: var(--dgl-ink); background: #f0f3f8; }
+.dgl-flecha-izq { left: 0; border-right: 1px solid var(--dgl-line); }
+.dgl-flecha-der { right: 0; border-left: 1px solid var(--dgl-line); }
+.dgl-flecha:hover { color: var(--dgl-navy); background: #f0f3f8; }
 .dgl-flecha[disabled] { opacity: .25; cursor: default; }
-.dgl-flecha-izq { left: 0; border-left: 0; border-right: 1px solid var(--dgl-line); }
-.dgl-flecha-der { right: 0; }
+
+@media (min-width: 992px) {
+  .dgl-flechas { display: flex; position: absolute; top: 0; bottom: 0; right: 0; z-index: 3; }
+  /* `static` para que las coloque el flex del envoltorio y no su propio `left`/`right`. */
+  .dgl-flecha { position: static; border-left: 1px solid var(--dgl-line); border-right: 0; }
+  /* Sitio para que el ÚLTIMO juego pueda pasar por debajo de las dos en vez de quedarse tapado por
+     ellas para siempre. Solo acá: en móvil van separadas y cada una tapa un extremo, que es como
+     estuvo siempre. */
+  .dgl-tira { padding-right: 4.2rem; }
+}
 
 /* El panel que baja al pasar el mouse por un juego terminado.
    En gris y no en blanco: la tira también es blanca, así que el panel se despegaba solo por su filo
