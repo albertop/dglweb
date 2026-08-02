@@ -112,6 +112,23 @@ de más de unos 75 caracteres se lee peor: al saltar de renglón el ojo pierde c
     <div class="dgl-articulo-cuerpo">{% include_block page.cuerpo %}</div>
 
     {% comment %}
+      LAS NOTAS AL PIE, y el ORDEN DE ESTAS DOS LÍNEAS NO ES NEGOCIABLE.
+
+      Va DESPUÉS del cuerpo porque la lista no existe hasta que el cuerpo se pinta: cada párrafo, al
+      renderizarse, va dejando en `page` las notas que encuentra y en qué orden aparecen. Puesta antes,
+      la lista sale vacía y el artículo publica unos numeritos que no llevan a ninguna parte — sin
+      error, sin aviso y sin que nada falle.
+
+      Numeradas por ORDEN DE APARICIÓN en el texto, no por orden de creación en el editor. Es lo que
+      hace que reordenar dos párrafos no obligue a renumerar nada a mano.
+
+      El nombre de la plantilla es el que espera `wagtail-footnotes`, pero la que se usa es la
+      nuestra: está en `templates/wagtail_footnotes/`, que va antes que la de la dependencia. Ahí se
+      explica por qué.
+    {% endcomment %}
+    {% include "wagtail_footnotes/includes/footnotes.html" %}
+
+    {% comment %}
       EL PRINCIPAL. Va al terminar el cuerpo y ANTES de los hashtags: ahí está la intención —quien
       leyó y le gustó— y todavía no ha llegado al anuncio del pie. Un botón detrás de un anuncio se
       pulsa mucho menos.

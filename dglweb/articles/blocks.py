@@ -32,6 +32,7 @@ from wagtail import blocks
 from wagtail.contrib.table_block.blocks import TableBlock
 from wagtail.images.blocks import ImageChooserBlock
 from wagtail.snippets.blocks import SnippetChooserBlock
+from wagtail_footnotes.blocks import RichTextBlockWithFootnotes
 
 # El lienzo del gráfico, en unidades del `viewBox`. No son píxeles: el SVG se estira al ancho de la
 # columna y estas medidas solo fijan la proporción.
@@ -488,7 +489,12 @@ class TablaHtmlBlock(blocks.TextBlock):
 class CuerpoStreamBlock(blocks.StreamBlock):
     """Lo que puede llevar un artículo. El orden es el del menú del editor: lo común primero."""
 
-    parrafo = blocks.RichTextBlock(
+    # `RichTextBlockWithFootnotes` Y NO `RichTextBlock`, y no es intercambiable: es la clase que sabe
+    # convertir el `<footnote id="…">` que guarda el editor en el numerito enlazado, y que va dejando
+    # las notas encontradas en el objeto `page` para que la lista del final las pueda pintar en el
+    # orden en que aparecen. Con el bloque normal, el editor deja poner la nota y el artículo publicado
+    # no la enseña — ni el marcador ni el texto.
+    parrafo = RichTextBlockWithFootnotes(
         label="Párrafo",
         icon="pilcrow",
         # Deliberadamente corto. Los títulos, las imágenes y las tablas tienen su propio bloque, así
@@ -497,7 +503,12 @@ class CuerpoStreamBlock(blocks.StreamBlock):
         # `letra-chica` es nuestra y sale de `articles/wagtail_hooks.py`: guarda un `<small>` para
         # las salvedades, las fuentes y los créditos. Es la única excepción a la regla de arriba, y
         # se gana el sitio porque no duplica ningún bloque — no hay otra forma de achicar un trozo.
-        features=["bold", "italic", "link", "ol", "ul", "letra-chica"],
+        #
+        # `footnotes` la trae la dependencia. Cubre lo que `letra-chica` no puede: aquella achica un
+        # trozo EN EL SITIO donde está, y una nota al pie saca la salvedad del renglón y la manda al
+        # final, numerada y con enlace de vuelta. En un sitio que explica metodologías —«solo
+        # bateadores con 1500 PA»— hacen falta las dos.
+        features=["bold", "italic", "link", "ol", "ul", "letra-chica", "footnotes"],
         template="articles/blocks/_parrafo.html",
     )
     titulo = blocks.CharBlock(max_length=120, label="Subtítulo", icon="title", template="articles/blocks/_titulo.html")

@@ -1614,6 +1614,66 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   font-size: .84em; line-height: 1.5; color: #4b5563;
 }
 
+/* LAS NOTAS AL PIE. El numerito dentro del texto y la lista al terminar el artículo.
+
+   LA LLAMADA NO SE PINTA COMO UN ENLACE DEL CUERPO. Los del cuerpo van en #2a6fd4 sin subrayar
+   —decisión del dueño, ver arriba— y eso ya carga el párrafo de azul; sumarle los numeritos convierte
+   una nota en otro enlace más para pulsar. Va en el gris del texto secundario y solo se pone azul al
+   pasar el ratón: quien lee de corrido lo esquiva, quien lo busca lo encuentra.
+
+   `vertical-align: super` con el tamaño reducido y NO la línea base del navegador: `<sup>` a secas
+   estira el interlineado de ESE renglón, así que un párrafo con dos llamadas sale con dos renglones
+   más separados que el resto. Con `line-height: 0` el superíndice no cuenta para el alto de la línea.
+
+   La zona de pulsado se ensancha con `padding` y no con `margin` — en un móvil un corchete de seis
+   píxeles no se acierta con el pulgar. El `padding` no descoloca nada porque el elemento es inline y
+   la altura está anulada. */
+.dgl-nota-llamada {
+  color: #4b5563; text-decoration: none; padding: .35rem .15rem;
+}
+.dgl-nota-llamada sup { font-size: .7em; line-height: 0; vertical-align: super; }
+.dgl-nota-llamada:hover { color: #2a6fd4; }
+.dgl-nota-llamada:focus-visible { outline: 2px solid var(--dgl-blue); outline-offset: 2px; }
+
+/* La llamada a la que se acaba de saltar. Sin esto, el navegador lleva el foco al pie y el lector
+   pierde de vista de qué palabra venía al volver: la página salta y todas las llamadas se ven igual.
+   Amarillo de resaltador durante un segundo y medio, que es lo que tarda el ojo en engancharse.
+
+   Se resalta con `:target` —el propio ancla del navegador— así que no hace falta JavaScript. */
+.dgl-nota-llamada:target, .dgl-notas-lista li:target { animation: dgl-nota-destella 1.6s ease-out; }
+@keyframes dgl-nota-destella {
+  from { background: #fef08a; }
+  to { background: transparent; }
+}
+/* Quien pidió al sistema que no le muevan nada en pantalla no debería recibir un parpadeo. El
+   resaltado se queda fijo en vez de desaparecer: cumple la misma función sin animar. */
+@media (prefers-reduced-motion: reduce) {
+  .dgl-nota-llamada:target, .dgl-notas-lista li:target { animation: none; background: #fef08a; }
+}
+
+/* La lista del final. Separada por una línea porque ya no es el artículo: es el aparato de notas, y
+   el lector tiene que ver de un vistazo que el texto se acabó. Un escalón más pequeña que el cuerpo
+   —el mismo 0.9 que usan los pies del sitio— sin bajar del umbral en el que el serif cuesta leer. */
+.dgl-notas { margin-top: 2rem; padding-top: 1.2rem; border-top: 1px solid #e5e7eb; }
+.dgl-notas-titulo {
+  font-size: 1rem; font-weight: 700; letter-spacing: .02em; color: #374151; margin-bottom: .6rem;
+}
+.dgl-notas-lista {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: .95rem; line-height: 1.55; color: #374151; padding-left: 1.4rem; margin-bottom: 0;
+}
+.dgl-notas-lista li { margin-bottom: .5rem; }
+/* El texto de la nota llega como HTML enriquecido, o sea envuelto en `<p>`. El margen de párrafo del
+   cuerpo abriría un hueco dentro de cada punto de la lista y los separaría más entre sí que de su
+   propio número. La flecha de vuelta va pegada al último párrafo, así que este queda en línea. */
+.dgl-notas-lista li p { margin: 0; display: inline; }
+.dgl-notas-lista li p + p { display: block; margin-top: .4rem; }
+.dgl-nota-volver { margin-left: .35rem; }
+.dgl-nota-volver a { color: #4b5563; text-decoration: none; padding: .25rem; }
+.dgl-nota-volver a:hover { color: #2a6fd4; }
+.dgl-nota-volver a:focus-visible { outline: 2px solid var(--dgl-blue); outline-offset: 2px; }
+.dgl-nota-volver sup { font-size: .7em; line-height: 0; vertical-align: super; }
+
 /* La celda cuyo dato la fuente entregó incompleto (SAB-03b). Hoy son los hits por tipo y los cuatro
    coeficientes de las siete temporadas de 1989-97 — ver `derive.UNDERTYPED_COLUMNS`.
 

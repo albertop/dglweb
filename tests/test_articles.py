@@ -546,15 +546,26 @@ def test_the_rich_text_features_stay_narrow(indice: ArticleIndexPage) -> None:
     Este test es el que hace ruido el día que alguien la amplíe: no dice que ampliarla esté mal, dice
     que hay que volver a mirar los tres tests anteriores antes de hacerlo.
 
-    Ya cumplió una vez: se cayó al sumar `letra-chica` (2026-07-27). Se revisaron los tres y siguen
-    valiendo — `<small>` no lleva atributos, así que no abre ninguna vía que el filtro de enlaces
-    tenga que cerrar.
+    Ya cumplió dos veces:
+
+    * **`letra-chica` (2026-07-27).** Se revisaron los tres y siguen valiendo — `<small>` no lleva
+      atributos, así que no abre ninguna vía que el filtro de enlaces tenga que cerrar.
+    * **`footnotes` (2026-08-01).** Revisados otra vez, y esta sí había que mirarla con calma porque
+      la nota trae TEXTO propio, no solo una marca. Dos cosas la dejan igual de cerrada:
+
+      1. Del `<footnote id="…">` que se guarda en el párrafo no sale NADA al HTML. El ancla la
+         escribe entera nuestra plantilla con dos enteros —el número de nota y el de cita—, y el
+         `id` solo sirve para buscar la nota en la base. Un `id` inventado no encuentra nota y no
+         pinta ancla.
+      2. El texto de la nota es un `RichTextField` con `bold/italic/link`, que es SUBCONJUNTO de
+         esta lista. Lo comprueba `test_notas_al_pie`, que además repite acá el caso del
+         `javascript:` por si mañana alguien lo ensancha con `WAGTAIL_FOOTNOTES_TEXT_FEATURES`.
     """
     from dglweb.articles.blocks import CuerpoStreamBlock
 
     parrafo = CuerpoStreamBlock().child_blocks["parrafo"]
 
-    assert set(parrafo.features) == {"bold", "italic", "link", "ol", "ul", "letra-chica"}
+    assert set(parrafo.features) == {"bold", "italic", "link", "ol", "ul", "letra-chica", "footnotes"}
 
 
 # ── SEC-02: la política de documentos del CMS ───────────────────────────────────────────────────

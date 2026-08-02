@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     "wagtail.contrib.table_block",
     "wagtail.contrib.redirects",
     "wagtail.embeds",
+    # Las notas al pie del editor. Ver `requirements.txt` para por qué es dependencia y no código propio.
+    "wagtail_footnotes",
     "wagtail.sites",
     "wagtail.users",
     "wagtail.snippets",

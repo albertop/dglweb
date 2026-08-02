@@ -11,3 +11,16 @@ django-environ>=0.11
 whitenoise>=6.7
 gunicorn>=23.0
 httpx>=0.28
+
+# LAS NOTAS AL PIE DEL EDITOR, y es la única dependencia del proyecto que no es infraestructura.
+#
+# Se pesó contra escribirla nosotros, que es lo que se hizo con `letra-chica`. La diferencia es que
+# aquello es un ESTILO —Draftail lo resuelve con una regla de conversión y cero JavaScript— y una nota
+# al pie es una ENTIDAD: lleva texto propio, así que exige un componente React registrado en el admin.
+# Hacerlo a mano significaba meter el primer JavaScript de administración del proyecto y mantenerlo
+# contra cada versión de Wagtail.
+#
+# Es de Torchbox, los mismos que hacen Wagtail, y declara `Wagtail>=6.3` sin tope — corremos 7.4.2.
+# Se acota al menor porque el resto del archivo también lo hace: una dependencia sin techo es la que
+# se actualiza sola el día del despliegue.
+wagtail-footnotes>=0.15,<0.16

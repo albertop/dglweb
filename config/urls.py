@@ -61,6 +61,9 @@ urlpatterns: list[URLPattern | URLResolver] = [
     # Wagtail, que se queda con todo lo demás bajo /cms/.
     path("cms/datos-apoyo/<int:pk>/", staticdata_views.upload, name="staticdata_upload"),
     path("cms/datos-apoyo/<int:pk>/confirmar/", staticdata_views.confirm, name="staticdata_confirm"),
+    # El modal con el que el editor escribe la nota. Va DENTRO de `cms/` porque es pantalla de
+    # administración: fuera, sería una vista pública que no le sirve a ningún visitante.
+    path("cms/", include("wagtail_footnotes.urls")),
     path("cms/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     # ── El mapa del sitio y el robots ────────────────────────────────────────────────────────────

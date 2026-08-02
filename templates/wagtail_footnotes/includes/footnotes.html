@@ -1,0 +1,53 @@
+{% load wagtailcore_tags articles_extras %}
+{% comment %}
+La lista de notas al final del artículo. Pisa a la de `wagtail-footnotes` por estar en `templates/`.
+
+POR QUÉ SE COPIA EN VEZ DE USAR LA DEL PAQUETE. El título sale de `{% translate "Footnotes" %}` y el
+paquete solo trae inglés, francés y rumano — comprobado en su carpeta `locale`. En un sitio que se
+lee en español eso es un rótulo en inglés a mitad de página. Traducirlo por catálogo obligaría a
+montar `.po` y `compilemessages` en la imagen para una sola palabra.
+
+LOS `id` SE MANTIENEN TAL CUAL LOS ESCRIBE EL PAQUETE —`footnote-N` y `footnote-source-N-M`—, no
+traducidos. Son la mitad de un par: la otra la escribe `footnote_reference.html`, que también es
+nuestra. Cambiarlos no aporta nada visible y rompe los dos enlaces —ir y volver— si algún día una de
+las dos plantillas se queda con la del paquete.
+
+LA FLECHA DE VUELTA VA DESPUÉS DEL TEXTO, no antes como en el original. Antes, la nota empieza por un
+símbolo y hay que saltárselo para leerla; el sitio para volver se busca al TERMINAR de leer.
+{% endcomment %}
+{% if page.footnotes_list %}
+  <section class="dgl-notas" id="footnotes" aria-labelledby="footnote-label">
+    <h2 class="dgl-notas-titulo" id="footnote-label">Notas</h2>
+    <ol class="dgl-notas-lista">
+      {% for footnote in page.footnotes_list %}
+        {% with indice=forloop.counter %}
+          <li id="footnote-{{ indice }}">
+            {% comment %}
+              `enlaces_seguros` NO es opcional, y es lo que el original no traía. `richtext` no filtra
+              el `href`: un `javascript:` guardado en la nota llegaba tal cual a la página — lo destapó
+              `test_notas_al_pie` al copiar acá el caso que ya cubría el párrafo. El cuerpo del
+              artículo lleva el mismo filtro desde el primer día; la nota es texto enriquecido igual
+              que él y no había por qué dejarla fuera.
+            {% endcomment %}
+            {{ footnote.text|richtext|enlaces_seguros }}
+            {% if footnote.references|length == 1 %}
+              <a class="dgl-nota-volver" href="#footnote-source-{{ indice }}-{{ footnote.references.0 }}"
+                 aria-label="Volver al texto">↩</a>
+            {% else %}
+              {% comment %}
+                La misma nota citada en varios sitios. Una sola flecha llevaría al primero y dejaría
+                colgado a quien viene del tercero, así que va una por cita, numerada.
+              {% endcomment %}
+              <span class="dgl-nota-volver">
+                {% for referencia in footnote.references %}
+                  <a href="#footnote-source-{{ indice }}-{{ referencia }}"
+                     aria-label="Volver a la cita {{ forloop.counter }}">↩<sup>{{ forloop.counter }}</sup></a>
+                {% endfor %}
+              </span>
+            {% endif %}
+          </li>
+        {% endwith %}
+      {% endfor %}
+    </ol>
+  </section>
+{% endif %}

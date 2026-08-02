@@ -1,0 +1,12 @@
+{% comment %}
+El numerito que va pegado a la palabra. Pisa a la plantilla del mismo nombre de `wagtail-footnotes`
+por estar en `templates/`, que va antes que las de las apps.
+
+SIN SALTO DE LÍNEA AL FINAL, y no es manía de formato. Esto no se incluye: el bloque lo renderiza
+aparte con `template.render()` y mete el resultado dentro del párrafo, así que un `\n` final sale
+como ESPACIO en el navegador — «la primera[2] .» con el punto separado. Comprobado en el artículo de
+prueba antes de arreglarlo.
+
+`[1]` con corchetes y no `1` a secas: pegado a una palabra que termina en cifra —«en 2024¹»— un
+superíndice suelto se lee como parte del número.
+{% endcomment %}<a class="dgl-nota-llamada" href="#footnote-{{ index }}" id="footnote-source-{{ index }}-{{ reference_index }}"><sup>[{{ index }}]</sup></a>

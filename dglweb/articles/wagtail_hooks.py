@@ -68,3 +68,30 @@ def registrar_letra_chica(features: Any) -> None:  # noqa: ANN401 — la firma e
             "to_database_format": {"style_map": {ESTILO: "small"}},
         },
     )
+
+
+# `order=1` y no el 0 de por defecto: esto TIENE que correr después del hook de `wagtail-footnotes`.
+# Wagtail resuelve el empate de orden por orden de registro, y `dglweb.articles` está antes que
+# `wagtail_footnotes` en `INSTALLED_APPS`, así que con el orden normal el paquete registraría el suyo
+# encima del nuestro y el rótulo volvería a salir en inglés. No es que no funcione: es que no se ve
+# el cambio y no hay nada que lo explique.
+@hooks.register("register_rich_text_features", order=1)  # type: ignore[untyped-decorator]
+def rotular_notas_en_espanol(features: Any) -> None:  # noqa: ANN401 — la firma es la del hook de Wagtail
+    """Deja el botón de notas al pie con el rótulo en español.
+
+    SOLO EL RÓTULO. El plugin se vuelve a registrar con la MISMA lista de `js` y `css` que declara el
+    paquete —ahí vive el componente de React que abre el diálogo— y no se toca su regla de conversión.
+    Cambiar cualquiera de esas dos cosas dejaría el botón puesto y muerto.
+
+    El paquete lo pone como `Fn` / «Footnotes». Es lo único del editor que quedaba en inglés, y el
+    editor lo usa quien escribe el sitio, que escribe en español.
+    """
+    features.register_editor_plugin(
+        "draftail",
+        "footnotes",
+        draftail_features.EntityFeature(
+            {"type": "FOOTNOTES", "label": "Nota", "description": "Nota al pie"},
+            js=["wagtailadmin/js/draftail.js", "footnotes/js/footnotes.js"],
+            css={"all": ["footnotes/css/footnotes-admin.css"]},
+        ),
+    )

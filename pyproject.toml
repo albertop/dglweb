@@ -68,7 +68,7 @@ exclude = ["migrations/", "staticfiles/"]
 django_settings_module = "config.settings.dev"
 
 [[tool.mypy.overrides]]
-module = ["wagtail.*", "modelcluster.*", "taggit.*", "environ.*"]
+module = ["wagtail.*", "modelcluster.*", "taggit.*", "environ.*", "wagtail_footnotes.*"]
 ignore_missing_imports = true
 
 # Wagtail no publica tipos, así que para mypy sus clases son `Any`. Heredar de `Page` —que es lo que
