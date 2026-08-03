@@ -34,7 +34,7 @@ from django.utils.html import strip_tags
 from modelcluster.contrib.taggit import ClusterTaggableManager
 from modelcluster.fields import ParentalKey
 from taggit.models import ItemBase, TagBase
-from wagtail.admin.panels import FieldPanel, MultiFieldPanel
+from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
 from wagtail.fields import StreamField
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
@@ -371,6 +371,25 @@ class ArticlePage(Page):
             heading="Ficha",
         ),
         FieldPanel("cuerpo"),
+        # LAS NOTAS AL PIE, Y ESTE PANEL NO ES DECORATIVO: sin él el botón «Nota» abre el diálogo y
+        # «Crear nota nueva» no hace nada.
+        #
+        # `footnotes.js` escribe la nota rellenando ESTE formulario. Empieza así:
+        #
+        #     const totalFormsInput = document.getElementById("id_footnotes-TOTAL_FORMS");
+        #     if (!totalFormsInput) return;
+        #
+        # Ese `return` es todo el aviso que hay. Sin panel no existe `id_footnotes-TOTAL_FORMS`, el JS
+        # se rinde en silencio y desde fuera parece que el botón está muerto — que es exactamente lo
+        # que se publicó en 1.2026.21. Después usa `#id_footnotes-ADD` para añadir la fila.
+        #
+        # El nombre `footnotes` tampoco se elige: es el `related_name` del `ParentalKey` del modelo
+        # `Footnote` del paquete, y es lo que le da su nombre a los campos del formulario.
+        #
+        # VA AL FINAL Y COLAPSADO porque no se rellena a mano. Lo normal es escribir la nota desde el
+        # diálogo del editor, sin bajar hasta acá; esto queda para corregir el texto de una nota vieja
+        # o borrar la que dejó de citarse.
+        InlinePanel("footnotes", label="Notas al pie", classname="collapsed"),
     ]
     # `entradilla` con `boost`: es la frase que resume el artículo, así que pesa más que un párrafo
     # cualquiera del cuerpo.

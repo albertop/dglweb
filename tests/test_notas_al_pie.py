@@ -227,6 +227,40 @@ def test_el_modal_pide_sesion_de_administracion() -> None:
 
 
 @pytest.mark.django_db
+def test_la_pantalla_de_edicion_trae_el_formulario_que_el_javascript_rellena() -> None:
+    """«Crear nota nueva» ESCRIBE EN EL PANEL de la página. Sin panel, no escribe en ningún sitio.
+
+    Segundo fallo del mismo estreno, y del mismo tipo que el de la ruta: el diálogo abría, se pulsaba
+    «Crear nota nueva» y no pasaba nada. `footnotes.js` empieza así:
+
+        const totalFormsInput = document.getElementById("id_footnotes-TOTAL_FORMS");
+        if (!totalFormsInput) return;
+
+    Ese `return` es todo el aviso que hay. `InlinePanel("footnotes")` es el que pone esos campos en
+    el formulario, y faltaba en `ArticlePage.content_panels`.
+
+    Los ids se sacan DEL ARCHIVO del paquete, no escritos acá, por lo mismo que la ruta: que una
+    versión nueva que los cambie se caiga en el gate.
+    """
+    # El `#?` no sobra: el JS busca uno con `getElementById("id_footnotes-TOTAL_FORMS")` y el otro
+    # con `querySelector("#id_footnotes-ADD")`. Sin contemplar la almohadilla, el segundo —el botón
+    # que crea la fila— se quedaba fuera del test y no se comprobaba nada de él.
+    necesarios = {c.lstrip("#") for c in re.findall(r'"(#?id_footnotes-[A-Z_]+)"', _javascript_del_paquete())}
+    assert {"id_footnotes-TOTAL_FORMS", "id_footnotes-ADD"} <= necesarios, (
+        f"el JavaScript del paquete ya no busca los campos que esperábamos: {sorted(necesarios)}"
+    )
+
+    cliente = Client()
+    cliente.force_login(get_user_model().objects.create_superuser("editor3", "e3@x.do", "x"))
+    articulo = _articulo(_indice_de_articulos(), "Para notas")
+
+    html = cliente.get(f"/cms/pages/{articulo.pk}/edit/").content.decode()
+
+    for campo in necesarios:
+        assert campo in html, f"el JavaScript busca «{campo}» y el formulario no lo trae"
+
+
+@pytest.mark.django_db
 def test_la_pantalla_de_edicion_carga_las_cuatro_piezas_del_boton() -> None:
     """ALARMA PARA EL DÍA QUE SE SUBA DE WAGTAIL, no una prueba de comportamiento.
 
