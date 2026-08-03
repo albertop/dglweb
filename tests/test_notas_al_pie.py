@@ -16,8 +16,10 @@ es su trabajo. Lo que se prueba es lo NUESTRO, que son cuatro cosas que se rompe
 import json
 import re
 import uuid
+from pathlib import Path
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from wagtail.rich_text import features as registro_de_features
 from wagtail_footnotes.models import Footnote
@@ -167,3 +169,81 @@ def test_un_id_de_nota_inventado_no_pinta_ancla_ni_rompe_la_pagina() -> None:
     assert "Texto" in html
     assert "dgl-nota-llamada" not in html
     assert "dgl-notas" not in html
+
+
+# ── El diálogo del editor ───────────────────────────────────────────────────────────────────────
+#
+# Lo que sigue no prueba nuestro código: prueba que SEGUIMOS CUADRANDO con el del paquete. Los dos
+# fallos que cubre se ven igual desde fuera —pulsas «Nota», el texto se marca y no pasa nada más— y
+# ninguno deja rastro en el servidor: el 404 y el error de JavaScript se quedan en la consola del
+# navegador, donde nadie mira mientras escribe un artículo.
+
+
+def _javascript_del_paquete() -> str:
+    import wagtail_footnotes
+
+    ruta = Path(wagtail_footnotes.__file__).parent / "static" / "footnotes" / "js" / "footnotes.js"
+    return ruta.read_text(encoding="utf-8")
+
+
+@pytest.mark.django_db
+def test_el_editor_recibe_el_modal_en_la_ruta_que_el_javascript_pide_a_mano() -> None:
+    """`footnotes.js` trae la URL ESCRITA A MANO y no hay ajuste que la cambie.
+
+    Este es el test que faltó. El modal se montó bajo `cms/`, que es donde parecía que iba —es una
+    pantalla de administración—, y quedó publicado así: el botón salía en la barra, marcaba el texto
+    y el diálogo nunca abría porque su petición se iba a un 404.
+
+    SE PIDE LA URL DE VERDAD, y no vale `resolve()`. El primer intento de este test la resolvía y
+    pasaba IGUAL con la ruta mala, porque el catch-all de Wagtail —el que sirve las páginas del
+    árbol— casa con CUALQUIER ruta: `resolve()` nunca levanta `Resolver404` en este proyecto. Lo que
+    distingue una ruta buena de una mala acá es el 200 y el contenido.
+
+    Y se lee del ARCHIVO del paquete en vez de escribirla acá, para que el día que una versión nueva
+    la mueva esto falle en el gate y no en la cara de quien está escribiendo un artículo.
+    """
+    llamadas = set(re.findall(r'url:\s*"([^"]+)"', _javascript_del_paquete()))
+    assert llamadas, "el JavaScript del paquete ya no pide ninguna URL: ha cambiado de forma"
+
+    cliente = Client()
+    cliente.force_login(get_user_model().objects.create_superuser("editora", "e@x.do", "x"))
+
+    for ruta in llamadas:
+        respuesta = cliente.get(ruta)
+        assert respuesta.status_code == 200, f"el JavaScript pide {ruta} y ahí no hay nada"
+        assert 'id="footnotes-modal"' in respuesta.content.decode()
+
+
+def test_el_modal_pide_sesion_de_administracion() -> None:
+    """Cuelga de la raíz, no de `cms/`, así que nginx no lo cierra por IP — el candado es de Django.
+
+    La ruta la manda el paquete y no se puede mover; lo que sí está en nuestra mano es que no quede
+    una pantalla del CMS abierta a cualquiera.
+    """
+    respuesta = Client().get("/footnotes/footnotes_modal/")
+
+    assert respuesta.status_code == 302
+    assert "/cms/login/" in respuesta["Location"]
+
+
+@pytest.mark.django_db
+def test_la_pantalla_de_edicion_carga_las_cuatro_piezas_del_boton() -> None:
+    """ALARMA PARA EL DÍA QUE SE SUBA DE WAGTAIL, no una prueba de comportamiento.
+
+    El diálogo es un modal de Bootstrap movido con jQuery — `$("#footnotes-modal").modal("show")`—, y
+    las dos librerías las pone WAGTAIL, no el paquete. Wagtail lleva años quitando jQuery del admin;
+    el día que se lleve `bootstrap-modal.js` por delante, el botón deja de abrir y el sitio no da
+    ningún error: sigue publicando artículos como si nada.
+
+    Si esto se cae en un `make check` después de subir de versión, la pregunta no es cómo callarlo,
+    es si `wagtail-footnotes` sigue siendo la respuesta correcta.
+    """
+    cliente = Client()
+    cliente.force_login(get_user_model().objects.create_superuser("editor2", "e2@x.do", "x"))
+    articulo = _articulo(_indice_de_articulos(), "Para editar")
+
+    html = cliente.get(f"/cms/pages/{articulo.pk}/edit/").content.decode()
+    fuentes = re.findall(r'src="([^"]+\.js[^"]*)"', html)
+
+    for pieza in ("jquery-3", "bootstrap-modal.js", "footnotes/js/footnotes.js", "draftail.js"):
+        assert any(pieza in f for f in fuentes), f"la pantalla de edición ya no carga {pieza}"

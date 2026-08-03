@@ -10,8 +10,10 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.sitemaps.views import sitemap as sitemap_view
 from django.urls import URLPattern, URLResolver, include, path
+from django.views.generic import TemplateView
 from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
+from wagtail.admin.auth import require_admin_access
 from wagtail.contrib.sitemaps.sitemap_generator import Sitemap as WagtailSitemap
 from wagtail.documents import urls as wagtaildocs_urls
 
@@ -61,9 +63,26 @@ urlpatterns: list[URLPattern | URLResolver] = [
     # Wagtail, que se queda con todo lo demás bajo /cms/.
     path("cms/datos-apoyo/<int:pk>/", staticdata_views.upload, name="staticdata_upload"),
     path("cms/datos-apoyo/<int:pk>/confirmar/", staticdata_views.confirm, name="staticdata_confirm"),
-    # El modal con el que el editor escribe la nota. Va DENTRO de `cms/` porque es pantalla de
-    # administración: fuera, sería una vista pública que no le sirve a ningún visitante.
-    path("cms/", include("wagtail_footnotes.urls")),
+    # EL MODAL CON EL QUE EL EDITOR ELIGE O CREA UNA NOTA, y la ruta NO se puede mover.
+    #
+    # `footnotes.js` la trae escrita a mano —`$.ajax({url: "/footnotes/footnotes_modal/"})`— sin
+    # ajuste ni variable que la cambie. Acá estuvo montada bajo `cms/`, que es donde parecía que
+    # tenía que ir, y el resultado fue un botón que se pulsaba y no hacía NADA visible: el editor
+    # marcaba el texto y la petición del diálogo se iba a un 404 en la consola del navegador.
+    #
+    # Y COMO CUELGA DE LA RAÍZ, EL CANDADO LO PONE DJANGO. nginx cierra por IP `^/(cms|django-admin)`
+    # y esto queda fuera, así que en vez de incluir `wagtail_footnotes.urls` tal cual se declara la
+    # misma vista envuelta en `require_admin_access`. Sin eso sería una pantalla de administración
+    # abierta a cualquiera. No estorba al editor: la petición sale de una sesión ya identificada.
+    #
+    # El `name` es el que usa el paquete, por si algún día algo suyo lo resuelve por nombre.
+    path(
+        "footnotes/footnotes_modal/",
+        require_admin_access(
+            TemplateView.as_view(template_name="wagtail_footnotes/admin/footnotes_modal.html")
+        ),
+        name="footnotes-modal",
+    ),
     path("cms/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     # ── El mapa del sitio y el robots ────────────────────────────────────────────────────────────
