@@ -386,10 +386,18 @@ class ArticlePage(Page):
         # El nombre `footnotes` tampoco se elige: es el `related_name` del `ParentalKey` del modelo
         # `Footnote` del paquete, y es lo que le da su nombre a los campos del formulario.
         #
-        # VA AL FINAL Y COLAPSADO porque no se rellena a mano. Lo normal es escribir la nota desde el
-        # diálogo del editor, sin bajar hasta acá; esto queda para corregir el texto de una nota vieja
-        # o borrar la que dejó de citarse.
-        InlinePanel("footnotes", label="Notas al pie", classname="collapsed"),
+        # Y NO LLEVA `classname="collapsed"`, aunque a primera vista sea lo lógico: es un panel que
+        # casi nunca se toca a mano. Se puso colapsado y ROMPIÓ la función entera.
+        #
+        # Wagtail colapsa poniéndole `hidden` al contenido del panel. La fila nueva se creaba ahí
+        # dentro, o sea dentro de un contenedor oculto, y el `newRow.scrollIntoView()` del paquete no
+        # movía nada — un navegador no se desplaza hasta algo que no se muestra. Medido en el editor:
+        # la fila quedaba en y=4771 antes y después de pedir el scroll, fuera de pantalla.
+        #
+        # Desde fuera se ve así: pulsas «Crear nota nueva», en el texto aparece el `[8786d5]` —que es
+        # lo normal, el número de verdad se pone al publicar— y el sitio donde se escribe la nota no
+        # aparece por ninguna parte. Ni error, ni aviso.
+        InlinePanel("footnotes", label="Notas al pie"),
     ]
     # `entradilla` con `boost`: es la frase que resume el artículo, así que pesa más que un párrafo
     # cualquiera del cuerpo.

@@ -260,6 +260,43 @@ def test_la_pantalla_de_edicion_trae_el_formulario_que_el_javascript_rellena() -
         assert campo in html, f"el JavaScript busca «{campo}» y el formulario no lo trae"
 
 
+def test_el_panel_de_notas_no_puede_ir_colapsado() -> None:
+    """UN PANEL COLAPSADO ROMPE «Crear nota nueva» ENTERO, y esto no es una regla de estilo.
+
+    Se puso `classname="collapsed"` porque es un panel que casi nunca se toca a mano. Wagtail colapsa
+    poniéndole `hidden` al contenido, así que la fila nueva nacía dentro de un contenedor oculto y el
+    `newRow.scrollIntoView()` del paquete no movía nada — un navegador no se desplaza hasta algo que
+    no se muestra.
+
+    Medido en el editor, con el panel colapsado y sin colapsar:
+
+        colapsado     la fila queda en y=4771 ANTES y DESPUÉS de pedir el scroll — fuera de pantalla
+        sin colapsar  4736 -> 1504, dentro de pantalla
+
+    Desde fuera se ve como que el botón no hace nada: en el texto aparece el `[8786d5]` —que es lo
+    normal— y el sitio donde se escribe la nota no aparece por ningún lado. Ni error, ni aviso.
+
+    Se comprueba sobre el PANEL y no sobre el HTML porque la clase puede llegar por el propio panel o
+    por cualquiera que lo envuelva, y el objeto lo dice sin depender del marcado de Wagtail.
+    """
+    from wagtail.admin.panels import InlinePanel
+
+    def buscar(paneles: list[object], colapsado_arriba: bool) -> InlinePanel | None:
+        for panel in paneles:
+            colapsado = colapsado_arriba or "collapsed" in (getattr(panel, "classname", "") or "")
+            if isinstance(panel, InlinePanel) and panel.relation_name == "footnotes":
+                assert not colapsado, "el panel de notas al pie va colapsado y eso rompe «Crear nota nueva»"
+                return panel
+            hallado = buscar(getattr(panel, "children", []) or [], colapsado)
+            if hallado is not None:
+                return hallado
+        return None
+
+    assert buscar(ArticlePage.content_panels, False) is not None, (
+        "`ArticlePage` ya no declara el InlinePanel de notas al pie — sin él el diálogo no escribe"
+    )
+
+
 @pytest.mark.django_db
 def test_la_pantalla_de_edicion_carga_las_cuatro_piezas_del_boton() -> None:
     """ALARMA PARA EL DÍA QUE SE SUBA DE WAGTAIL, no una prueba de comportamiento.
