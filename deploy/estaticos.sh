@@ -1,7 +1,7 @@
 #!/bin/bash
 # Saca los estáticos para que los sirva nginx.
 #
-#   ./deploy/estaticos.sh 1.2026.21     ANTES de cambiar el stack  ← la forma buena
+#   ./deploy/estaticos.sh 1.2026.22     ANTES de cambiar el stack  ← la forma buena
 #   ./deploy/estaticos.sh              del contenedor que esté corriendo (deja una ventana, ver abajo)
 #
 #
@@ -44,7 +44,7 @@ limpiar() {
 trap limpiar EXIT
 
 if [ -n "$IMAGEN" ]; then
-    # Se acepta «1.2026.21» y «dglweb:1.2026.21»: el prefijo se pone solo si falta.
+    # Se acepta «1.2026.22» y «dglweb:1.2026.22»: el prefijo se pone solo si falta.
     case "$IMAGEN" in *:*) ;; *) IMAGEN="dglweb:$IMAGEN" ;; esac
     if ! docker image inspect "$IMAGEN" >/dev/null 2>&1; then
         echo "Error: la imagen $IMAGEN no existe. Constrúyela primero con ./deploy_dglweb_image.sh"
