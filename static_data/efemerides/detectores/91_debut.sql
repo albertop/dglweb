@@ -14,7 +14,16 @@ SELECT  'debut' AS tipo,
         'completa' AS cobertura,
         2 AS situar,
         984 AS universo,
-        'Debutó en Grandes Ligas hace {detalle}.' AS plantilla,
+        -- «A LOS X AÑOS» Y NO «HACE X AÑOS» (dueño, 2026-08-04). Es la misma corrección que ya se
+        -- hizo en `92_fallecimiento.sql`: la edad dice algo del hombre —debutar a los 19 no es lo
+        -- mismo que debutar a los 28— mientras que los años transcurridos solo dicen en qué año
+        -- estamos, y encima envejecen solos cada 1 de enero.
+        --
+        -- Sin natalicio confiable no se dice la edad, por lo mismo que allá: seria una cifra falsa
+        -- con toda la seguridad de una cifra exacta. Ver `_00_comun.sql`.
+        CASE WHEN m.retroID IN (SELECT retro_id FROM #sin_natalicio) OR m.birthDate IS NULL
+             THEN 'Debutó en Grandes Ligas en {temporada}.'
+             ELSE 'Debutó en Grandes Ligas a los {detalle} años.' END AS plantilla,
         m.mlbID AS mlb_id,
         m.nameList AS nombre,
         DATEFROMPARTS(YEAR(GETDATE()), MONTH(m.debutDate), DAY(m.debutDate)) AS fecha,
@@ -24,7 +33,16 @@ SELECT  'debut' AS tipo,
         1 AS signo,
         COALESCE((SELECT COUNT(1) FROM dbo.retroDailyReg r WHERE r.PLAYER_ID = m.retroID), 0) AS magnitud,
         NULL AS wpa_jugador, NULL AS li_max,
-        CAST(YEAR(GETDATE()) - YEAR(m.debutDate) AS varchar(3)) + ' años' AS detalle,
+        -- LA EDAD AL DEBUTAR, con el mismo descuento que la edad al morir: `DATEDIFF(YEAR, ...)`
+        -- cuenta fronteras de año calendario, no cumpleaños, así que hay que restar uno cuando el
+        -- cumpleaños todavía no había llegado ese año. Sin eso, un nacido en noviembre que debuta en
+        -- abril sale con un año de más.
+        CAST(
+            DATEDIFF(YEAR, m.birthDate, m.debutDate)
+            - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
+                     OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
+                   THEN 1 ELSE 0 END
+        AS varchar(3)) AS detalle,
         '' AS equipo_nombre, '' AS rival_nombre, '' AS oponente
 FROM    dbo.dglMaster m
 WHERE   m.debutDate IS NOT NULL
