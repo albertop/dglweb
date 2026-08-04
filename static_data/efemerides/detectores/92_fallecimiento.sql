@@ -18,7 +18,10 @@ SELECT  'fallecimiento' AS tipo,
         'completa' AS cobertura,
         0 AS situar,
         984 AS universo,
-        'Murió hace {detalle}.' AS plantilla,
+        -- «Falleció a los X años de edad» y NO «Murió hace X años» (dueño, 2026-08-03). La edad al
+        -- morir dice algo del hombre; los años transcurridos solo dicen en qué año estamos, y encima
+        -- envejecen solos: el mismo texto cambia cada 1 de enero sin que pase nada.
+        'Falleció a los {detalle} años de edad.' AS plantilla,
         m.mlbID AS mlb_id,
         m.nameList AS nombre,
         DATEFROMPARTS(YEAR(GETDATE()), MONTH(m.deathDate), DAY(m.deathDate)) AS fecha,
@@ -28,7 +31,16 @@ SELECT  'fallecimiento' AS tipo,
         1 AS signo,
         COALESCE((SELECT COUNT(1) FROM dbo.retroDailyReg r WHERE r.PLAYER_ID = m.retroID), 0) AS magnitud,
         NULL AS wpa_jugador, NULL AS li_max,
-        CAST(YEAR(GETDATE()) - YEAR(m.deathDate) AS varchar(3)) + ' años' AS detalle,
+        -- LA EDAD AL MORIR, Y NO BASTA RESTAR LOS AÑOS. `DATEDIFF(YEAR, ...)` en SQL Server cuenta
+        -- fronteras de año calendario, no cumpleaños: de un nacido el 30 de diciembre que muere el 2
+        -- de enero diría «1 año». Hay que descontar uno cuando el cumpleaños todavía no había
+        -- llegado ese año.
+        CAST(
+            DATEDIFF(YEAR, m.birthDate, m.deathDate)
+            - CASE WHEN MONTH(m.deathDate) < MONTH(m.birthDate)
+                     OR (MONTH(m.deathDate) = MONTH(m.birthDate) AND DAY(m.deathDate) < DAY(m.birthDate))
+                   THEN 1 ELSE 0 END
+        AS varchar(3)) AS detalle,
         '' AS equipo_nombre, '' AS rival_nombre, '' AS oponente
 FROM    dbo.dglMaster m
 WHERE   m.deathDate IS NOT NULL;
