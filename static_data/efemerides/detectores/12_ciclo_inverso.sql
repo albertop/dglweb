@@ -39,7 +39,7 @@ SELECT  'ciclo_inverso'                           AS tipo,
         'completa'                                AS cobertura,
         1                                         AS situar,
         292948                                    AS universo,
-        'Bateó para el ciclo AL REVÉS: jonrón, triple, doble y sencillo, en ese orden.' AS plantilla,
+        'Bateó para el ciclo AL REVÉS contra {rival_nombre}: jonrón, triple, doble y sencillo, en ese orden.' AS plantilla,
         m.mlbID                                   AS mlb_id,
         m.nameList                                AS nombre,
         CAST(COALESCE(g.GAME_DT, gp.GAME_DT) AS date) AS fecha,
@@ -56,9 +56,16 @@ SELECT  'ciclo_inverso'                           AS tipo,
         1                                         AS magnitud,
         o.wpa                                     AS wpa_jugador,
         o.li                                      AS li_max,
-        'el único ciclo inverso de un dominicano'  AS detalle
+        'el único ciclo inverso de un dominicano'  AS detalle,
+        eq.nombre                                 AS equipo_nombre,
+        ri.nombre                                 AS rival_nombre,
+        COALESCE(op.nombre, '')                   AS oponente
 FROM    orden o
 INNER JOIN dbo.dglMaster m ON m.retroID = o.BATTER_ID
 LEFT  JOIN dbo.retroGamesReg  g  ON g.GAME_ID  = o.GAME_ID
 LEFT  JOIN dbo.retroGamesPost gp ON gp.GAME_ID = o.GAME_ID
+LEFT  JOIN #equipos   eq ON eq.codigo = CASE WHEN o.en_casa = 1 THEN o.casa   ELSE o.visita END
+LEFT  JOIN #equipos   ri ON ri.codigo = CASE WHEN o.en_casa = 1 THEN o.visita ELSE o.casa   END
+LEFT  JOIN #abridores ab ON ab.game_id = o.GAME_ID
+LEFT  JOIN #nombres   op ON op.retro_id = CASE WHEN o.en_casa = 1 THEN ab.abridor_visita ELSE ab.abridor_casa END
 WHERE   o.e4 < o.e3 AND o.e3 < o.e2 AND o.e2 < o.e1;

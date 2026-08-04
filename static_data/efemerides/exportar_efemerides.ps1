@@ -34,7 +34,8 @@ $OutputPath = "$PSScriptRoot\..\csv\dgl_efemerides.csv"
 $CONTRATO = @(
     'tipo', 'rol', 'cobertura', 'universo', 'plantilla', 'situar',
     'mlb_id', 'nombre', 'fecha', 'temporada', 'game_id', 'event_id', 'game_type',
-    'equipo', 'rival', 'en_casa', 'signo', 'magnitud', 'wpa_jugador', 'li_max', 'detalle'
+    'equipo', 'rival', 'en_casa', 'signo', 'magnitud', 'wpa_jugador', 'li_max', 'detalle',
+    'equipo_nombre', 'rival_nombre', 'oponente'
 )
 
 # `situar` (1/0) dice si la frase «uno de los N dominicanos que lo ha logrado» tiene sentido para
@@ -224,14 +225,31 @@ function Expand-Plantilla {
 $carpeta = Join-Path $PSScriptRoot 'detectores'
 if (-not (Test-Path $carpeta)) { Write-Error "No existe $carpeta"; exit 1 }
 
-$archivos = @(Get-ChildItem -Path $carpeta -Filter '*.sql' | Sort-Object Name)
+$todos = @(Get-ChildItem -Path $carpeta -Filter '*.sql' | Sort-Object Name)
+
+# LOS QUE EMPIEZAN POR `_` SON PRELUDIOS, NO DETECTORES. Dejan tablas temporales puestas —los
+# nombres de equipos y de peloteros, los abridores— y no devuelven efemérides, así que no se les
+# exige el contrato ni se recogen sus filas. Corren primero por el orden alfabético del guion bajo, y
+# sobreviven al resto porque toda la corrida usa UNA sola conexión.
+$preludios = @($todos | Where-Object { $_.Name.StartsWith('_') })
+$archivos  = @($todos | Where-Object { -not $_.Name.StartsWith('_') })
 if ($archivos.Count -eq 0) { Write-Error "No hay detectores en $carpeta"; exit 1 }
 
-Write-Host "Detectores: $($archivos.Count)"
+Write-Host "Preludios: $($preludios.Count)   Detectores: $($archivos.Count)"
 $hechos = [System.Collections.Generic.List[object]]::new()
 
 try {
     $cn = Get-Conexion
+
+    foreach ($p in $preludios) {
+        $t0 = Get-Date
+        $cmd = $cn.CreateCommand()
+        $cmd.CommandText    = [System.IO.File]::ReadAllText($p.FullName)
+        $cmd.CommandTimeout = 3600
+        [void]$cmd.ExecuteNonQuery()
+        "  {0,-34} {1,6}       {2,4}s" -f $p.Name, '(preludio)', [int]((Get-Date) - $t0).TotalSeconds | Write-Host
+    }
+
     foreach ($a in $archivos) {
         $t0 = Get-Date
         $filas = Invoke-Detector -Conexion $cn -Archivo $a
@@ -368,7 +386,7 @@ $fechaISO = @{ Name = 'fecha'; Expression = { ([datetime]$_.fecha).ToString('yyy
 $columnas = @(
     'tipo', 'etiquetas', 'rol', 'signo', 'cobertura',
     'mlb_id', 'nombre', $fechaISO, 'mes', 'dia', 'temporada', 'anos',
-    'game_id', 'event_id', 'game_type', 'equipo', 'rival', 'en_casa',
+    'game_id', 'event_id', 'game_type', 'equipo', 'equipo_nombre', 'rival', 'rival_nombre', 'en_casa', 'oponente',
     'magnitud', 'wpa_jugador', 'li_max', 'detalle',
     'veces_total', 'jugadores_total', 'orden', 'veces_jugador', 'orden_jugador',
     'rareza', 'puntaje', 'titular', 'situacion'

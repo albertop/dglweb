@@ -44,7 +44,11 @@ SELECT  'cumpleanos'                              AS tipo,
         COALESCE((SELECT COUNT(1) FROM dbo.retroDailyReg r WHERE r.PLAYER_ID = m.retroID), 0) AS magnitud,
         NULL                                      AS wpa_jugador,
         NULL                                      AS li_max,
-        CAST(YEAR(GETDATE()) - YEAR(m.birthDate) AS varchar(3)) + ' años' AS detalle
+        CAST(YEAR(GETDATE()) - YEAR(m.birthDate) AS varchar(3)) + ' años' AS detalle,
+        -- El cumpleaños no cuelga de ningún juego, así que no hay equipo ni rival que poner.
+        ''                                        AS equipo_nombre,
+        ''                                        AS rival_nombre,
+        ''                                        AS oponente
 FROM    dbo.dglMaster m
 WHERE   m.birthDate IS NOT NULL
   AND   m.deathDate IS NULL;

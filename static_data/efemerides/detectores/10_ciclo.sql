@@ -31,7 +31,7 @@ SELECT  'ciclo'                                   AS tipo,
         'completa'                                AS cobertura,
         1                                         AS situar,
         292948                                    AS universo,
-        'Bateó para el ciclo: {detalle}.'          AS plantilla,
+        'Bateó para el ciclo contra {rival_nombre}, ante el abridor {oponente}: {detalle}.' AS plantilla,
         m.mlbID                                   AS mlb_id,
         m.nameList                                AS nombre,
         CAST(d.GAME_DT AS date)                   AS fecha,
@@ -51,10 +51,22 @@ SELECT  'ciclo'                                   AS tipo,
         -- La concordancia se resuelve acá y no en el sitio, porque el CSV lleva el texto ya
         -- redactado. Salió en la primera corrida: «5 hits y 1 empujadas».
         CAST(d.B_H AS varchar(2)) + ' hits y ' + CAST(d.B_RBI AS varchar(2))
-            + CASE WHEN d.B_RBI = 1 THEN ' empujada' ELSE ' empujadas' END AS detalle
+            + CASE WHEN d.B_RBI = 1 THEN ' empujada' ELSE ' empujadas' END AS detalle,
+        -- El contexto: los nombres salen del preludio `_00_comun.sql`, que resuelve equipos y
+        -- peloteros una sola vez para toda la corrida.
+        eq.nombre                                 AS equipo_nombre,
+        ri.nombre                                 AS rival_nombre,
+        -- El abridor RIVAL: si el dominicano bateaba en casa (`HOME_FL = 1`), el rival abrió de
+        -- visita, y al revés. Es la vuelta que se olvida y deja al jugador enfrentándose a su propio
+        -- compañero de equipo.
+        COALESCE(op.nombre, '')                   AS oponente
 FROM    d
 INNER JOIN dbo.dglMaster m ON m.retroID = d.PLAYER_ID
-LEFT  JOIN wpa w ON w.GAME_ID = d.GAME_ID AND w.BATTER_ID = d.PLAYER_ID
+LEFT  JOIN wpa w  ON w.GAME_ID = d.GAME_ID AND w.BATTER_ID = d.PLAYER_ID
+LEFT  JOIN #equipos   eq ON eq.codigo = d.TEAM_ID
+LEFT  JOIN #equipos   ri ON ri.codigo = d.OPPONENT_ID
+LEFT  JOIN #abridores ab ON ab.game_id = d.GAME_ID
+LEFT  JOIN #nombres   op ON op.retro_id = CASE WHEN d.HOME_FL = 1 THEN ab.abridor_visita ELSE ab.abridor_casa END
 WHERE   d.B_2B >= 1
   AND   d.B_3B >= 1
   AND   d.B_HR >= 1

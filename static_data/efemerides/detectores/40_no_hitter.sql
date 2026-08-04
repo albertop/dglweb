@@ -37,7 +37,7 @@ SELECT  'no_hitter'                               AS tipo,
         'completa'                                AS cobertura,
         1                                         AS situar,
         292948                                    AS universo,
-        'Lanzó un juego sin hits: {detalle}.'      AS plantilla,
+        'Lanzó un juego SIN HITS contra {rival_nombre}: {detalle}.' AS plantilla,
         m.mlbID                                   AS mlb_id,
         m.nameList                                AS nombre,
         CAST(d.GAME_DT AS date)                   AS fecha,
@@ -55,9 +55,14 @@ SELECT  'no_hitter'                               AS tipo,
         w.li                                      AS li_max,
         CAST(d.P_SO AS varchar(2)) + CASE WHEN d.P_SO = 1 THEN ' ponche' ELSE ' ponches' END
             + ' y ' + CAST(d.P_BB + d.P_HP AS varchar(2))
-            + CASE WHEN (d.P_BB + d.P_HP) = 1 THEN ' hombre a base' ELSE ' hombres a base' END AS detalle
+            + CASE WHEN (d.P_BB + d.P_HP) = 1 THEN ' hombre a base' ELSE ' hombres a base' END AS detalle,
+        eq.nombre                                 AS equipo_nombre,
+        ri.nombre                                 AS rival_nombre,
+        ''                                        AS oponente
 FROM    d
 INNER JOIN dbo.dglMaster m ON m.retroID = d.PLAYER_ID
-LEFT  JOIN wpa w ON w.GAME_ID = d.GAME_ID AND w.PITCHER_ID = d.PLAYER_ID
+LEFT  JOIN wpa w      ON w.GAME_ID = d.GAME_ID AND w.PITCHER_ID = d.PLAYER_ID
+LEFT  JOIN #equipos eq ON eq.codigo = d.TEAM_ID
+LEFT  JOIN #equipos ri ON ri.codigo = d.OPPONENT_ID
 WHERE   d.P_H = 0
   AND   d.P_OUT >= 27;

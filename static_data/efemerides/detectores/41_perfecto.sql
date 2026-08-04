@@ -43,7 +43,7 @@ SELECT  'perfecto'                                AS tipo,
         'completa'                                AS cobertura,
         1                                         AS situar,
         292948                                    AS universo,
-        'Lanzó un JUEGO PERFECTO: 27 bateadores, 27 outs, {detalle}.' AS plantilla,
+        'Lanzó un JUEGO PERFECTO contra {rival_nombre}: 27 bateadores, 27 outs, {detalle}.' AS plantilla,
         m.mlbID                                   AS mlb_id,
         m.nameList                                AS nombre,
         CAST(d.GAME_DT AS date)                   AS fecha,
@@ -58,10 +58,15 @@ SELECT  'perfecto'                                AS tipo,
         d.P_SO                                    AS magnitud,
         w.wpa                                     AS wpa_jugador,
         w.li                                      AS li_max,
-        CAST(d.P_SO AS varchar(2)) + ' ponches'   AS detalle
+        CAST(d.P_SO AS varchar(2)) + ' ponches'   AS detalle,
+        eq.nombre                                 AS equipo_nombre,
+        ri.nombre                                 AS rival_nombre,
+        ''                                        AS oponente
 FROM    d
 INNER JOIN dbo.dglMaster m ON m.retroID = d.PLAYER_ID
-LEFT  JOIN wpa w ON w.GAME_ID = d.GAME_ID AND w.PITCHER_ID = d.PLAYER_ID
+LEFT  JOIN wpa w      ON w.GAME_ID = d.GAME_ID AND w.PITCHER_ID = d.PLAYER_ID
+LEFT  JOIN #equipos eq ON eq.codigo = d.TEAM_ID
+LEFT  JOIN #equipos ri ON ri.codigo = d.OPPONENT_ID
 WHERE   d.P_H  = 0
   AND   d.P_BB = 0
   AND   d.P_HP = 0
