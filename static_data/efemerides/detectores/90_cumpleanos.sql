@@ -52,3 +52,21 @@ SELECT  'cumpleanos'                              AS tipo,
 FROM    dbo.dglMaster m
 WHERE   m.birthDate IS NOT NULL
   AND   m.deathDate IS NULL;
+
+-- =====================================================================================
+-- LA LISTA — para cuando pregunten «¿quiénes son esos?»
+--
+-- Se pega tal cual y corre sola. Excluye a los fallecidos, igual que el detector: son 923 de los 984.
+-- =====================================================================================
+/*
+SELECT  m.nameList AS jugador,
+        m.mlbID    AS mlb_id,
+        CAST(m.birthDate AS date) AS nacimiento,
+        MONTH(m.birthDate)        AS mes,
+        DAY(m.birthDate)          AS dia,
+        YEAR(GETDATE()) - YEAR(m.birthDate) AS cumple,
+        (SELECT COUNT(1) FROM dbo.retroDailyReg r WHERE r.PLAYER_ID = m.retroID) AS juegos_carrera
+FROM    dbo.dglMaster m
+WHERE   m.birthDate IS NOT NULL AND m.deathDate IS NULL
+ORDER BY MONTH(m.birthDate), DAY(m.birthDate);
+*/

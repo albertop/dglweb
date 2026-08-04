@@ -67,3 +67,40 @@ LEFT  JOIN dbo.retroGamesPost gp ON gp.GAME_ID = o.GAME_ID
 LEFT  JOIN #equipos   eq ON eq.codigo = CASE WHEN o.en_casa = 1 THEN o.casa   ELSE o.visita END AND COALESCE(g.GAME_DT, gp.GAME_DT) BETWEEN eq.desde AND eq.hasta
 LEFT  JOIN #equipos   ri ON ri.codigo = CASE WHEN o.en_casa = 1 THEN o.visita ELSE o.casa   END AND COALESCE(g.GAME_DT, gp.GAME_DT) BETWEEN ri.desde AND ri.hasta
 WHERE   o.e4 < o.e3 AND o.e3 < o.e2 AND o.e2 < o.e1;
+
+-- =====================================================================================
+-- LA LISTA — para cuando pregunten «¿quiénes son esos, y cuándo?»
+--
+-- Se pega tal cual y corre sola: no depende de las tablas del preludio. Ver la nota en cualquiera
+-- de los detectores de juego — la duplicación es el precio de que esto funcione sin preparar nada.
+--
+-- Devuelve LOS DOS ÓRDENES a la vez, natural e inverso, porque la pregunta suele venir junta. Hoy
+-- el natural sale vacío: ningún dominicano lo ha bateado en 116 años.
+-- =====================================================================================
+/*
+WITH e AS (
+    SELECT v.GAME_ID, v.BATTER_ID, v.EVENT_ID, v.[1B] AS s1, v.[2B] AS s2, v.[3B] AS s3, v.HR
+    FROM   dbo.r24Events v INNER JOIN dbo.dglMaster m ON m.retroID = v.BATTER_ID
+    WHERE  v.BAT_EVENT_FL = 1
+),
+prim AS (
+    SELECT GAME_ID, BATTER_ID,
+           MIN(CASE WHEN s1 = 1 THEN EVENT_ID END) AS e1,
+           MIN(CASE WHEN s2 = 1 THEN EVENT_ID END) AS e2,
+           MIN(CASE WHEN s3 = 1 THEN EVENT_ID END) AS e3,
+           MIN(CASE WHEN HR = 1 THEN EVENT_ID END) AS e4
+    FROM   e GROUP BY GAME_ID, BATTER_ID
+)
+SELECT  m.nameList              AS jugador,
+        CAST(g.GAME_DT AS date) AS fecha,
+        CASE WHEN p.e1 < p.e2 AND p.e2 < p.e3 AND p.e3 < p.e4 THEN 'natural'
+             WHEN p.e4 < p.e3 AND p.e3 < p.e2 AND p.e2 < p.e1 THEN 'inverso'
+             ELSE 'suelto' END  AS orden,
+        g.AWAY_TEAM_ID + ' en ' + g.HOME_TEAM_ID AS juego
+FROM    prim p
+INNER JOIN dbo.dglMaster m ON m.retroID = p.BATTER_ID
+LEFT  JOIN dbo.retroGamesReg g ON g.GAME_ID = p.GAME_ID
+WHERE   p.e1 IS NOT NULL AND p.e2 IS NOT NULL AND p.e3 IS NOT NULL AND p.e4 IS NOT NULL
+  AND   ((p.e1 < p.e2 AND p.e2 < p.e3 AND p.e3 < p.e4) OR (p.e4 < p.e3 AND p.e3 < p.e2 AND p.e2 < p.e1))
+ORDER BY g.GAME_DT;
+*/

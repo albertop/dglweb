@@ -21,7 +21,7 @@ SELECT  'fallecimiento' AS tipo,
         -- «Falleció a los X años de edad» y NO «Murió hace X años» (dueño, 2026-08-03). La edad al
         -- morir dice algo del hombre; los años transcurridos solo dicen en qué año estamos, y encima
         -- envejecen solos: el mismo texto cambia cada 1 de enero sin que pase nada.
-        'Falleció a los {detalle} años de edad.' AS plantilla,
+        'Falleció en {temporada}, a los {detalle} años de edad.' AS plantilla,
         m.mlbID AS mlb_id,
         m.nameList AS nombre,
         DATEFROMPARTS(YEAR(GETDATE()), MONTH(m.deathDate), DAY(m.deathDate)) AS fecha,
@@ -44,3 +44,23 @@ SELECT  'fallecimiento' AS tipo,
         '' AS equipo_nombre, '' AS rival_nombre, '' AS oponente
 FROM    dbo.dglMaster m
 WHERE   m.deathDate IS NOT NULL;
+
+-- =====================================================================================
+-- LA LISTA — para cuando pregunten «¿quiénes son esos?»
+--
+-- Se pega tal cual y corre sola. Son 61. El descuento del `CASE` no es adorno: sin él la edad sale mal en 31 de los 61.
+-- =====================================================================================
+/*
+SELECT  m.nameList AS jugador,
+        m.mlbID    AS mlb_id,
+        CAST(m.deathDate AS date) AS fallecimiento,
+        CAST(m.birthDate AS date) AS nacimiento,
+        DATEDIFF(YEAR, m.birthDate, m.deathDate)
+          - CASE WHEN MONTH(m.deathDate) < MONTH(m.birthDate)
+                   OR (MONTH(m.deathDate) = MONTH(m.birthDate) AND DAY(m.deathDate) < DAY(m.birthDate))
+                 THEN 1 ELSE 0 END AS edad_al_morir,
+        m.yearDomHof              AS salon_dominicano
+FROM    dbo.dglMaster m
+WHERE   m.deathDate IS NOT NULL
+ORDER BY MONTH(m.deathDate), DAY(m.deathDate);
+*/

@@ -28,3 +28,19 @@ SELECT  'debut' AS tipo,
         '' AS equipo_nombre, '' AS rival_nombre, '' AS oponente
 FROM    dbo.dglMaster m
 WHERE   m.debutDate IS NOT NULL;
+
+-- =====================================================================================
+-- LA LISTA — para cuando pregunten «¿quiénes son esos?»
+--
+-- Se pega tal cual y corre sola. Los 984 del maestro debutaron. Para «el primero de todos», ordenar por `m.debutDate`.
+-- =====================================================================================
+/*
+SELECT  m.nameList AS jugador,
+        m.mlbID    AS mlb_id,
+        CAST(m.debutDate AS date) AS debut,
+        YEAR(m.debutDate)         AS temporada,
+        (SELECT COUNT(1) FROM dbo.retroDailyReg r WHERE r.PLAYER_ID = m.retroID) AS juegos_carrera
+FROM    dbo.dglMaster m
+WHERE   m.debutDate IS NOT NULL
+ORDER BY MONTH(m.debutDate), DAY(m.debutDate);
+*/

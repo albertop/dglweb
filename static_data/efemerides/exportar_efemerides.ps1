@@ -193,7 +193,7 @@ function Get-Situacion {
         el de la historia, y publicarlo como total sería mentir con precisión decimal.
     #>
     param([int] $Orden, [int] $VecesTotal, [int] $JugadoresTotal, [int] $VecesJugador,
-          [bool] $Completa, [int] $Situar)
+          [int] $OrdenJugador, [bool] $Completa, [int] $Situar, [int] $Signo)
 
     if ($Situar -eq 0)  { return "" }
     if (-not $Completa) { return "" }
@@ -214,7 +214,7 @@ function Get-Situacion {
         if ($VecesTotal -eq 1) { return "Es el único dominicano al que le ha pasado." }
         if ($Orden -eq 1)      { return "Fue el primer dominicano al que le pasó." }
         $frase = "Le ha pasado a $JugadoresTotal dominicanos."
-        if ($VecesJugador -gt 1) { $frase += " A él, $VecesJugador veces." }
+        if ($VecesJugador -gt 1) { $frase += " A él le pasó $VecesJugador veces." }
         return $frase
     }
 
@@ -226,7 +226,14 @@ function Get-Situacion {
     } else {
         "Es uno de los $JugadoresTotal dominicanos que lo ha logrado."
     }
-    if ($VecesJugador -gt 1) { $frase += " Para él, la número $VecesJugador." }
+    # «Para él, la número 5» era TRIPLEMENTE ambiguo, y lo cazó el dueño leyendo la muestra:
+    #
+    #   * salía de `veces_jugador` —su TOTAL— pero se leía como «esta fue su quinta»;
+    #   * si el juego era el 3.º de sus 5, el número no correspondía a nada;
+    #   * y encima se entendía como «fue el quinto dominicano en lograrlo», que es `orden`.
+    #
+    # Con los DOS números no queda margen: cuál de las suyas fue, y de cuántas.
+    if ($VecesJugador -gt 1) { $frase += " Para él fue la $($OrdenJugador)ª de sus $VecesJugador." }
     return $frase
 }
 
@@ -376,7 +383,7 @@ foreach ($grupo in ($hechos | Group-Object tipo)) {
         $f | Add-Member -NotePropertyName anos -NotePropertyValue ((Get-Date).Year - $fecha.Year)
 
         $situacion = Get-Situacion -Orden $f.orden -VecesTotal $veces -JugadoresTotal $jugadores `
-                                   -VecesJugador $f.veces_jugador -Completa $completa -Situar $situar
+                                   -VecesJugador $f.veces_jugador -OrdenJugador $f.orden_jugador -Completa $completa -Situar $situar -Signo $signo
         $titular = Expand-Plantilla -Plantilla ([string]$f.plantilla) -Fila $f
         $f | Add-Member -NotePropertyName titular -NotePropertyValue $titular
         $f | Add-Member -NotePropertyName situacion -NotePropertyValue $situacion
