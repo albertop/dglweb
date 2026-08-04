@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL PRELUDIO DE EVENTO: `#turnos`, un turno al bate de un dominicano con todo su contexto.
 --
 -- NO ES UN DETECTOR. Como `_00_comun.sql`, empieza por `_`: el motor lo corre antes que los demás y
@@ -68,7 +68,9 @@ INNER JOIN dbo.dglMaster m ON m.retroID = v.BATTER_ID
 INNER JOIN ultimo u        ON u.GAME_ID = v.GAME_ID
 LEFT  JOIN #fechas  f      ON f.game_id = v.GAME_ID
 LEFT  JOIN #nombres lz     ON lz.retro_id = v.PITCHER_ID
-WHERE   v.BAT_EVENT_FL = 1;
+WHERE   v.BAT_EVENT_FL = 1
+  -- Solo temporada regular. Ver _00_comun.sql.
+  AND   v.GAME_TYPE = 'R';
 
 CREATE CLUSTERED INDEX ix_turnos ON #turnos(game_id, event_id);
 

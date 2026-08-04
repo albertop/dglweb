@@ -28,6 +28,7 @@ WITH embasado AS (
             ROW_NUMBER() OVER (PARTITION BY e.GAME_ID, e.BAT_HOME_ID ORDER BY e.EVENT_ID) AS rn
     FROM    dbo.r24Events e
     WHERE   (e.[1B] + e.[2B] + e.[3B] + e.HR + e.BB + e.IBB + e.HBP) >= 1
+      AND   e.GAME_TYPE = 'R'
 ),
 roto AS (
     SELECT * FROM embasado WHERE rn = 1 AND INN_CT >= 9
@@ -36,7 +37,7 @@ SELECT  'perfecto_roto' AS tipo,
         'en romper un juego perfecto en el noveno' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
-        822764                                    AS universo,
+        811955                                    AS universo,
         1                                         AS situar,
         -- El contexto va al FINAL, después de los dos puntos. Con la forma anterior —«en el {detalle},
         -- contra…»— el detalle se metía en medio y salía «en el 9no, sin outs, y fue con hit, contra

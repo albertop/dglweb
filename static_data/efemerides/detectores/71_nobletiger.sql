@@ -24,7 +24,7 @@ WITH jam AS (
             CASE WHEN v.BAT_HOME_ID = 1 THEN v.HOME_SCORE_CT ELSE v.AWAY_SCORE_CT END AS sc0
     FROM    dbo.r24Events v
     INNER JOIN dbo.dglMaster m ON m.retroID = v.PITCHER_ID
-    WHERE   v.RUNNERS = '111' AND v.OUTS_CT = 0
+    WHERE   v.RUNNERS = '111' AND v.OUTS_CT = 0 AND v.GAME_TYPE = 'R'
 ),
 -- ¿Entró carrera? Se compara el marcador del equipo al bate EN EL APRIETO contra el que tiene cuando
 -- le toca batear otra vez.
@@ -41,9 +41,7 @@ res AS (
                    AND  NOT (e2.INN_CT = j.INN_CT AND e2.BAT_HOME_ID = j.BAT_HOME_ID)
                  ORDER BY e2.EVENT_ID),
                 (SELECT CASE WHEN j.BAT_HOME_ID = 1 THEN g.HOME_SCORE_CT ELSE g.AWAY_SCORE_CT END
-                 FROM   dbo.retroGamesReg g WHERE g.GAME_ID = j.GAME_ID),
-                (SELECT CASE WHEN j.BAT_HOME_ID = 1 THEN gp.HOME_SCORE_CT ELSE gp.AWAY_SCORE_CT END
-                 FROM   dbo.retroGamesPost gp WHERE gp.GAME_ID = j.GAME_ID)
+                 FROM   dbo.retroGamesReg g WHERE g.GAME_ID = j.GAME_ID)
             ) AS sc_fin
     FROM    jam j
 ),
@@ -81,7 +79,7 @@ SELECT  'nobletiger'                              AS tipo,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
-        622652                                    AS universo,
+        614726                                    AS universo,
         'Salió vivo de bases llenas sin outs contra {rival_nombre}: {detalle}.' AS plantilla,
         m.mlbID                                   AS mlb_id,
         m.nameList                                AS nombre,

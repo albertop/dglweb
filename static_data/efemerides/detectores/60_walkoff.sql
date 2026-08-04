@@ -29,7 +29,7 @@ SELECT  'walkoff' AS tipo,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,
-        822764 AS universo,
+        811955 AS universo,
         -- «WALK-OFF» Y NO «TERMINÓ EL JUEGO» (dueño, 2026-08-04). El término en inglés es el que la
         -- afición usa y entiende de una vez; la perífrasis en español es correcta y no dice nada.
         -- Vale para toda la familia: `61`, `62`, `63` y `64` llevan la misma cabeza.

@@ -24,7 +24,7 @@ WITH porInning AS (
             SUM(CAST(v.SO AS int)) AS k
     FROM    dbo.r24Events v
     INNER JOIN dbo.dglMaster m ON m.retroID = v.PITCHER_ID
-    WHERE   v.BAT_EVENT_FL = 1
+    WHERE   v.BAT_EVENT_FL = 1 AND v.GAME_TYPE = 'R'
     GROUP BY v.GAME_ID, v.INN_CT, v.BAT_HOME_ID, v.PITCHER_ID
     HAVING  SUM(CAST(v.SO AS int)) >= 4
 )
@@ -33,7 +33,7 @@ SELECT  'k4_inning'                               AS tipo,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
-        162797                                    AS universo,
+        159014                                    AS universo,
         'Ponchó a {magnitud} en una sola entrada contra {rival_nombre}: {detalle}.' AS plantilla,
         m.mlbID                                   AS mlb_id,
         m.nameList                                AS nombre,

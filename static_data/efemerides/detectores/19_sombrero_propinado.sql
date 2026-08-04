@@ -28,7 +28,7 @@
 WITH duelo AS (
     SELECT  e.GAME_ID, e.BATTER_ID, e.PITCHER_ID, COUNT(1) AS ponches
     FROM    dbo.r24Events e
-    WHERE   e.SO = 1
+    WHERE   e.SO = 1 AND e.GAME_TYPE = 'R'  -- solo temporada regular, ver `_00_comun.sql`
     GROUP BY e.GAME_ID, e.BATTER_ID, e.PITCHER_ID
     HAVING  COUNT(1) >= 4
 )
@@ -36,7 +36,7 @@ SELECT  'sombrero_propinado' AS tipo,
         'en ponchar 4 veces al mismo bateador en un juego' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
-        292948                                    AS universo,
+        288826                                    AS universo,
         1                                         AS situar,
         'Le puso el sombrero dorado a {oponente}, de {rival_nombre}: {detalle}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,

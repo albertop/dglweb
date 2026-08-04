@@ -20,7 +20,7 @@ SELECT  'hito_k200' AS tipo,
         '200+ ponches en una temporada' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
-        292948 AS universo,
+        288826 AS universo,
         1 AS situar,
         -- El titular dice con cuanto CERRO la temporada, que es lo que convierte «llego a 50» en
         -- «llego a 50 y termino con 66».

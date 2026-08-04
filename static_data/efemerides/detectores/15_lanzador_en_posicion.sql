@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- UN LANZADOR SE PARA EN OTRA POSICIÓN. Medido: DOS VECES en 116 temporadas.
 --
 --     1988-05-14   José De León
@@ -33,16 +33,13 @@ campo AS (
     SELECT  r.PLAYER_ID, r.GAME_ID,
             r.F_C_G, r.F_1B_G, r.F_2B_G, r.F_3B_G, r.F_SS_G, r.F_LF_G, r.F_CF_G, r.F_RF_G
     FROM    dbo.retroDailyReg r
-    UNION ALL
-    SELECT  p.PLAYER_ID, p.GAME_ID,
-            p.F_C_G, p.F_1B_G, p.F_2B_G, p.F_3B_G, p.F_SS_G, p.F_LF_G, p.F_CF_G, p.F_RF_G
-    FROM    dbo.retroDailyPost p
+
 )
 SELECT  'lanzador_en_posicion' AS tipo,
         'un juego jugando otra posición siendo lanzador' AS gesta,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
-        292948                                    AS universo,
+        288826                                    AS universo,
         1                                         AS situar,
         'Siendo lanzador, jugó {detalle} contra {rival_nombre}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,

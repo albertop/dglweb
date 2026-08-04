@@ -12,7 +12,7 @@ SELECT  'robadas4'                                   AS tipo,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
-        292948                                 AS universo,
+        288826                                 AS universo,
         'Se robó {magnitud} bases contra {rival_nombre}: {detalle}.'                              AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,
         0                                         AS event_id,
@@ -21,7 +21,11 @@ SELECT  'robadas4'                                   AS tipo,
         j.B_SB                                 AS magnitud,
         j.wpa_bat                                    AS wpa_jugador,
         j.li_max,
-        CASE WHEN j.B_CS = 0 THEN 'sin que lo atraparan ni una vez' ELSE 'y lo atraparon ' + CAST(j.B_CS AS varchar(2)) + ' vez/veces' END                                  AS detalle,
+        -- «vez/veces» era un marcador que se quedó puesto y se publicó tal cual: «y lo atraparon 1
+        -- vez/veces». La concordancia se resuelve acá, como en el resto del archivo.
+        CASE WHEN j.B_CS = 0 THEN 'sin que lo atraparan ni una vez'
+             WHEN j.B_CS = 1 THEN 'y lo atraparon una vez'
+             ELSE 'y lo atraparon ' + CAST(j.B_CS AS varchar(2)) + ' veces' END AS detalle,
         j.equipo_nombre, j.rival_nombre,
         -- SIN ABRIDOR RIVAL: ver el porqué en el preludio. Esto es una gesta de JUEGO COMPLETO.
         ''                                        AS oponente

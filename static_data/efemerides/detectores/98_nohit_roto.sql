@@ -28,6 +28,7 @@ WITH hits AS (
             ROW_NUMBER() OVER (PARTITION BY e.GAME_ID, e.BAT_HOME_ID ORDER BY e.EVENT_ID) AS rn
     FROM    dbo.r24Events e
     WHERE   (e.[1B] + e.[2B] + e.[3B] + e.HR) >= 1
+      AND   e.GAME_TYPE = 'R'
 ),
 roto AS (
     SELECT * FROM hits WHERE rn = 1 AND INN_CT >= 9
@@ -36,7 +37,7 @@ SELECT  'nohit_roto'                              AS tipo,
         'en romper un no-hitter en el noveno' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
-        822764                                    AS universo,
+        811955                                    AS universo,
         1                                         AS situar,
         'Rompió el no-hitter en el {detalle}, contra {rival_nombre} ante {oponente}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,

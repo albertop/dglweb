@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- PERDIÓ EL NO-HITTER EN EL NOVENO. Medido: 15 veces, 11 lanzadores.
 --
 -- La otra cara de `98_nohit_roto.sql`: el lanzador que llegó al noveno sin permitir un hit y lo
@@ -32,6 +32,7 @@ WITH hits AS (
             ROW_NUMBER() OVER (PARTITION BY e.GAME_ID, e.BAT_HOME_ID ORDER BY e.EVENT_ID) AS rn
     FROM    dbo.r24Events e
     WHERE   (e.[1B] + e.[2B] + e.[3B] + e.HR) >= 1
+      AND   e.GAME_TYPE = 'R'
 ),
 perdido AS (
     SELECT * FROM hits WHERE rn = 1 AND INN_CT >= 9
@@ -42,7 +43,7 @@ SELECT  'nohit_perdido'                           AS tipo,
         'un no-hitter perdido en el noveno o más allá' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
-        292948                                    AS universo,
+        288826                                    AS universo,
         1                                         AS situar,
         'Llegó al {detalle} sin permitir un hit, y lo perdió ahí: se lo quitó {oponente}, de {rival_nombre}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,

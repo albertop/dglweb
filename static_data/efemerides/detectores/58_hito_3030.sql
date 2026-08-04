@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL CLUB DE LOS 30-30: treinta jonrones y treinta bases robadas en la misma temporada.
 --
 -- Medido: 18 temporadas dominicanas. Es la marca clásica del jugador completo — poder y piernas, que
@@ -32,7 +32,7 @@ SELECT  'hito_3030' AS tipo,
         'una temporada de 30+ jonrones y 30+ robos' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
-        292948 AS universo,
+        288826 AS universo,
         1 AS situar,
         -- El titular cierra con los totales del año, que es lo que distingue un 30-30 justo de los
         -- 46-41 de Soriano.

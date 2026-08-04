@@ -91,7 +91,7 @@ SELECT  'primero_posicion'                        AS tipo,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,
-        292948                                    AS universo,
+        288826                                    AS universo,
         -- `situar = 0` porque la frase del motor sobra: el titular YA dice que fue el primero, y
         -- añadirle «fue el primer dominicano en lograrlo» sería repetirlo con otras palabras.
         'Fue el primer dominicano en abrir un juego de Grandes Ligas como {detalle}.' AS plantilla,

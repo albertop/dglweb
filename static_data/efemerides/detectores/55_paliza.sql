@@ -43,7 +43,7 @@ WITH ritmo AS (
             SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) AS ritmo
     FROM    dbo.r24Events e
     INNER JOIN dbo.dglMaster m ON m.retroID = e.PITCHER_ID
-    WHERE   e.BAT_EVENT_FL = 1
+    WHERE   e.BAT_EVENT_FL = 1 AND e.GAME_TYPE = 'R'
     GROUP BY e.GAME_ID, e.PITCHER_ID
     HAVING  COUNT(1) >= 3
         AND SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) >= 1.0
@@ -53,7 +53,7 @@ SELECT  'paliza' AS tipo,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,
-        292948 AS universo,
+        288826 AS universo,
         -- El texto dice el ritmo con palabras, no con el número: «cada bateador… le costó una
         -- carrera» se entiende sin saber qué es el RUN_VALUE. Es la misma decisión que en
         -- `66_turno_clave.sql` con el leverage — el dato queda en la columna, no en la frase.
@@ -94,7 +94,7 @@ WITH ritmo AS (
             SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) AS ritmo
     FROM    dbo.r24Events e
     INNER JOIN dbo.dglMaster m ON m.retroID = e.PITCHER_ID
-    WHERE   e.BAT_EVENT_FL = 1
+    WHERE   e.BAT_EVENT_FL = 1 AND e.GAME_TYPE = 'R'
     GROUP BY e.GAME_ID, e.PITCHER_ID
     HAVING  COUNT(1) >= 3 AND SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) >= 1.0
 ),

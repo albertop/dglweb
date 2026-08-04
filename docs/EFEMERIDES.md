@@ -5,7 +5,7 @@ protagonizado por dominicanos. El sitio no calcula nada: filtra por mes y día, 
 pinta.
 
 Este documento es el diseño. Todos los números que aparecen abajo están **medidos contra `DGL` en
-SQL Server**, no estimados. Última revisión completa: **2026-08-04**, con 96 detectores corriendo.
+SQL Server**, no estimados. Última revisión completa: **2026-08-04**, con 96 detectores corriendo, solo temporada regular.
 
 ---
 
@@ -48,6 +48,54 @@ postemporada (`GAME_TYPE='P'`).
 
 Eso elimina de un plumazo la parte cara del proyecto. No hay que derivar tablas de probabilidad de
 victoria ni calcular leverage: ya están, y son las mismas que usa el resto de la base.
+
+### 2.6. SOLO TEMPORADA REGULAR. La postemporada no entra en ningún detector.
+
+Decisión del dueño (2026-08-04), y **salió de un error publicado**. El archivo decía:
+
+> Conectó su jonrón 700 contra Milwaukee Brewers. **Solo 2 dominicanos han llegado ahí.**
+
+Es falso. Albert Pujols es el único dominicano con 700 jonrones. Lo que pasaba es que los acumulados
+sumaban octubre:
+
+| | regular | postemporada | sumadas |
+| --- | ---: | ---: | ---: |
+| Albert Pujols | 703 | 19 | 722 |
+| **Alex Rodríguez** | **696** | 13 | **709** ← cruzaba 700 sin haberlo hecho |
+
+**El fallo no era del detector sino del planteamiento.** Las cifras que la gente conoce —las de los
+récords, las de la prensa, las que canta el estadio— son de temporada regular. Un archivo que suma
+octubre produce números que no coinciden con ninguna fuente del mundo, y los produce con toda la
+seguridad de un dato exacto. Ese daño no se ve: el número parece razonable y está mal.
+
+El diseño original decía lo contrario —que octubre contaba igual que junio— y era defendible mientras
+todo fueran gestas de un solo juego. **Dejó de serlo en cuanto un detector ACUMULA.** Y entre tener
+detectores que cuentan de dos maneras distintas o perder mil juegos de octubre, la coherencia vale
+más.
+
+**Lo que se pierde, medido:** 1.878 juegos de postemporada y unas 4.100 líneas de juego-jugador de
+las 292.948 que había — el 1,4 %. Y 62 efemérides de 5.750.
+
+**Cómo se aplica**, en tres capas:
+
+1. **Los preludios** salen solo de `retroDailyReg`, `retroGamesReg` y `retroEventsReg`. Todo lo que
+   cuelga de `#juegos`, `#turnos`, `#carrera`, `#defensa` o `#temporada` queda filtrado sin tocar el
+   detector.
+2. **Los once detectores que van directos a `r24Events`** llevan `GAME_TYPE = 'R'` en su propio
+   `WHERE`. Está escrito en cada uno porque es una condición de negocio, no una optimización.
+3. **`#fechas` solo trae juegos de temporada regular**, y eso es la red: si un detector se olvidara
+   de filtrar, su fila no encontraría fecha y se caería en el `WHERE f.fecha IS NOT NULL` con que
+   todos rematan. Un descuido se vuelve una ausencia, no un dato falso.
+
+Y una cuarta, en el motor: una autocomprobación (8.1) que **falla si alguna fila publicada no es
+`R`, `A` o `-`**. Es lo que atrapa al detector nuevo que se olvide.
+
+**LA POSTEMPORADA VOLVERÁ, por su propia puerta**: detectores de postemporada aparte, con umbrales
+medidos sobre octubre — donde un juego de cuatro hits significa otra cosa que en mayo. Lo que no podía
+seguir era mezclarla con la regular.
+
+**El Juego de Estrellas es la excepción y no contradice nada**: tiene sus propios detectores, su
+propio universo (283 apariciones) y su propio `game_type = 'A'`. Nunca se mezcló con nada.
 
 ### 2.2. El universo dominicano
 
@@ -349,8 +397,8 @@ rareza = 600 × (1 − log(n) / log(N))
 ```
 
 `n` = cuántas veces ocurrió esa gesta en 116 temporadas. `N` = el universo del detector, y **no es
-uno solo: depende del grano** — 292.948 juegos-jugador, 822.764 turnos al bate, 622.652 bateadores
-enfrentados, 162.797 medias entradas lanzadas. Ver 5.11.
+uno solo: depende del grano** — 288.826 juegos-jugador, 811.955 turnos al bate, 614.726 bateadores
+enfrentados, 159.014 medias entradas lanzadas. Ver 5.11.
 
 La propiedad que importa: **un detector nuevo se calibra solo**. Si mañana se agrega uno que dispara
 5.000 veces, se hunde solo y no inunda el calendario. Nadie tiene que sentarse a decidir cuánto vale.
@@ -497,7 +545,7 @@ dos.
 porque un mismo hecho puede dispararse en varios detectores. La rareza es la que da la fórmula hoy —
 el exportador la recalcula en cada corrida.
 
-### 5.1. Gestas de juego (grano juego-jugador, `N` = 292.948)
+### 5.1. Gestas de juego (grano juego-jugador, `N` = 288.826)
 
 | detector | gesta declarada | n | rareza |
 | --- | --- | ---: | ---: |
@@ -532,7 +580,7 @@ el exportador la recalcula en cada corrida.
 | `paliza` ⚠️ | una salida de una carrera por bateador enfrentado | 79 | **196** |
 | `sombrero_titanio` ⚠️ | 6+ ponches en un juego | **0** | — |
 
-⚠️ = escala negativa (4.5), salvo `cg90` que lleva universo propio (251.106, desde 1989).
+⚠️ = escala negativa (4.5), salvo `cg90` que lleva universo propio (247.310, desde 1989).
 
 #### 5.1.1. El sombrero dorado se estrechó dos veces, y al final quedó uno
 
@@ -558,7 +606,7 @@ acumulativos**: en la jerarquía real un juego de cinco ponches es platino, no d
 **Efecto en el archivo:** las efemérides negativas bajaron de 379 a 166. El sombrero pasó de ser un
 tercio de las deshonras a ser una de tantas.
 
-### 5.2. Gestas de evento (grano turno al bate, `N` = 822.764)
+### 5.2. Gestas de evento (grano turno al bate, `N` = 811.955)
 
 | detector | gesta declarada | n | rareza |
 | --- | --- | ---: | ---: |
@@ -581,12 +629,12 @@ Con universo propio, porque el grano es otro (5.11):
 
 | detector | gesta | `N` | n | rareza |
 | --- | --- | ---: | ---: | ---: |
-| `k4_inning` | 4 ponches en una sola entrada | 162.797 | 5 | 520 |
-| `nobletiger` | un escape de bases llenas sin outs en el noveno o más allá | 622.652 | 45 | 429 |
+| `k4_inning` | 4 ponches en una sola entrada | 159.014 | 5 | 520 |
+| `nobletiger` | un escape de bases llenas sin outs en el noveno o más allá | 614.726 | 45 | 429 |
 | `robo_home` | un robo de home | 92.821 | 85 | 367 |
-| `hr_primer_turno` | un jonrón en su primer turno de Grandes Ligas | 723 | 15 | 353 |
-| `sombrero_mismo_lanzador` ⚠️ | 4 ponches del mismo lanzador en un juego | 292.948 | 28 | **221** |
-| `sombrero_propinado` | ponchar 4 veces al mismo bateador en un juego | 292.948 | 25 | 447 |
+| `hr_primer_turno` | un jonrón en su primer turno de Grandes Ligas | 717 | 15 | 353 |
+| `sombrero_mismo_lanzador` ⚠️ | 4 ponches del mismo lanzador en un juego | 288.826 | 28 | **221** |
+| `sombrero_propinado` | ponchar 4 veces al mismo bateador en un juego | 288.826 | 25 | 447 |
 
 #### 5.2.1. `walkoff` pide estar PERDIENDO, y los hermanos no
 
@@ -692,7 +740,7 @@ emitir una sola obliga a elegir. Se elige **al de más juegos de carrera** —v�
 hay valor de `situar` que la arregle. Lo que sí vale —que fue la primera vez que se vio— se calcula
 dentro del propio `.sql`.
 
-### 5.5. Hitos de carrera (suma acumulada, `N` = 292.948)
+### 5.5. Hitos de carrera (suma acumulada, `N` = 288.826)
 
 | detector | gesta | marcas | n |
 | --- | --- | --- | ---: |
@@ -728,9 +776,9 @@ modernos, y ponerle el hito en 200 —como en los jonrones— dejaría el detect
 | 600 dobles | 3 | Albert Pujols, 704 |
 | 100 triples | 2 | José Reyes, 132 |
 
-**Suman temporada regular Y postemporada** (decisión del dueño). No es como los cuenta MLB —ellos
-separan— pero es coherente con el resto del archivo, donde octubre cuenta igual que junio. La
-diferencia medida son 13 cruces.
+**Solo temporada regular**, como todo el archivo (2.6). Es además como los cuenta MLB: el hit 3.000 de
+Adrián Beltré es una cifra de temporada regular, y un archivo que sumara octubre publicaría una fecha
+de cruce que no coincide con la que celebró el estadio.
 
 **Los siete llevan `situar = 2`** (3.5): la frase solo aparece si es el primero o el único. Y su
 plantilla no es constante — cada fila trae la suya, para poder añadir «Solo 3 dominicanos han llegado
@@ -755,14 +803,15 @@ ahí» cuando son cinco o menos. Es la 4.7 aplicada.
 dos veces (313 en 1999, 305 en 1997) y **nadie más ha llegado**; Sammy Sosa pasó de 60 tres veces
 (66, 64, 63) y tampoco tiene compañía. En victorias, **Marichal seis veces**, con 26 en 1968.
 
-#### 5.6.1. La ÚNICA excepción del archivo: acá la postemporada NO entra
+#### 5.6.1. Estos hitos fueron los primeros en excluir octubre, y acabaron marcando la regla
 
-En todo lo demás octubre cuenta igual que junio. Acá no puede: **«50 jonrones en una temporada» es una
-cifra de temporada regular**, la que sale en los récords y en la prensa. Sumarle la postemporada daría
-un número que no coincide con ninguna fuente del mundo y **además movería la fecha del cruce**, que es
-el dato que la efeméride publica.
+Cuando se escribieron, el resto del archivo sumaba postemporada y estos eran la excepción: **«50
+jonrones en una temporada» es una cifra de temporada regular**, la que sale en los récords y en la
+prensa, y sumarle octubre daría un número que no coincide con ninguna fuente del mundo — además de
+mover la fecha del cruce, que es el dato que la efeméride publica.
 
-Es la excepción, y existe porque acá el hito ES el número.
+El argumento resultó ser general y no particular. Hoy **ningún detector mira la postemporada** (2.6),
+así que esto ya no es una excepción: es el caso normal, y estos hitos fueron los que lo destaparon.
 
 #### 5.6.2. Los escalones conviven a propósito
 
@@ -781,10 +830,10 @@ terminó con 66».
 
 | detector | gesta | `N` | n | rareza |
 | --- | --- | ---: | ---: | ---: |
-| `debut_grande` | un debut de 1.5+ carreras de valor | 292.948 | 11 | 486 |
+| `debut_grande` | un debut de 1.5+ carreras de valor | 288.826 | 11 | 486 |
 | `debut_veterano` | un debut a los 30 años o más | **961** | 9 | 408 |
 | `debut_joven` | un debut antes de los 20 años | **961** | 15 | 363 |
-| `debut_dificil` ⚠️ | un debut de -1.5 carreras de valor o peor | 292.948 | 9 | **248** |
+| `debut_dificil` ⚠️ | un debut de -1.5 carreras de valor o peor | 288.826 | 9 | **248** |
 | `estrellas_primicia` | la primera apertura dominicana en su posición en un Juego de Estrellas | **283** | 9 | 367 |
 | `estrellas_decision` | una decisión en el Juego de Estrellas | **283** | 11 | 345 |
 | `estrellas_actuacion` | una actuación destacada en el Juego de Estrellas | **283** | 32 | 232 |
@@ -930,15 +979,15 @@ es quién protagoniza sino **cuál es la unidad de oportunidad**.
 
 | grano | universo | qué se cuenta |
 | --- | ---: | --- |
-| juego-jugador | 292.948 | la línea de un dominicano en un juego |
+| juego-jugador | 288.826 | la línea de un dominicano en un juego |
 | juego-equipo | 407.816 | un equipo en un juego (203.908 × 2) |
 | juego | 203.908 | el partido entero |
-| turno al bate | 822.764 | un turno de un bateador dominicano |
-| bateador enfrentado | 622.652 | un turno contra un lanzador dominicano |
-| media entrada lanzada | 162.797 | una entrada de un lanzador dominicano |
+| turno al bate | 811.955 | un turno de un bateador dominicano |
+| bateador enfrentado | 614.726 | un turno contra un lanzador dominicano |
+| media entrada lanzada | 159.014 | una entrada de un lanzador dominicano |
 | veces en tercera | 92.821 | la oportunidad de robar home |
-| juego-jugador desde 1989 | 251.106 | para `cg90`, que no puede ver más atrás |
-| debut de bateador | 723 | el primer turno de Grandes Ligas |
+| juego-jugador desde 1989 | 247.310 | para `cg90`, que no puede ver más atrás |
+| debut de bateador | 717 | el primer turno de Grandes Ligas |
 | debut con edad fiable | 961 | para los dos detectores de edad |
 | aparición en el Juego de Estrellas | 283 | |
 | el maestro | 984 | para cumpleaños y debut |
@@ -1213,7 +1262,7 @@ las colapsa—. Medido después de fusionar:
 | hitos de carrera y de temporada | 998 |
 | cumpleaños + debut + fallecimiento | 1.920 |
 | Juego de Estrellas, debut y primicias | 114 |
-| **total, medido tras la fusión** | **5.750** |
+| **total, medido tras la fusión** | **5.688** |
 
 Bien por debajo de 5 MB. Para comparar: `dom_players` ya carga 9.133 filas por esta misma vía.
 
@@ -1241,13 +1290,21 @@ cuenta cuántas filas de `dglMaster` no tienen `retroID` y **lo reporta**. En un
 número es **0**. Si no lo es, algo pasó —Retrosheet no cubrió a alguien, o se inscribió a un jugador
 que no ha debutado— y hay que mirarlo antes de subir el CSV, no después.
 
-**La postemporada entra en todas las gestas**, con bono de contexto. Aporta poco en conteo —7 hechos
-de 549, y 4 de 154 momentos— porque son 1.878 juegos contra 203.908. Su valor está en que esos pocos
-son de octubre.
+**La postemporada NO entra en ninguna gesta** — ver 2.6, que es donde vive la regla y el porqué.
 
-**Y también suma en los hitos de carrera**, aunque MLB los cuente separados. Es la decisión coherente
-con la anterior: si octubre cuenta para el ciclo, cuenta para el hit 2000. Medido, la diferencia son
-13 cruces — 818 contra 831.
+Esta decisión REEMPLAZA a la anterior, que decía justo lo contrario: «la postemporada entra en todas
+las gestas, con bono de contexto», y que además la sumaba en los hitos de carrera argumentando que
+«si octubre cuenta para el ciclo, cuenta para el hit 2000».
+
+**El argumento era coherente y aun así estaba mal**, y conviene dejar escrito por qué en vez de
+borrarlo: la coherencia iba hacia el lado equivocado. Sumar octubre en un ciclo no le hace daño a
+nadie —el ciclo pasó ese día y ya— pero sumarlo en un acumulado produce una CIFRA, y las cifras que
+la gente conoce son de temporada regular. Cuando el archivo publicó que dos dominicanos habían
+llegado a 700 jonrones, la coherencia interna no lo salvó de estar diciendo algo falso.
+
+La lección, que vale para lo que venga: **una regla uniforme no es necesariamente una regla correcta.
+Un detector que cuenta un hecho y otro que acumula una cifra no tienen por qué tratar octubre igual**
+— y cuando hay que elegir, manda el que produce un número comparable con el mundo.
 
 ### 10.2. Sin confirmar
 

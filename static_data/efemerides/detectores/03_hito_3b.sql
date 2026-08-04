@@ -37,7 +37,7 @@ SELECT  'hito_3b' AS tipo,
         'bateador' AS rol,
         'completa' AS cobertura,
         2 AS situar,
-        292948 AS universo,
+        288826 AS universo,
         -- La plantilla se declara por fila, asi que puede traer la frase que el motor no sabe
         -- calcular: cuantos dominicanos han llegado A ESA CIFRA. Solo se dice cuando son cinco o
         -- menos — con veinte no es noticia, es una lista. Ver docs/EFEMERIDES.md 4.7.

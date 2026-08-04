@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- PERDIÓ EL JUEGO PERFECTO EN EL NOVENO. Medido: UNA vez.
 --
 -- La contraparte de `04_perfecto_roto`, desde el montículo, y la lista tiene un solo nombre. De 45
@@ -23,6 +23,7 @@ WITH embasado AS (
             ROW_NUMBER() OVER (PARTITION BY e.GAME_ID, e.BAT_HOME_ID ORDER BY e.EVENT_ID) AS rn
     FROM    dbo.r24Events e
     WHERE   (e.[1B] + e.[2B] + e.[3B] + e.HR + e.BB + e.IBB + e.HBP) >= 1
+      AND   e.GAME_TYPE = 'R'
 ),
 perdido AS (
     SELECT * FROM embasado WHERE rn = 1 AND INN_CT >= 9
@@ -31,7 +32,7 @@ SELECT  'perfecto_perdido' AS tipo,
         'un juego perfecto perdido en el noveno o más allá' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
-        292948                                    AS universo,
+        288826                                    AS universo,
         1                                         AS situar,
         'Llegó al {detalle} sin que nadie le pisara primera, y lo perdió ahí: se lo quitó {oponente}, de {rival_nombre}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,

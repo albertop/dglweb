@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL 40-40: cuarenta jonrones y cuarenta bases robadas en la misma temporada.
 --
 -- Medido: DOS temporadas dominicanas, y son la lista entera:
@@ -30,7 +30,7 @@ SELECT  'hito_4040' AS tipo,
         'una temporada de 40+ jonrones y 40+ robos' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
-        292948 AS universo,
+        288826 AS universo,
         1 AS situar,
         'Completó el 40-40 contra {rival_nombre}: cerró la temporada con {detalle}.' AS plantilla,
         c.mlb_id, c.nombre, c.fecha, c.temporada, c.game_id,

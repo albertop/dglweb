@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- UN JUGADOR DE POSICIÓN SUBE A LA LOMA. Medido: 69 veces, 35 jugadores.
 --
 -- El campocorto lanzando el noveno de una paliza. No es una hazaña ni una deshonra: es una de las
@@ -38,7 +38,7 @@ SELECT  'posicion_lanzando' AS tipo,
         'un juego lanzando siendo jugador de posición' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
-        292948                                    AS universo,
+        288826                                    AS universo,
         1                                         AS situar,
         'Subió a la loma sin ser lanzador, contra {rival_nombre}: {detalle}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,

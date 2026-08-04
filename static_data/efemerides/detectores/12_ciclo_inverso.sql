@@ -16,7 +16,7 @@ WITH e AS (
            v.AWAY_TEAM_ID, v.HOME_TEAM_ID, v.[1B] AS s1, v.[2B] AS s2, v.[3B] AS s3, v.HR, v.WPA, v.LI
     FROM   dbo.r24Events v
     INNER JOIN dbo.dglMaster m ON m.retroID = v.BATTER_ID
-    WHERE  v.BAT_EVENT_FL = 1
+    WHERE  v.BAT_EVENT_FL = 1 AND v.GAME_TYPE = 'R'
 ),
 orden AS (
     SELECT GAME_ID, BATTER_ID,
@@ -39,11 +39,11 @@ SELECT  'ciclo_inverso'                           AS tipo,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
-        292948                                    AS universo,
+        288826                                    AS universo,
         'Bateó para el ciclo inverso contra {rival_nombre}: jonrón, triple, doble y sencillo, en ese orden.' AS plantilla,
         m.mlbID                                   AS mlb_id,
         m.nameList                                AS nombre,
-        CAST(COALESCE(g.GAME_DT, gp.GAME_DT) AS date) AS fecha,
+        CAST(g.GAME_DT AS date) AS fecha,
         o.temporada                               AS temporada,
         o.GAME_ID                                 AS game_id,
         0                                         AS event_id,
@@ -64,9 +64,8 @@ SELECT  'ciclo_inverso'                           AS tipo,
 FROM    orden o
 INNER JOIN dbo.dglMaster m ON m.retroID = o.BATTER_ID
 LEFT  JOIN dbo.retroGamesReg  g  ON g.GAME_ID  = o.GAME_ID
-LEFT  JOIN dbo.retroGamesPost gp ON gp.GAME_ID = o.GAME_ID
-LEFT  JOIN #equipos   eq ON eq.codigo = CASE WHEN o.en_casa = 1 THEN o.casa   ELSE o.visita END AND COALESCE(g.GAME_DT, gp.GAME_DT) BETWEEN eq.desde AND eq.hasta
-LEFT  JOIN #equipos   ri ON ri.codigo = CASE WHEN o.en_casa = 1 THEN o.visita ELSE o.casa   END AND COALESCE(g.GAME_DT, gp.GAME_DT) BETWEEN ri.desde AND ri.hasta
+LEFT  JOIN #equipos   eq ON eq.codigo = CASE WHEN o.en_casa = 1 THEN o.casa   ELSE o.visita END AND g.GAME_DT BETWEEN eq.desde AND eq.hasta
+LEFT  JOIN #equipos   ri ON ri.codigo = CASE WHEN o.en_casa = 1 THEN o.visita ELSE o.casa   END AND g.GAME_DT BETWEEN ri.desde AND ri.hasta
 WHERE   o.e4 < o.e3 AND o.e3 < o.e2 AND o.e2 < o.e1;
 
 -- =====================================================================================
@@ -82,7 +81,7 @@ WHERE   o.e4 < o.e3 AND o.e3 < o.e2 AND o.e2 < o.e1;
 WITH e AS (
     SELECT v.GAME_ID, v.BATTER_ID, v.EVENT_ID, v.[1B] AS s1, v.[2B] AS s2, v.[3B] AS s3, v.HR
     FROM   dbo.r24Events v INNER JOIN dbo.dglMaster m ON m.retroID = v.BATTER_ID
-    WHERE  v.BAT_EVENT_FL = 1
+    WHERE  v.BAT_EVENT_FL = 1 AND v.GAME_TYPE = 'R'
 ),
 prim AS (
     SELECT GAME_ID, BATTER_ID,

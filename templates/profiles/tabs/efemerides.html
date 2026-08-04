@@ -45,9 +45,15 @@ esta plantilla no arma ninguna frase ni decide ningún número. Si algo se lee m
           aria-controls="efem-lista" aria-expanded="false">Ver las {{ d.ocultas }} restantes</button>
   {% endif %}
 
+  {% comment %}
+  LA ADVERTENCIA DE LA TEMPORADA EN CURSO no es un adorno legal: es la única forma de que un perfil
+  que termina en 2025 no se lea como «este año no hizo nada». El archivo se regenera una vez al año,
+  después de que Retrosheet publica, así que entre marzo y la offseason siguiente lo que pasa en el
+  terreno todavía no está acá.
+  {% endcomment %}
   <div class="dgl-meta px-3 py-2 border-top">
     {{ d.total }} efeméride{{ d.total|pluralize:"s" }} en su carrera, de la más reciente a la más antigua.
-    Salen del archivo que se genera una vez al año, después de que Retrosheet publica.
+    La temporada en curso no está incluida.
   </div>
 </section>
 {% endwith %}

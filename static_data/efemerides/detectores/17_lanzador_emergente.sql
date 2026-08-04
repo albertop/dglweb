@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- UN LANZADOR SALE A BATEAR DE EMERGENTE. Medido: 22 veces, 15 lanzadores.
 --
 -- No es que le tocara batear por estar en el juego: es que el manager lo MANDÓ al plato a decidir un
@@ -27,15 +27,13 @@ WITH perfil AS (
 emergente AS (
     SELECT r.PLAYER_ID, r.GAME_ID, r.B_G_PH, r.B_H, r.B_AB, r.B_HR, r.B_RBI
     FROM   dbo.retroDailyReg r
-    UNION ALL
-    SELECT p.PLAYER_ID, p.GAME_ID, p.B_G_PH, p.B_H, p.B_AB, p.B_HR, p.B_RBI
-    FROM   dbo.retroDailyPost p
+
 )
 SELECT  'lanzador_emergente' AS tipo,
         'un turno de bateador emergente siendo lanzador' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
-        292948                                    AS universo,
+        288826                                    AS universo,
         1                                         AS situar,
         'Lo mandaron a batear de emergente siendo lanzador, contra {rival_nombre}: {detalle}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,

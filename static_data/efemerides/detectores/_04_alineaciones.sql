@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL PRELUDIO DE ALINEACIONES: quiénes estaban en el terreno en cada media entrada.
 --
 -- NO ES UN DETECTOR. Empieza por `_`.
@@ -28,11 +28,7 @@ FROM (
            e.POS3_FLD_ID, e.POS4_FLD_ID, e.POS5_FLD_ID, e.POS6_FLD_ID,
            e.POS7_FLD_ID, e.POS8_FLD_ID, e.POS9_FLD_ID
     FROM   dbo.retroEventsReg e
-    UNION ALL
-    SELECT p.GAME_ID, p.INN_CT, p.BAT_HOME_ID, p.PIT_ID, p.POS2_FLD_ID,
-           p.POS3_FLD_ID, p.POS4_FLD_ID, p.POS5_FLD_ID, p.POS6_FLD_ID,
-           p.POS7_FLD_ID, p.POS8_FLD_ID, p.POS9_FLD_ID
-    FROM   dbo.retroEventsPost p
+
 ) x
 GROUP BY x.GAME_ID, x.INN_CT, x.BAT_HOME_ID;
 

@@ -65,6 +65,9 @@ IF OBJECT_ID('tempdb..#puente') IS NOT NULL DROP TABLE #puente;
 
 SELECT  j.mlb_id,
         j.fecha,
+        -- El nombre viaja acá para que un detector de Statcast no tenga que volver a `#juegos` solo
+        -- por él — que es justo el descuido que duplicaba filas en los dobles juegos.
+        MIN(j.nombre)           AS nombre,
         MIN(j.game_id)          AS game_id,
         MIN(j.temporada)        AS temporada,
         MIN(j.game_type)        AS game_type,

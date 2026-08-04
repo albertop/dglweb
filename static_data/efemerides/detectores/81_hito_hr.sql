@@ -30,7 +30,7 @@ SELECT  'hito_hr' AS tipo,
         'bateador' AS rol,
         'completa' AS cobertura,
         2 AS situar,
-        292948 AS universo,
+        288826 AS universo,
         -- LA PLANTILLA NO ES CONSTANTE, y ese es el truco. El contrato deja que cada fila traiga la
         -- suya, así que el detector puede añadir la frase que el motor no sabe calcular: cuántos
         -- dominicanos han llegado A ESA CIFRA. Es lo que pide docs/EFEMERIDES.md 4.7 — un hito no

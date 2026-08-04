@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL PRELUDIO: las tablas de apoyo que TODOS los detectores usan.
 --
 -- NO ES UN DETECTOR. El motor corre los archivos que empiezan por `_` antes que los demás y NO les
@@ -94,10 +94,7 @@ SELECT  g.GAME_ID              AS game_id,
         g.AWAY_START_PIT_ID    AS abridor_visita,
         g.HOME_START_PIT_ID    AS abridor_casa
 INTO    #abridores
-FROM    dbo.retroGamesReg g
-UNION ALL
-SELECT  gp.GAME_ID, gp.AWAY_START_PIT_ID, gp.HOME_START_PIT_ID
-FROM    dbo.retroGamesPost gp;
+FROM    dbo.retroGamesReg g;
 
 CREATE UNIQUE CLUSTERED INDEX ix_abridores ON #abridores(game_id);
 
@@ -105,9 +102,36 @@ CREATE UNIQUE CLUSTERED INDEX ix_abridores ON #abridores(game_id);
 -- La línea de cada dominicano en cada juego, con el contexto y el WPA ya resueltos.
 --
 -- POR QUÉ ESTO ES LO QUE MÁS PAGA. Sin ella, cada uno de los ~30 detectores de juego repetía lo
--- mismo: unir `retroDailyReg` con `retroDailyPost`, entrar a `dglMaster`, agregar 16 millones de
--- eventos para sacar el WPA, y resolver equipos y abridores. Con ella, un detector es un `SELECT`
--- con un `WHERE` — y el trabajo caro se hace UNA vez para toda la corrida en vez de treinta.
+-- mismo: entrar a `dglMaster`, agregar 16 millones de eventos para sacar el WPA, y resolver equipos
+-- y abridores. Con ella, un detector es un `SELECT` con un `WHERE` — y el trabajo caro se hace UNA
+-- vez para toda la corrida en vez de treinta.
+--
+-- =====================================================================================
+-- SOLO TEMPORADA REGULAR. LA POSTEMPORADA NO ENTRA EN NINGÚN DETECTOR.
+-- =====================================================================================
+--
+-- Decisión del dueño (2026-08-04), y salió de un error publicado: el archivo decía que Albert Pujols
+-- había llegado a 700 jonrones y que **«solo 2 dominicanos han llegado ahí»**. Es falso — Pujols es
+-- el único. Lo que pasaba es que los acumulados sumaban octubre:
+--
+--     Albert Pujols     703 en regular + 19 en postemporada = 722
+--     Alex Rodríguez    696 en regular + 13                 = 709   <- cruzaba 700 sin haberlo hecho
+--
+-- Y NO ERA UN FALLO DE ESE DETECTOR SINO DEL PLANTEAMIENTO. Las cifras que la gente conoce, las que
+-- salen en los récords y en la prensa, son de TEMPORADA REGULAR. Un archivo que suma octubre produce
+-- números que no coinciden con ninguna fuente del mundo, y encima los produce con toda la seguridad
+-- de un dato exacto. El daño no se ve: el número parece razonable y está mal.
+--
+-- El diseño original decía lo contrario —que octubre contaba igual que junio— y era defendible en
+-- las gestas de un solo juego. Pero no se sostiene en cuanto un detector ACUMULA, y la coherencia
+-- entre unos y otros vale más que la cobertura de mil juegos de postemporada.
+--
+-- LO QUE SE PIERDE, medido: 1.878 juegos de postemporada y unas 4.100 líneas de juego-jugador de las
+-- 292.948 que había. Es el 1,4 %.
+--
+-- LA POSTEMPORADA VOLVERÁ, pero por su propia puerta: detectores de postemporada aparte, con sus
+-- umbrales medidos sobre octubre, que es donde un juego de 4 hits significa otra cosa. Mezclarla con
+-- la regular era lo que no podía seguir.
 --
 -- El nombre del jugador sale de `nameList`, siempre (ver docs/EFEMERIDES.md 3.0).
 IF OBJECT_ID('tempdb..#juegos') IS NOT NULL DROP TABLE #juegos;
@@ -120,14 +144,6 @@ WITH d AS (
            r.P_BB, r.P_HP, r.P_SO, r.P_GDP, r.P_PITCH
     FROM   dbo.retroDailyReg r
     INNER JOIN dbo.dglMaster m ON m.retroID = r.PLAYER_ID
-    UNION ALL
-    SELECT p.PLAYER_ID, p.GAME_ID, p.GAME_DT, p.SEASON, p.TEAM_ID, p.OPPONENT_ID, p.HOME_FL, 'P',
-           p.B_AB, p.B_H, p.B_2B, p.B_3B, p.B_HR, p.B_RBI, p.B_R, p.B_BB, p.B_SO, p.B_SB, p.B_CS,
-           p.B_TB, p.B_HP, p.B_GDP, p.B_SH,
-           p.P_G, p.P_GS, p.P_CG, p.P_SHO, p.P_SV, p.P_W, p.P_OUT, p.P_H, p.P_R, p.P_ER,
-           p.P_BB, p.P_HP, p.P_SO, p.P_GDP, p.P_PITCH
-    FROM   dbo.retroDailyPost p
-    INNER JOIN dbo.dglMaster m2 ON m2.retroID = p.PLAYER_ID
 ),
 -- =====================================================================================
 -- EL WPA DE `r24Events` ESTÁ SIEMPRE VISTO DESDE EL EQUIPO DE CASA. No desde el bateador.
@@ -154,11 +170,11 @@ WITH d AS (
 wb AS (SELECT GAME_ID, BATTER_ID  AS pid,
               SUM(CASE WHEN BAT_HOME_ID = 1 THEN WPA ELSE -WPA END) AS wpa,
               MAX(LI) AS li
-       FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 GROUP BY GAME_ID, BATTER_ID),
+       FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 AND GAME_TYPE = 'R' GROUP BY GAME_ID, BATTER_ID),
 wp AS (SELECT GAME_ID, PITCHER_ID AS pid,
               SUM(CASE WHEN BAT_HOME_ID = 1 THEN -WPA ELSE WPA END) AS wpa,
               MAX(LI) AS li
-       FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 GROUP BY GAME_ID, PITCHER_ID)
+       FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 AND GAME_TYPE = 'R' GROUP BY GAME_ID, PITCHER_ID)
 SELECT  d.PLAYER_ID, m.mlbID AS mlb_id, m.nameList AS nombre,
         d.GAME_ID AS game_id, CAST(d.GAME_DT AS date) AS fecha, d.SEASON AS temporada, d.gt AS game_type,
         d.TEAM_ID AS equipo, d.OPPONENT_ID AS rival, d.HOME_FL AS en_casa,
@@ -196,14 +212,14 @@ CREATE CLUSTERED INDEX ix_juegos ON #juegos(PLAYER_ID, game_id);
 -- `r24Events` NO trae la fecha: solo `GAME_ID`. Los detectores de evento la necesitan —una efeméride
 -- sin fecha no es una efeméride— así que se resuelve una vez acá y no en cada uno.
 --
--- Las dos tablas de juegos, porque la postemporada entra en todas las gestas (decisión del dueño).
+-- SOLO LOS JUEGOS DE TEMPORADA REGULAR, y no por ahorrar: es la RED DE SEGURIDAD de la decisión de
+-- arriba. Si un detector se olvidara de filtrar y colara un juego de octubre, acá no encontraría su
+-- fecha — y como todos rematan con `WHERE f.fecha IS NOT NULL`, la fila se cae sola en vez de
+-- publicarse. Un descuido se convierte en una ausencia y no en un dato falso.
 IF OBJECT_ID('tempdb..#fechas') IS NOT NULL DROP TABLE #fechas;
 SELECT  g.GAME_ID AS game_id, CAST(g.GAME_DT AS date) AS fecha
 INTO    #fechas
-FROM    dbo.retroGamesReg g
-UNION ALL
-SELECT  gp.GAME_ID, CAST(gp.GAME_DT AS date)
-FROM    dbo.retroGamesPost gp;
+FROM    dbo.retroGamesReg g;
 
 CREATE UNIQUE CLUSTERED INDEX ix_fechas ON #fechas(game_id);
 

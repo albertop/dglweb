@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- OCHO O MÁS HITS Y NI UNA CARRERA LIMPIA. Medido: 40 salidas, 25 lanzadores.
 --
 -- La gesta del que se pasa la tarde con hombres en base y no deja anotar a nadie. No es dominio —el
@@ -36,7 +36,7 @@ SELECT  'hits_sin_limpias' AS tipo,
         '8+ hits permitidos sin una carrera limpia' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
-        292948                                    AS universo,
+        288826                                    AS universo,
         1                                         AS situar,
         -- EL RIVAL VA PEGADO A LOS HITS, no al final. Con la forma anterior —«Le dieron {detalle}
         -- contra {rival_nombre}»— la coletilla de las carreras sucias se metía en medio y salía «10

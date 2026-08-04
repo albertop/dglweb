@@ -657,6 +657,18 @@ if ($null -ne $mejorNegativa -and $mejorNegativa -gt 400) {
 $filtradas = @($fusionados | Where-Object { $_.cobertura -ne 'completa' -and $_.veces_total })
 if ($filtradas) { $problemas += "$($filtradas.Count) fila(s) de cobertura parcial publican veces_total" }
 
+# NADA DE POSTEMPORADA. El archivo es de temporada regular (más el Juego de Estrellas, que tiene sus
+# propios detectores y su propio universo). El porqué está en `_00_comun.sql`: mezclar octubre hacía
+# que los acumulados dieran cifras que no coinciden con ninguna fuente — Alex Rodríguez cruzando los
+# 700 jonrones sin haberlos dado.
+#
+# Esto es la RED, no la regla: la regla vive en cada `.sql`. Un detector nuevo que se olvide de
+# filtrar aparece acá en vez de publicar una fila que nadie va a mirar dos veces.
+$octubre = @($fusionados | Where-Object { [string]$_.game_type -notin @('R', 'A', '-') })
+if ($octubre) {
+    $problemas += "$($octubre.Count) fila(s) no son de temporada regular: game_type $(($octubre.game_type | Select-Object -Unique) -join ', ')"
+}
+
 # UN DETECTOR QUE SITÚA PERO NO DECLARA SU GESTA publicaría «uno de los 93 dominicanos con .» —
 # la frase se arma con la gesta dentro, así que si viene vacía sale rota, no incompleta.
 $mudas2 = @($fusionados | Where-Object { [int]$_.situar -ne 0 -and [string]::IsNullOrWhiteSpace($_.gesta) })

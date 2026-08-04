@@ -11,7 +11,7 @@ SELECT  'hbp_recibidos' AS tipo,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,
-        292948 AS universo,
+        288826 AS universo,
         -- SIN COLETILLA (dueño, 2026-08-04). Decía «: llegó a base N veces» y era redundante — los
         -- pelotazos que acaba de nombrar el titular ya son la mitad de esas veces, así que el número
         -- no aportaba nada y sonaba a relleno.

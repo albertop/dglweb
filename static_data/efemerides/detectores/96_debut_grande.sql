@@ -30,8 +30,6 @@
 -- =====================================================================================
 WITH d AS (
     SELECT r.PLAYER_ID, r.GAME_ID, r.GAME_DT FROM dbo.retroDailyReg r
-    UNION ALL
-    SELECT o.PLAYER_ID, o.GAME_ID, o.GAME_DT FROM dbo.retroDailyPost o
 ),
 primero AS (
     SELECT  PLAYER_ID, GAME_ID,
@@ -40,7 +38,7 @@ primero AS (
 ),
 rvb AS (
     SELECT  e.GAME_ID, e.BATTER_ID AS pid, SUM(e.RUN_VALUE) AS rv
-    FROM    dbo.r24Events e WHERE e.BAT_EVENT_FL = 1
+    FROM    dbo.r24Events e WHERE e.BAT_EVENT_FL = 1 AND e.GAME_TYPE = 'R'
     GROUP BY e.GAME_ID, e.BATTER_ID
 ),
 debut AS (
@@ -53,7 +51,7 @@ SELECT  'debut_grande'                            AS tipo,
         'un debut de 1.5+ carreras de valor' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
-        292948                                    AS universo,
+        288826                                    AS universo,
         1                                         AS situar,
         'Debutó en Grandes Ligas con un juegazo contra {rival_nombre}: {detalle}.'
             -- El mejor de los once se nombra como lo que es. Se calcula acá y no en el motor porque

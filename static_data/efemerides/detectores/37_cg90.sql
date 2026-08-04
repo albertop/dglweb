@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Juego completo de menos de 90 lanzamientos. Medido: 8 veces, 7 lanzadores. Rareza 500.
 --
 -- DOS FILTROS QUE NO SON OPCIONALES, y sin ellos da 19 en vez de 8:
@@ -20,7 +20,7 @@ SELECT  'cg90' AS tipo,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,
-        251106 AS universo,
+        247310 AS universo,
         'Despachó a {rival_nombre} en juego completo con solo {detalle}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,
         0 AS event_id,
