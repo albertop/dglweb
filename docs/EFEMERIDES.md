@@ -268,11 +268,11 @@ dos.
 
 ---
 
-## 5. El inventario: 56 detectores
+## 5. El inventario: 58 detectores
 
 | grupo | detectores |
 | --- | ---: |
-| gestas de juego (5.1) | 27 |
+| gestas de juego (5.1) | 29 |
 | gestas de evento (5.2) | 18 |
 | hitos de carrera (5.4) | 7 |
 | fechas de persona (5.5) | 4 |
@@ -303,11 +303,13 @@ hoy; el exportador la recalcula en cada corrida.
 | `k10_bb4` | `P_SO >= 10` y `P_BB >= 4` — dominante y salvaje | 73 | 395 |
 | `boletos4` | `B_BB >= 4` | 75 | 394 |
 | `bases12` | `B_TB >= 12` — ver 5.1.7 | 85 | 388 |
+| `dobles3` | `B_2B >= 3` — ver 5.1.11 | 136 | 366 |
 | `k12` | `P_SO >= 12` | 137 | 365 |
 | `hits5` | `B_H >= 5` | 153 | 360 |
 | `anotadas4` | `B_R >= 4` | 233 | 340 |
 | `blanqueada` | `P_SHO >= 1` | 271 | 333 |
 | `cs3` ⚠️ | `B_CS >= 3` — **`signo = -1`**, ver 5.1.5 | 1 | **300** |
+| `gidp3` ⚠️ | `B_GDP >= 3` — **`signo = -1`**, ver 5.1.12 | 10 | **245** |
 | `paliza` ⚠️ | `P_H >= 10` y `P_R >= 10` — **`signo = -1`** | 19 | **230** |
 | `ponches5` ⚠️ | `B_SO >= 5` — **`signo = -1`** | 20 | **229** |
 | `hbp_propinados` ⚠️ | 3+ pelotazos propinados — **`signo = -1`**, ver 5.1.9 | 25 | **223** |
@@ -562,6 +564,45 @@ carreras dice cuánto **produjo**, el WPA cuánto **acercó la victoria**. Un ju
 alimentando el bono de impacto (4.3), que es donde el contexto debe pesar.
 
 Cobertura completa, 1910–2025.
+
+#### 5.1.11. `dobles3` — y por qué `extrabases4` no lo cubría
+
+No lo teníamos. Había `extrabases4`, que suma dobles, triples y jonrones, y por eso **un juego de
+tres dobles y nada más se le escapaba**: son tres extrabases, no cuatro.
+
+| dobles | dominicanos | toda la liga |
+| ---: | ---: | ---: |
+| **3** | **133** (80 jugadores) | 1.962 |
+| 4 | 3 | 53 |
+
+**X = 3**: 136 juegos en total, **1,17 por temporada**, rareza 366 — la misma liga que `hits5` (1,32)
+y `k12` (1,18). Con 4 quedarían tres juegos.
+
+Los tres de cuatro dobles: Rafael Ramírez (1986-05-21, 4 de 4), Dámaso García (1986-06-27, 4 de 4) y
+**Rafael Devers (2019-08-13, 4 dobles y 6 hits)**.
+
+El de Devers es el ejemplo perfecto de por qué existe la regla de fusión (sección 7): ese mismo juego
+ya estaba en la lista de 6 hits. Es **una** efeméride con dos etiquetas, no dos filas.
+
+#### 5.1.12. `gidp3` — la doble matanza del bateador
+
+Negativa, como `ponches5` y `cs3`.
+
+| GIDP en un juego | dominicanos | toda la liga |
+| ---: | ---: | ---: |
+| 2 | 539 (165 jugadores) | 9.222 |
+| **3** | **10** (10 jugadores) | 138 |
+| 4 | **0** | 2 |
+
+**X = 3**: diez juegos, 0,09 por temporada, rareza **245** en la escala negativa. Con 2 serían 549
+juegos —4,73 por temporada— y eso no es efeméride, es un martes.
+
+Ningún dominicano ha llegado a 4; en toda la liga solo ha pasado dos veces.
+
+Los diez, con un detalle que el `detalle` debe cargar: **tres de ellos lo hicieron en solo 3 turnos**
+—Teodoro Martínez (1974), Julio César Franco (1989) y José Bautista (2016)—, o sea que apagaron un
+rally en cada aparición. También están Miguel Tejada, Plácido Polanco, Jean Segura, Jhonny Peralta,
+Pedro Álvarez, Jesús Alou y **Albert Pujols** (2011-03-31).
 
 #### 5.1.6. Nadie ha bateado 4 jonrones
 
