@@ -100,3 +100,63 @@ SELECT  gp.GAME_ID, gp.AWAY_START_PIT_ID, gp.HOME_START_PIT_ID
 FROM    dbo.retroGamesPost gp;
 
 CREATE UNIQUE CLUSTERED INDEX ix_abridores ON #abridores(game_id);
+
+-- --- EL GRANO DE JUEGO, ya armado -----------------------------------------------------
+-- La línea de cada dominicano en cada juego, con el contexto y el WPA ya resueltos.
+--
+-- POR QUÉ ESTO ES LO QUE MÁS PAGA. Sin ella, cada uno de los ~30 detectores de juego repetía lo
+-- mismo: unir `retroDailyReg` con `retroDailyPost`, entrar a `dglMaster`, agregar 16 millones de
+-- eventos para sacar el WPA, y resolver equipos y abridores. Con ella, un detector es un `SELECT`
+-- con un `WHERE` — y el trabajo caro se hace UNA vez para toda la corrida en vez de treinta.
+--
+-- El nombre del jugador sale de `nameList`, siempre (ver docs/EFEMERIDES.md 3.0).
+IF OBJECT_ID('tempdb..#juegos') IS NOT NULL DROP TABLE #juegos;
+
+WITH d AS (
+    SELECT r.PLAYER_ID, r.GAME_ID, r.GAME_DT, r.SEASON, r.TEAM_ID, r.OPPONENT_ID, r.HOME_FL, 'R' AS gt,
+           r.B_AB, r.B_H, r.B_2B, r.B_3B, r.B_HR, r.B_RBI, r.B_R, r.B_BB, r.B_SO, r.B_SB, r.B_CS,
+           r.B_TB, r.B_HP, r.B_GDP,
+           r.P_G, r.P_GS, r.P_CG, r.P_SHO, r.P_SV, r.P_W, r.P_OUT, r.P_H, r.P_R, r.P_ER,
+           r.P_BB, r.P_HP, r.P_SO, r.P_GDP, r.P_PITCH
+    FROM   dbo.retroDailyReg r
+    INNER JOIN dbo.dglMaster m ON m.retroID = r.PLAYER_ID
+    UNION ALL
+    SELECT p.PLAYER_ID, p.GAME_ID, p.GAME_DT, p.SEASON, p.TEAM_ID, p.OPPONENT_ID, p.HOME_FL, 'P',
+           p.B_AB, p.B_H, p.B_2B, p.B_3B, p.B_HR, p.B_RBI, p.B_R, p.B_BB, p.B_SO, p.B_SB, p.B_CS,
+           p.B_TB, p.B_HP, p.B_GDP,
+           p.P_G, p.P_GS, p.P_CG, p.P_SHO, p.P_SV, p.P_W, p.P_OUT, p.P_H, p.P_R, p.P_ER,
+           p.P_BB, p.P_HP, p.P_SO, p.P_GDP, p.P_PITCH
+    FROM   dbo.retroDailyPost p
+    INNER JOIN dbo.dglMaster m2 ON m2.retroID = p.PLAYER_ID
+),
+-- El WPA por juego, de los dos lados. Para el LANZADOR va con el signo cambiado: lo que el bateador
+-- le quita a su equipo, el lanzador se lo da al suyo.
+wb AS (SELECT GAME_ID, BATTER_ID  AS pid, SUM(WPA) AS wpa, MAX(LI) AS li FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 GROUP BY GAME_ID, BATTER_ID),
+wp AS (SELECT GAME_ID, PITCHER_ID AS pid, -SUM(WPA) AS wpa, MAX(LI) AS li FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 GROUP BY GAME_ID, PITCHER_ID)
+SELECT  d.PLAYER_ID, m.mlbID AS mlb_id, m.nameList AS nombre,
+        d.GAME_ID AS game_id, CAST(d.GAME_DT AS date) AS fecha, d.SEASON AS temporada, d.gt AS game_type,
+        d.TEAM_ID AS equipo, d.OPPONENT_ID AS rival, d.HOME_FL AS en_casa,
+        COALESCE(eq.nombre, '') AS equipo_nombre,
+        COALESCE(ri.nombre, '') AS rival_nombre,
+        -- El abridor RIVAL: si el dominicano jugaba en casa, el rival abrió de visita. Es la vuelta
+        -- que se olvida y deja al jugador enfrentándose a su propio compañero.
+        COALESCE(op.nombre, '') AS oponente,
+        wb.wpa AS wpa_bat, wp.wpa AS wpa_pit,
+        COALESCE(wb.li, wp.li) AS li_max,
+        d.B_AB, d.B_H, d.B_2B, d.B_3B, d.B_HR, d.B_RBI, d.B_R, d.B_BB, d.B_SO, d.B_SB, d.B_CS,
+        d.B_TB, d.B_HP, d.B_GDP,
+        -- El sencillo no existe como columna en Retrosheet: se deduce restando extrabases a los hits.
+        (d.B_H - d.B_2B - d.B_3B - d.B_HR) AS B_1B,
+        d.P_G, d.P_GS, d.P_CG, d.P_SHO, d.P_SV, d.P_W, d.P_OUT, d.P_H, d.P_R, d.P_ER,
+        d.P_BB, d.P_HP, d.P_SO, d.P_GDP, d.P_PITCH
+INTO    #juegos
+FROM    d
+INNER JOIN dbo.dglMaster m ON m.retroID = d.PLAYER_ID
+LEFT  JOIN #equipos   eq ON eq.codigo = d.TEAM_ID     AND d.GAME_DT BETWEEN eq.desde AND eq.hasta
+LEFT  JOIN #equipos   ri ON ri.codigo = d.OPPONENT_ID AND d.GAME_DT BETWEEN ri.desde AND ri.hasta
+LEFT  JOIN #abridores ab ON ab.game_id = d.GAME_ID
+LEFT  JOIN #nombres   op ON op.retro_id = CASE WHEN d.HOME_FL = 1 THEN ab.abridor_visita ELSE ab.abridor_casa END
+LEFT  JOIN wb ON wb.GAME_ID = d.GAME_ID AND wb.pid = d.PLAYER_ID
+LEFT  JOIN wp ON wp.GAME_ID = d.GAME_ID AND wp.pid = d.PLAYER_ID;
+
+CREATE CLUSTERED INDEX ix_juegos ON #juegos(PLAYER_ID, game_id);
