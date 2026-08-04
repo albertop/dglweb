@@ -45,22 +45,36 @@ WITH conteo AS (
 ),
 -- La media entrada con MÁS dominicanos de cada juego. Un juego entra una sola vez aunque la
 -- formación se repita entrada tras entrada — la efeméride es del día, no de la entrada.
+-- LA MEDIA ENTRADA CON MÁS DOMINICANOS DE CADA JUEGO, entera. Antes esto agregaba con MAX y se
+-- quedaba solo con el número, así que la efeméride podía decir «seis dominicanos» pero no QUIÉNES:
+-- los nombres se habían perdido en el GROUP BY. Con `ROW_NUMBER` se conserva la fila completa —los
+-- nueve puestos— y de ahí salen los nombres. Lo pidió el dueño el 2026-08-04, y tiene razón: seis
+-- nombres dominicanos en fila es la efeméride; el número solo es el titular.
 mejor AS (
-    SELECT  c.game_id, MAX(c.dominicanos) AS dominicanos,
-            MIN(c.batea_casa) AS batea_casa
+    SELECT  c.game_id, c.dominicanos, c.batea_casa,
+            c.p1, c.p2, c.p3, c.p4, c.p5, c.p6, c.p7, c.p8, c.p9,
+            ROW_NUMBER() OVER (PARTITION BY c.game_id
+                               ORDER BY c.dominicanos DESC, c.inning, c.batea_casa) AS rn
     FROM    conteo c
     WHERE   c.dominicanos >= 6
-    GROUP BY c.game_id
 ),
--- El más reconocible de los que estaban en el terreno esa media entrada.
+-- El más reconocible de los que estaban en el terreno esa media entrada, y la lista de los seis.
 elegido AS (
     SELECT  m.game_id, m.dominicanos, m.batea_casa,
             (SELECT TOP 1 h.mlb_id FROM #huella h
-             WHERE h.retro_id IN (SELECT TOP 1 c2.p1 FROM conteo c2 WHERE c2.game_id = m.game_id AND c2.dominicanos = m.dominicanos)
-                OR h.retro_id IN (SELECT TOP 1 c2.p6 FROM conteo c2 WHERE c2.game_id = m.game_id AND c2.dominicanos = m.dominicanos)
-                OR h.retro_id IN (SELECT TOP 1 c2.p8 FROM conteo c2 WHERE c2.game_id = m.game_id AND c2.dominicanos = m.dominicanos)
-             ORDER BY h.juegos DESC, h.nombre) AS mlb_id
+             WHERE h.retro_id IN (m.p1, m.p2, m.p3, m.p4, m.p5, m.p6, m.p7, m.p8, m.p9)
+             ORDER BY h.juegos DESC, h.nombre) AS mlb_id,
+            -- «A, B, C, D, E y F»: la última coma se convierte en « y », como se lee en voz alta.
+            (SELECT STUFF(lista, LEN(lista) - CHARINDEX(',', REVERSE(lista)) + 1, 2, ' y ')
+             FROM (SELECT STUFF((SELECT ', ' + h2.nombre
+                                 FROM   #huella h2
+                                 WHERE  h2.retro_id IN (m.p1, m.p2, m.p3, m.p4, m.p5,
+                                                        m.p6, m.p7, m.p8, m.p9)
+                                 ORDER BY h2.nombre
+                                 FOR XML PATH(''), TYPE).value('.', 'nvarchar(max)'), 1, 2, '') AS lista) z
+            ) AS quienes
     FROM    mejor m
+    WHERE   m.rn = 1
 )
 SELECT  'seis_dominicanos'                        AS tipo,
         'fildeador'                               AS rol,
@@ -68,7 +82,8 @@ SELECT  'seis_dominicanos'                        AS tipo,
         0                                         AS situar,
         407816                                    AS universo,
         -- `situar = 0` por lo mismo que en el jardín y el cuadro: son seis hombres, no uno.
-        'Seis dominicanos a la vez en el terreno, con {equipo_nombre} contra {rival_nombre}: {detalle}.'
+        'Seis dominicanos a la vez en el terreno para {equipo_nombre}, contra {rival_nombre}: {detalle}.'
+            + ' Es el máximo que se ha visto — nadie ha puesto siete.'
             + CASE WHEN e.game_id = (SELECT TOP 1 x.game_id FROM elegido x
                                      INNER JOIN #fechas xf ON xf.game_id = x.game_id
                                      ORDER BY xf.fecha, x.game_id)
@@ -88,7 +103,7 @@ SELECT  'seis_dominicanos'                        AS tipo,
         e.dominicanos                             AS magnitud,
         NULL                                      AS wpa_jugador,
         NULL                                      AS li_max,
-        'es el máximo que se ha visto — nadie ha puesto siete' AS detalle,
+        e.quienes                                 AS detalle,
         COALESCE(eq.nombre, '')                   AS equipo_nombre,
         COALESCE(ri.nombre, '')                   AS rival_nombre,
         ''                                        AS oponente

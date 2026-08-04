@@ -25,14 +25,46 @@ SELECT  'cg90' AS tipo,
         0 AS event_id,
         j.game_type, j.equipo, j.rival, j.en_casa,
         1 AS signo,
-        (90 - j.P_PITCH) AS magnitud,
+        (90 - lz.lanzamientos) AS magnitud,
         j.wpa_pit AS wpa_jugador,
         j.li_max,
-        CAST(j.P_PITCH AS varchar(3)) + ' lanzamientos' AS detalle,
+        CAST(lz.lanzamientos AS varchar(3)) + ' lanzamientos' AS detalle,
         j.equipo_nombre, j.rival_nombre,
         '' AS oponente
 FROM    #juegos j
-WHERE   j.temporada >= 1989 AND j.P_PITCH > 0 AND j.P_PITCH < 90 AND j.P_OUT >= 27 AND j.P_CG >= 1;
+-- =====================================================================================
+-- EL CONTEO SALE DE STATCAST DESDE 2008, NO DE `P_PITCH`
+-- =====================================================================================
+--
+-- `retroDailyReg.P_PITCH` SUBCUENTA EN LOS JUEGOS MODERNOS, y no por poco. Lo cazó el dueño el
+-- 2026-08-04 leyendo que a Framber Valdez le poníamos 71 lanzamientos cuando la crónica del día
+-- decía 83. Contrastado contra Statcast, que cuenta lanzamiento por lanzamiento:
+--
+--     Sandy Alcántara     2019-05-19    89    89   <- coinciden
+--     Domingo Germán      2023-06-28    73    99   <- el juego PERFECTO
+--     Framber Valdez      2023-08-01    88    93
+--     Framber Valdez      2025-05-30    71    84
+--     Cristopher Sánchez  2025-07-22    87   106
+--
+-- El perfecto de Germán fueron 99 lanzamientos, no 73. TRES DE LOS OCHO JUEGOS QUE ESTE DETECTOR
+-- PUBLICABA NO CALIFICABAN: no eran juegos completos de menos de 90, y lo decíamos con dos cifras
+-- significativas. Quedan cinco.
+--
+-- Esto corrige de paso lo que el diseño afirmaba (docs/EFEMERIDES.md 5.1.8): que las dos fuentes
+-- coincidían donde se solapan. Coinciden en volumen, no en los casos que a este detector le importan
+-- — y son justo los extremos, que es donde un detector de mínimos vive.
+--
+-- ANTES DE 2008 NO HAY ALTERNATIVA y se sigue usando `P_PITCH`. Los tres de esa época —Odalis Pérez,
+-- Bartolo Colón y Pedro Astacio— rondan los 87-89, lejos del error de veinte lanzamientos que se ve
+-- en los modernos, pero quedan sin verificación cruzada posible. Es la misma honestidad de la 5.2.5:
+-- se usa lo mejor que hay y se deja escrito hasta dónde alcanza.
+CROSS APPLY (
+    SELECT CASE WHEN j.temporada >= 2008 AND sc.n > 0 THEN sc.n ELSE j.P_PITCH END AS lanzamientos
+    FROM  (SELECT COUNT(1) AS n FROM dbo.scastPitch s
+           WHERE s.pitcher = j.mlb_id AND CAST(s.game_date AS date) = j.fecha) sc
+) lz
+WHERE   j.temporada >= 1989 AND j.P_PITCH > 0 AND j.P_OUT >= 27 AND j.P_CG >= 1
+  AND   lz.lanzamientos < 90;
 
 -- =====================================================================================
 -- LA LISTA — para cuando pregunten «¿quiénes son esos, y cuándo?»
