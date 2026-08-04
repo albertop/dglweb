@@ -106,8 +106,8 @@ rareza = 600 × (1 − log(n) / log(N))
 ```
 
 `n` = cuántas veces ocurrió esa gesta en 116 temporadas. `N` = el universo del detector, y **no es
-uno solo: depende del `rol`** — 292.948 juegos-jugador, 822.764 turnos al bate, 622.652 bateadores
-enfrentados. Ver 5.2.2.
+uno solo: depende del grano** — 292.948 juegos-jugador, 822.764 turnos al bate, 622.652 bateadores
+enfrentados, 162.797 medias entradas lanzadas. Ver 5.2.3.
 
 La propiedad que importa: **un detector nuevo se calibra solo**. Si mañana se agrega uno que dispara
 5.000 veces, se hunde solo y no inunda el calendario. Nadie tiene que sentarse a decidir cuánto vale.
@@ -159,17 +159,17 @@ dos.
 
 ---
 
-## 5. El inventario: 38 detectores
+## 5. El inventario: 39 detectores
 
 | grupo | detectores |
 | --- | ---: |
 | gestas de juego (5.1) | 19 |
-| gestas de evento (5.2) | 8 |
+| gestas de evento (5.2) | 9 |
 | hitos de carrera (5.4) | 7 |
 | fechas de persona (5.5) | 4 |
 
-La `N` de cada grupo depende del `rol` — ver 5.2.2. La columna *rareza* es lo que da la fórmula hoy;
-el exportador la recalcula en cada corrida.
+La `N` de cada detector depende de su grano — ver 5.2.3. La columna *rareza* es lo que da la fórmula
+hoy; el exportador la recalcula en cada corrida.
 
 ### 5.1. Gestas de juego (`retroDaily*`)
 
@@ -223,6 +223,7 @@ rutina, no donde se vuelve única.
 | `triple_play_solo` | `TP_FL='T'`, los 3 outs del mismo fildeador, cero asistencias | **1** | 600 |
 | `walkoff_slam` | walk-off con 2 outs y bases llenas | 69 | 413 |
 | `walkoff_hr` | walk-off de jonrón | 262 | 355 |
+| `k4_inning` | 4 ponches en la misma entrada — ver 5.2.2 | 5 | 520 |
 | `nobletiger` | bases llenas, 0 outs, sale sin carrera — ver 5.2.1 | 324 | 340 |
 | `turno_clave` | `LI >= 2` **y** `WPA >= 0.40` | 154 | — |
 | `grand_slam` | `HR=1` y `RBI=4` | 520 | 325 |
@@ -274,17 +275,47 @@ vez. En **182 de los 2.522 casos el juego terminó en esa misma media entrada**,
 «próxima vez al bate»: hay que caer al marcador final del juego, y buscarlo en `retroGamesReg`
 **y en `retroGamesPost`**. Con solo la primera quedaban 2 casos de postemporada sin resolver.
 
-#### 5.2.2. El universo depende del `rol`
+#### 5.2.2. `k4_inning` — cuatro ponches en una entrada
 
-La `N` de la fórmula de rareza no es una sola. Medido:
+Solo se puede si un strike tres se le escapa al receptor y el bateador llega a primera: el lanzador
+poncha a cuatro y solo saca tres outs.
 
-| rol | universo | qué es |
+| | |
+| --- | ---: |
+| medias entradas lanzadas por dominicanos (`N`) | 162.797 |
+| con 3 ponches | 3.869 |
+| **con 4 ponches** | **5** |
+| 4 ponches, toda la liga | 100 |
+| 5 ponches, toda la liga | **0 — nunca ha pasado** |
+
+Rareza **520**, entre el no-hitter (490) y el juego perfecto (600). Los cinco:
+
+| fecha | lanzador | |
+| --- | --- | --- |
+| 1984-05-17 | Mario Soto | CIN, 3er inning |
+| 2003-06-11 | Octavio Dotel | HOU, 8vo |
+| 2012-06-05 | Francisco Liriano | MIN, 4to |
+| 2018-07-08 | Miguel Díaz | SD, **inning 11** |
+| 2021-07-25 | Domingo Germán | NYY, 7mo |
+
+#### 5.2.3. La `N` no depende del `rol`: depende del grano
+
+Primero se escribió que la `N` de la rareza dependía del `rol`. Con `k4_inning` quedó claro que eso
+era quedarse corto: dos detectores de lanzador pueden tener universos distintos, porque lo que
+cambia no es quién protagoniza sino **cuál es la unidad de oportunidad**.
+
+| grano | universo | qué se cuenta |
 | --- | ---: | --- |
-| bateador | 822.764 | turnos al bate de dominicanos |
-| lanzador | 622.652 | bateadores enfrentados por dominicanos |
+| juego-jugador | 292.948 | la línea de un dominicano en un juego |
+| turno al bate | 822.764 | un turno de un bateador dominicano |
+| bateador enfrentado | 622.652 | un turno contra un lanzador dominicano |
+| media entrada lanzada | 162.797 | una entrada de un lanzador dominicano |
 
-Un detector de lanzador que usara la `N` de bateador se estaría comparando contra un universo que no
-es el suyo. Cada detector declara su `rol` y el motor toma la `N` que corresponde.
+`nobletiger` y `k4_inning` son los dos de lanzador y **no comparten `N`**: uno se pregunta «de cada
+bateador que enfrentó», el otro «de cada entrada que lanzó».
+
+Cada detector declara su grano y el motor toma la `N` que corresponde. Usar la equivocada no da
+error: da un puntaje que parece razonable y está mal, que es peor.
 
 ### 5.3. El corte de `turno_clave`, medido
 
