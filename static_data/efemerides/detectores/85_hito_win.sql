@@ -35,7 +35,12 @@ SELECT  'hito_win' AS tipo,
         (c.ac_w / 50) * 50 AS magnitud,
         c.wpa_pit AS wpa_jugador,
         c.li_max,
-        'la ganó él mismo' AS detalle,
+        -- QUÉ HIZO ESE DÍA, que es lo único que informa. Decía «la ganó él mismo», que además de no
+        -- querer decir nada era redundante: si el contador de victorias subió, la ganó él.
+        'ese día lanzó ' + CAST(c.P_OUT / 3 AS varchar(3)) + CASE c.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + CASE WHEN c.P_OUT = 3 THEN ' entrada' ELSE ' entradas' END
+            + CASE WHEN c.P_ER = 0 THEN ' sin carreras limpias'
+                   WHEN c.P_ER = 1 THEN ' y permitió 1 limpia'
+                   ELSE ' y permitió ' + CAST(c.P_ER AS varchar(2)) + ' limpias' END AS detalle,
         c.equipo_nombre, c.rival_nombre,
         '' AS oponente
 FROM    #carrera c

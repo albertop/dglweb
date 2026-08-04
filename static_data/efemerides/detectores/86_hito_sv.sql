@@ -35,7 +35,9 @@ SELECT  'hito_sv' AS tipo,
         (c.ac_sv / 50) * 50 AS magnitud,
         c.wpa_pit AS wpa_jugador,
         c.li_max,
-        'lo rescató él' AS detalle,
+        -- Igual que en las victorias: lo que informa es cómo cerró, no que cerró.
+        'ese día cerró ' + CAST(c.P_OUT / 3 AS varchar(3)) + CASE c.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + CASE WHEN c.P_OUT = 3 THEN ' entrada' ELSE ' entradas' END
+            + CASE WHEN c.P_H = 0 THEN ' sin permitir hit' ELSE '' END AS detalle,
         c.equipo_nombre, c.rival_nombre,
         '' AS oponente
 FROM    #carrera c

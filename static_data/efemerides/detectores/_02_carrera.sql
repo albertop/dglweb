@@ -23,6 +23,7 @@ SELECT  j.PLAYER_ID, j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id, j.game
         j.wpa_bat, j.wpa_pit, j.li_max,
         -- Lo que hizo ESE día. El detector lo usa para el detalle del texto.
         j.B_H, j.B_HR, j.B_RBI, j.B_SB, j.P_SO, j.P_W, j.P_SV,
+        j.P_OUT, j.P_H, j.P_ER,
         -- Y el acumulado HASTA ese juego, incluido.
         SUM(j.B_H)   OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_h,
         SUM(j.B_HR)  OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_hr,
