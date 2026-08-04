@@ -1803,3 +1803,35 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
    `height` ocupa todo el ancho de su contenedor, y esa es una avería que no puede depender de que una
    hoja de estilos cargue. Acá solo va la disposición. */
 .dgl-pie-x { display: inline-flex; align-items: center; gap: .4rem; font-size: .875rem; }
+
+/* ─── EFEMÉRIDES DEL PERFIL ────────────────────────────────────────────────────────────────────
+   La carrera contada en hechos fechados. Es el único tab del perfil que muestra PROSA y no cifras,
+   así que no usa `dgl-stats-table`: esa es monoespaciada y de cuerpo chico, buena para alinear
+   números y mala para leer un párrafo. */
+.dgl-efem { list-style: none; margin: 0; padding: 0; }
+.dgl-efem-item { padding: .7rem 1rem; border-top: 1px solid var(--dgl-line); }
+/* La primera no lleva línea arriba: ya la pone el borde del panel. */
+.dgl-efem-item:first-child { border-top: 0; }
+
+.dgl-efem-fecha {
+  display: block; color: var(--dgl-muted); font-size: .74rem;
+  text-transform: uppercase; letter-spacing: .03em; margin-bottom: .15rem;
+}
+.dgl-efem-titular { margin: 0; font-size: .92rem; line-height: 1.45; }
+/* La frase que sitúa —«uno de los 16 dominicanos con un ciclo»— va más apagada que el titular: es
+   contexto, no la noticia. */
+.dgl-efem-situacion { margin: .1rem 0 0; color: var(--dgl-muted); font-size: .82rem; line-height: 1.4; }
+
+/* LAS DESHONRAS SE MARCAN, NO SE ESCONDEN. Un sombrero dorado es parte de la carrera igual que un
+   ciclo, y el archivo las publica a propósito. La barra en el margen basta para que no se lean como
+   una hazaña; el color no cambia porque el texto ya dice lo que pasó. */
+.dgl-efem-item.es-negativa { border-left: 3px solid var(--dgl-line); }
+
+/* EL RECORTE DEL «VER MÁS». Las filas están TODAS en el HTML: esto es un corte visual, no una
+   página, y por eso no hay petición nueva ni cambia la URL — que es justamente lo que haría un
+   paginador, y de paso devolvería al lector al primer tab.
+
+   A diferencia de los widgets de portada, acá el recorte NO se limita a pantallas angostas:
+   noventa y nueve entradas de prosa son largas también con ratón. */
+.dgl-efem-de-mas { display: none; }
+#efem-lista.esta-desplegado .dgl-efem-de-mas { display: block; }

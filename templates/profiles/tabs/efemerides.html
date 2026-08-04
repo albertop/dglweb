@@ -1,0 +1,53 @@
+{% comment %}
+La carrera contada en hechos fechados, del más nuevo al más viejo.
+
+NO ES UNA TABLA, y es deliberado. El resto de los tabs son rejillas de números y usan
+`dgl-stats-table`, que es monoespaciada y de cuerpo pequeño — perfecta para alinear cifras y pésima
+para leer prosa. Acá cada fila es una o dos frases escritas, así que va como lista.
+
+EL TEXTO LLEGA HECHO. `titular` y `situacion` los redacta el exportador (ver docs/EFEMERIDES.md);
+esta plantilla no arma ninguna frase ni decide ningún número. Si algo se lee mal, se arregla en el
+`.sql` que lo produce, no acá.
+{% endcomment %}
+{% with d=tab.data %}
+<section class="dgl-panel mb-4">
+  <ol class="dgl-efem" id="efem-lista">
+    {% for fila in d.rows %}
+    <li class="dgl-efem-item{% if fila.negativa %} es-negativa{% endif %}{% if fila.de_mas %} dgl-efem-de-mas{% endif %}">
+      {% comment %}
+      La fecha REAL, que no siempre es la que trae la columna `fecha`: en el debut y el fallecimiento
+      esa columna guarda el aniversario de este año y el año de verdad está en `temporada`. El tab ya
+      resolvió cuál de las dos vale, así que acá solo se pinta.
+
+      Cuando no se pudo armar la fecha completa —un 29 de febrero de año no bisiesto— queda el año
+      solo, que es lo que sí se sabe.
+      {% endcomment %}
+      {% if fila.fecha %}
+      <time class="dgl-efem-fecha" datetime="{{ fila.fecha|date:'Y-m-d' }}">{{ fila.fecha|date:"j \d\e F \d\e Y" }}</time>
+      {% else %}
+      <time class="dgl-efem-fecha" datetime="{{ fila.anio }}">{{ fila.anio }}</time>
+      {% endif %}
+      <p class="dgl-efem-titular">{{ fila.titular }}</p>
+      {% if fila.situacion %}<p class="dgl-efem-situacion">{{ fila.situacion }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+
+  {% comment %}
+  El botón solo existe si hay algo escondido. `data-desplegar` es el mismo mecanismo que usan los
+  widgets de portada: `site.js` alterna `esta-desplegado` en la lista y le cambia el texto a «Ver
+  menos». Sin JavaScript el botón no hace nada — por eso `aria-expanded` arranca en falso y el CSS
+  esconde de la veintiuna en adelante, que es un recorte visual y no una pérdida: las filas están
+  todas en el HTML.
+  {% endcomment %}
+  {% if d.ocultas %}
+  <button type="button" class="dgl-lideres-mas" data-desplegar="#efem-lista"
+          aria-controls="efem-lista" aria-expanded="false">Ver las {{ d.ocultas }} restantes</button>
+  {% endif %}
+
+  <div class="dgl-meta px-3 py-2 border-top">
+    {{ d.total }} efeméride{{ d.total|pluralize:"s" }} en su carrera, de la más reciente a la más antigua.
+    Salen del archivo que se genera una vez al año, después de que Retrosheet publica.
+  </div>
+</section>
+{% endwith %}

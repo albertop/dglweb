@@ -9,6 +9,7 @@ URL and the other tabs are untouched.
 
 from collections import defaultdict
 from collections.abc import Sequence
+from datetime import date
 from itertools import groupby
 from typing import Any
 
@@ -37,6 +38,7 @@ from dglweb.stats.models import (
     BattingPost,
     CareerLevel,
     DomSalary,
+    Efemeride,
     Fielding,
     FieldingCareer,
     FieldingPost,
@@ -1003,11 +1005,116 @@ class SalariesTab(PlayerTab):
         }
 
 
+class EfemeridesTab(PlayerTab):
+    """Lo que hizo un día como hoy: su carrera contada en hechos fechados, del más nuevo al más viejo.
+
+    Se alimenta de `dgl_efemerides`, el dataset que produce `exportar_efemerides.ps1` con el texto YA
+    REDACTADO. Acá no se redacta nada ni se calcula nada: se ordena y se pinta. El diseño del archivo
+    está en `docs/EFEMERIDES.md`.
+
+    POR QUÉ «EFEMÉRIDES» Y NO «HITOS». Un hito es una marca de carrera —el jonrón 500, las 3.000
+    imparables— y esos son siete de los noventa y seis detectores. Lo demás son walk-offs, ciclos,
+    juegos sin hits… y también sombreros dorados y palizas, que de hito no tienen nada. «Efemérides»
+    es la única palabra que cubre la hazaña y la deshonra sin mentir sobre ninguna de las dos.
+
+    NO SE PAGINA: SE REVELA. Medido, el reparto es muy desigual — Juan Marichal tiene 99 filas, solo
+    diez peloteros pasan de cincuenta y **835 de los 984 tienen menos de diez**. Así que el problema
+    no es el volumen medio sino la cola: un perfil de noventa y nueve entradas de prosa es un muro,
+    sobre todo en un teléfono.
+
+    Y UN PAGINADOR CLÁSICO NO SIRVE ACÁ, aunque parezca lo obvio. El tab activo no vive en la URL —la
+    página renderiza los cinco y Bootstrap enseña uno— así que un `?page=2` recargaría el perfil
+    entero y aterrizaría en Bateo. El lector perdería el sitio donde estaba para ver la página dos.
+
+    Por eso se manda todo y se enseñan las primeras `_VISIBLES`, con un botón que revela el resto.
+    Reusa `data-desplegar` de `site.js`, que ya hace exactamente esto en los widgets de portada: sin
+    petición nueva, sin cambiar la URL y sin perder el tab. Con el corte en veinte, los 835 del caso
+    normal no ven botón ninguno.
+
+    NO HAY FK A `Player` A PROPÓSITO. `Efemeride.mlb_id` es un entero suelto porque el archivo cubre
+    los 984 del maestro dominicano, y ahí entran peloteros de Ligas Negras que no están en la tabla
+    de estadísticas del sitio. Con una FK, cargar el CSV fallaría por ellos.
+    """
+
+    key = "efemerides"
+    label = "Efemérides"
+    template = "profiles/tabs/efemerides.html"
+    base_order = 60  # después de Puestos (40) y del hueco que deja Salarios (50)
+
+    # EL CUMPLEAÑOS NO ENTRA, y es lo único que se excluye.
+    #
+    # Su titular está escrito para el calendario, no para una carrera: dice «Cumple 68 años», que es
+    # una afirmación sobre HOY. En una lista cronológica quedaría fechado en el año de nacimiento y
+    # diría «Cumple 68 años» al lado de 1958, que se contradice solo. El resto de las gestas de
+    # persona —debut y fallecimiento— sí narran un hecho fechado y se quedan.
+    _FUERA_DEL_PERFIL = ("cumpleanos",)
+
+    # Cuántas se ven sin desplegar. Veinte deja fuera del botón a los 835 peloteros que tienen menos
+    # de diez, y le pone un techo cómodo a la cola de Marichal.
+    _VISIBLES = 20
+
+    def _consulta(self, player: Player) -> models.QuerySet[Efemeride]:
+        return Efemeride.objects.filter(mlb_id=player.player_id).exclude(tipo__in=self._FUERA_DEL_PERFIL)
+
+    def applies_to(self, player: Player) -> bool:
+        return self._consulta(player).exists()
+
+    def context(self, player: Player) -> dict[str, Any]:
+        # DE LA MÁS NUEVA A LA MÁS VIEJA, POR `temporada` Y NO POR `fecha`.
+        #
+        # Parece lo mismo y no lo es. En las gestas de juego `fecha` trae el día real, pero en las de
+        # persona trae el ANIVERSARIO DE ESTE AÑO —así es como el archivo se consulta por «un día
+        # como hoy»— y el año de verdad vive en `temporada`. Ordenar por `fecha` pondría el debut de
+        # 1960 arriba del todo, con fecha de 2026.
+        filas = list(self._consulta(player).order_by("-temporada", "-mes", "-dia", "-puntaje"))
+        return {
+            "rows": [self._fila(fila, indice) for indice, fila in enumerate(filas)],
+            "total": len(filas),
+            # Lo que dice el botón. Cero significa que no hay botón: la plantilla no lo pinta.
+            "ocultas": max(0, len(filas) - self._VISIBLES),
+        }
+
+    @classmethod
+    def _fila(cls, fila: Efemeride, indice: int) -> dict[str, Any]:
+        return {
+            "fecha": _fecha_real(fila),
+            "anio": fila.temporada,
+            "titular": fila.titular,
+            "situacion": fila.situacion,
+            "tipo": fila.tipo,
+            # El sitio las puede presentar distinto sin tener que saber qué tipos son deshonras.
+            "negativa": fila.signo < 0,
+            # La marca que el CSS usa para esconderlas hasta que se pulsa «Ver más». Se decide acá y
+            # no en la plantilla: `forloop.counter` compararía contra un número escrito a mano en el
+            # HTML, y entonces el corte viviría en dos sitios.
+            "de_mas": indice >= cls._VISIBLES,
+        }
+
+
+def _fecha_real(fila: Efemeride) -> date | None:
+    """El día en que pasó de verdad, no el aniversario con que viaja en el archivo.
+
+    El día y el mes de `fecha` siempre son correctos; el año solo lo es en las gestas que cuelgan de
+    un juego. En las de persona el año está en `temporada`, así que la fecha real se arma con las dos
+    columnas — y así sale bien para las dos formas sin preguntar de qué tipo es la fila.
+
+    Devuelve `None` si la combinación no existe (un 29 de febrero cuyo año no es bisiesto). No se
+    inventa el 28: la plantilla se queda con el año, que es lo que sí se sabe.
+    """
+    if fila.fecha.year == fila.temporada:
+        return fila.fecha
+    try:
+        return date(fila.temporada, fila.fecha.month, fila.fecha.day)
+    except ValueError:
+        return None
+
+
 REGISTRY: list[PlayerTab] = [
     BattingTab(),
     PitchingTab(),
     FieldingTab(),
     PuestosTab(),
+    EfemeridesTab(),
     # ─── Salarios: DESHABILITADO A PROPÓSITO ────────────────────────────────────────────────────
     # SalariesTab(),
     #
