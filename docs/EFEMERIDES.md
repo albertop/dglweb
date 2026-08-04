@@ -268,11 +268,11 @@ dos.
 
 ---
 
-## 5. El inventario: 58 detectores
+## 5. El inventario: 59 detectores
 
 | grupo | detectores |
 | --- | ---: |
-| gestas de juego (5.1) | 29 |
+| gestas de juego (5.1) | 30 |
 | gestas de evento (5.2) | 18 |
 | hitos de carrera (5.4) | 7 |
 | fechas de persona (5.5) | 4 |
@@ -293,6 +293,7 @@ hoy; el exportador la recalcula en cada corrida.
 | `no_hitter` | `P_H = 0`, 27+ outs | 10 | 490 |
 | `robadas4` | `B_SB >= 4` | 14 | 474 |
 | `k15` | `P_SO >= 15` | 16 | 468 |
+| `gidp_inducidos` | `P_GDP >= 4` — ver 5.1.13 | 19 | 460 |
 | `ciclo` | 1B, 2B, 3B y HR en el mismo juego | 20 | 457 |
 | `extrabases4` | `B_2B + B_3B + B_HR >= 4` | 33 | 433 |
 | `cg_1hit` | juego completo de un solo hit | 37 | 428 |
@@ -603,6 +604,28 @@ Los diez, con un detalle que el `detalle` debe cargar: **tres de ellos lo hicier
 —Teodoro Martínez (1974), Julio César Franco (1989) y José Bautista (2016)—, o sea que apagaron un
 rally en cada aparición. También están Miguel Tejada, Plácido Polanco, Jean Segura, Jhonny Peralta,
 Pedro Álvarez, Jesús Alou y **Albert Pujols** (2011-03-31).
+
+#### 5.1.13. `gidp_inducidos` — la otra cara del `gidp3`
+
+La misma jugada vista desde el montículo, y acá es **hazaña**: inducir dobles matanzas es salir de
+los líos con un solo lanzamiento. `signo = +1`.
+
+| inducidas en un juego | dominicanos | toda la liga |
+| ---: | ---: | ---: |
+| 3 | 160 (60 lanzadores) | 6.270 |
+| **4** | **18** (14 lanzadores) | 868 |
+| **5** | **1** | 82 |
+| 6 | **0** | 5 |
+
+**X = 4**: 19 juegos, 0,16 por temporada, rareza **460** — arriba del todo, entre el ciclo (457) y
+los 15 ponches (468). Con 3 serían 179 juegos, 1,54 por temporada, que es zona corriente.
+
+El récord dominicano: **Luis Perdomo, 28 de agosto de 2016 — cinco dobles matanzas inducidas en un
+juego completo de una sola carrera limpia.** Ningún dominicano ha llegado a seis.
+
+**Pedro Astacio aparece dos veces** (1992 y 1996), y el suyo del 3 de julio de 1992 fue juego
+completo sin carreras limpias. Es el caso que `veces_jugador` convierte en «por segunda vez en su
+carrera».
 
 #### 5.1.6. Nadie ha bateado 4 jonrones
 
