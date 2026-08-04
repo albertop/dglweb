@@ -105,8 +105,9 @@ saber algo de eso, el diseño está mal.
 rareza = 600 × (1 − log(n) / log(N))
 ```
 
-`n` = cuántas veces ocurrió esa gesta en 116 temporadas. `N` = el universo del detector
-(**292.948** juegos-jugador para las de juego, **822.764** turnos para las de evento).
+`n` = cuántas veces ocurrió esa gesta en 116 temporadas. `N` = el universo del detector, y **no es
+uno solo: depende del `rol`** — 292.948 juegos-jugador, 822.764 turnos al bate, 622.652 bateadores
+enfrentados. Ver 5.2.2.
 
 La propiedad que importa: **un detector nuevo se calibra solo**. Si mañana se agrega uno que dispara
 5.000 veces, se hunde solo y no inunda el calendario. Nadie tiene que sentarse a decidir cuánto vale.
@@ -158,16 +159,16 @@ dos.
 
 ---
 
-## 5. El inventario: 37 detectores
+## 5. El inventario: 38 detectores
 
 | grupo | detectores |
 | --- | ---: |
 | gestas de juego (5.1) | 19 |
-| gestas de evento (5.2) | 7 |
+| gestas de evento (5.2) | 8 |
 | hitos de carrera (5.4) | 7 |
 | fechas de persona (5.5) | 4 |
 
-`N` de juego = 292.948 · `N` de evento = 822.764. La columna *rareza* es lo que da la fórmula hoy;
+La `N` de cada grupo depende del `rol` — ver 5.2.2. La columna *rareza* es lo que da la fórmula hoy;
 el exportador la recalcula en cada corrida.
 
 ### 5.1. Gestas de juego (`retroDaily*`)
@@ -222,6 +223,7 @@ rutina, no donde se vuelve única.
 | `triple_play_solo` | `TP_FL='T'`, los 3 outs del mismo fildeador, cero asistencias | **1** | 600 |
 | `walkoff_slam` | walk-off con 2 outs y bases llenas | 69 | 413 |
 | `walkoff_hr` | walk-off de jonrón | 262 | 355 |
+| `nobletiger` | bases llenas, 0 outs, sale sin carrera — ver 5.2.1 | 324 | 340 |
 | `turno_clave` | `LI >= 2` **y** `WPA >= 0.40` | 154 | — |
 | `grand_slam` | `HR=1` y `RBI=4` | 520 | 325 |
 | `walkoff` | último turno, en casa, 9no o más, WPA positivo | 938 | 299 |
@@ -233,7 +235,63 @@ rutina, no donde se vuelve única.
 - **`triple_play_solo`** — Rafael Furcal, 10 de agosto de 2003, campocorto, quinto inning. De los
   13 sin asistencia que cubre Retrosheet, uno es dominicano.
 
+#### 5.2.1. `nobletiger` — el escape
+
+**N**o-**O**uts **B**ases-**L**oaded **E**nding with **T**eam **I**ncapable of **G**etting **E**asy
+**R**un: el lanzador se encuentra **bases llenas y ningún out**, y sale del inning **sin permitir
+carrera**.
+
+Medido sobre lanzadores dominicanos:
+
+| | |
+| --- | ---: |
+| veces que enfrentaron bases llenas sin outs | 2.522 |
+| **escaparon con cero carreras** | **324** (12,9 %) |
+| permitieron exactamente una | 596 |
+| permitieron dos o más | 1.436 |
+| de los escapes, en el 9no inning o más | 44 |
+| de los escapes, en postemporada | 6 |
+
+Rareza **340** sobre el universo de lanzador (ver 5.2.2).
+
+**La magnitud NO es el `LI` del momento, es el `WPA` del escape.** Se probó con `LI` y el máximo
+entre los 324 escapes fue 1,44 — no separa nada. Sumando el WPA del lanzador desde la situación
+hasta el final de la media entrada, la escala se abre de golpe:
+
+| | | |
+| --- | --- | ---: |
+| 2016-07-19 | Jeurys Familia, 9no | **+0,890** |
+| 2012-09-29 | Kelvin Herrera, inning **14** | +0,878 |
+| 2004-04-27 | Francisco Cordero, 9no | +0,877 |
+| 2003-09-05 | Julián Tavárez, 9no | +0,701 |
+
+Un escape de +0,890 es ganar el juego prácticamente solo. Los 44 del noveno en adelante son los que
+el componente de impacto (4.3) levanta hasta arriba, y con razón.
+
+**Detalle de implementación que no es opcional.** Para saber si entró carrera hay que comparar el
+marcador del equipo al bate en el momento del aprieto contra el marcador cuando le toca batear otra
+vez. En **182 de los 2.522 casos el juego terminó en esa misma media entrada**, así que no hay
+«próxima vez al bate»: hay que caer al marcador final del juego, y buscarlo en `retroGamesReg`
+**y en `retroGamesPost`**. Con solo la primera quedaban 2 casos de postemporada sin resolver.
+
+#### 5.2.2. El universo depende del `rol`
+
+La `N` de la fórmula de rareza no es una sola. Medido:
+
+| rol | universo | qué es |
+| --- | ---: | --- |
+| bateador | 822.764 | turnos al bate de dominicanos |
+| lanzador | 622.652 | bateadores enfrentados por dominicanos |
+
+Un detector de lanzador que usara la `N` de bateador se estaría comparando contra un universo que no
+es el suyo. Cada detector declara su `rol` y el motor toma la `N` que corresponde.
+
 ### 5.3. El corte de `turno_clave`, medido
+
+Primero, la escala de `LI`, porque el umbral no significa nada sin ella. Verificado sobre 4.777.761
+turnos desde 2000: **media 0,940**, máximo **7,17**, `LI >= 2` es el **4,5 %** de los turnos y
+`LI >= 3` el **0,65 %**. O sea que está normalizado como manda el estándar —promedio 1— y un umbral
+de 2 significa «el doble de tensión que un turno cualquiera».
 
 | corte | turnos |
 | --- | ---: |
@@ -380,20 +438,36 @@ de comparación enseña exactamente lo que agregó la temporada nueva y nada má
 
 ---
 
-## 10. Supuestos que tomé, y cómo cambiarlos
+## 10. Supuestos, y lo que ya está confirmado
 
-Ninguno de estos está confirmado por el dueño. Están acá para que se vean, no escondidos en el
-código.
+### 10.1. Confirmado por el dueño
 
-1. **Los hitos de carrera cuentan solo temporada regular.** Es como se cuentan oficialmente. Si la
-   postemporada debe sumar, cambia el `UNION` del detector de hitos y los 818 cruces se recalculan.
-2. **Los 18 debutantes de 2026 sí aparecen** con cumpleaños y debut, porque esas fechas salen de
-   `dglMaster` y no de Retrosheet. No tendrán gestas hasta que Retrosheet les asigne `retroID`. Si se
-   prefiere que no aparezcan del todo hasta entonces, es un `WHERE retroID IS NOT NULL` en los tres
-   detectores de persona.
-3. **La postemporada entra** en todas las gestas, con bono de contexto. Aporta poco en conteo
-   —7 hechos de 549, y 4 de 154 momentos— porque son 1.878 juegos contra 203.908. Su valor está en
-   que esos pocos son de octubre.
+**El debutante nunca sale en las efemérides de su propio año.** Se inscribe en `dglMaster`
+*después* de debutar, y el archivo se genera *después* de que Retrosheet publica. O sea que **al
+momento de correr el script, todo el que está en `dglMaster` ya tiene `retroID`**, y entra completo
+—gestas, debut y cumpleaños— en la misma corrida.
+
+Esto invalida un supuesto que yo había escrito acá: razoné sobre el estado de la base **a mitad de
+temporada**, que es cuando la miré, y no sobre el estado **en el momento de la corrida**. Son
+distintos, y el que manda es el segundo. Los 18 sin `retroID` de hoy no son un caso de diseño: son
+una foto de agosto.
+
+**Consecuencia práctica — esto se convierte en una comprobación, no en un supuesto.** El exportador
+cuenta cuántas filas de `dglMaster` no tienen `retroID` y **lo reporta**. En una corrida normal ese
+número es **0**. Si no lo es, algo pasó —Retrosheet no cubrió a alguien, o se inscribió a un jugador
+que no ha debutado— y hay que mirarlo antes de subir el CSV, no después.
+
+**La postemporada entra en todas las gestas**, con bono de contexto. Aporta poco en conteo —7 hechos
+de 549, y 4 de 154 momentos— porque son 1.878 juegos contra 203.908. Su valor está en que esos pocos
+son de octubre.
+
+### 10.2. Sin confirmar
+
+Está acá para que se vea, no escondido en el código.
+
+1. **Los hitos de carrera cuentan solo temporada regular.** Es como se cuentan oficialmente, y es lo
+   único que queda por decidir tras confirmarse que la postemporada entra en todo lo demás. Si debe
+   sumar también acá, cambia el `UNION` del detector de hitos y los 818 cruces se recalculan.
 
 ## 11. Fuera de alcance, por ahora
 
