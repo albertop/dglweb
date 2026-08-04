@@ -4,8 +4,8 @@ Un archivo estático, generado una vez al año, con lo que pasó **un día como 
 protagonizado por dominicanos. El sitio no calcula nada: filtra por mes y día, ordena por puntaje y
 pinta.
 
-Este documento es el diseño. Todos los números que aparecen abajo están **medidos contra
-`DGL` en SQL Server** el 2026-08-03, no estimados.
+Este documento es el diseño. Todos los números que aparecen abajo están **medidos contra `DGL` en
+SQL Server**, no estimados. Última revisión completa: **2026-08-04**, con 71 detectores corriendo.
 
 ---
 
@@ -66,32 +66,51 @@ Todos los detectores devuelven **exactamente las mismas columnas**. Esta es la p
 agregar una efeméride sea barato: el detector dice *qué pasó, a quién y cuándo*; el motor hace todo
 lo demás igual para todos.
 
+Son **25 columnas**, y la lista vive en la constante `$CONTRATO` del motor. Si a un detector le falta
+una, la corrida **aborta entera** en vez de colar filas mutiladas que nadie va a mirar hasta que
+salgan mal en la página. Si devuelve una de más, el motor **avisa** y sigue: casi siempre es una
+columna mal nombrada.
+
+**Las que declara el detector:**
+
 | columna | qué es |
 | --- | --- |
 | `tipo` | el slug del detector: `ciclo`, `hr3`, `walkoff`, `hito_hr`… |
+| `gesta` | qué se cuenta, en palabras: «5+ hits en un juego» — ver 3.7 |
 | `rol` | `bateador` \| `lanzador` \| `fildeador` \| `corredor` \| `persona` — ver 3.1 |
+| `cobertura` | `completa` \| `parcial` — hasta dónde alcanza su fuente, ver 5.3 |
+| `universo` | la `N` de la rareza, que depende del **grano** — ver 5.8 |
+| `plantilla` | la forma del titular, con marcadores `{campo}` — ver 3.4 |
+| `situar` | `0` \| `1` \| `2` — si la frase «uno de los N» aplica, ver 3.5 |
 | `mlb_id` | el jugador, ya traducido desde `retroID` por `dglMaster` |
 | `nombre` | de `dglMaster.nameList`, SIEMPRE — ver 3.0 |
 | `fecha` | la del juego, o la del cumpleaños/debut/fallecimiento |
 | `temporada` | |
 | `game_id`, `event_id` | de Retrosheet; `event_id` es 0 en las gestas de juego completo |
 | `game_type` | `R` \| `P` \| `A` (Juego de Estrellas) \| `-` (sin juego) |
-| `equipo`, `rival`, `en_casa` | |
+| `equipo`, `rival`, `en_casa` | los códigos de Retrosheet |
+| `equipo_nombre`, `rival_nombre` | el nombre de la época, resuelto por el preludio — ver 3.6 |
+| `oponente` | el lanzador o bateador al que enfrentó, cuando la gesta es de un turno |
 | `signo` | `+1` hazaña, `-1` deshonra — ver 4.5 |
 | `magnitud` | el número que define la gesta: 3 jonrones, 15 ponches, 0,87 de WPA |
 | `wpa_jugador` | cuánto movió la probabilidad de ganar ese juego |
 | `li_max` | el leverage más alto en que estuvo |
 | `detalle` | los datos propios del tipo, para el texto |
-| **`cobertura`** | el rango de años que el detector puede ver — ver 5.2.5 |
-| **`veces_total`** | cuántas veces ha pasado en la historia dominicana — ver 3.3 |
-| **`jugadores_total`** | cuántos dominicanos DISTINTOS lo han hecho |
-| **`orden`** | qué número es esta, en orden cronológico. `1` = la primera vez |
-| **`veces_jugador`** | cuántas veces lo ha hecho ESTE jugador |
-| **`orden_jugador`** | cuál de las suyas es esta |
 
-Los cinco de conteo **los calcula el motor**, no el detector. Un detector no puede saberlos: dependen
-de todas las filas de su tipo, y él solo ve las suyas. `cobertura` sí la declara el detector, porque
-es lo único que él sabe y el motor no: hasta dónde alcanza su fuente.
+**Las que agrega el motor**, y que ningún detector podría saber porque dependen de todas las filas de
+su tipo y él solo ve las suyas:
+
+| columna | qué es |
+| --- | --- |
+| `veces_total` | cuántas veces ha pasado en la historia dominicana — ver 3.3 |
+| `jugadores_total` | cuántos dominicanos DISTINTOS lo han hecho |
+| `orden` | qué número es esta, en orden cronológico. `1` = la primera vez |
+| `veces_jugador` | cuántas veces lo ha hecho ESTE jugador |
+| `orden_jugador` | cuál de las suyas es esta |
+| `rareza`, `puntaje` | la sección 4 |
+| `mes`, `dia`, `anos` | derivados de `fecha`, para que el sitio filtre sin parsear |
+| `titular`, `situacion` | el texto ya redactado — ver 3.4 |
+| `etiquetas` | los otros tipos que dispararon sobre el mismo hecho — ver 7 |
 
 ### 3.0. EL NOMBRE SALE DE `nameList`. SIEMPRE.
 
@@ -150,10 +169,18 @@ El triple play sin asistencia lo hace **el fildeador**. Sin `rol`, el detector t
 `BATTER_ID` y la efeméride quedaría atribuida al bateador rival — o sea, exactamente al revés de lo
 que pasó.
 
-`robo_home` (5.2.6) estrenó el quinto: **`corredor`**. Quien roba home no batea ni lanza, está en
+`robo_home` (5.2) estrenó el quinto: **`corredor`**. Quien roba home no batea ni lanza, está en
 tercera. Dos detectores han obligado ya a ampliar esta lista, así que conviene asumir que habrá más.
 
 `rol = persona` es para cumpleaños, debut y fallecimiento, que no cuelgan de ningún juego.
+
+**El `rol` no tiene por qué ser constante dentro de un detector.** `estrellas_actuacion` (5.2.12) lo
+decide fila por fila —`CASE WHEN a.P_OUT > 0 THEN 'lanzador' ELSE 'bateador' END`— porque en el Juego
+de Estrellas la misma consulta recoge al que dio el jonrón y al que se llevó la victoria. El contrato
+pide una columna, no una constante.
+
+La familia de alineaciones (5.2.13) usa `fildeador` para gestas que no son de un fildeo sino de una
+**foto de la defensa**. Es el rol correcto igual: nadie bateó ni lanzó, estaban parados en el terreno.
 
 ### 3.2. Lo que un detector NO hace
 
@@ -201,6 +228,114 @@ números coinciden.
 a ciegas. Ahora es **dato en la fila**, no un número escondido en el puntaje: el sitio lo puede decir
 con palabras además de ordenar por él.
 
+### 3.4. El texto: la plantilla la declara el detector, la rellena el motor
+
+El diseño original decía que el detector «no escribe texto». En la práctica eso obligaba a poner la
+redacción en el motor, y entonces agregar una efeméride dejaba de ser tocar un solo archivo — que es
+la propiedad que sostiene todo esto (sección 8).
+
+La solución conserva las dos cosas: el detector declara la **forma** como una constante de su
+`SELECT`, con marcadores; el motor los rellena con los valores de la fila.
+
+```sql
+'Conectó 3 jonrones contra {rival_nombre}: {detalle}.' AS plantilla,
+```
+
+El detector no redacta ni sabe de conteos: declara la forma y el motor la completa con lo que el
+detector no puede saber. Así la consulta y su texto se leen juntos, de un vistazo, en el mismo
+archivo.
+
+El motor produce **dos** campos de texto y el sitio los pinta seguidos:
+
+| campo | de dónde sale |
+| --- | --- |
+| `titular` | la plantilla del detector, con los `{campo}` sustituidos |
+| `situacion` | la frase «uno de los N dominicanos…», que arma el motor — ver 3.5 |
+
+Una autocomprobación (8.1) verifica que **ninguna fila publicada conserve un `{campo}` sin rellenar**:
+una plantilla mal escrita deja el marcador crudo en la página, y eso se ve.
+
+### 3.5. `situar` tiene TRES estados, no dos
+
+Dice si la frase «uno de los N dominicanos que lo ha logrado» tiene sentido para esa gesta. Lo
+declara el detector porque es lo único que él sabe. **No se puede decidir por `rol`**: `debut` también
+es `rol = persona` y ahí la frase sí vale.
+
+| valor | qué significa | quién lo usa |
+| ---: | --- | --- |
+| **1** | la frase aplica siempre | los 55 detectores de gesta |
+| **0** | la frase no aplica nunca | `cumpleanos`, `fallecimiento`, la familia de alineaciones, `primero_posicion` |
+| **2** | solo si es **el primero o el único** | `debut` y los 7 hitos de carrera |
+
+**El `2` apareció con el debut y es el estado que el diseño no tenía.** Los 984 del maestro debutaron,
+así que «Es uno de los 984 dominicanos que lo ha logrado» no dice absolutamente nada. Pero «Fue el
+primer dominicano en llegar a Grandes Ligas» es de las mejores efemérides del archivo, y se perdía
+entera si el detector se apagaba con `situar = 0`. Con `2` el motor calla en las 983 y habla en la
+que importa.
+
+**El `0` de las colectivas es distinto y llegó después.** `jardin_dominicano`, `cuadro_dominicano` y
+`seis_dominicanos` publicaban «Fue el primer dominicano en lograrlo» para gestas de tres, cuatro o
+seis hombres a la vez. La frase del motor habla en singular por construcción, y acá el sujeto es
+plural: no hay valor de `situar` que la arregle. Lo que sí valía —que fue la primera vez que se vio—
+se calcula dentro del propio `.sql` y se pega al titular.
+
+`primero_posicion` lleva `0` por lo contrario: su titular **ya dice** que fue el primero, y añadirle
+«fue el primer dominicano en lograrlo» sería repetirlo con otras palabras.
+
+### 3.6. Los nombres de equipo son los de la época, no los de hoy
+
+Pedido del dueño: la efeméride tiene que decir contra quién fue. Y decirlo bien — Felipe Alou jugó
+para los **San Francisco Giants**, no para «SFN», y quien enfrentó a los Montreal Expos en 1979 no
+enfrentó a los Washington Nationals.
+
+El preludio `_00_comun.sql` arma la tabla `#equipos` con el nombre **vigente en cada rango de
+fechas**, y los detectores la cruzan por código *y* por fecha:
+
+```sql
+LEFT JOIN #equipos eq ON eq.codigo = g.HOME_TEAM_ID
+                     AND f.fecha BETWEEN eq.desde AND eq.hasta
+```
+
+Hacen falta **las dos tablas de equipos**, y esto se midió: `retroTeams_6d` da los rangos de fechas
+por franquicia pero no cubre todos los códigos; `retroTeams` cubre 292 códigos pero sin rango. Con
+solo la primera quedaban **131 pares equipo-fecha sin resolver** de 158.127. Se usa `retroTeams_6d`
+y se cae a `retroTeams` cuando no hay rango.
+
+**El centinela de `lastGame`.** En `retroTeams_6d`, un `lastGame` de `1899-12-30` significa **equipo
+vigente**, no que dejó de jugar en 1899. Regla del dueño. Sin traducirlo a «hasta hoy», todos los
+equipos actuales quedaban fuera de rango y ninguna efeméride moderna resolvía su nombre.
+
+### 3.7. `gesta`: la frase tiene que decir QUÉ se cuenta
+
+El campo más joven del contrato, y salió de un error que estuvo publicado meses:
+
+> Disparó 6 hits contra Detroit Tigers: 6 turnos, 4 empujadas.
+> *Es uno de los 93 dominicanos que **lo** ha logrado.*
+
+**Noventa y tres dominicanos no han dado 6 hits en un juego: han dado CINCO O MÁS**, que es donde
+`hits5` puso su corte. El titular habla del caso concreto y el denominador cuenta la categoría, así
+que el «lo» los pegaba mal. El dueño lo cazó sobre tres detectores a la vez —`hits5`, `k12` con 14
+ponches contra un umbral de 12, y `k15` con 17 contra 15—.
+
+**El motor no puede deducirlo.** Solo el `.sql` sabe dónde puso su corte, así que la gesta la declara
+el detector, igual que la `plantilla`. Es un sintagma nominal, no una oración, para que encaje en las
+tres construcciones:
+
+| | |
+| --- | --- |
+| resto | «Es uno de los 93 dominicanos **con 5+ hits en un juego**.» |
+| primero | «Fue el primer dominicano **con 3+ jonrones en un juego**.» |
+| único | «Es el único dominicano **con un juego perfecto**.» |
+
+**Lo que se perdió al hacerlo, y por qué se aceptó.** La construcción con «con» no tiene verbo, así
+que desaparece la distinción entre «lo ha logrado» y «le ha pasado» que se había introducido para las
+deshonras (4.5). Se aceptó porque decir QUÉ se cuenta importa más que el matiz del verbo — y porque
+el matiz no se pierde del todo: sobrevive en la coletilla, que sigue diciendo «Para él fue la 3ª de
+sus 5 veces» o «A él le pasó 3 veces» según el signo.
+
+Una autocomprobación (8.1) verifica que **ningún detector que sitúa deje la gesta vacía**: la frase se
+arma con ella dentro, así que sin gesta no sale incompleta, sale rota.
+
 ---
 
 ## 4. El puntaje: 0–1000
@@ -215,7 +350,7 @@ rareza = 600 × (1 − log(n) / log(N))
 
 `n` = cuántas veces ocurrió esa gesta en 116 temporadas. `N` = el universo del detector, y **no es
 uno solo: depende del grano** — 292.948 juegos-jugador, 822.764 turnos al bate, 622.652 bateadores
-enfrentados, 162.797 medias entradas lanzadas. Ver 5.2.11.
+enfrentados, 162.797 medias entradas lanzadas. Ver 5.8.
 
 La propiedad que importa: **un detector nuevo se calibra solo**. Si mañana se agrega uno que dispara
 5.000 veces, se hunde solo y no inunda el calendario. Nadie tiene que sentarse a decidir cuánto vale.
@@ -239,26 +374,81 @@ que no pueden contradecirse: si la efeméride dice «el primero», el puntaje lo
 > Los cuatro topes —**600 / 200 / 150 / 50**— son **las únicas constantes puestas a mano** en todo el
 > sistema. Cualquier otra cosa sale de los datos.
 
-### 4.5. Los hechos negativos corren en otra escala
+### 4.5. Los hechos negativos corren a MEDIA ESCALA EN TODO
 
 Medido: **ponchar 5 veces en un juego es exactamente tan raro como batear el ciclo** — 20 veces cada
 uno. La fórmula de rareza les daría el mismo 457, porque la rareza no distingue una hazaña de una
 vergüenza.
 
-Por eso `signo = -1` cambia dos cosas:
+`signo = -1` cambia **cuatro** cosas, y las tres últimas se descubrieron corriendo el motor:
 
-1. la rareza corre en **0–300** en vez de 0–600 (el ponche cae a **229**, por debajo de las 6
-   empujadas, que es donde debe estar);
-2. **no aplica el bono de impacto** — usar el valor absoluto del WPA premiaría la mala noche.
+| componente | positivo | negativo |
+| --- | ---: | ---: |
+| rareza | 0–600 | **0–300** |
+| magnitud | 0–200 | **0–100** |
+| impacto | 0–150 | **0** |
+| relieve | 0–50 | **0** |
+| **techo** | **1000** | **400** |
+
+**El diseño solo partía la rareza, y no alcanzaba.** Con 33 detectores corriendo salió el caso que lo
+prueba: `cs3` —atrapado robando tres veces, cosa que pasó **una sola vez** en la historia dominicana—
+sacaba **550** y le empataba a un juego de **tres jonrones** (552). La rareza estaba correctamente
+partida; lo que lo subía era todo lo demás.
+
+- **La magnitud tenía que partirse igual.** Con `n = 1` el percentil satura en el tope de su tipo, así
+  que `cs3` cobraba los 200 completos. A media escala cobra 100.
+- **El relieve no se da nunca.** Ser «el único dominicano al que le ha pasado» no es un honor, y
+  premiarlo era la otra mitad de lo que ponía a `cs3` a la altura de un juegazo.
+- **El impacto ya estaba fuera** por el diseño: usar el valor absoluto del WPA premiaría la mala
+  noche, que es exactamente al revés.
+
+Hoy `cs3` saca **400** —el techo exacto de su escala— y queda por debajo de cualquier gesta real. Una
+autocomprobación (8.1) verifica en cada corrida que **ninguna deshonra pase de 400**.
+
+**Y el verbo también cambia con el signo.** La primera versión decía «lo ha logrado» para todo, y la
+muestra de redacción lo dejó en evidencia: *«Bateó para 3 dobles matanzas… Fue el primer dominicano
+en lograrlo»*. Nadie **logra** un ponche; a una deshonra **le pasa**.
+
+| | positivo | negativo |
+| --- | --- | --- |
+| único | «Es el único dominicano que lo ha logrado.» | «Es el único dominicano al que le ha pasado.» |
+| primero | «Fue el primer dominicano en lograrlo.» | «Fue el primer dominicano al que le pasó.» |
+| resto | «Es uno de los N dominicanos que lo ha logrado.» | «Le ha pasado a N dominicanos.» |
 
 El sitio recibe el `signo` y los puede presentar aparte, sin mezclarlos con las gestas.
 
 ### 4.6. Cumpleaños, debut y fallecimiento
 
-La rareza no significa nada acá: todo el mundo tiene cumpleaños. Corren en escala propia **0–250**,
-siempre por debajo de cualquier gesta real, escalada por la **huella del jugador** —juegos de su
-carrera, que ya está en `retroDailyReg`— para que el cumpleaños de Pedro Martínez no pese igual que
-el de alguien con tres juegos. Con bono por aniversario redondo: 50 años, 25 del debut.
+La rareza no significa nada acá: todo el mundo tiene cumpleaños. **Y no hizo falta una escala aparte
+para eso** — el propio mecanismo los hunde solo, que es la propiedad de la sección 4.1.
+
+Su universo es `N = 984`, el maestro entero, y su magnitud es la **huella del jugador**: los juegos de
+su carrera, contados en `retroDailyReg`, para que el cumpleaños de Pedro Martínez no pese igual que el
+de alguien con tres juegos. Nadie mantiene una lista de «importantes».
+
+| detector | `n` | rareza | puntaje máximo |
+| --- | ---: | ---: | ---: |
+| `debut` | 984 de 984 | **0,0** | 200 |
+| `cumpleanos` | 923 de 984 | **5,6** | 206 |
+| `fallecimiento` | 61 de 984 | **242,1** | **442** |
+
+Con `n` casi igual a `N` la rareza se va a cero por construcción, y lo que queda es la magnitud: puro
+tamaño de carrera, 0–200. Es exactamente el techo de 250 que el diseño quería, sin escribir la regla.
+
+#### 4.6.1. ⚠️ El fallecimiento se sale del techo, y hay que decidirlo
+
+`fallecimiento` **no** sigue ese patrón, porque 61 de 984 sí es raro: la fórmula le da **242 de
+rareza** y el máximo del tipo llega a **442**. Eso lo pone por encima de gestas reales —`robo_home`
+(397) y `jardin_dominicano` (374) tienen techos menores— y contradice el principio del diseño de que
+una fecha de persona nunca desplace a una gesta.
+
+**No está corregido.** Es una decisión del dueño, no mía, y hay tres salidas razonables:
+
+1. dejarlo — el aniversario de la muerte de un pelotero es noticia y quizá deba pesar;
+2. darle universo propio (los 61 fallecidos) para que la rareza se vaya a cero como en los otros dos;
+3. aplicarle un techo explícito, como la escala negativa.
+
+Queda anotado acá y no enterrado en el `.sql`, que es la regla de la sección 10.
 
 ### 4.7. Los hitos de carrera se puntúan por el número
 
@@ -268,687 +458,333 @@ dos.
 
 ---
 
-## 5. El inventario: 63 detectores
-
-| grupo | detectores |
-| --- | ---: |
-| gestas de juego (5.1) | 32 |
-| gestas de evento (5.2) | 20 |
-| hitos de carrera (5.4) | 7 |
-| fechas de persona (5.5) | 4 |
-
-La `N` de cada detector depende de su grano — ver 5.2.11. La columna *rareza* es lo que da la fórmula
-hoy; el exportador la recalcula en cada corrida.
-
-### 5.1. Gestas de juego (`retroDaily*`)
-
-| detector | umbral | veces | rareza |
-| --- | --- | ---: | ---: |
-| `perfecto` | sin H, sin BB, sin HP, 27+ outs | 1 | 600 |
-| `cg90` | juego completo bajo 90 lanzamientos — ver 5.1.8 | 8 | 500 |
-| `fouls_juego` | 16+ fouls en un juego ⚠️ 2008+ — ver 5.1.9 | 11 | 476 |
-| `rv_pitcheo` | 5+ carreras EVITADAS — ver 5.1.10 | 40 | 402 |
-| `rv_bateo` | 5+ carreras de valor generadas — ver 5.1.10 | 94 | 378 |
-| `hbp_recibidos` | 2+ pelotazos recibidos — ver 5.1.9 | 120 | 372 |
-| `no_hitter` | `P_H = 0`, 27+ outs | 10 | 490 |
-| `robadas4` | `B_SB >= 4` | 14 | 474 |
-| `k15` | `P_SO >= 15` | 16 | 468 |
-| `gidp_inducidos` | `P_GDP >= 4` — ver 5.1.13 | 19 | 460 |
-| `ciclo_inverso` | HR, 3B, 2B y 1B EN ESE ORDEN — ver 5.2.10 | 1 | 600 |
-| `ciclo_natural` | 1B, 2B, 3B y HR EN ESE ORDEN — ver 5.2.10 | 0 | — |
-| `ciclo` | 1B, 2B, 3B y HR en el mismo juego | 20 | 457 |
-| `extrabases4` | `B_2B + B_3B + B_HR >= 4` | 33 | 433 |
-| `cg_1hit` | juego completo de un solo hit | 37 | 428 |
-| `cg_dominante` | CG, 10+ K, cero limpias | 41 | 423 |
-| `rbi7` | `B_RBI >= 7` | 43 | 421 |
-| `hr3` | `B_HR >= 3` — nadie ha llegado a 4, ver 5.1.6 | 64 | 402 |
-| `triples2` | `B_3B >= 2` — ver 5.1.1 | 74 | 395 |
-| `k10_bb4` | `P_SO >= 10` y `P_BB >= 4` — dominante y salvaje | 73 | 395 |
-| `boletos4` | `B_BB >= 4` | 75 | 394 |
-| `bases12` | `B_TB >= 12` — ver 5.1.7 | 85 | 388 |
-| `dobles3` | `B_2B >= 3` — ver 5.1.11 | 136 | 366 |
-| `k12` | `P_SO >= 12` | 137 | 365 |
-| `hits5` | `B_H >= 5` | 153 | 360 |
-| `anotadas4` | `B_R >= 4` | 233 | 340 |
-| `blanqueada` | `P_SHO >= 1` | 271 | 333 |
-| `cs3` ⚠️ | `B_CS >= 3` — **`signo = -1`**, ver 5.1.5 | 1 | **300** |
-| `gidp3` ⚠️ | `B_GDP >= 3` — **`signo = -1`**, ver 5.1.12 | 10 | **245** |
-| `paliza` ⚠️ | `P_H >= 10` y `P_R >= 10` — **`signo = -1`** | 19 | **230** |
-| `sombrero_platino` ⚠️ | `B_SO = 5` — **`signo = -1`**, ver 5.1.14 | 20 | **229** |
-| `sombrero_dorado` ⚠️ | `B_SO = 4` — **`signo = -1`**, ver 5.1.14 | 499 | **152** |
-| `sombrero_titanio` ⚠️ | `B_SO >= 6` — nunca ha pasado, ver 5.1.14 | 0 | — |
-| `hbp_propinados` ⚠️ | 3+ pelotazos propinados — **`signo = -1`**, ver 5.1.9 | 25 | **223** |
-
-#### 5.1.0. Cada cuánto pasa cada cosa
-
-Las veces totales no dicen si un detector es ruidoso: hay que dividir por las 116 temporadas. Esta
-es la tabla para decidir umbrales de aquí en adelante.
-
-| detector | veces | por temporada |
-| --- | ---: | ---: |
-| `blanqueada` | 271 | 2,34 |
-| `anotadas4` | 233 | 2,01 |
-| `hits5` | 153 | 1,32 |
-| `k12` | 137 | 1,18 |
-| `bases12` | 85 | 0,73 |
-| `boletos4` | 75 | 0,65 |
-| `triples2` | 75 | 0,65 |
-| `hr3` | 64 | 0,55 |
-| `rbi7` | 43 | 0,37 |
-| `cg_dominante` | 41 | 0,35 |
-| `cg_1hit` | 37 | 0,32 |
-| `extrabases4` | 33 | 0,28 |
-| `ciclo` | 20 | 0,17 |
-| `sombrero_platino` | 20 | 0,17 |
-| `k15` | 16 | 0,14 |
-| `robadas4` | 14 | 0,12 |
-| `no_hitter` | 10 | 0,09 |
-
-**`hits5` está en 1,32 por temporada** — aproximadamente uno al año, o sea nada. Se revisó porque
-parecía mucho en términos absolutos y no lo es. Y no tiene punto intermedio: subirlo a 6 lo llevaría
-de 153 a **7**, de uno al año a uno cada 17 años.
-
-Los dos que más volumen mueven, ya sin `bases10`, son `blanqueada` y `anotadas4` — ver 5.1.7 para
-por qué `bases10` se eliminó.
-
-#### 5.1.1. `rbi7` y no `rbi6`
-
-Decisión del dueño. El umbral estaba en 6 y subió a 7. Medido, la diferencia es grande:
-
-| empujadas | veces | jugadores |
-| ---: | ---: | ---: |
-| 6 | 122 | 61 |
-| 7 | 32 | 21 |
-| 8 | 7 | 6 |
-| 9 | 3 | 3 |
-| **10** | **1** | **1** |
-
-Con `>= 6` eran 165 hechos y rareza 357. Con `>= 7` son **43 y rareza 421** — pasa de estar entre
-las corrientes a estar entre las buenas. El tope dominicano son **10 empujadas en un juego**, una
-sola vez: Alex Rodríguez, 26 de abril de 2005, con 3 jonrones y 13 bases alcanzadas.
-
-#### 5.1.2. Cómo se eligió el umbral de los triples, y por qué NO hay un detector de 3
-
-Medido:
-
-| triples en un juego | dominicanos | toda la liga |
-| ---: | ---: | ---: |
-| 2 | 74 | 2.019 |
-| 3 | **1** | 39 |
-
-Con `>= 2` el detector queda en rareza 395, en el centro del inventario — ni ruido ni pieza de
-museo. Con `>= 3` daría una sola fila.
-
-**Y no hace falta un detector aparte para el de 3.** El único juego de tres triples —Rafael Furcal,
-21 de abril de 2002— entra por `triples2` y **el componente de magnitud (4.2) lo sube solo** hasta el
-tope de su tipo. Eso es precisamente para lo que existe ese componente: un detector define *qué
-cuenta*, la magnitud define *cuánto*.
-
-Es el patrón a seguir para cualquier umbral nuevo: se elige el corte donde la gesta deja de ser
-rutina, no donde se vuelve única.
-
-#### 5.1.3. Los siete juegos de 6 hits
-
-Mismo patrón que los triples: entran por `hits5` y la magnitud los sube sola. De los 153 juegos de
-5 o más hits, **7 son de 6 hits, por 7 jugadores distintos** — y seis de los siete fueron de 6-de-6:
-
-| fecha | jugador | |
-| --- | --- | --- |
-| 1964-07-10 | Jesús Alou | 6-6, 1 HR |
-| 1993-07-02 | Sammy Sosa | 6-6 |
-| 2004-05-08 | Alfonso Soriano | 6-6, 4 RBI |
-| 2004-05-27 | Carlos Peña | 6-6, **2 HR y 5 RBI** |
-| 2013-05-28 | Jean Segura | 6 de 7 |
-| 2019-08-13 | Rafael Devers | 6-6, 3 RBI |
-| 2023-05-26 | Luis García | 6-6 |
-
-Dos nombres de esta lista son la prueba de las reglas de la 3.0: **Sammy Sosa** —que concatenando
-saldría como «Samuel Peralta»— y **Luis García**, que son tres jugadores distintos en el maestro.
-
-#### 5.1.4. Las 14 de `robadas4`, y la única de 5
-
-Es el detector más raro del grupo de juego (rareza 474). Las 14, completas — **12 jugadores
-distintos**, con Luis Polonia y Elly De La Cruz repitiendo:
-
-| robadas | fecha | jugador | |
-| ---: | --- | --- | --- |
-| **5** | 2008-06-14 | **Willy Taveras** | COL vs CHW |
-| 4 | 1984-04-25 | Dámaso García | TOR |
-| 4 | 1992-06-10 | Luis Polonia | CAL |
-| 4 | 1993-09-29 | Sammy Sosa | CHC |
-| 4 | 1994-06-26 | Luis Polonia | NYY |
-| 4 | 1998-08-01 | José Offerman | KC |
-| 4 | 2000-05-17 | Luis Castillo | FLA |
-| 4 | 2004-06-19 | Ángel Berroa | KC |
-| 4 | 2007-09-15 | Rafael Furcal | LAD |
-| 4 | 2009-08-15 | Julio Borbón | TEX |
-| 4 | 2018-05-15 | Jean Segura | SEA |
-| 4 | 2023-04-26 | Esteury Ruiz | OAK |
-| 4 | 2024-05-16 | Elly De La Cruz | CIN |
-| 4 | 2024-07-28 | Elly De La Cruz | CIN |
-
-**En 13 de los 14 no atraparon a nadie robando.** El único atrapado es De La Cruz en el primero de
-los suyos. Es el tipo de dato que el campo `detalle` debe cargar: la gesta es «4 robadas», pero
-«4 de 4» es mejor efeméride que «4 de 5».
-
-#### 5.1.5. `cs3` — el umbral se puso en 3, no en 4
-
-Se pidió «atrapado robando con 4+». Medido, ese detector nacería vacío:
-
-| atrapado en un juego | dominicanos | toda la liga |
-| ---: | ---: | ---: |
-| 2 | 110 (53 jugadores) | 2.726 |
-| **3** | **1** | 45 |
-| 4 | **0** | **1 en 116 años** |
-
-Ningún dominicano ha sido atrapado cuatro veces en un juego, y en toda la liga ha pasado una sola
-vez. Por eso el umbral queda en **3**, siguiendo el criterio de 5.1.2: se corta donde deja de ser
-rutina, no donde se vuelve único. Si algún día hay un 4, la magnitud lo sube sola.
-
-El único: **Luis Polonia, 24 de mayo de 1993 — atrapado 3 veces, robó 0.** El mismo Polonia que
-aparece dos veces en la lista de `robadas4`. Ladrón y víctima.
-
-Rareza **300**, el tope de la escala negativa (4.5), porque `n = 1`.
-
-#### 5.1.7. Las bases alcanzadas van en 12, y `bases10` se borró
-
-Había DOS detectores del mismo stat, `bases10` y `bases12`, que contradice el patrón de 5.1.2: un
-umbral por gesta, y la magnitud se encarga del resto. Se elimina `bases10` y queda `bases12`.
-
-| bases | acumulado | por temporada |
-| ---: | ---: | ---: |
-| 9+ | 828 | 7,14 |
-| 10+ | 369 | 3,18 |
-| 11+ | 140 | 1,21 |
-| **12+** | **85** | **0,73** |
-| 13+ | 24 | 0,21 |
-| 15 | 1 | 0,01 |
-
-Con 10 era **el detector más ruidoso del inventario**. Con 12 queda en la misma liga que `hr3`
-(0,55) y `triples2` (0,65). El único juego de 15 bases sube solo por magnitud.
-
-#### 5.1.8. `cg90` — el juego completo de menos de 90 lanzamientos
-
-**8 juegos, 7 lanzadores** (Framber Valdez lo hizo dos veces). Rareza **500**, entre el no-hitter y
-el juego perfecto.
-
-| lanz. | fecha | lanzador | |
-| ---: | --- | --- | --- |
-| **71** | 2025-05-30 | Framber Valdez | 3 H, 9 K |
-| **73** | 2023-06-28 | Domingo Germán | **el juego perfecto** |
-| 87 | 2002-06-25 | Odalis Pérez | blanqueada de 1 hit |
-| 87 | 2003-06-07 | Bartolo Colón | 4 H |
-| 87 | 2025-07-22 | Cristopher Sánchez | 12 K |
-| 88 | 2023-08-01 | Framber Valdez | **el no-hitter** |
-| 89 | 2006-08-15 | Pedro Astacio | blanqueada |
-| 89 | 2019-05-19 | Sandy Alcántara | blanqueada de 2 hits |
-
-Cinco de los ocho son blanqueadas y dos son sin hits.
-
-**Este detector tiene DOS filtros que no son opcionales, y sin ellos da 19 en vez de 8:**
-
-1. **`SEASON >= 1989`.** Regla del dueño: el conteo de lanzamientos solo es válido desde 1989. Antes
-   está incompleto y es poco fiable — medido, de los 197 juegos completos dominicanos de los años
-   sesenta solo 14 traen conteo, y de los 109 de los setenta solo 5. Sin este piso entraban tres
-   juegos más, incluido uno de Marichal de 1971, con conteos que no valen.
-
-2. **`P_OUT >= 27`.** `P_CG` marca «juego completo», y eso **incluye los acortados por lluvia**. Sin
-   exigir las nueve entradas entraban 11 juegos más — entre ellos uno de Iván Nova de 57
-   lanzamientos que son **16 outs**, o sea 5⅓ entradas. No es una joya, es un juego que se suspendió.
-
-Su universo también es distinto: como el detector empieza en 1989, la `N` son los **251.106**
-juegos-jugador de 1989 en adelante, no los 292.948 de toda la historia. Es la regla del grano (5.2.11)
-aplicada al tiempo.
-
-**Por qué `P_PITCH` y no `scastPitch`.** Se pidió usar `dbo.scastPitch`, pero esa tabla **empieza en
-2008** y los juegos completos casi se extinguieron después: se perdería la mitad de la lista.
-`retroDailyReg.P_PITCH` cubre desde 1989 y es completo desde entonces (178 de 189 en los noventa,
-110 de 110 en los 2000, 90 de 90 en los 2010).
-
-Se comprobó que las dos fuentes coinciden donde se solapan: de **131 juegos comparables, 115 dan el
-mismo número** y 119 quedan dentro de dos lanzamientos. Las diferencias grandes parecen dobles juegos
-en la unión por fecha, no discrepancias reales. `scastPitch` queda como verificación cruzada y como
-puente al `game_pk` de MLB, no como fuente primaria.
-
-#### 5.1.9. Los fouls y los pelotazos
-
-Cuatro umbrales calculados con el mismo criterio: el entorno de **una vez por temporada**.
-
-| detector | X | casos | por temporada | rareza | cobertura |
-| --- | ---: | ---: | ---: | ---: | --- |
-| `fouls_turno` | 10 | 10 | 0,53 | 493 | 2008+ |
-| `fouls_juego` | 16 | 11 | 0,58 | 476 | 2008+ |
-| `hbp_recibidos` | 2 | 120 | 1,03 | 372 | completa |
-| `hbp_propinados` ⚠️ | 3 | 25 | 0,22 | 223 | completa |
-
-Los descartes, para que no haya que volver a medirlos: 8 fouls en un turno son 4,95 por temporada;
-14 en un juego, 2,05; 2 pelotazos propinados, 3,54. Todos demasiado corrientes.
-
-Los topes dominicanos —**12 fouls en un turno, 19 en un juego, 3 pelotazos recibidos, 4
-propinados**— entran por su detector y suben solos por magnitud.
-
-**El signo de los pelotazos es un juicio, no un dato.** Los propinados van en negativo: hitear a tres
-bateadores es un fallo de control. Los recibidos van en positivo, porque al bateador no le pasa por
-culpa suya. Si preferís lo contrario, es cambiar un campo.
-
-Los de fouls salen de `scastPitch.description` (`foul`, `foul_tip`, `foul_bunt`) y por eso solo ven
-2008 en adelante. Los pelotazos salen de `B_HP` y `P_HP` del game log, con cobertura completa.
-
-#### 5.1.10. `rv_bateo` y `rv_pitcheo` — el juego más valioso, sin umbrales de conteo
-
-Idea del dueño, y es la mejor del inventario: en vez de preguntar «¿cuántos jonrones?» o «¿cuántos
-hits?», sumar el **`RUN_VALUE` de todos los turnos** del jugador en ese juego. Da una sola medida de
-cuánto produjo —o cuánto evitó— sin importar cómo.
-
-| detector | umbral | casos | por temporada | rareza | `N` |
-| --- | --- | ---: | ---: | ---: | ---: |
-| `rv_bateo` | 5,0 carreras generadas | 94 | 0,81 | 378 | 220.653 |
-| `rv_pitcheo` | 5,0 carreras evitadas | 40 | 0,34 | 402 | 71.046 |
-
-**Lo que lo valida es que encuentra solo lo que ya sabíamos.** El mejor juego ofensivo de la historia
-dominicana según esta métrica es **Alex Rodríguez, 26 de abril de 2005, 8,62 carreras de valor** —
-exactamente el mismo juego que salió por el camino de las empujadas (3 jonrones, 10 RBI, 13 bases).
-Dos métodos independientes, el mismo juego.
-
-Y en pitcheo, **las tres mejores actuaciones son de Juan Marichal**, encabezadas por el **2 de julio
-de 1963: 6,81 carreras evitadas** —el duelo de dieciséis entradas contra Warren Spahn— con Pedro
-Martínez cuarto. Ningún umbral de conteo habría encontrado ese juego: no fue de 15 ponches ni de cero
-hits, fue de aguantar dieciséis entradas.
-
-| | |
-| --- | --- |
-| 8,62 | Alex Rodríguez, 2005-04-26 |
-| 7,81 | Edwin Encarnación, 2015-08-29 |
-| 7,50 | Sammy Sosa, 2002-08-10 |
-| 6,81 | **Juan Marichal, 1963-07-02** (pitcheo) |
-| 6,08 | Juan Marichal, 1966-05-26 (pitcheo) |
-
-**Por qué `RUN_VALUE` y no `WPA`.** Miden cosas distintas y las dos están en `r24Events`: el valor de
-carreras dice cuánto **produjo**, el WPA cuánto **acercó la victoria**. Un juegazo en una derrota de
-12-2 tiene valor alto y WPA bajo. Acá se usa `RUN_VALUE` para el umbral —es la gesta— y el WPA sigue
-alimentando el bono de impacto (4.3), que es donde el contexto debe pesar.
-
-Cobertura completa, 1910–2025.
-
-#### 5.1.11. `dobles3` — y por qué `extrabases4` no lo cubría
-
-No lo teníamos. Había `extrabases4`, que suma dobles, triples y jonrones, y por eso **un juego de
-tres dobles y nada más se le escapaba**: son tres extrabases, no cuatro.
-
-| dobles | dominicanos | toda la liga |
-| ---: | ---: | ---: |
-| **3** | **133** (80 jugadores) | 1.962 |
-| 4 | 3 | 53 |
-
-**X = 3**: 136 juegos en total, **1,17 por temporada**, rareza 366 — la misma liga que `hits5` (1,32)
-y `k12` (1,18). Con 4 quedarían tres juegos.
-
-Los tres de cuatro dobles: Rafael Ramírez (1986-05-21, 4 de 4), Dámaso García (1986-06-27, 4 de 4) y
-**Rafael Devers (2019-08-13, 4 dobles y 6 hits)**.
-
-El de Devers es el ejemplo perfecto de por qué existe la regla de fusión (sección 7): ese mismo juego
-ya estaba en la lista de 6 hits. Es **una** efeméride con dos etiquetas, no dos filas.
-
-#### 5.1.12. `gidp3` — la doble matanza del bateador
-
-Negativa, como `sombrero_dorado` y `cs3`.
-
-| GIDP en un juego | dominicanos | toda la liga |
-| ---: | ---: | ---: |
-| 2 | 539 (165 jugadores) | 9.222 |
-| **3** | **10** (10 jugadores) | 138 |
-| 4 | **0** | 2 |
-
-**X = 3**: diez juegos, 0,09 por temporada, rareza **245** en la escala negativa. Con 2 serían 549
-juegos —4,73 por temporada— y eso no es efeméride, es un martes.
-
-Ningún dominicano ha llegado a 4; en toda la liga solo ha pasado dos veces.
-
-Los diez, con un detalle que el `detalle` debe cargar: **tres de ellos lo hicieron en solo 3 turnos**
-—Teodoro Martínez (1974), Julio César Franco (1989) y José Bautista (2016)—, o sea que apagaron un
-rally en cada aparición. También están Miguel Tejada, Plácido Polanco, Jean Segura, Jhonny Peralta,
-Pedro Álvarez, Jesús Alou y **Albert Pujols** (2011-03-31).
-
-#### 5.1.13. `gidp_inducidos` — la otra cara del `gidp3`
-
-La misma jugada vista desde el montículo, y acá es **hazaña**: inducir dobles matanzas es salir de
-los líos con un solo lanzamiento. `signo = +1`.
-
-| inducidas en un juego | dominicanos | toda la liga |
-| ---: | ---: | ---: |
-| 3 | 160 (60 lanzadores) | 6.270 |
-| **4** | **18** (14 lanzadores) | 868 |
-| **5** | **1** | 82 |
-| 6 | **0** | 5 |
-
-**X = 4**: 19 juegos, 0,16 por temporada, rareza **460** — arriba del todo, entre el ciclo (457) y
-los 15 ponches (468). Con 3 serían 179 juegos, 1,54 por temporada, que es zona corriente.
-
-El récord dominicano: **Luis Perdomo, 28 de agosto de 2016 — cinco dobles matanzas inducidas en un
-juego completo de una sola carrera limpia.** Ningún dominicano ha llegado a seis.
-
-**Pedro Astacio aparece dos veces** (1992 y 1996), y el suyo del 3 de julio de 1992 fue juego
-completo sin carreras limpias. Es el caso que `veces_jugador` convierte en «por segunda vez en su
-carrera».
-
-#### 5.1.14. Los sombreros — y por qué los tiers son EXACTOS
-
-Ponchar cuatro veces en un juego tiene nombre propio en el béisbol —**sombrero dorado**— y los
-escalones de arriba también. Usarlos no es adorno: un texto que dice «se puso el sombrero dorado» se
-lee solo, y una efeméride que se lee sola es la que se comparte.
-
-| tier | ponches | dominicanos | jugadores | por temporada | rareza |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| **dorado** | 4 | 499 | 172 | 4,30 | **152** |
-| **platino** | 5 | 20 | 17 | 0,17 | **229** |
-| **titanio** | 6 | **0** | 0 | — | — |
-
-**LOS TIERS SON EXACTOS, no acumulativos, y esto corrige un error del diseño.** `ponches5` estaba
-definido como `B_SO >= 5`, y en la jerarquía real un juego de cinco ponches es **platino**, no
-dorado: son escalones, no umbrales. Hoy el número no cambia porque ningún dominicano tiene seis, pero
-la definición estaba mal para el día que pase — y además, con `>=` un mismo juego dispararía dos
-detectores y habría que fusionarlos por nada.
-
-**El dorado es el detector más ruidoso del inventario** (4,30 por temporada) y entra igual, por dos
-razones: tiene nombre reconocible, y su rareza de 152 lo deja tan abajo que nunca va a desplazar a
-una gesta de verdad. Funciona como relleno con gracia, que es justo lo que le falta a un día flojo.
-
-El titanio nace vacío, como `ciclo_natural`: cuesta nada y empieza a producir el día que pase.
-
-#### 5.1.6. Nadie ha bateado 4 jonrones
-
-Los 64 juegos de `hr3` son **exactamente de 3**, por 36 jugadores. Ningún dominicano ha conectado
-cuatro en un juego. Por eso el umbral se queda en 3 y no hay detector de 4 — el día que pase, la
-magnitud (4.2) lo va a subir sola al tope de su tipo, igual que con los triples.
-
-### 5.2. Gestas de evento (`r24Events`, `retroEventsReg`)
-
-| detector | umbral | veces | rareza |
-| --- | --- | ---: | ---: |
-| `doble_slam` | 2 grand slams del mismo bateador en un juego | **1** | 600 |
-| `triple_play_solo` | `TP_FL='T'`, los 3 outs del mismo fildeador, cero asistencias | **1** | 600 |
-| `walkoff_slam` | walk-off de GRAND SLAM — ver 5.2.4 | 20 | 468 |
-| `walkoff_2outs` | walk-off de jonrón, 2 outs, PERDIENDO | 22 | 464 |
-| `hr_dentro_parque` | jonrón dentro del parque ⚠️ 2008+ | 22 | 456 |
-| `hr480` | jonrón de 480+ pies ⚠️ 2015+ — ver 5.2.8 | 12 | 435 |
-| `vel100` | 15+ rectas de 100 mph en un juego ⚠️ 2008+ — ver 5.2.8 | 40 | 392 |
-| `walkoff_bb` | walk-off de boleto o golpeado | 28 | 453 |
-| `robo_home` | robo de HOME — `rol = corredor` | 85 | 367 |
-| `walkoff_hr` | walk-off de jonrón | 262 | 355 |
-| `k4_inning` | 4 ponches en la misma entrada — ver 5.2.2 | 5 | 520 |
-| `fouls_turno` | 10+ fouls en un turno ⚠️ 2008+ — ver 5.1.9 | 10 | 493 |
-| `inmaculado` | 9 lanzamientos, 3 ponches ⚠️ 2008+ | 8 | 490 |
-| `inning3lanz` | 3 lanzamientos, 3 outs ⚠️ 2008+ | 11 | 473 |
-| `nobletiger` | bases llenas, 0 outs, sale sin carrera — ver 5.2.1 | 324 | 340 |
-| `turno_clave` | `LI >= 2` **y** `WPA >= 0.40` | 154 | — |
-| `grand_slam` | `HR=1` y `RBI=4` | 520 | 325 |
-| `walkoff` | último turno, en casa, 9no o más, WPA positivo | 938 | 299 |
-
-**Los dos de `n=1` son los que dan sentido a todo esto:**
-
-- **`doble_slam`** — Fernando Tatís, 23 de abril de 1999, **los dos en el mismo inning**. Es el
-  récord de Grandes Ligas y nadie más lo ha hecho nunca.
-- **`triple_play_solo`** — Rafael Furcal, 10 de agosto de 2003, campocorto, quinto inning. De los
-  13 sin asistencia que cubre Retrosheet, uno es dominicano.
-
-#### 5.2.1. `nobletiger` — el escape
-
-**N**o-**O**uts **B**ases-**L**oaded **E**nding with **T**eam **I**ncapable of **G**etting **E**asy
-**R**un: el lanzador se encuentra **bases llenas y ningún out**, y sale del inning **sin permitir
-carrera**.
-
-Medido sobre lanzadores dominicanos:
-
-| | |
-| --- | ---: |
-| veces que enfrentaron bases llenas sin outs | 2.522 |
-| **escaparon con cero carreras** | **324** (12,9 %) |
-| permitieron exactamente una | 596 |
-| permitieron dos o más | 1.436 |
-| de los escapes, en el 9no inning o más | 44 |
-| de los escapes, en postemporada | 6 |
-
-Rareza **340** sobre el universo de lanzador (ver 5.2.2).
-
-**La magnitud NO es el `LI` del momento, es el `WPA` del escape.** Se probó con `LI` y el máximo
-entre los 324 escapes fue 1,44 — no separa nada. Sumando el WPA del lanzador desde la situación
-hasta el final de la media entrada, la escala se abre de golpe:
-
-| | | |
-| --- | --- | ---: |
-| 2016-07-19 | Jeurys Familia, 9no | **+0,890** |
-| 2012-09-29 | Kelvin Herrera, inning **14** | +0,878 |
-| 2004-04-27 | Francisco Cordero, 9no | +0,877 |
-| 2003-09-05 | Julián Tavárez, 9no | +0,701 |
-
-Un escape de +0,890 es ganar el juego prácticamente solo. Los 44 del noveno en adelante son los que
-el componente de impacto (4.3) levanta hasta arriba, y con razón.
-
-**Detalle de implementación que no es opcional.** Para saber si entró carrera hay que comparar el
-marcador del equipo al bate en el momento del aprieto contra el marcador cuando le toca batear otra
-vez. En **182 de los 2.522 casos el juego terminó en esa misma media entrada**, así que no hay
-«próxima vez al bate»: hay que caer al marcador final del juego, y buscarlo en `retroGamesReg`
-**y en `retroGamesPost`**. Con solo la primera quedaban 2 casos de postemporada sin resolver.
-
-#### 5.2.2. `k4_inning` — cuatro ponches en una entrada
-
-Solo se puede si un strike tres se le escapa al receptor y el bateador llega a primera: el lanzador
-poncha a cuatro y solo saca tres outs.
-
-| | |
-| --- | ---: |
-| medias entradas lanzadas por dominicanos (`N`) | 162.797 |
-| con 3 ponches | 3.869 |
-| **con 4 ponches** | **5** |
-| 4 ponches, toda la liga | 100 |
-| 5 ponches, toda la liga | **0 — nunca ha pasado** |
-
-Rareza **520**, entre el no-hitter (490) y el juego perfecto (600). Los cinco:
-
-| fecha | lanzador | |
-| --- | --- | --- |
-| 1984-05-17 | Mario Soto | CIN, 3er inning |
-| 2003-06-11 | Octavio Dotel | HOU, 8vo |
-| 2012-06-05 | Francisco Liriano | MIN, 4to |
-| 2018-07-08 | Miguel Díaz | SD, **inning 11** |
-| 2021-07-25 | Domingo Germán | NYY, 7mo |
-
-#### 5.2.4. Los walk-off, revisados contra la lista de MLB
-
-De la lista de *game notes* de MLB salieron tres variantes que no teníamos, y **una corrección**.
-
-| detector | veces | jugadores | rareza |
-| --- | ---: | ---: | ---: |
-| `walkoff_slam` | 20 | 17 | 468 |
-| `walkoff_2outs` | 22 | 17 | 464 |
-| `walkoff_bb` | 28 | 26 | 453 |
-| `walkoff_hr` (ya estaba) | 262 | 100 | 355 |
-| `walkoff` (ya estaba) | 955 | 232 | 299 |
-
-**La corrección:** `walkoff_slam` estaba definido como «walk-off con 2 outs y bases llenas», que da
-69 casos y **no es un walk-off grand slam** — la mayoría de esos 69 se ganaron con un sencillo. El
-grand slam de verdad son **20**. Estaba mal desde que lo escribí y lo destapó cruzar el diseño contra
-una lista externa.
-
-`walkoff_bb` es la contraria y por eso vale: el juego se acaba con un boleto o un pelotazo, sin que
-nadie batee. 28 veces.
-
-#### 5.2.5. Cobertura parcial: cuando NO se puede decir cuántos hay
-
-Regla del dueño. Cuatro detectores no ven toda la historia:
-
-| detector | fuente | cobertura | veces |
-| --- | --- | --- | ---: |
-| `inmaculado` | `scastPitch` | **2008+** | 8 |
-| `inning3lanz` | `scastPitch` | **2008+** | 11 |
-| `hr_dentro_parque` | `scastPitch` (`des`) | **2008+** | 22 |
-| `cg90` | `P_PITCH` | **1989+** | 8 |
-
-**En estos, `veces_total` y `jugadores_total` van vacíos y el texto NO dice «uno de los N».** El
-número que tenemos es el de la ventana que vemos, no el de la historia, y publicarlo como si fuera
-total sería mentir con precisión decimal. Un inning inmaculado de 1985 existiría y no lo sabríamos.
-
-Cada detector declara su `cobertura`; el motor la respeta sin que haya que acordarse caso por caso.
-Lo que sí conservan es `orden_jugador` y `veces_jugador` —«por segunda vez en su carrera»— cuando el
-jugador entero cae dentro de la ventana.
-
-**Los inmaculados (8):** Rafael Soriano 2010, Juan Pérez 2011, Iván Nova 2013, Carlos Contreras 2014,
-Santiago Casilla 2015, Juan Nicasio 2016, Dellin Betances 2017, Enyel De los Santos 2022.
-
-**Los de 3 lanzamientos (11):** de Jesús Colomé (2008) a Blas Castaño (2026), pasando por Sandy
-Alcántara y Luis Severino.
+## 5. El inventario: 71 detectores
+
+| grupo | detectores | dónde |
+| --- | ---: | --- |
+| gestas de juego | 26 | `retroDaily*` vía `#juegos` |
+| gestas de evento | 15 | `r24Events` vía `#turnos` |
+| gestas de Statcast | 3 | `scastPitch`, cobertura parcial |
+| gestas colectivas | 6 | alineaciones y participación |
+| hitos de carrera | 7 | suma acumulada |
+| debut y estrellas | 4 | valor de carreras y `retroDailyAS` |
+| fechas de persona | 3 | `dglMaster` |
+| **quiebre de no-hitter** | **2** | los dos lados del mismo hecho |
+| ⚠️ **diseñados y NUNCA construidos** | **7** | ver 5.7 |
+
+> **DÓNDE VIVE EL PORQUÉ DE CADA UMBRAL.** En su propio `.sql`, no acá. Cada detector abre con un
+> bloque de comentario que trae la distribución medida, el umbral elegido, los umbrales descartados y
+> el récord dominicano. Eso no es duplicación evitada por pereza: es que el umbral y la consulta que
+> lo aplica tienen que poder leerse juntos, o la próxima persona cambia uno sin enterarse del otro.
+> Este documento guarda las REGLAS; los `.sql` guardan las MEDICIONES.
+
+La columna `n` es lo que devuelve el detector; `filas` es lo que queda tras la fusión (sección 7),
+que es menos porque un mismo hecho puede dispararse en varios detectores. La rareza es la que da la
+fórmula hoy — el exportador la recalcula en cada corrida.
+
+### 5.1. Gestas de juego (grano juego-jugador, `N` = 292.948)
+
+| detector | gesta declarada | n | rareza | filas |
+| --- | --- | ---: | ---: | ---: |
+| `perfecto` | un juego perfecto | 1 | **600** | 1 |
+| `cg90` ⚠️ | un juego completo de menos de 90 lanzamientos | 5 | 522 | 5 |
+| `toques3` | 3+ toques de sacrificio en un juego | 6 | 515 | 6 |
+| `no_hitter` | un juego sin hits | 10 | 490 | 9 |
+| `anotadas5` | 5 carreras anotadas en un juego | 12 | 482 | 12 |
+| `robadas4` | 4+ robos en un juego | 14 | 474 | 14 |
+| `k15` | 15+ ponches en un juego | 16 | 468 | 16 |
+| `nohit_perdido` | un no-hitter perdido en el noveno o más allá | 15 | 471 | 15 |
+| `gidp_inducidos` | 4+ dobles matanzas inducidas en un juego | 19 | 460 | 19 |
+| `cg_1hit` | un juego completo de un solo hit | 25 | 447 | 22 |
+| `extrabases4` | 4+ extrabases en un juego | 33 | 433 | 31 |
+| `cg_dominante` | un juego completo con 10+ ponches y cero limpias | 41 | 423 | 31 |
+| `rbi7` | 7+ empujadas en un juego | 43 | 421 | 41 |
+| `hr3` | 3+ jonrones en un juego | 64 | 402 | 48 |
+| `k10_bb4` | 10+ ponches y 4+ boletos en un juego | 73 | 396 | 68 |
+| `boletos4` | 4+ boletos en un juego | 75 | 394 | 75 |
+| `triples2` | 2+ triples en un juego | 75 | 394 | 75 |
+| `bases12` | 12+ bases alcanzadas en un juego | 85 | 388 | 8 |
+| `hbp_recibidos` | 2+ pelotazos recibidos en un juego | 120 | 372 | 119 |
+| `dobles3` | 3+ dobles en un juego | 136 | 366 | 119 |
+| `k12` | 12+ ponches en un juego | 137 | 366 | 87 |
+| `salvado_largo` | un salvado de 3+ entradas | 146 | 363 | 145 |
+| `hits5` | 5+ hits en un juego | 153 | 360 | 129 |
+| `blanqueada` | una blanqueada en juego completo | 271 | 333 | 204 |
+| `cs3` ⚠️ | 3+ veces atrapado robando en un juego | 1 | **300** | 1 |
+| `gidp3` ⚠️ | 3+ dobles matanzas bateadas en un juego | 10 | **245** | 10 |
+| `sombrero_platino` ⚠️ | 5 ponches en un juego | 20 | **229** | 20 |
+| `hbp_propinados` ⚠️ | 3+ pelotazos propinados en un juego | 25 | **223** | 23 |
+| `paliza` ⚠️ | una salida de una carrera por bateador enfrentado | 79 | **196** | 79 |
+| `sombrero_dorado` ⚠️ | 4 ponches en un juego | 499 | **152** | 494 |
+| `sombrero_titanio` ⚠️ | 6+ ponches en un juego | **0** | — | 0 |
+
+⚠️ = escala negativa (4.5), salvo `cg90` que lleva universo propio (251.106, desde 1989).
+
+**Los tres detectores que hoy devuelven cero y se dejan escritos:** `sombrero_titanio`,
+`ciclo_natural` y —hasta que pase— cualquiera que se agregue con umbral por encima del récord. Un
+detector vacío es una decisión, no un olvido: cuesta nada y empieza a producir el día que ocurra.
+
+### 5.2. Gestas de evento (grano turno al bate, `N` = 822.764)
+
+| detector | gesta declarada | n | rareza | filas |
+| --- | --- | ---: | ---: | ---: |
+| `doble_slam` | dos grand slams en el mismo juego | 1 | **600** | 1 |
+| `triple_play_solo` | un triple play sin asistencia | 1 | **600** | 1 |
+| `nohit_roto` | el hit que rompió un no-hitter en el noveno | 13 | 487 | 13 |
+| `walkoff_slam` | un walk-off de grand slam | 20 | 468 | 20 |
+| `walkoff_2outs` | un walk-off de jonrón con dos outs y perdiendo | 22 | 464 | 21 |
+| `walkoff_sin_batear` | un walk-off sin batear la pelota | 28 | 453 | 28 |
+| `grand_slam_vs_dominicano` | un grand slam ante un lanzador dominicano | 53 | 425 | 51 |
+| `turno_clave` | un batazo que decidió un juego | 153 | 378 | 139 |
+| `walkoff_hr` | un walk-off de jonrón | 262 | 355 | 207 |
+| `walkoff` | un walk-off | 938 | 299 | 621 |
+| `ciclo` | un ciclo | 20 | 457 | 18 |
+| `ciclo_inverso` | un ciclo inverso | 1 | **600** | 1 |
+| `ciclo_natural` | un ciclo natural | **0** | — | 0 |
+
+Con universo propio, porque el grano es otro (5.8):
+
+| detector | gesta | `N` | n | rareza |
+| --- | --- | ---: | ---: | ---: |
+| `k4_inning` | 4 ponches en una sola entrada | 162.797 | 5 | 520 |
+| `nobletiger` | un escape de bases llenas sin outs en el noveno o más allá | 622.652 | 45 | 429 |
+| `robo_home` | un robo de home | 92.821 | 85 | 367 |
+| `hr_primer_turno` | un jonrón en su primer turno de Grandes Ligas | 723 | 15 | 353 |
+
+### 5.3. Gestas de Statcast — cobertura PARCIAL
+
+| detector | gesta | cobertura | n | rareza |
+| --- | --- | --- | ---: | ---: |
+| `inmaculado` | un inning inmaculado | **2008+** | 8 | 490 |
+| `inning3lanz` | una entrada de tres lanzamientos | **2008+** | 10 | 478 |
+| `hr_dentro_parque` | un jonrón dentro del parque | **2008+** | 21 | 458 |
+
+**Declaran `cobertura = 'parcial'` y por eso NO publican totales.** El número que tenemos es el de la
+ventana que vemos, no el de la historia, y publicarlo como total sería mentir con precisión decimal:
+un inning inmaculado de 1985 existiría y no lo sabríamos. El motor lo respeta solo — vacía
+`veces_total` y `jugadores_total`, y `Get-Situacion` devuelve cadena vacía.
 
 **El jonrón dentro del parque no está codificado en Retrosheet.** Se comprobó: ni `EVENT_TX` ni
-`EVENT_CD` lo distinguen de uno por encima de la verja. Solo se detecta por el texto `des` de
-Statcast, y de ahí que su cobertura sea 2008+.
+`EVENT_CD` lo distinguen de uno por encima de la verja. Solo se ve en el texto `des` de Statcast.
 
-#### 5.2.6. `robo_home` — y el quinto `rol`
+#### 5.3.1. El conteo de lanzamientos: Retrosheet hasta 2007, Statcast desde 2008
 
-**85 robos de home por 53 corredores dominicanos**, con cobertura completa: sale de
-`retroEventsReg.RUN3_SB_FL`, que marca exactamente eso.
+Regla del dueño (2026-08-04), y salió de un error publicado. `cg90` decía que Framber Valdez había
+lanzado un juego completo de **71 lanzamientos** el 2025-05-30; la crónica del día decía 83. Contra
+Statcast, que cuenta uno por uno:
 
-Obliga a un `rol` nuevo: **`corredor`**. El protagonista no batea ni lanza — está en tercera. Es el
-mismo problema que destapó `triple_play_solo` con el fildeador, y la misma solución.
-
-Su grano también es propio: la `N` son las **92.821** veces que un dominicano estuvo en tercera.
-
-#### 5.2.8. Los dos de Statcast: `hr480` y `vel100`
-
-Statcast permite dos gestas que Retrosheet no puede ver. Los umbrales se calcularon con el criterio
-de 5.1.2 —cortar donde deja de ser rutina— buscando el entorno de **una por temporada**.
-
-**`hr480` — el jonrón largo.** Las distancias van de **2015 a 2026, 12 temporadas**, sobre 8.549
-jonrones dominicanos con medición:
-
-| umbral | jonrones | por temporada | rareza |
-| ---: | ---: | ---: | ---: |
-| 460 pies | 102 | 8,50 | 293 |
-| 470 pies | 34 | 2,83 | 366 |
-| **480 pies** | **12** | **1,00** | **435** |
-| 490 pies | 6 | 0,50 | 481 |
-
-**480** da exactamente uno por temporada. Los cinco más largos: Nomar Mazara **505 pies** (2019),
-Miguel Sanó 496, Jesús Sánchez 496, Miguel Sanó otra vez 495, Gary Sánchez 493.
-
-**`vel100` — las rectas de 100 millas.** La velocidad va de **2008 a 2026, 19 temporadas**, sobre
-42.494 juegos-lanzador:
-
-| umbral | juegos | por temporada | rareza |
-| ---: | ---: | ---: | ---: |
-| 10+ rectas | 178 | 9,37 | 308 |
-| **15+ rectas** | **40** | **2,11** | **392** |
-| 20+ rectas | 6 | 0,32 | 499 |
-
-**15** deja el detector en la liga de `hits5` (1,32) y `k12` (1,18). Con 20 quedarían solo 6 juegos —
-está ahí si se prefiere más escaso.
-
-El récord es de otra dimensión: **Yordano Ventura tiró 26 rectas de 100+ millas el 3 de octubre de
-2014**, en postemporada. Le siguen Mauricio Cabrera y Jhoan Durán con 22.
-
-Los dos son de cobertura parcial, así que **no publican totales** (5.2.5).
-
-#### 5.2.10. `ciclo_natural` y `ciclo_inverso` — el orden importa
-
-El ciclo pide los cuatro batazos; el **natural** los pide **en orden ascendente**: sencillo, doble,
-triple, jonrón. Necesita `r24Events`, porque `retroDaily` solo dice cuántos hubo, no en qué orden.
-
-Se detecta comparando el `EVENT_ID` del PRIMER batazo de cada tipo: natural si
-`e(1B) < e(2B) < e(3B) < e(HR)`.
-
-| | veces | jugadores |
+| | `P_PITCH` | Statcast |
 | --- | ---: | ---: |
-| ciclos (los cuatro batazos) | 20 | 16 |
-| **ciclo natural** | **0** | 0 |
-| **ciclo inverso** | **1** | 1 |
+| Sandy Alcántara 2019-05-19 | 89 | **89** ✔ |
+| Domingo Germán 2023-06-28 — **el perfecto** | 73 | **99** |
+| Framber Valdez 2023-08-01 | 88 | **93** |
+| Framber Valdez 2025-05-30 | 71 | **84** |
+| Cristopher Sánchez 2025-07-22 | 87 | **106** |
 
-**Ningún dominicano ha bateado un ciclo natural en 116 años.** El detector se escribe igual y se deja
-vacío, por lo mismo que `sombrero_titanio` (5.1.14): cuesta nada y empieza a producir el día que pase.
+`retroDailyReg.P_PITCH` **subcuenta en los juegos modernos**, y no por poco: al juego perfecto le
+faltaban veintiséis lanzamientos. **Tres de los ocho juegos que `cg90` publicaba no calificaban.**
+Quedan cinco.
 
-**Pero hay un ciclo INVERSO** —jonrón, triple, doble, sencillo, en ese orden— que es la imagen espejo
-y se celebra igual: **Carlos Gómez, 7 de mayo de 2008**, con Minnesota en Chicago. Único, así que
-rareza 600.
+Esto corrige lo que este mismo documento afirmaba antes —que las dos fuentes coincidían donde se
+solapan—. Coinciden en volumen, no en los extremos, que es justo donde vive un detector de mínimos.
+Antes de 2008 no hay alternativa y se sigue usando `P_PITCH`.
 
-**Y de paso, una comprobación que vale la pena registrar:** los 20 ciclos que cuenta `r24Events`
-cuadran exactamente con los 20 de `retroDaily`. Son dos tablas distintas, con granos distintos,
-llegando al mismo número. Cuando el detector de un lado y el del otro coinciden, la definición está
-bien escrita.
+**`cg90` es el ÚNICO detector que filtra por conteo de lanzamientos.** Se comprobó archivo por
+archivo: los demás arrastran `P_PITCH` en sus consultas comentadas pero ninguno corta por él.
 
-#### 5.2.11. La `N` no depende del `rol`: depende del grano
+### 5.4. Gestas colectivas — cuando la efeméride no es de un hombre
 
-Primero se escribió que la `N` de la rareza dependía del `rol`. Con `k4_inning` quedó claro que eso
-era quedarse corto: dos detectores de lanzador pueden tener universos distintos, porque lo que
-cambia no es quién protagoniza sino **cuál es la unidad de oportunidad**.
+| detector | gesta | grano | `N` | n | rareza |
+| --- | --- | --- | ---: | ---: | ---: |
+| `cuadro_dominicano` | el cuadro entero dominicano | juego-equipo | 407.816 | 12 | 485 |
+| `seis_dominicanos` | seis dominicanos en el terreno a la vez | juego-equipo | 407.816 | 15 | 474 |
+| `dominicanos_juego` | 10+ dominicanos en un mismo juego | juego | 203.908 | 54 | 404 |
+| `lanzadores_equipo` | 4+ lanzadores dominicanos en un mismo equipo | juego-equipo | 407.816 | 96 | 388 |
+| `jardin_dominicano` | el jardín entero dominicano | juego-equipo | 407.816 | 131 | 374 |
+| `lanzadores_juego` | 5+ lanzadores dominicanos en un juego | juego | 203.908 | 136 | 359 |
+
+**LOS RÉCORDS, que en esta familia son el dato:**
+
+| | máximo | cuándo |
+| --- | ---: | --- |
+| en el terreno a la vez, un equipo | **6** | Chicago Cubs, 1999-06-20 — nadie ha puesto siete |
+| lanzadores, un equipo | **6** | Pittsburgh Pirates, 2023-06-03 |
+| lanzadores, los dos equipos | **7** | 2006-09-16 y 2023-07-30 |
+| participantes, los dos equipos | **12** | Pittsburgh-Miami, 2019-09-03 |
+
+Los tres primeros jardines son de los hermanos Alou y Manuel Mota (1962-1963). El jardín y el cuadro
+enteros dominicanos **nunca han coincidido en el mismo juego** en 116 temporadas.
+
+#### 5.4.1. Estas gestas obligaron a dos decisiones de diseño
+
+**A quién se le atribuye.** El contrato tiene UN `mlb_id` por fila y estas gestas son de tres, cuatro
+o doce hombres. Emitir una fila por cada uno daría efemérides idénticas repetidas el mismo día;
+emitir una sola obliga a elegir. Se elige **al de más juegos de carrera** —el más reconocible, vía
+`#huella` en `_04_alineaciones.sql`— y **el texto nombra a todos**. Así el sitio tiene a quién enlazar
+y el lector se entera de los seis. La alternativa era un `rol = equipo` sin `mlb_id`, que es justo lo
+que el dueño descartó para las gestas de equipo (11.1).
+
+**Todas llevan `situar = 0`.** La frase del motor habla de UN dominicano y acá el sujeto es plural: no
+hay valor de `situar` que la arregle. Publicaban «Fue el primer dominicano en lograrlo» de algo que
+hicieron seis hombres a la vez. Lo que sí vale —que fue la primera vez que se vio— se calcula dentro
+del propio `.sql` y se pega al titular.
+
+### 5.5. Hitos de carrera, debut y Juego de Estrellas
+
+| detector | gesta | escalón | n | rareza |
+| --- | --- | ---: | ---: | ---: |
+| `hito_hit` | un hito de hits de por vida | 500 | 267 | 334 |
+| `hito_hr` | un hito de jonrones de por vida | 100 | 137 | 366 |
+| `hito_k` | un hito de ponches de por vida | 500 | 117 | 373 |
+| `hito_sb` | un hito de robos de por vida | 100 | 88 | 387 |
+| `hito_rbi` | un hito de empujadas de por vida | 500 | 87 | 387 |
+| `hito_sv` | un hito de salvados de por vida | 50 | 73 | 396 |
+| `hito_win` | un hito de victorias de por vida | 50 | 62 | 403 |
+
+**Suman temporada regular Y postemporada** (decisión del dueño). No es como los cuenta MLB —ellos
+separan— pero es coherente con el resto del archivo, donde octubre cuenta igual que junio. La
+diferencia medida son 13 cruces.
+
+**Los siete llevan `situar = 2`** (3.5): la frase solo aparece si es el primero o el único. Y su
+plantilla NO es constante — cada fila trae la suya, para poder añadir «Solo 3 dominicanos han llegado
+ahí» cuando son cinco o menos. Es la 4.7 aplicada.
+
+| detector | gesta | universo | n | rareza |
+| --- | --- | ---: | ---: | ---: |
+| `debut_grande` | un debut de 1,5+ carreras de valor | 292.948 | 11 | 486 |
+| `debut_dificil` ⚠️ | un debut de -1,5 carreras de valor o peor | 292.948 | 9 | 248 |
+| `estrellas_actuacion` | una actuación destacada en el Juego de Estrellas | **283** | 32 | 232 |
+
+**El debut se mide por valor de carreras, no por conteo** (idea del dueño). «Dio 3 hits» no dice si
+fueron sencillos con el juego 11-1 o el batazo que lo ganó. El universo son los **437 debuts con
+turnos al bate**, y el rango entero va de -2,71 a +3,06. El mejor: **Starlin Castro, 2010-05-07,
++3,06**. El peor: Rufino Linares, 1981. Y el segundo peor es **Juan Marichal**, que ese mismo día
+lanzó una blanqueada de un hit con doce ponches — que es exactamente lo que hace que este detector
+valga la pena.
+
+**El Juego de Estrellas solo publica ACTUACIÓN, no asistencia.** Las 283 apariciones dominicanas caben
+en **18 días del calendario**, y el 13 de julio solo se llevaría 43: un detector de asistencia
+convertiría esos dieciocho días en un muro de nombres y desplazaría gestas reales de esas fechas.
+Con actuación quedan 32, repartidas, y cada una se lee sola. Su universo son las 283 apariciones, no
+los juegos de temporada regular — es raro DENTRO del Juego de Estrellas, que es donde ocurre.
+
+### 5.6. Fechas de persona y primicias
+
+| detector | gesta | `situar` | n | días del calendario |
+| --- | --- | ---: | ---: | ---: |
+| `debut` | un debut en Grandes Ligas | 2 | 980 | 193 |
+| `cumpleanos` | un cumpleaños | 0 | 905 | ~330 |
+| `fallecimiento` | un aniversario de fallecimiento | 0 | 61 | 55 |
+| `primero_posicion` | la primera apertura dominicana en su posición | 0 | 9 | 9 |
+
+**El cumpleaños se suprime si el jugador tiene `deathDate`.** Felicitar a un muerto por su cumpleaños
+es el tipo de error que un sistema automático comete y una persona no. A esos les toca su aniversario
+de fallecimiento.
+
+**El debut dice la EDAD, no los años transcurridos** — «a los 21 años» y no «hace 25 años» (dueño).
+La edad dice algo del hombre; los años transcurridos solo dicen en qué año estamos, y envejecen solos
+cada 1 de enero. Misma regla que en el fallecimiento, y con el mismo descuento de cumpleaños no
+cumplido: `DATEDIFF(YEAR, ...)` cuenta fronteras de año calendario, no cumpleaños.
+
+#### 5.6.1. El 1 de enero es relleno, y NO se puede tratar igual en las dos fechas
+
+`dglMaster` guarda el **1 de enero** cuando solo se conoce el año. Y la regla para apagarlo es
+distinta según el campo, porque el mundo es distinto:
+
+| campo | ¿se puede apagar por regla? | por qué |
+| --- | --- | --- |
+| `debutDate` | **sí** | En Grandes Ligas no se juega el 1 de enero — medido, los 984 debuts caen entre marzo y octubre salvo cuatro. Ninguno legítimo que borrar. |
+| `birthDate` | **no** | La gente sí nace el 1 de enero. Figuran tres y **dos son de verdad**: Fernando Tatís (949 juegos) y Rafael Roque (56). |
+
+Por eso el debut lleva una regla (`NOT (MONTH = 1 AND DAY = 1)`, cuatro de Ligas Negras fuera) y el
+nacimiento lleva una **lista a mano** en `_00_comun.sql`, caso por caso, cuando el dueño confirma cuál
+es relleno. Hoy tiene uno: Pedro San, de quien se sabe que nació en 1895 y nada más. Sale de
+cumpleaños, y su aniversario de fallecimiento se publica pero **sin decir la edad**, porque restar de
+una fecha inventada da una cifra falsa con toda la seguridad de una cifra exacta.
+
+#### 5.6.2. El override de las Ligas Negras
+
+`primero_posicion` es **el único detector del archivo que pregunta «¿quién fue el primero?»**, y eso
+lo hace distinto de todos los demás. A un conteo le pueden faltar casos y sigue siendo honesto
+llamarlo «los que tenemos»; a una primicia, un hueco en la fuente no le da un número bajo: **le da una
+respuesta falsa con nombre y apellido**.
+
+Pasó exactamente eso. El detector publicaba que **Horacio Martínez** fue el primer dominicano en abrir
+en el campocorto, el 1935-07-13. No es cierto: fue **Tetelo Vargas, el 1927-08-14** (dueño). La
+cobertura de Retrosheet de las Ligas Negras tiene huecos — de Tetelo Vargas el juego más antiguo que
+hay es de 1942, y solo como jardinero central.
+
+Por eso este detector admite **overrides**: una lista de `(puesto, retroID, fecha)` dentro del propio
+`.sql`. El dato lo pone el dueño; la consulta no puede llegar a él por ningún camino. Cuando hay
+override la fila **no cuelga de ningún juego** —`game_id`, equipo y rival van vacíos— porque ese juego
+no está en la base e inventarle un contexto sería repetir el error en otra columna.
+
+### 5.7. ⚠️ Siete detectores diseñados que NUNCA se construyeron
+
+Este documento los daba por hechos en versiones anteriores. **No existen como archivo.**
+
+| detector | qué iba a ser | por qué no está |
+| --- | --- | --- |
+| `fouls_turno` | 10+ fouls en un turno, 2008+ | nunca se implementó |
+| `fouls_juego` | 16+ fouls en un juego, 2008+ | nunca se implementó |
+| `rv_bateo` | 5+ carreras de valor generadas | nunca se implementó |
+| `rv_pitcheo` | 5+ carreras evitadas | nunca se implementó |
+| `hr480` | jonrón de 480+ pies, 2015+ | nunca se implementó |
+| `vel100` | 15+ rectas de 100 mph, 2008+ | nunca se implementó |
+| `juego_estrellas` | asistencia al Juego de Estrellas | **descartado a propósito** — ver 5.5 |
+
+Los seis primeros siguen siendo buenas ideas y sus umbrales ya están medidos en el historial de este
+documento. `rv_bateo` y `rv_pitcheo` en particular envejecieron bien: la misma métrica que iban a usar
+—valor de carreras— es la que hoy sostiene `paliza`, `debut_grande` y `debut_dificil`.
+
+`juego_estrellas` es el único que no volverá: se midió y se decidió que no.
+
+### 5.8. La `N` no depende del `rol`: depende del grano
+
+Primero se escribió que la `N` de la rareza dependía del `rol`. Con `k4_inning` quedó claro que era
+quedarse corto: dos detectores de lanzador pueden tener universos distintos, porque lo que cambia no
+es quién protagoniza sino **cuál es la unidad de oportunidad**.
 
 | grano | universo | qué se cuenta |
 | --- | ---: | --- |
 | juego-jugador | 292.948 | la línea de un dominicano en un juego |
+| juego-equipo | 407.816 | un equipo en un juego (203.908 × 2) |
+| juego | 203.908 | el partido entero |
 | turno al bate | 822.764 | un turno de un bateador dominicano |
 | bateador enfrentado | 622.652 | un turno contra un lanzador dominicano |
 | media entrada lanzada | 162.797 | una entrada de un lanzador dominicano |
+| veces en tercera | 92.821 | la oportunidad de robar home |
+| debut de bateador | 723 | el primer turno de Grandes Ligas |
+| aparición en el Juego de Estrellas | 283 | |
+| el maestro | 984 | para las fechas de persona |
 
 `nobletiger` y `k4_inning` son los dos de lanzador y **no comparten `N`**: uno se pregunta «de cada
 bateador que enfrentó», el otro «de cada entrada que lanzó».
 
-Cada detector declara su grano y el motor toma la `N` que corresponde. Usar la equivocada no da
-error: da un puntaje que parece razonable y está mal, que es peor.
+Cada detector declara su grano y el motor toma la `N` que corresponde. Usar la equivocada no da error:
+da un puntaje que parece razonable y está mal, que es peor.
 
-### 5.3. El corte de `turno_clave`, medido
+### 5.9. El corte de `turno_clave`, medido
 
-Primero, la escala de `LI`, porque el umbral no significa nada sin ella. Verificado sobre 4.777.761
-turnos desde 2000: **media 0,940**, máximo **7,17**, `LI >= 2` es el **4,5 %** de los turnos y
-`LI >= 3` el **0,65 %**. O sea que está normalizado como manda el estándar —promedio 1— y un umbral
-de 2 significa «el doble de tensión que un turno cualquiera».
+La escala de `LI` está verificada sobre 4.777.761 turnos desde 2000: **media 0,940**, máximo **7,17**,
+`LI >= 2` es el **4,5 %** de los turnos y `LI >= 3` el **0,65 %**. Está normalizado como manda el
+estándar, así que un umbral de 2 significa «el doble de tensión que un turno cualquiera».
 
 | corte | turnos |
 | --- | ---: |
 | `LI >= 2` | 34.683 |
 | `LI >= 3` | 5.159 |
 | `WPA >= 0.40` | 375 |
-| **`LI >= 2` y `WPA >= 0.40`** | **154** |
-| `LI >= 3` y `WPA >= 0.50` | 36 |
+| **`LI >= 2` y `WPA >= 0.40`** | **153** |
 
-Se eligió `LI >= 2` **y** `WPA >= 0.40`: 154 momentos en 116 años, del mismo orden que las demás
-gestas. Solo `LI >= 3` daría 5.159 turnos tensos que **no decidieron nada** — y tensión sin desenlace
-no es efeméride.
+Se eligió pedir **las dos cosas**. Solo `LI >= 3` daría 5.159 turnos tensos que **no decidieron nada**,
+y tensión sin desenlace no es efeméride.
 
-### 5.4. Hitos de carrera (`retroDailyReg`, suma acumulada)
-
-**831 cruces.** Es la efeméride clásica —«un día como hoy, X llegó a su jonrón 300»— y está fechada
-al día exacto. Se detecta con una suma acumulada por jugador ordenada por fecha, buscando el juego
-en que el total cruza un múltiplo del escalón.
-
-**Suman temporada regular Y postemporada** (decisión del dueño, 2026-08-03). No es como los cuenta
-MLB oficialmente —ellos separan— pero es coherente con el resto del archivo, donde octubre cuenta
-igual que junio. La diferencia medida es de **13 cruces**: 818 solo con regular, 831 con las dos.
-
-| detector | escalón | cruces |
-| --- | ---: | ---: |
-| `hito_hit` | 500 | 267 |
-| `hito_hr` | 100 | 137 |
-| `hito_k` (lanzador) | 500 | 117 |
-| `hito_sb` | 100 | 88 |
-| `hito_rbi` | 500 | 87 |
-| `hito_sv` | 50 | 73 |
-| `hito_win` | 50 | 62 |
-
-El puntaje **no** sale de la fórmula de rareza de la 4.1 sino de la 4.7: cuántos dominicanos han
-llegado alguna vez a esa cifra. Un jonrón 100 lo han cruzado decenas; el hit 3000, dos.
-
-### 5.5. Fechas de persona (`dglMaster`)
-
-| detector | filas | días del calendario |
-| --- | ---: | ---: |
-| `cumpleanos` | 923 | 335 de 366 |
-| `debut` | 984 | 193 |
-| `fallecimiento` | 61 | 55 |
-| `juego_estrellas` | 283 apariciones de 111 jugadores | — |
-
-**El cumpleaños se suprime si el jugador tiene `deathDate`.** Es la razón de que sean 923 y no 984:
-61 fallecidos quedan fuera. Felicitar a un muerto por su cumpleaños es el tipo de error que un
-sistema automático comete y una persona no. A esos 61 les corresponde su aniversario de
-fallecimiento, que va por el detector `fallecimiento` (1943–2025, y **24 de ellos están en el Salón
-de la Fama dominicano** según `yearDomHof`).
-
+**El número publicado NO lleva la cifra de leverage.** Decía «con la tensión 4,1 veces la de un turno
+corriente», que es exacto y no significa nada para quien lee. Ahora dice «con el juego en la línea».
+El dato sigue en la columna `li_max` para quien quiera ordenar o filtrar; lo que cambió es lo que se
+publica. La tensión ya está garantizada por el propio corte del detector: la frase no tiene que
+demostrarla, solo nombrarla.
 ---
 
 ## 6. Por qué hacen falta las fechas de persona
@@ -973,11 +809,35 @@ porque su escala tiene techo 250.
 Un walk-off de grand slam dispara **tres** detectores sobre el mismo turno. Sin regla de fusión, el
 día 23 de abril de 1999 aparecería el mismo batazo de Tatís repetido.
 
-**Regla:** mismo `mlb_id` + mismo `game_id` + mismo `event_id` → se queda **el hecho de mayor
-puntaje** y los demás se anexan como **etiquetas** del mismo hecho, no como filas sueltas.
+**Regla:** mismo `mlb_id` + mismo `game_id` + mismo `event_id` **+ misma `fecha`** → se queda **el
+hecho de mayor RAREZA** y los demás se anexan como **etiquetas** del mismo hecho, no como filas
+sueltas.
 
 Aplica igual entre niveles: si un juego de 3 jonrones incluye un grand slam de walk-off, la fila es
 una sola con las tres etiquetas.
+
+**Las dos piezas en negrita se corrigieron después de verlas fallar, y las dos fallaban en silencio.**
+
+**1. Manda la rareza, no el puntaje.** La regla original decía «el de mayor puntaje». Con 46
+detectores corriendo salió el síntoma: un **walk-off de grand slam** aparecía etiquetado como simple
+walk-off de jonrón. Los dos disparan sobre el mismo turno y, aunque la rareza del slam es 468 contra
+355, el jonrón ganaba por puntaje total — el slam quedaba en percentil bajo dentro de sus 20 hermanos
+mientras el jonrón quedaba alto dentro de sus 262. **Siete de los veinte walk-off de grand slam se
+estaban perdiendo así.**
+
+La rareza es lo que codifica QUÉ TAN ESPECÍFICO es el hecho, y un hecho más específico nunca debe
+perder contra uno que lo contiene. El puntaje solo desempata.
+
+**2. La fecha va en la clave, y no es redundante aunque lo parezca.** Las gestas de PERSONA no
+cuelgan de ningún juego: cumpleaños, debut y fallecimiento del mismo jugador llevan todos
+`game_id = ''` y `event_id = 0`, así que colisionaban entre sí. El síntoma fue exacto: `91_debut.sql`
+devolvía 984 filas y el archivo terminaba con **cero debuts**, porque cada uno se fusionaba con el
+cumpleaños del mismo hombre. Lo destapó la muestra de redacción, no una comprobación — el conteo por
+tipo lo enseñaba y nadie lo estaba leyendo.
+
+**Y hay solapes que son deliberados.** `93_lanzadores_equipo` y `94_lanzadores_juego` disparan sobre
+el mismo juego casi siempre; la fusión se queda con el del mismo equipo, que es la gesta más
+específica, y el otro queda de etiqueta. Eso es exactamente lo que esta regla existe para resolver.
 
 ---
 
@@ -1004,37 +864,57 @@ cualquier otro código.
 6 veces en un juego —en toda la liga solo ha pasado 8 veces en 116 años— pero el detector cuesta
 nada y empieza a producir el día que pase.
 
-### 8.0. Lo que la implementación obligó a cambiar
+### 8.0. Las siete cosas que la implementación destapó
 
-El motor y los primeros cinco detectores se escribieron el 2026-08-03. Correrlo destapó cuatro cosas
-que el diseño no había previsto, y todas están ya en el código:
+Ninguna de estas estaba en el diseño. Todas salieron de correr el motor y **mirar la salida**, y por
+eso el bloque de «muestra de redacción» —una línea real por detector— vale lo que cuesta.
 
-**1. `situar` — un campo más del contrato.** La frase «uno de los N dominicanos que lo ha logrado»
-(3.3) **no aplica a todas las gestas**, y solo el detector sabe si aplica a la suya. La primera
-corrida publicó «Cumple 46 años. Es uno de los 923 dominicanos que lo ha logrado», que es un
-disparate. Peor: el bono de relieve le daba +30 a Fernando Tatís por nacer un 1 de enero —el primero
-de la lista— y con eso superaba a Albert Pujols, que tiene tres veces más juegos.
+**1. El `WPA` de `r24Events` está visto desde el EQUIPO DE CASA, no desde el bateador.** Lo sospechó
+el dueño y la medición no dejó lugar a dudas:
 
-No se decide por `rol`, porque `debut` también es `rol = persona` y ahí la frase **sí** vale: «el
-primer dominicano en llegar a Grandes Ligas» es de las mejores efemérides que hay.
+| | jonrones | WPA medio | con WPA positivo |
+| --- | ---: | ---: | ---: |
+| bateador LOCAL | 166.115 | +0,1277 | 166.093 |
+| bateador VISITANTE | 165.069 | −0,1264 | **0** |
 
-**2. El juego perfecto necesita detector propio.** Metido dentro de `no_hitter`, el perfecto de
+Cero de 165.069. No es una tendencia, es la definición de la columna. Los preludios lo tomaban como
+si fuera del bateador, así que **a todo bateador visitante le entraba su mejor juego como número
+negativo** y el bono de impacto se lo daba en cero. Peor: `turno_clave` pide `wpa >= 0.40`, o sea que
+**solo podía encontrar turnos de bateadores locales** — media liga fuera, sin avisar. La conversión
+correcta está en `_00_comun.sql`, y ojo con el lado del lanzador: cuando batea la casa, el que lanza
+es el visitante.
+
+**2. `orden` se calculaba por el aniversario, no por el año.** Las gestas de persona guardan en
+`fecha` el aniversario de ESTE año, para que `mes`/`dia` salgan solos. El motor ordenaba por ahí, así
+que «el primer dominicano en debutar» salía siendo **quien debutó más temprano en el calendario**. El
+archivo publicaba «Sijo Gómez, el primer dominicano en llegar a Grandes Ligas», que es falso: ganaba
+el puesto por tener fecha de relleno del 1 de enero. Los primeros de verdad son Pedro San (1926) y
+Tetelo Vargas (1927). Se ordena por `temporada` primero; para las gestas de juego es equivalente.
+
+**3. `situar` — un campo más del contrato, y con tres estados.** Ver 3.5.
+
+**4. `gesta` — otro campo más.** Ver 3.7.
+
+**5. El juego perfecto necesita detector propio.** Metido dentro de `no_hitter`, el perfecto de
 Domingo Germán sacaba **767 puntos y quedaba DEBAJO** del no-hitter de Ervin Santana (774): el de
 Santana fue un juego cerrado y el de Germán un 11-0, así que el bono de impacto hundía la gesta más
-rara del béisbol.
+rara del béisbol. Esto **no contradice** el patrón de no crear un detector por escalón, lo delimita:
+tres triples es la *misma* gesta que dos, más grande; un perfecto **no es un no-hitter mejor**, es no
+permitir nada.
 
-Esto **no contradice** el patrón de 5.1.2 —no crear un detector por escalón—, lo delimita: tres
-triples es la *misma* gesta que dos, más grande; un perfecto **no es un no-hitter mejor**, es no
-permitir nada. Con detector propio, la rareza (`n=1` → 600) lo pone donde va y el impacto solo
-desempata. Ahora saca 926 y encabeza el archivo.
+**6. Los negativos había que partirlos en TODO, no solo en la rareza.** Ver 4.5.
 
-**3. El orden del archivo.** Decisión del dueño: `mes`, `dia`, luego **puntaje descendente** —dentro
+**7. La fusión tenía dos errores silenciosos.** Ver 7.
+
+### 8.0.1. Dos reglas de operación
+
+**1. El orden del archivo.** Decisión del dueño: `mes`, `dia`, luego **puntaje descendente** —dentro
 del día manda la importancia— y **fecha ascendente** como desempate. El tercer nivel no sobra: dos
 gestas del mismo tipo el mismo día del calendario sacan casi el mismo puntaje, y sin él el orden lo
 decidiría el azar. Con la fecha, el archivo es **estable**: la misma entrada da siempre la misma
 salida, que es lo que hace que la pantalla de comparación enseñe solo lo que de verdad cambió.
 
-**4. Los `.ps1` van en UTF-8 CON BOM.** Windows PowerShell 5.1 —el `powershell` del gate, no el
+**2. Los `.ps1` van en UTF-8 CON BOM.** Windows PowerShell 5.1 —el `powershell` del gate, no el
 `pwsh` 7— lee un `.ps1` sin BOM **como ANSI**. Las rayas largas y los acentos se decodifican en bytes
 que incluyen comillas, desbalancean las cadenas y el archivo deja de parsear. El motor no arrancaba
 bajo 5.1 y sí bajo 7.
@@ -1085,11 +965,11 @@ las colapsa—. Medido después de fusionar:
 
 | | filas |
 | --- | ---: |
-| juegos-jugador con al menos una gesta | **1.264** |
-| gestas y momentos de evento | ~1.900 |
-| hitos de carrera | 831 |
-| cumpleaños + debut + fallecimiento + Juego de Estrellas | ~2.250 |
-| **total aproximado** | **~6.300** |
+| gestas de juego, evento, Statcast y colectivas | 2.487 |
+| hitos de carrera | 809 |
+| cumpleaños + debut + fallecimiento | 1.944 |
+| Juego de Estrellas y primicias | 41 |
+| **total, medido tras la fusión** | **6.449** |
 
 Bien por debajo de 5 MB. Para comparar: `dom_players` ya carga 9.133 filas por esta misma vía.
 
