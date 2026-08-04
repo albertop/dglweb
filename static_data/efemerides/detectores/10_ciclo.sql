@@ -63,8 +63,8 @@ SELECT  'ciclo'                                   AS tipo,
 FROM    d
 INNER JOIN dbo.dglMaster m ON m.retroID = d.PLAYER_ID
 LEFT  JOIN wpa w  ON w.GAME_ID = d.GAME_ID AND w.BATTER_ID = d.PLAYER_ID
-LEFT  JOIN #equipos   eq ON eq.codigo = d.TEAM_ID
-LEFT  JOIN #equipos   ri ON ri.codigo = d.OPPONENT_ID
+LEFT  JOIN #equipos   eq ON eq.codigo = d.TEAM_ID     AND d.GAME_DT BETWEEN eq.desde AND eq.hasta
+LEFT  JOIN #equipos   ri ON ri.codigo = d.OPPONENT_ID AND d.GAME_DT BETWEEN ri.desde AND ri.hasta
 LEFT  JOIN #abridores ab ON ab.game_id = d.GAME_ID
 LEFT  JOIN #nombres   op ON op.retro_id = CASE WHEN d.HOME_FL = 1 THEN ab.abridor_visita ELSE ab.abridor_casa END
 WHERE   d.B_2B >= 1

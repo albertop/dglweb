@@ -65,8 +65,8 @@ SELECT  'perfecto'                                AS tipo,
 FROM    d
 INNER JOIN dbo.dglMaster m ON m.retroID = d.PLAYER_ID
 LEFT  JOIN wpa w      ON w.GAME_ID = d.GAME_ID AND w.PITCHER_ID = d.PLAYER_ID
-LEFT  JOIN #equipos eq ON eq.codigo = d.TEAM_ID
-LEFT  JOIN #equipos ri ON ri.codigo = d.OPPONENT_ID
+LEFT  JOIN #equipos eq ON eq.codigo = d.TEAM_ID     AND d.GAME_DT BETWEEN eq.desde AND eq.hasta
+LEFT  JOIN #equipos ri ON ri.codigo = d.OPPONENT_ID AND d.GAME_DT BETWEEN ri.desde AND ri.hasta
 WHERE   d.P_H  = 0
   AND   d.P_BB = 0
   AND   d.P_HP = 0

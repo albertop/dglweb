@@ -11,40 +11,52 @@
 -- agregar un detector sigue siendo tocar UN archivo, que es la promesa del diseño (sección 8).
 -- =====================================================================================
 
--- --- Los equipos, con nombre legible --------------------------------------------------
--- `retroTeams` da la ciudad y el apodo por separado. Comprobado el 2026-08-03: 292 filas y 292
--- códigos distintos, o sea que NINGÚN código se reutiliza — un join simple basta y no hace falta
--- acotar por temporada. Se verificó a propósito, porque la tabla tiene `firstSeason`/`lastSeason` y
--- eso hacía pensar lo contrario.
+-- --- Los equipos, con el nombre QUE TENÍAN ESE DÍA ------------------------------------
+-- SE USAN LAS DOS TABLAS, y cada una aporta lo que la otra no tiene.
 --
--- ⚠️ LO QUE ESTA TABLA NO PUEDE DAR: EL NOMBRE DE LA ÉPOCA.
+-- `retroTeams_6d` es la buena: 124 filas para 53 códigos, con `firstGame`/`lastGame`, así que da el
+-- nombre DE LA ÉPOCA. Sin ella, un no-hitter de 2011 salía «contra Cleveland Guardians» — y en 2011
+-- eran los Indians:
 --
--- Las MUDANZAS sí tienen código propio, y ahí el nombre sale bien:
+--     CLE  Naps       1903-1914      TBA  Devil Rays  1998-2007
+--     CLE  Indians    1915-2021      TBA  Rays        2008-
+--     CLE  Guardians  2022-          ANA  Anaheim Angels 1997-2004, Los Angeles Angels 2005-
 --
---     BRO  Brooklyn Dodgers   1890-1957     FLO  Florida Marlins  1993-2011
---     LAN  Los Angeles Dodgers 1958-2025    MIA  Miami Marlins    2012-2025
+-- `lastGame = 1899-12-30` NO es una fecha: es el centinela de «equipo vigente» (confirmado por el
+-- dueño). Se traduce a 9999-12-31 para que el `BETWEEN` funcione.
 --
--- Los CAMBIOS DE NOMBRE SIN MUDANZA, no: el código se queda y la tabla guarda un solo nombre.
+-- `retroTeams` es la de respaldo: 292 códigos, mucha más cobertura pero un solo nombre por código.
+-- Hace falta porque a la de eras le faltan CUATRO códigos que los dominicanos sí pisaron — medido
+-- sobre 158.127 combinaciones equipo-fecha, 212 no resolvían:
 --
---     CLE  «Cleveland Guardians»    1901-2025   pero fueron Indians hasta 2021
---     TBA  «Tampa Bay Devil Rays»   1998-2025   pero son Rays desde 2008
+--     ATH  Sacramento Athletics  2025      (la mudanza de Oakland, aún no está en la de eras)
+--     NY6  New York Cubans       1935-49   ┐
+--     ASE  East All Stars        1933-62   ├ Ligas Negras
+--     NAS  North All Stars       1944-45   ┘
 --
--- Ni siquiera es consistente en cuál de los dos guarda: Guardians es el nuevo, Devil Rays el viejo.
--- El efecto se ve en el archivo: el no-hitter de Ervin Santana de 2011 sale «contra Cleveland
--- Guardians», y en 2011 eran los Indians.
---
--- SE DEJA ASÍ A PROPÓSITO Y NO SE INVENTA UNA TABLA DE RENOMBRAMIENTOS. Los datos del sitio salen de
--- fuentes, no de memoria; una lista de nombres históricos escrita a mano sería exactamente el tipo de
--- dato que este proyecto no se permite. Si hace falta la exactitud de época, el dueño provee la
--- tabla y esto la usa. Mientras tanto la franquicia se identifica bien, que es lo que importa para
--- saber contra quién fue la gesta.
+-- Con las dos, la cobertura es del 100 % y la exactitud de época se conserva donde existe. Cero
+-- ambigüedades: se comprobó que ninguna fecha casa con dos filas.
 IF OBJECT_ID('tempdb..#equipos') IS NOT NULL DROP TABLE #equipos;
-SELECT  t.team                                                      AS codigo,
-        LTRIM(RTRIM(COALESCE(t.city,'') + ' ' + COALESCE(t.nickname,''))) AS nombre
-INTO    #equipos
-FROM    dbo.retroTeams t;
 
-CREATE UNIQUE CLUSTERED INDEX ix_equipos ON #equipos(codigo);
+SELECT  t6.teamId                                                       AS codigo,
+        t6.firstGame                                                    AS desde,
+        CASE WHEN t6.lastGame < t6.firstGame THEN '9999-12-31' ELSE t6.lastGame END AS hasta,
+        LTRIM(RTRIM(COALESCE(t6.location,'') + ' ' + COALESCE(t6.nickname,''))) AS nombre
+INTO    #equipos
+FROM    dbo.retroTeams_6d t6
+
+UNION ALL
+
+-- Solo los códigos que la de eras NO tiene. El rango sale de las temporadas, que para estos casos
+-- alcanza: son equipos sin cambios de nombre dentro de su vida.
+SELECT  t.team,
+        DATEFROMPARTS(t.firstSeason, 1, 1),
+        DATEFROMPARTS(t.lastSeason, 12, 31),
+        LTRIM(RTRIM(COALESCE(t.city,'') + ' ' + COALESCE(t.nickname,'')))
+FROM    dbo.retroTeams t
+WHERE   NOT EXISTS (SELECT 1 FROM dbo.retroTeams_6d x WHERE x.teamId = t.team);
+
+CREATE CLUSTERED INDEX ix_equipos ON #equipos(codigo, desde, hasta);
 
 -- --- Los nombres de CUALQUIER pelotero, dominicano o no -------------------------------
 -- LA PRECEDENCIA ES DEL DUEÑO Y NO ES CAPRICHO: si el jugador está en `dglMaster` se usa su

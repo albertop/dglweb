@@ -64,8 +64,8 @@ FROM    orden o
 INNER JOIN dbo.dglMaster m ON m.retroID = o.BATTER_ID
 LEFT  JOIN dbo.retroGamesReg  g  ON g.GAME_ID  = o.GAME_ID
 LEFT  JOIN dbo.retroGamesPost gp ON gp.GAME_ID = o.GAME_ID
-LEFT  JOIN #equipos   eq ON eq.codigo = CASE WHEN o.en_casa = 1 THEN o.casa   ELSE o.visita END
-LEFT  JOIN #equipos   ri ON ri.codigo = CASE WHEN o.en_casa = 1 THEN o.visita ELSE o.casa   END
+LEFT  JOIN #equipos   eq ON eq.codigo = CASE WHEN o.en_casa = 1 THEN o.casa   ELSE o.visita END AND COALESCE(g.GAME_DT, gp.GAME_DT) BETWEEN eq.desde AND eq.hasta
+LEFT  JOIN #equipos   ri ON ri.codigo = CASE WHEN o.en_casa = 1 THEN o.visita ELSE o.casa   END AND COALESCE(g.GAME_DT, gp.GAME_DT) BETWEEN ri.desde AND ri.hasta
 LEFT  JOIN #abridores ab ON ab.game_id = o.GAME_ID
 LEFT  JOIN #nombres   op ON op.retro_id = CASE WHEN o.en_casa = 1 THEN ab.abridor_visita ELSE ab.abridor_casa END
 WHERE   o.e4 < o.e3 AND o.e3 < o.e2 AND o.e2 < o.e1;
