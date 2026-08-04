@@ -307,19 +307,23 @@ no es efeméride.
 
 ### 5.4. Hitos de carrera (`retroDailyReg`, suma acumulada)
 
-**818 cruces.** Es la efeméride clásica —«un día como hoy, X llegó a su jonrón 300»— y está fechada
+**831 cruces.** Es la efeméride clásica —«un día como hoy, X llegó a su jonrón 300»— y está fechada
 al día exacto. Se detecta con una suma acumulada por jugador ordenada por fecha, buscando el juego
 en que el total cruza un múltiplo del escalón.
 
+**Suman temporada regular Y postemporada** (decisión del dueño, 2026-08-03). No es como los cuenta
+MLB oficialmente —ellos separan— pero es coherente con el resto del archivo, donde octubre cuenta
+igual que junio. La diferencia medida es de **13 cruces**: 818 solo con regular, 831 con las dos.
+
 | detector | escalón | cruces |
 | --- | ---: | ---: |
-| `hito_hit` | 500 | 264 |
-| `hito_hr` | 100 | 134 |
-| `hito_k` (lanzador) | 500 | 115 |
-| `hito_sb` | 100 | 86 |
-| `hito_rbi` | 500 | 85 |
+| `hito_hit` | 500 | 267 |
+| `hito_hr` | 100 | 137 |
+| `hito_k` (lanzador) | 500 | 117 |
+| `hito_sb` | 100 | 88 |
+| `hito_rbi` | 500 | 87 |
 | `hito_sv` | 50 | 73 |
-| `hito_win` | 50 | 61 |
+| `hito_win` | 50 | 62 |
 
 El puntaje **no** sale de la fórmula de rareza de la 4.1 sino de la 4.7: cuántos dominicanos han
 llegado alguna vez a esa cifra. Un jonrón 100 lo han cruzado decenas; el hit 3000, dos.
@@ -427,7 +431,7 @@ las colapsa—. Medido después de fusionar:
 | --- | ---: |
 | juegos-jugador con al menos una gesta | **1.354** |
 | gestas y momentos de evento | ~1.900 |
-| hitos de carrera | 818 |
+| hitos de carrera | 831 |
 | cumpleaños + debut + fallecimiento + Juego de Estrellas | ~2.250 |
 | **total aproximado** | **~6.300** |
 
@@ -461,13 +465,14 @@ que no ha debutado— y hay que mirarlo antes de subir el CSV, no después.
 de 549, y 4 de 154 momentos— porque son 1.878 juegos contra 203.908. Su valor está en que esos pocos
 son de octubre.
 
+**Y también suma en los hitos de carrera**, aunque MLB los cuente separados. Es la decisión coherente
+con la anterior: si octubre cuenta para el ciclo, cuenta para el hit 2000. Medido, la diferencia son
+13 cruces — 818 contra 831.
+
 ### 10.2. Sin confirmar
 
-Está acá para que se vea, no escondido en el código.
-
-1. **Los hitos de carrera cuentan solo temporada regular.** Es como se cuentan oficialmente, y es lo
-   único que queda por decidir tras confirmarse que la postemporada entra en todo lo demás. Si debe
-   sumar también acá, cambia el `UNION` del detector de hitos y los 818 cruces se recalculan.
+Nada. Las tres decisiones abiertas se cerraron el 2026-08-03. Si aparece una nueva, va acá y no
+enterrada en un `.sql`.
 
 ## 11. Fuera de alcance, por ahora
 
