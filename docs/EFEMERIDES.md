@@ -69,7 +69,7 @@ lo demás igual para todos.
 | columna | qué es |
 | --- | --- |
 | `tipo` | el slug del detector: `ciclo`, `hr3`, `walkoff`, `hito_hr`… |
-| `rol` | `bateador` \| `lanzador` \| `fildeador` \| `persona` |
+| `rol` | `bateador` \| `lanzador` \| `fildeador` \| `corredor` \| `persona` — ver 3.1 |
 | `mlb_id` | el jugador, ya traducido desde `retroID` por `dglMaster` |
 | `nombre` | de `dglMaster.nameList`, SIEMPRE — ver 3.0 |
 | `fecha` | la del juego, o la del cumpleaños/debut/fallecimiento |
@@ -82,14 +82,16 @@ lo demás igual para todos.
 | `wpa_jugador` | cuánto movió la probabilidad de ganar ese juego |
 | `li_max` | el leverage más alto en que estuvo |
 | `detalle` | los datos propios del tipo, para el texto |
+| **`cobertura`** | el rango de años que el detector puede ver — ver 5.2.5 |
 | **`veces_total`** | cuántas veces ha pasado en la historia dominicana — ver 3.3 |
 | **`jugadores_total`** | cuántos dominicanos DISTINTOS lo han hecho |
 | **`orden`** | qué número es esta, en orden cronológico. `1` = la primera vez |
 | **`veces_jugador`** | cuántas veces lo ha hecho ESTE jugador |
 | **`orden_jugador`** | cuál de las suyas es esta |
 
-Los cinco últimos **los calcula el motor**, no el detector. Un detector no puede saberlos: dependen
-de todas las filas de su tipo, y él solo ve las suyas.
+Los cinco de conteo **los calcula el motor**, no el detector. Un detector no puede saberlos: dependen
+de todas las filas de su tipo, y él solo ve las suyas. `cobertura` sí la declara el detector, porque
+es lo único que él sabe y el motor no: hasta dónde alcanza su fuente.
 
 ### 3.0. EL NOMBRE SALE DE `nameList`. SIEMPRE.
 
@@ -146,7 +148,12 @@ correctos. La regla queda escrita para que la implementación no se desvíe.
 
 El triple play sin asistencia lo hace **el fildeador**. Sin `rol`, el detector tendría que salir de
 `BATTER_ID` y la efeméride quedaría atribuida al bateador rival — o sea, exactamente al revés de lo
-que pasó. `rol = persona` es para cumpleaños, debut y fallecimiento, que no cuelgan de ningún juego.
+que pasó.
+
+`robo_home` (5.2.6) estrenó el quinto: **`corredor`**. Quien roba home no batea ni lanza, está en
+tercera. Dos detectores han obligado ya a ampliar esta lista, así que conviene asumir que habrá más.
+
+`rol = persona` es para cumpleaños, debut y fallecimiento, que no cuelgan de ningún juego.
 
 ### 3.2. Lo que un detector NO hace
 
@@ -208,7 +215,7 @@ rareza = 600 × (1 − log(n) / log(N))
 
 `n` = cuántas veces ocurrió esa gesta en 116 temporadas. `N` = el universo del detector, y **no es
 uno solo: depende del grano** — 292.948 juegos-jugador, 822.764 turnos al bate, 622.652 bateadores
-enfrentados, 162.797 medias entradas lanzadas. Ver 5.2.3.
+enfrentados, 162.797 medias entradas lanzadas. Ver 5.2.9.
 
 La propiedad que importa: **un detector nuevo se calibra solo**. Si mañana se agrega uno que dispara
 5.000 veces, se hunde solo y no inunda el calendario. Nadie tiene que sentarse a decidir cuánto vale.
@@ -261,16 +268,16 @@ dos.
 
 ---
 
-## 5. El inventario: 39 detectores
+## 5. El inventario: 56 detectores
 
 | grupo | detectores |
 | --- | ---: |
-| gestas de juego (5.1) | 19 |
-| gestas de evento (5.2) | 9 |
+| gestas de juego (5.1) | 27 |
+| gestas de evento (5.2) | 18 |
 | hitos de carrera (5.4) | 7 |
 | fechas de persona (5.5) | 4 |
 
-La `N` de cada detector depende de su grano — ver 5.2.3. La columna *rareza* es lo que da la fórmula
+La `N` de cada detector depende de su grano — ver 5.2.9. La columna *rareza* es lo que da la fórmula
 hoy; el exportador la recalcula en cada corrida.
 
 ### 5.1. Gestas de juego (`retroDaily*`)
@@ -278,6 +285,11 @@ hoy; el exportador la recalcula en cada corrida.
 | detector | umbral | veces | rareza |
 | --- | --- | ---: | ---: |
 | `perfecto` | sin H, sin BB, sin HP, 27+ outs | 1 | 600 |
+| `cg90` | juego completo bajo 90 lanzamientos — ver 5.1.8 | 8 | 500 |
+| `fouls_juego` | 16+ fouls en un juego ⚠️ 2008+ — ver 5.1.9 | 11 | 476 |
+| `rv_pitcheo` | 5+ carreras EVITADAS — ver 5.1.10 | 40 | 402 |
+| `rv_bateo` | 5+ carreras de valor generadas — ver 5.1.10 | 94 | 378 |
+| `hbp_recibidos` | 2+ pelotazos recibidos — ver 5.1.9 | 120 | 372 |
 | `no_hitter` | `P_H = 0`, 27+ outs | 10 | 490 |
 | `robadas4` | `B_SB >= 4` | 14 | 474 |
 | `k15` | `P_SO >= 15` | 16 | 468 |
@@ -286,18 +298,53 @@ hoy; el exportador la recalcula en cada corrida.
 | `cg_1hit` | juego completo de un solo hit | 37 | 428 |
 | `cg_dominante` | CG, 10+ K, cero limpias | 41 | 423 |
 | `rbi7` | `B_RBI >= 7` | 43 | 421 |
-| `hr3` | `B_HR >= 3` — nadie ha llegado a 4, ver 5.1.2 | 64 | 402 |
+| `hr3` | `B_HR >= 3` — nadie ha llegado a 4, ver 5.1.6 | 64 | 402 |
 | `triples2` | `B_3B >= 2` — ver 5.1.1 | 74 | 395 |
+| `k10_bb4` | `P_SO >= 10` y `P_BB >= 4` — dominante y salvaje | 73 | 395 |
 | `boletos4` | `B_BB >= 4` | 75 | 394 |
-| `bases12` | `B_TB >= 12` | 85 | 388 |
+| `bases12` | `B_TB >= 12` — ver 5.1.7 | 85 | 388 |
 | `k12` | `P_SO >= 12` | 137 | 365 |
 | `hits5` | `B_H >= 5` | 153 | 360 |
 | `anotadas4` | `B_R >= 4` | 233 | 340 |
 | `blanqueada` | `P_SHO >= 1` | 271 | 333 |
-| `bases10` | `B_TB >= 10` | 369 | 318 |
+| `cs3` ⚠️ | `B_CS >= 3` — **`signo = -1`**, ver 5.1.5 | 1 | **300** |
+| `paliza` ⚠️ | `P_H >= 10` y `P_R >= 10` — **`signo = -1`** | 19 | **230** |
 | `ponches5` ⚠️ | `B_SO >= 5` — **`signo = -1`** | 20 | **229** |
+| `hbp_propinados` ⚠️ | 3+ pelotazos propinados — **`signo = -1`**, ver 5.1.9 | 25 | **223** |
 
-#### 5.1.0. `rbi7` y no `rbi6`
+#### 5.1.0. Cada cuánto pasa cada cosa
+
+Las veces totales no dicen si un detector es ruidoso: hay que dividir por las 116 temporadas. Esta
+es la tabla para decidir umbrales de aquí en adelante.
+
+| detector | veces | por temporada |
+| --- | ---: | ---: |
+| `blanqueada` | 271 | 2,34 |
+| `anotadas4` | 233 | 2,01 |
+| `hits5` | 153 | 1,32 |
+| `k12` | 137 | 1,18 |
+| `bases12` | 85 | 0,73 |
+| `boletos4` | 75 | 0,65 |
+| `triples2` | 75 | 0,65 |
+| `hr3` | 64 | 0,55 |
+| `rbi7` | 43 | 0,37 |
+| `cg_dominante` | 41 | 0,35 |
+| `cg_1hit` | 37 | 0,32 |
+| `extrabases4` | 33 | 0,28 |
+| `ciclo` | 20 | 0,17 |
+| `ponches5` | 20 | 0,17 |
+| `k15` | 16 | 0,14 |
+| `robadas4` | 14 | 0,12 |
+| `no_hitter` | 10 | 0,09 |
+
+**`hits5` está en 1,32 por temporada** — aproximadamente uno al año, o sea nada. Se revisó porque
+parecía mucho en términos absolutos y no lo es. Y no tiene punto intermedio: subirlo a 6 lo llevaría
+de 153 a **7**, de uno al año a uno cada 17 años.
+
+Los dos que más volumen mueven, ya sin `bases10`, son `blanqueada` y `anotadas4` — ver 5.1.7 para
+por qué `bases10` se eliminó.
+
+#### 5.1.1. `rbi7` y no `rbi6`
 
 Decisión del dueño. El umbral estaba en 6 y subió a 7. Medido, la diferencia es grande:
 
@@ -313,7 +360,7 @@ Con `>= 6` eran 165 hechos y rareza 357. Con `>= 7` son **43 y rareza 421** — 
 las corrientes a estar entre las buenas. El tope dominicano son **10 empujadas en un juego**, una
 sola vez: Alex Rodríguez, 26 de abril de 2005, con 3 jonrones y 13 bases alcanzadas.
 
-#### 5.1.1. Cómo se eligió el umbral de los triples, y por qué NO hay un detector de 3
+#### 5.1.2. Cómo se eligió el umbral de los triples, y por qué NO hay un detector de 3
 
 Medido:
 
@@ -333,7 +380,7 @@ cuenta*, la magnitud define *cuánto*.
 Es el patrón a seguir para cualquier umbral nuevo: se elige el corte donde la gesta deja de ser
 rutina, no donde se vuelve única.
 
-#### 5.1.1.1. Los siete juegos de 6 hits
+#### 5.1.3. Los siete juegos de 6 hits
 
 Mismo patrón que los triples: entran por `hits5` y la magnitud los sube sola. De los 153 juegos de
 5 o más hits, **7 son de 6 hits, por 7 jugadores distintos** — y seis de los siete fueron de 6-de-6:
@@ -351,7 +398,7 @@ Mismo patrón que los triples: entran por `hits5` y la magnitud los sube sola. D
 Dos nombres de esta lista son la prueba de las reglas de la 3.0: **Sammy Sosa** —que concatenando
 saldría como «Samuel Peralta»— y **Luis García**, que son tres jugadores distintos en el maestro.
 
-#### 5.1.1.2. Las 14 de `robadas4`, y la única de 5
+#### 5.1.4. Las 14 de `robadas4`, y la única de 5
 
 Es el detector más raro del grupo de juego (rareza 474). Las 14, completas — **12 jugadores
 distintos**, con Luis Polonia y Elly De La Cruz repitiendo:
@@ -377,7 +424,146 @@ distintos**, con Luis Polonia y Elly De La Cruz repitiendo:
 los suyos. Es el tipo de dato que el campo `detalle` debe cargar: la gesta es «4 robadas», pero
 «4 de 4» es mejor efeméride que «4 de 5».
 
-#### 5.1.2. Nadie ha bateado 4 jonrones
+#### 5.1.5. `cs3` — el umbral se puso en 3, no en 4
+
+Se pidió «atrapado robando con 4+». Medido, ese detector nacería vacío:
+
+| atrapado en un juego | dominicanos | toda la liga |
+| ---: | ---: | ---: |
+| 2 | 110 (53 jugadores) | 2.726 |
+| **3** | **1** | 45 |
+| 4 | **0** | **1 en 116 años** |
+
+Ningún dominicano ha sido atrapado cuatro veces en un juego, y en toda la liga ha pasado una sola
+vez. Por eso el umbral queda en **3**, siguiendo el criterio de 5.1.2: se corta donde deja de ser
+rutina, no donde se vuelve único. Si algún día hay un 4, la magnitud lo sube sola.
+
+El único: **Luis Polonia, 24 de mayo de 1993 — atrapado 3 veces, robó 0.** El mismo Polonia que
+aparece dos veces en la lista de `robadas4`. Ladrón y víctima.
+
+Rareza **300**, el tope de la escala negativa (4.5), porque `n = 1`.
+
+#### 5.1.7. Las bases alcanzadas van en 12, y `bases10` se borró
+
+Había DOS detectores del mismo stat, `bases10` y `bases12`, que contradice el patrón de 5.1.2: un
+umbral por gesta, y la magnitud se encarga del resto. Se elimina `bases10` y queda `bases12`.
+
+| bases | acumulado | por temporada |
+| ---: | ---: | ---: |
+| 9+ | 828 | 7,14 |
+| 10+ | 369 | 3,18 |
+| 11+ | 140 | 1,21 |
+| **12+** | **85** | **0,73** |
+| 13+ | 24 | 0,21 |
+| 15 | 1 | 0,01 |
+
+Con 10 era **el detector más ruidoso del inventario**. Con 12 queda en la misma liga que `hr3`
+(0,55) y `triples2` (0,65). El único juego de 15 bases sube solo por magnitud.
+
+#### 5.1.8. `cg90` — el juego completo de menos de 90 lanzamientos
+
+**8 juegos, 7 lanzadores** (Framber Valdez lo hizo dos veces). Rareza **500**, entre el no-hitter y
+el juego perfecto.
+
+| lanz. | fecha | lanzador | |
+| ---: | --- | --- | --- |
+| **71** | 2025-05-30 | Framber Valdez | 3 H, 9 K |
+| **73** | 2023-06-28 | Domingo Germán | **el juego perfecto** |
+| 87 | 2002-06-25 | Odalis Pérez | blanqueada de 1 hit |
+| 87 | 2003-06-07 | Bartolo Colón | 4 H |
+| 87 | 2025-07-22 | Cristopher Sánchez | 12 K |
+| 88 | 2023-08-01 | Framber Valdez | **el no-hitter** |
+| 89 | 2006-08-15 | Pedro Astacio | blanqueada |
+| 89 | 2019-05-19 | Sandy Alcántara | blanqueada de 2 hits |
+
+Cinco de los ocho son blanqueadas y dos son sin hits.
+
+**Este detector tiene DOS filtros que no son opcionales, y sin ellos da 19 en vez de 8:**
+
+1. **`SEASON >= 1989`.** Regla del dueño: el conteo de lanzamientos solo es válido desde 1989. Antes
+   está incompleto y es poco fiable — medido, de los 197 juegos completos dominicanos de los años
+   sesenta solo 14 traen conteo, y de los 109 de los setenta solo 5. Sin este piso entraban tres
+   juegos más, incluido uno de Marichal de 1971, con conteos que no valen.
+
+2. **`P_OUT >= 27`.** `P_CG` marca «juego completo», y eso **incluye los acortados por lluvia**. Sin
+   exigir las nueve entradas entraban 11 juegos más — entre ellos uno de Iván Nova de 57
+   lanzamientos que son **16 outs**, o sea 5⅓ entradas. No es una joya, es un juego que se suspendió.
+
+Su universo también es distinto: como el detector empieza en 1989, la `N` son los **251.106**
+juegos-jugador de 1989 en adelante, no los 292.948 de toda la historia. Es la regla del grano (5.2.9)
+aplicada al tiempo.
+
+**Por qué `P_PITCH` y no `scastPitch`.** Se pidió usar `dbo.scastPitch`, pero esa tabla **empieza en
+2008** y los juegos completos casi se extinguieron después: se perdería la mitad de la lista.
+`retroDailyReg.P_PITCH` cubre desde 1989 y es completo desde entonces (178 de 189 en los noventa,
+110 de 110 en los 2000, 90 de 90 en los 2010).
+
+Se comprobó que las dos fuentes coinciden donde se solapan: de **131 juegos comparables, 115 dan el
+mismo número** y 119 quedan dentro de dos lanzamientos. Las diferencias grandes parecen dobles juegos
+en la unión por fecha, no discrepancias reales. `scastPitch` queda como verificación cruzada y como
+puente al `game_pk` de MLB, no como fuente primaria.
+
+#### 5.1.9. Los fouls y los pelotazos
+
+Cuatro umbrales calculados con el mismo criterio: el entorno de **una vez por temporada**.
+
+| detector | X | casos | por temporada | rareza | cobertura |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `fouls_turno` | 10 | 10 | 0,53 | 493 | 2008+ |
+| `fouls_juego` | 16 | 11 | 0,58 | 476 | 2008+ |
+| `hbp_recibidos` | 2 | 120 | 1,03 | 372 | completa |
+| `hbp_propinados` ⚠️ | 3 | 25 | 0,22 | 223 | completa |
+
+Los descartes, para que no haya que volver a medirlos: 8 fouls en un turno son 4,95 por temporada;
+14 en un juego, 2,05; 2 pelotazos propinados, 3,54. Todos demasiado corrientes.
+
+Los topes dominicanos —**12 fouls en un turno, 19 en un juego, 3 pelotazos recibidos, 4
+propinados**— entran por su detector y suben solos por magnitud.
+
+**El signo de los pelotazos es un juicio, no un dato.** Los propinados van en negativo: hitear a tres
+bateadores es un fallo de control. Los recibidos van en positivo, porque al bateador no le pasa por
+culpa suya. Si preferís lo contrario, es cambiar un campo.
+
+Los de fouls salen de `scastPitch.description` (`foul`, `foul_tip`, `foul_bunt`) y por eso solo ven
+2008 en adelante. Los pelotazos salen de `B_HP` y `P_HP` del game log, con cobertura completa.
+
+#### 5.1.10. `rv_bateo` y `rv_pitcheo` — el juego más valioso, sin umbrales de conteo
+
+Idea del dueño, y es la mejor del inventario: en vez de preguntar «¿cuántos jonrones?» o «¿cuántos
+hits?», sumar el **`RUN_VALUE` de todos los turnos** del jugador en ese juego. Da una sola medida de
+cuánto produjo —o cuánto evitó— sin importar cómo.
+
+| detector | umbral | casos | por temporada | rareza | `N` |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `rv_bateo` | 5,0 carreras generadas | 94 | 0,81 | 378 | 220.653 |
+| `rv_pitcheo` | 5,0 carreras evitadas | 40 | 0,34 | 402 | 71.046 |
+
+**Lo que lo valida es que encuentra solo lo que ya sabíamos.** El mejor juego ofensivo de la historia
+dominicana según esta métrica es **Alex Rodríguez, 26 de abril de 2005, 8,62 carreras de valor** —
+exactamente el mismo juego que salió por el camino de las empujadas (3 jonrones, 10 RBI, 13 bases).
+Dos métodos independientes, el mismo juego.
+
+Y en pitcheo, **las tres mejores actuaciones son de Juan Marichal**, encabezadas por el **2 de julio
+de 1963: 6,81 carreras evitadas** —el duelo de dieciséis entradas contra Warren Spahn— con Pedro
+Martínez cuarto. Ningún umbral de conteo habría encontrado ese juego: no fue de 15 ponches ni de cero
+hits, fue de aguantar dieciséis entradas.
+
+| | |
+| --- | --- |
+| 8,62 | Alex Rodríguez, 2005-04-26 |
+| 7,81 | Edwin Encarnación, 2015-08-29 |
+| 7,50 | Sammy Sosa, 2002-08-10 |
+| 6,81 | **Juan Marichal, 1963-07-02** (pitcheo) |
+| 6,08 | Juan Marichal, 1966-05-26 (pitcheo) |
+
+**Por qué `RUN_VALUE` y no `WPA`.** Miden cosas distintas y las dos están en `r24Events`: el valor de
+carreras dice cuánto **produjo**, el WPA cuánto **acercó la victoria**. Un juegazo en una derrota de
+12-2 tiene valor alto y WPA bajo. Acá se usa `RUN_VALUE` para el umbral —es la gesta— y el WPA sigue
+alimentando el bono de impacto (4.3), que es donde el contexto debe pesar.
+
+Cobertura completa, 1910–2025.
+
+#### 5.1.6. Nadie ha bateado 4 jonrones
 
 Los 64 juegos de `hr3` son **exactamente de 3**, por 36 jugadores. Ningún dominicano ha conectado
 cuatro en un juego. Por eso el umbral se queda en 3 y no hay detector de 4 — el día que pase, la
@@ -389,9 +575,18 @@ magnitud (4.2) lo va a subir sola al tope de su tipo, igual que con los triples.
 | --- | --- | ---: | ---: |
 | `doble_slam` | 2 grand slams del mismo bateador en un juego | **1** | 600 |
 | `triple_play_solo` | `TP_FL='T'`, los 3 outs del mismo fildeador, cero asistencias | **1** | 600 |
-| `walkoff_slam` | walk-off con 2 outs y bases llenas | 69 | 413 |
+| `walkoff_slam` | walk-off de GRAND SLAM — ver 5.2.4 | 20 | 468 |
+| `walkoff_2outs` | walk-off de jonrón, 2 outs, PERDIENDO | 22 | 464 |
+| `hr_dentro_parque` | jonrón dentro del parque ⚠️ 2008+ | 22 | 456 |
+| `hr480` | jonrón de 480+ pies ⚠️ 2015+ — ver 5.2.8 | 12 | 435 |
+| `vel100` | 15+ rectas de 100 mph en un juego ⚠️ 2008+ — ver 5.2.8 | 40 | 392 |
+| `walkoff_bb` | walk-off de boleto o golpeado | 28 | 453 |
+| `robo_home` | robo de HOME — `rol = corredor` | 85 | 367 |
 | `walkoff_hr` | walk-off de jonrón | 262 | 355 |
 | `k4_inning` | 4 ponches en la misma entrada — ver 5.2.2 | 5 | 520 |
+| `fouls_turno` | 10+ fouls en un turno ⚠️ 2008+ — ver 5.1.9 | 10 | 493 |
+| `inmaculado` | 9 lanzamientos, 3 ponches ⚠️ 2008+ | 8 | 490 |
+| `inning3lanz` | 3 lanzamientos, 3 outs ⚠️ 2008+ | 11 | 473 |
 | `nobletiger` | bases llenas, 0 outs, sale sin carrera — ver 5.2.1 | 324 | 340 |
 | `turno_clave` | `LI >= 2` **y** `WPA >= 0.40` | 154 | — |
 | `grand_slam` | `HR=1` y `RBI=4` | 520 | 325 |
@@ -466,7 +661,101 @@ Rareza **520**, entre el no-hitter (490) y el juego perfecto (600). Los cinco:
 | 2018-07-08 | Miguel Díaz | SD, **inning 11** |
 | 2021-07-25 | Domingo Germán | NYY, 7mo |
 
-#### 5.2.3. La `N` no depende del `rol`: depende del grano
+#### 5.2.4. Los walk-off, revisados contra la lista de MLB
+
+De la lista de *game notes* de MLB salieron tres variantes que no teníamos, y **una corrección**.
+
+| detector | veces | jugadores | rareza |
+| --- | ---: | ---: | ---: |
+| `walkoff_slam` | 20 | 17 | 468 |
+| `walkoff_2outs` | 22 | 17 | 464 |
+| `walkoff_bb` | 28 | 26 | 453 |
+| `walkoff_hr` (ya estaba) | 262 | 100 | 355 |
+| `walkoff` (ya estaba) | 955 | 232 | 299 |
+
+**La corrección:** `walkoff_slam` estaba definido como «walk-off con 2 outs y bases llenas», que da
+69 casos y **no es un walk-off grand slam** — la mayoría de esos 69 se ganaron con un sencillo. El
+grand slam de verdad son **20**. Estaba mal desde que lo escribí y lo destapó cruzar el diseño contra
+una lista externa.
+
+`walkoff_bb` es la contraria y por eso vale: el juego se acaba con un boleto o un pelotazo, sin que
+nadie batee. 28 veces.
+
+#### 5.2.5. Cobertura parcial: cuando NO se puede decir cuántos hay
+
+Regla del dueño. Cuatro detectores no ven toda la historia:
+
+| detector | fuente | cobertura | veces |
+| --- | --- | --- | ---: |
+| `inmaculado` | `scastPitch` | **2008+** | 8 |
+| `inning3lanz` | `scastPitch` | **2008+** | 11 |
+| `hr_dentro_parque` | `scastPitch` (`des`) | **2008+** | 22 |
+| `cg90` | `P_PITCH` | **1989+** | 8 |
+
+**En estos, `veces_total` y `jugadores_total` van vacíos y el texto NO dice «uno de los N».** El
+número que tenemos es el de la ventana que vemos, no el de la historia, y publicarlo como si fuera
+total sería mentir con precisión decimal. Un inning inmaculado de 1985 existiría y no lo sabríamos.
+
+Cada detector declara su `cobertura`; el motor la respeta sin que haya que acordarse caso por caso.
+Lo que sí conservan es `orden_jugador` y `veces_jugador` —«por segunda vez en su carrera»— cuando el
+jugador entero cae dentro de la ventana.
+
+**Los inmaculados (8):** Rafael Soriano 2010, Juan Pérez 2011, Iván Nova 2013, Carlos Contreras 2014,
+Santiago Casilla 2015, Juan Nicasio 2016, Dellin Betances 2017, Enyel De los Santos 2022.
+
+**Los de 3 lanzamientos (11):** de Jesús Colomé (2008) a Blas Castaño (2026), pasando por Sandy
+Alcántara y Luis Severino.
+
+**El jonrón dentro del parque no está codificado en Retrosheet.** Se comprobó: ni `EVENT_TX` ni
+`EVENT_CD` lo distinguen de uno por encima de la verja. Solo se detecta por el texto `des` de
+Statcast, y de ahí que su cobertura sea 2008+.
+
+#### 5.2.6. `robo_home` — y el quinto `rol`
+
+**85 robos de home por 53 corredores dominicanos**, con cobertura completa: sale de
+`retroEventsReg.RUN3_SB_FL`, que marca exactamente eso.
+
+Obliga a un `rol` nuevo: **`corredor`**. El protagonista no batea ni lanza — está en tercera. Es el
+mismo problema que destapó `triple_play_solo` con el fildeador, y la misma solución.
+
+Su grano también es propio: la `N` son las **92.821** veces que un dominicano estuvo en tercera.
+
+#### 5.2.8. Los dos de Statcast: `hr480` y `vel100`
+
+Statcast permite dos gestas que Retrosheet no puede ver. Los umbrales se calcularon con el criterio
+de 5.1.2 —cortar donde deja de ser rutina— buscando el entorno de **una por temporada**.
+
+**`hr480` — el jonrón largo.** Las distancias van de **2015 a 2026, 12 temporadas**, sobre 8.549
+jonrones dominicanos con medición:
+
+| umbral | jonrones | por temporada | rareza |
+| ---: | ---: | ---: | ---: |
+| 460 pies | 102 | 8,50 | 293 |
+| 470 pies | 34 | 2,83 | 366 |
+| **480 pies** | **12** | **1,00** | **435** |
+| 490 pies | 6 | 0,50 | 481 |
+
+**480** da exactamente uno por temporada. Los cinco más largos: Nomar Mazara **505 pies** (2019),
+Miguel Sanó 496, Jesús Sánchez 496, Miguel Sanó otra vez 495, Gary Sánchez 493.
+
+**`vel100` — las rectas de 100 millas.** La velocidad va de **2008 a 2026, 19 temporadas**, sobre
+42.494 juegos-lanzador:
+
+| umbral | juegos | por temporada | rareza |
+| ---: | ---: | ---: | ---: |
+| 10+ rectas | 178 | 9,37 | 308 |
+| **15+ rectas** | **40** | **2,11** | **392** |
+| 20+ rectas | 6 | 0,32 | 499 |
+
+**15** deja el detector en la liga de `hits5` (1,32) y `k12` (1,18). Con 20 quedarían solo 6 juegos —
+está ahí si se prefiere más escaso.
+
+El récord es de otra dimensión: **Yordano Ventura tiró 26 rectas de 100+ millas el 3 de octubre de
+2014**, en postemporada. Le siguen Mauricio Cabrera y Jhoan Durán con 22.
+
+Los dos son de cobertura parcial, así que **no publican totales** (5.2.5).
+
+#### 5.2.9. La `N` no depende del `rol`: depende del grano
 
 Primero se escribió que la `N` de la rareza dependía del `rol`. Con `k4_inning` quedó claro que eso
 era quedarse corto: dos detectores de lanzador pueden tener universos distintos, porque lo que
