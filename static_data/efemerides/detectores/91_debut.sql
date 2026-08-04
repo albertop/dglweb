@@ -27,7 +27,20 @@ SELECT  'debut' AS tipo,
         CAST(YEAR(GETDATE()) - YEAR(m.debutDate) AS varchar(3)) + ' años' AS detalle,
         '' AS equipo_nombre, '' AS rival_nombre, '' AS oponente
 FROM    dbo.dglMaster m
-WHERE   m.debutDate IS NOT NULL;
+WHERE   m.debutDate IS NOT NULL
+  -- EL 1 DE ENERO ES RELLENO, NO UNA FECHA. Cuando solo se conoce el AÑO del debut, `dglMaster`
+  -- guarda el 1 de enero de ese año: Enrique Lantigua figura con `1935-01-01` y lo que se sabe es
+  -- que fue en 1935 (dueño, 2026-08-04).
+  --
+  -- ACÁ SÍ SE PUEDE APAGAR POR REGLA, al revés que con los nacimientos. La temporada de Grandes
+  -- Ligas va de marzo a octubre —medido, los 984 debuts caen entre marzo y octubre salvo estos
+  -- cuatro— así que nadie debuta un 1 de enero y no hay ninguno legítimo que borrar. En cambio la
+  -- gente sí NACE el 1 de enero, y por eso `90_cumpleanos.sql` necesita una lista a mano.
+  --
+  -- Y ESTA EFEMÉRIDE ES DE DÍA. Se consulta por «un día como hoy»: sin día no hay dónde ponerla, y
+  -- publicarla el 1 de enero sería inventar la fecha. Son cuatro y todos de las Ligas Negras: Sijo
+  -- Gómez y Néstor Lambertus (1929), Enrique Lantigua y Horacio Martínez (1935).
+  AND   NOT (MONTH(m.debutDate) = 1 AND DAY(m.debutDate) = 1);
 
 -- =====================================================================================
 -- LA LISTA — para cuando pregunten «¿quiénes son esos?»

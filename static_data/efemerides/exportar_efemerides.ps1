@@ -233,7 +233,12 @@ function Get-Situacion {
     #   * y encima se entendía como «fue el quinto dominicano en lograrlo», que es `orden`.
     #
     # Con los DOS números no queda margen: cuál de las suyas fue, y de cuántas.
-    if ($VecesJugador -gt 1) { $frase += " Para él fue la $($OrdenJugador)ª de sus $VecesJugador." }
+    #
+    # Y TERMINA EN «VECES», que tampoco es adorno. «Para él fue la 2ª de sus 3» no dice de sus tres
+    # QUÉ —lo preguntó el dueño mirando un grand slam— y encima iba en femenino sobre un sustantivo
+    # masculino: «la 2ª» de «un grand slam». Con «veces» el número queda dicho y la concordancia
+    # sale bien para los 66 detectores, sin que cada uno tenga que declarar su sustantivo.
+    if ($VecesJugador -gt 1) { $frase += " Para él fue la $($OrdenJugador)ª de sus $VecesJugador veces." }
     return $frase
 }
 
@@ -333,7 +338,18 @@ finally { if ($cn2 -and $cn2.State -eq 'Open') { $cn2.Close() } }
 Write-Host "Puntuando..."
 
 foreach ($grupo in ($hechos | Group-Object tipo)) {
-    $delTipo = @($grupo.Group | Sort-Object fecha, game_id, event_id)
+    # SE ORDENA POR `temporada` PRIMERO, Y NO ES REDUNDANTE. De acá sale `orden`, que es lo que
+    # decide quién fue «el primer dominicano en lograrlo», así que tiene que ser CRONOLOGÍA REAL.
+    #
+    # Para las gestas de juego da igual —`fecha` ya lleva el año— pero las de PERSONA guardan en
+    # `fecha` el ANIVERSARIO DE ESTE AÑO, para que `mes`/`dia` salgan solos. Ordenar por ahí ordena
+    # por día del calendario y pierde el año entero.
+    #
+    # El síntoma era una efeméride falsa publicada: «Sijo Gómez — Fue el primer dominicano en
+    # lograrlo», que ganaba el puesto por debutar un 1 de enero. Y encima ese 1 de enero era un
+    # relleno (ver `91_debut.sql`). Los primeros de verdad son Pedro San (1926) y Tetelo Vargas
+    # (1927); Gómez es de 1929.
+    $delTipo = @($grupo.Group | Sort-Object @{Expression = { [int]$_.temporada }}, fecha, game_id, event_id)
     $veces   = $delTipo.Count
     $jugadores = @($delTipo | Group-Object mlb_id).Count
     $universo  = [double]$delTipo[0].universo

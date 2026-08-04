@@ -51,7 +51,12 @@ SELECT  'cumpleanos'                              AS tipo,
         ''                                        AS oponente
 FROM    dbo.dglMaster m
 WHERE   m.birthDate IS NOT NULL
-  AND   m.deathDate IS NULL;
+  AND   m.deathDate IS NULL
+  -- SIN FECHA DE NACIMIENTO CONFIRMADA NO HAY CUMPLEAÑOS. `dglMaster` rellena con el 1 de enero
+  -- cuando solo se conoce el año, y felicitar a alguien en una fecha inventada es publicar un dato
+  -- falso. La lista está en `_00_comun.sql`, y es una lista y no una regla porque hay dominicanos
+  -- que sí nacieron un 1 de enero.
+  AND   m.retroID NOT IN (SELECT retro_id FROM #sin_natalicio);
 
 -- =====================================================================================
 -- LA LISTA — para cuando pregunten «¿quiénes son esos?»

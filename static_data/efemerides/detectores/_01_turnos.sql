@@ -41,11 +41,20 @@ SELECT  v.GAME_ID                                  AS game_id,
         -- «perdiendo» sin equivocarse de lado.
         CASE WHEN v.BAT_HOME_ID = 1 THEN v.HOME_SCORE_CT ELSE v.AWAY_SCORE_CT END AS sc_bat,
         CASE WHEN v.BAT_HOME_ID = 1 THEN v.AWAY_SCORE_CT ELSE v.HOME_SCORE_CT END AS sc_riv,
-        v.WPA                                      AS wpa,
+        -- EL WPA VA CONVERTIDO A LA VISTA DEL BATEADOR. En `r24Events` está siempre desde el equipo
+        -- de CASA —medido: de 165.069 jonrones de visitantes, cero tienen WPA positivo— y esta tabla
+        -- es del bateador. Sin convertir, `66_turno_clave.sql` (que pide `wpa >= 0.40`) solo podía
+        -- encontrar turnos de bateadores locales: la mitad del béisbol quedaba fuera sin avisar.
+        -- El porqué completo está en `_00_comun.sql`.
+        CASE WHEN v.BAT_HOME_ID = 1 THEN v.WPA ELSE -v.WPA END AS wpa,
         v.LI                                       AS li,
         v.[1B] AS s1, v.[2B] AS s2, v.[3B] AS s3, v.HR AS hr,
         v.RBI AS rbi, v.BB AS bb, v.IBB AS ibb, v.HBP AS hbp, v.SO AS so,
         COALESCE(lz.nombre, '')                    AS oponente,
+        -- EL retroID DEL LANZADOR, no solo su nombre. Hace falta para poder preguntar si el lanzador
+        -- era dominicano, que es lo que reduce el grand slam a los duelos dominicano contra
+        -- dominicano. Ver `65_grand_slam.sql`.
+        v.PITCHER_ID                               AS lanzador_retro,
         -- EL WALK-OFF, y las cuatro condiciones son necesarias:
         --   último turno del juego  · el juego se acabó ahí
         --   el equipo de casa batea · el visitante no puede terminar un juego bateando

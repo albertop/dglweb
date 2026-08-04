@@ -21,7 +21,14 @@ SELECT  'fallecimiento' AS tipo,
         -- «Falleció a los X años de edad» y NO «Murió hace X años» (dueño, 2026-08-03). La edad al
         -- morir dice algo del hombre; los años transcurridos solo dicen en qué año estamos, y encima
         -- envejecen solos: el mismo texto cambia cada 1 de enero sin que pase nada.
-        'Falleció en {temporada}, a los {detalle} años de edad.' AS plantilla,
+        --
+        -- SIN NATALICIO NO SE DICE LA EDAD. La edad sale de restar el nacimiento, y para los de
+        -- `#sin_natalicio` esa fecha es un relleno: daría una cifra falsa con toda la seguridad de
+        -- una cifra exacta. El aniversario de la muerte sí se publica —esa fecha se conoce— y lo
+        -- único que se calla es lo que no sabemos.
+        CASE WHEN m.retroID IN (SELECT retro_id FROM #sin_natalicio)
+             THEN 'Falleció en {temporada}.'
+             ELSE 'Falleció en {temporada}, a los {detalle} años de edad.' END AS plantilla,
         m.mlbID AS mlb_id,
         m.nameList AS nombre,
         DATEFROMPARTS(YEAR(GETDATE()), MONTH(m.deathDate), DAY(m.deathDate)) AS fecha,

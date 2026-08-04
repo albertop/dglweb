@@ -23,7 +23,12 @@ SELECT  'turno_clave' AS tipo,
         t.wpa AS magnitud,
         t.wpa AS wpa_jugador,
         t.li AS li_max,
-        'en el ' + t.inning_txt + CASE WHEN t.outs = 0 THEN ', sin outs' WHEN t.outs = 1 THEN ', con 1 out' ELSE ', con ' + CAST(t.outs AS varchar(1)) + ' outs' END + ', con la tensión ' + REPLACE(CAST(CAST(ROUND(t.li, 1) AS decimal(4,1)) AS varchar(5)), '.', ',') + ' veces la de un turno corriente' AS detalle,
+        -- SIN LA CIFRA DE LEVERAGE. Decía «con la tensión 4,1 veces la de un turno corriente», que es
+        -- exacto y no significa nada para quien lee: obliga a saber qué es el LI y contra qué se
+        -- compara. El dato sigue en la columna `li_max` para quien quiera ordenar o filtrar; lo que
+        -- cambia es lo que se PUBLICA. La tensión ya está garantizada por el propio corte del
+        -- detector —`li >= 2`— así que la frase no tiene que demostrarla, solo nombrarla.
+        'en el ' + t.inning_txt + CASE WHEN t.outs = 0 THEN ', sin outs' WHEN t.outs = 1 THEN ', con 1 out' ELSE ', con ' + CAST(t.outs AS varchar(1)) + ' outs' END + ', con el juego en la línea' AS detalle,
         t.equipo_nombre, t.rival_nombre, t.oponente
 FROM    #turnos t
 WHERE   t.li >= 2 AND t.wpa >= 0.40;

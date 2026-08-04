@@ -2,16 +2,25 @@
 -- El walk-off anticlimático: boleto o pelotazo con las bases llenas. Medido: 28 veces, 26
 -- jugadores. Rareza 453.
 --
+-- SE LLAMABA `walkoff_bb` Y ERA UN NOMBRE FALSO. El detector siempre cubrió las TRES formas de
+-- terminar un juego sin darle a la pelota —boleto, boleto intencional y pelotazo— y el texto las
+-- distinguía bien fila por fila. Lo que mentía era el slug: decía «bb» y publicaba «lo golpearon».
+-- Lo cazó el dueño leyendo la muestra el 2026-08-04. Ahora el nombre dice lo mismo que el titular.
+--
+-- Y las tres pertenecen juntas: lo que hace la efeméride no es qué lanzamiento fue, sino que el
+-- juego se acabó SIN QUE EL BATEADOR LE PEGARA A NADA. Separarlas daría tres detectores de menos de
+-- veinte filas cada uno contando la misma historia.
+--
 -- GRANO: turno al bate. Universo 822764. Sale de `#turnos` (preludio `_01_turnos.sql`).
 --
 -- Acá SÍ se nombra al lanzador: el turno se enfrentó a UN hombre, así que decirlo es verdad.
 -- =====================================================================================
-SELECT  'walkoff_bb' AS tipo,
+SELECT  'walkoff_sin_batear' AS tipo,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,
         822764 AS universo,
-        'Terminó el juego sin batear la pelota contra {rival_nombre}: {detalle}.' AS plantilla,
+        'Walk-off sin batear la pelota contra {rival_nombre}: {detalle}.' AS plantilla,
         t.mlb_id, t.nombre, t.fecha, t.temporada, t.game_id, t.event_id, t.game_type,
         t.equipo, t.rival, t.en_casa,
         1 AS signo,

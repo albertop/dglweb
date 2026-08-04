@@ -10,7 +10,10 @@ SELECT  'walkoff' AS tipo,
         'completa' AS cobertura,
         1 AS situar,
         822764 AS universo,
-        'Terminó el juego contra {rival_nombre} ante {oponente}: {detalle}.' AS plantilla,
+        -- «WALK-OFF» Y NO «TERMINÓ EL JUEGO» (dueño, 2026-08-04). El término en inglés es el que la
+        -- afición usa y entiende de una vez; la perífrasis en español es correcta y no dice nada.
+        -- Vale para toda la familia: `61`, `62`, `63` y `64` llevan la misma cabeza.
+        'Walk-off contra {rival_nombre} ante {oponente}: {detalle}.' AS plantilla,
         t.mlb_id, t.nombre, t.fecha, t.temporada, t.game_id, t.event_id, t.game_type,
         t.equipo, t.rival, t.en_casa,
         1 AS signo,

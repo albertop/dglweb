@@ -1,76 +1,114 @@
 -- =====================================================================================
--- Diez hits y diez carreras permitidas. Medido: 19 veces, 17 lanzadores. Rareza 230.
+-- LA PALIZA, MEDIDA POR RITMO: valor de carreras por bateador enfrentado. Medido: 79 veces.
 --
--- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
+-- IDEA DEL DUEÑO (2026-08-04), y arregla un detector que estaba mal planteado.
+--
+-- QUÉ ESTABA MAL. La regla era «10 hits y 10 carreras» sobre el juego entero, y daba 19 casos en 116
+-- temporadas. El problema no era el número, era el concepto: A UN LANZADOR NO LO DEJAN AHÍ PARA QUE
+-- LE HAGAN DIEZ CARRERAS — LO SACAN. Aquella regla solo podía encontrar juegos en que al hombre lo
+-- dejaron hasta el final, que es justo lo que NO pasa en una paliza. La paliza de verdad dura una
+-- entrada. El dueño la descartó por eso: «no hace sentido».
+--
+-- LA MEDIDA BUENA ES UN RITMO, no un total, porque un total siempre premia al que estuvo más rato:
+--
+--     ritmo = suma del RUN_VALUE de sus bateadores / bateadores enfrentados
+--
+-- `RUN_VALUE` va desde la ofensiva, así que positivo es daño al lanzador. Dividir por bateadores
+-- enfrentados quita el tiempo de la ecuación: mide CUÁNTO LE COSTÓ CADA HOMBRE, y con eso la
+-- entrada catastrófica y el juego largo compiten en igualdad.
+--
+-- EL UMBRAL ES 1,0 Y SE EXPLICA SOLO: cada bateador que enfrentó le costó, en promedio, una carrera
+-- entera. Medido sobre 64.540 juegos-lanzador dominicanos de al menos 3 bateadores:
+--
+--     ritmo >= 0,50    1.910 casos    16,47 por temporada
+--     ritmo >= 0,70      630           5,43
+--     ritmo >= 0,80      353           3,04
+--     ritmo >= 1,00       79           0,68   <- el corte
+--
+-- 0,68 por temporada lo deja en la misma liga que `hr3` (0,55) y `triples2` (0,65). Y a diferencia
+-- de 0,8 o 0,7, el 1,0 no hay que justificarlo: es la línea en que el lanzador regaló una carrera
+-- por hombre.
+--
+-- EL MÍNIMO DE 3 BATEADORES no es un umbral más, es lo que impide que la métrica se rompa: con un
+-- solo bateador enfrentado, un grand slam da un ritmo altísimo y eso no es una paliza, es un batazo.
+--
+-- `signo = -1`: corre a media escala en todo, con techo 400. Ver docs/EFEMERIDES.md 4.5.
+--
+-- GRANO: juego-jugador (292.948).
 -- =====================================================================================
+WITH ritmo AS (
+    SELECT  e.GAME_ID AS game_id, e.PITCHER_ID AS retro_id,
+            SUM(e.RUN_VALUE)                                  AS rv,
+            COUNT(1)                                          AS bf,
+            SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) AS ritmo
+    FROM    dbo.r24Events e
+    INNER JOIN dbo.dglMaster m ON m.retroID = e.PITCHER_ID
+    WHERE   e.BAT_EVENT_FL = 1
+    GROUP BY e.GAME_ID, e.PITCHER_ID
+    HAVING  COUNT(1) >= 3
+        AND SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) >= 1.0
+)
 SELECT  'paliza' AS tipo,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,
         292948 AS universo,
+        -- El texto dice el ritmo con palabras, no con el número: «cada bateador… le costó una
+        -- carrera» se entiende sin saber qué es el RUN_VALUE. Es la misma decisión que en
+        -- `66_turno_clave.sql` con el leverage — el dato queda en la columna, no en la frase.
         'Le cayeron encima los {rival_nombre}: {detalle}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,
         0 AS event_id,
         j.game_type, j.equipo, j.rival, j.en_casa,
         -1 AS signo,
-        j.P_R AS magnitud,
+        -- La MAGNITUD es el daño total, no el ritmo. El ritmo ya definió quién entra; entre los que
+        -- entraron, la peor es la que más carreras costó de verdad.
+        r.rv AS magnitud,
         NULL AS wpa_jugador,
         j.li_max,
-        CAST(j.P_H AS varchar(2)) + ' hits y ' + CAST(j.P_R AS varchar(2)) + ' carreras en ' + CAST(j.P_OUT / 3 AS varchar(3)) + CASE j.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + ' entradas' AS detalle,
+        -- «EN 0 ENTRADAS» NO SE DICE. Un lanzador al que sacan sin retirar a nadie no lanzó cero
+        -- entradas: no sacó un out, que es lo que hay que escribir. Y el número de bateadores va acá
+        -- porque es la mitad de la medida — sin él, «le costó una carrera a cada uno» no se sostiene.
+        CAST(j.P_R AS varchar(2)) + ' carreras y ' + CAST(j.P_H AS varchar(2)) + ' hits '
+            + CASE WHEN j.P_OUT = 0
+                   THEN 'sin sacar un solo out'
+                   ELSE 'en ' + CAST(j.P_OUT / 3 AS varchar(3))
+                        + CASE j.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + ' entradas' END
+            + ', una carrera por cada uno de los ' + CAST(r.bf AS varchar(3)) + ' bateadores que enfrentó' AS detalle,
         j.equipo_nombre, j.rival_nombre,
         '' AS oponente
-FROM    #juegos j
-WHERE   j.P_H >= 10 AND j.P_R >= 10;
+FROM    ritmo r
+INNER JOIN #juegos j ON j.game_id = r.game_id AND j.PLAYER_ID = r.retro_id;
 
 -- =====================================================================================
--- LA LISTA — para cuando pregunten «¿quiénes son esos, y cuándo?»
+-- LA LISTA — «¿cuáles son esas palizas?»
 --
--- Se pega tal cual en cualquier ventana de SQL Server y corre sola. NO usa `#juegos`: esa tabla la
--- crea el preludio y solo existe mientras el motor corre, así que una consulta que dependiera de
--- ella sería inútil justo cuando hace falta — con el dueño esperando la lista.
---
--- Por eso repite el UNION de `retroDailyReg` y `retroDailyPost`. Es duplicación deliberada: el
--- precio de que esto funcione sin preparar nada.
+-- Se pega tal cual y corre sola: no depende de `#juegos`, que solo existe mientras el motor corre.
 -- =====================================================================================
 /*
-WITH d AS (
-    SELECT r.PLAYER_ID, r.GAME_ID, r.GAME_DT, r.SEASON, r.TEAM_ID, r.OPPONENT_ID, 'R' AS gt,
-           r.B_AB, r.B_H, r.B_2B, r.B_3B, r.B_HR, r.B_RBI, r.B_R, r.B_BB, r.B_SO, r.B_SB, r.B_CS,
-           r.B_TB, r.B_HP, r.B_GDP, r.P_CG, r.P_SHO, r.P_OUT, r.P_H, r.P_R, r.P_ER,
-           r.P_BB, r.P_HP, r.P_SO, r.P_GDP, r.P_PITCH,
-           (r.B_H - r.B_2B - r.B_3B - r.B_HR) AS B_1B
-    FROM   dbo.retroDailyReg r INNER JOIN dbo.dglMaster m ON m.retroID = r.PLAYER_ID
-    UNION ALL
-    SELECT p.PLAYER_ID, p.GAME_ID, p.GAME_DT, p.SEASON, p.TEAM_ID, p.OPPONENT_ID, 'P',
-           p.B_AB, p.B_H, p.B_2B, p.B_3B, p.B_HR, p.B_RBI, p.B_R, p.B_BB, p.B_SO, p.B_SB, p.B_CS,
-           p.B_TB, p.B_HP, p.B_GDP, p.P_CG, p.P_SHO, p.P_OUT, p.P_H, p.P_R, p.P_ER,
-           p.P_BB, p.P_HP, p.P_SO, p.P_GDP, p.P_PITCH,
-           (p.B_H - p.B_2B - p.B_3B - p.B_HR)
-    FROM   dbo.retroDailyPost p INNER JOIN dbo.dglMaster m2 ON m2.retroID = p.PLAYER_ID
+WITH ritmo AS (
+    SELECT  e.GAME_ID, e.PITCHER_ID,
+            SUM(e.RUN_VALUE) AS rv, COUNT(1) AS bf,
+            SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) AS ritmo
+    FROM    dbo.r24Events e
+    INNER JOIN dbo.dglMaster m ON m.retroID = e.PITCHER_ID
+    WHERE   e.BAT_EVENT_FL = 1
+    GROUP BY e.GAME_ID, e.PITCHER_ID
+    HAVING  COUNT(1) >= 3 AND SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) >= 1.0
 ),
-eq AS (
-    SELECT t6.teamId AS codigo, t6.firstGame AS desde,
-           CASE WHEN t6.lastGame < t6.firstGame THEN '9999-12-31' ELSE t6.lastGame END AS hasta,
-           LTRIM(RTRIM(COALESCE(t6.location,'') + ' ' + COALESCE(t6.nickname,''))) AS nombre
-    FROM   dbo.retroTeams_6d t6
+d AS (
+    SELECT r.PLAYER_ID, r.GAME_ID, r.GAME_DT, r.P_OUT, r.P_H, r.P_R, r.P_ER, r.OPPONENT_ID
+    FROM   dbo.retroDailyReg r
     UNION ALL
-    SELECT t.team, DATEFROMPARTS(t.firstSeason,1,1), DATEFROMPARTS(t.lastSeason,12,31),
-           LTRIM(RTRIM(COALESCE(t.city,'') + ' ' + COALESCE(t.nickname,'')))
-    FROM   dbo.retroTeams t
-    WHERE  NOT EXISTS (SELECT 1 FROM dbo.retroTeams_6d x WHERE x.teamId = t.team)
+    SELECT p.PLAYER_ID, p.GAME_ID, p.GAME_DT, p.P_OUT, p.P_H, p.P_R, p.P_ER, p.OPPONENT_ID
+    FROM   dbo.retroDailyPost p
 )
-SELECT  m.nameList                AS jugador,
-        CAST(d.GAME_DT AS date)   AS fecha,
-        d.SEASON                  AS temporada,
-        CASE d.gt WHEN 'P' THEN 'postemporada' ELSE 'regular' END AS tipo_juego,
-        COALESCE(pr.nombre, d.TEAM_ID)     AS equipo,
-        COALESCE(ri.nombre, d.OPPONENT_ID) AS rival,
-        d.P_OUT / 3.0 AS entradas, d.P_H AS hits_permitidos, d.P_R AS carreras, d.P_ER AS limpias,
-        d.P_SO AS ponches, d.P_BB AS boletos, d.P_HP AS pelotazos
-FROM    d
-INNER JOIN dbo.dglMaster m ON m.retroID = d.PLAYER_ID
-LEFT  JOIN eq pr ON pr.codigo = d.TEAM_ID     AND d.GAME_DT BETWEEN pr.desde AND pr.hasta
-LEFT  JOIN eq ri ON ri.codigo = d.OPPONENT_ID AND d.GAME_DT BETWEEN ri.desde AND ri.hasta
-WHERE   d.P_H >= 10 AND d.P_R >= 10
-ORDER BY d.GAME_DT;
+SELECT  m.nameList AS lanzador, CAST(d.GAME_DT AS date) AS fecha, d.OPPONENT_ID AS rival,
+        d.P_OUT / 3.0 AS entradas, d.P_H AS hits, d.P_R AS carreras,
+        r.bf AS bateadores_enfrentados,
+        CAST(r.ritmo AS decimal(5,2)) AS carreras_por_bateador
+FROM    ritmo r
+INNER JOIN d ON d.GAME_ID = r.GAME_ID AND d.PLAYER_ID = r.PITCHER_ID
+INNER JOIN dbo.dglMaster m ON m.retroID = r.PITCHER_ID
+ORDER BY r.ritmo DESC;
 */

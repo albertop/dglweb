@@ -129,10 +129,36 @@ WITH d AS (
     FROM   dbo.retroDailyPost p
     INNER JOIN dbo.dglMaster m2 ON m2.retroID = p.PLAYER_ID
 ),
--- El WPA por juego, de los dos lados. Para el LANZADOR va con el signo cambiado: lo que el bateador
--- le quita a su equipo, el lanzador se lo da al suyo.
-wb AS (SELECT GAME_ID, BATTER_ID  AS pid, SUM(WPA) AS wpa, MAX(LI) AS li FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 GROUP BY GAME_ID, BATTER_ID),
-wp AS (SELECT GAME_ID, PITCHER_ID AS pid, -SUM(WPA) AS wpa, MAX(LI) AS li FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 GROUP BY GAME_ID, PITCHER_ID)
+-- =====================================================================================
+-- EL WPA DE `r24Events` ESTÁ SIEMPRE VISTO DESDE EL EQUIPO DE CASA. No desde el bateador.
+-- =====================================================================================
+--
+-- Lo sospechó el dueño el 2026-08-04 y la medición no deja lugar a dudas:
+--
+--     jonrones de bateador LOCAL       166.115   WPA medio +0,1277   166.093 positivos
+--     jonrones de bateador VISITANTE   165.069   WPA medio -0,1264         0 positivos
+--
+-- CERO de 165.069. No es una tendencia, es la definición de la columna.
+--
+-- LO QUE ESTABA MAL. Este preludio tomaba `SUM(WPA)` como si fuera del bateador, así que a todo
+-- bateador visitante le asignaba el WPA al revés: su mejor juego de la vida entraba como número
+-- negativo y el bono de impacto (4.3) se lo daba en cero. Y al lanzador le ponía `-SUM(WPA)`
+-- siempre, que acierta solo cuando batea el equipo de casa. O sea que las dos mitades estaban
+-- correctas la mitad de las veces.
+--
+-- LA CONVERSIÓN. `BAT_HOME_ID = 1` significa que batea el equipo de casa:
+--
+--     bateador  = +WPA si batea la casa, -WPA si batea el visitante
+--     lanzador  = lo contrario del bateador — y OJO, cuando batea la casa el que lanza es el
+--                 VISITANTE, así que su beneficio es -WPA
+wb AS (SELECT GAME_ID, BATTER_ID  AS pid,
+              SUM(CASE WHEN BAT_HOME_ID = 1 THEN WPA ELSE -WPA END) AS wpa,
+              MAX(LI) AS li
+       FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 GROUP BY GAME_ID, BATTER_ID),
+wp AS (SELECT GAME_ID, PITCHER_ID AS pid,
+              SUM(CASE WHEN BAT_HOME_ID = 1 THEN -WPA ELSE WPA END) AS wpa,
+              MAX(LI) AS li
+       FROM dbo.r24Events WHERE BAT_EVENT_FL = 1 GROUP BY GAME_ID, PITCHER_ID)
 SELECT  d.PLAYER_ID, m.mlbID AS mlb_id, m.nameList AS nombre,
         d.GAME_ID AS game_id, CAST(d.GAME_DT AS date) AS fecha, d.SEASON AS temporada, d.gt AS game_type,
         d.TEAM_ID AS equipo, d.OPPONENT_ID AS rival, d.HOME_FL AS en_casa,
@@ -180,3 +206,24 @@ SELECT  gp.GAME_ID, CAST(gp.GAME_DT AS date)
 FROM    dbo.retroGamesPost gp;
 
 CREATE UNIQUE CLUSTERED INDEX ix_fechas ON #fechas(game_id);
+
+-- --- Los que NO tienen fecha de nacimiento conocida -----------------------------------
+-- EL 1 DE ENERO ES EL RELLENO DE `dglMaster` cuando solo se conoce el AÑO: Pedro San figura con
+-- `1895-01-01` y lo que se sabe de verdad es que nació en 1895, no el día ni el mes (dueño,
+-- 2026-08-04). Es la misma convención que en `debutDate` — ver `91_debut.sql`.
+--
+-- PERO ACÁ NO SE PUEDE APLICAR COMO REGLA, y esa es la diferencia con el debut. En Grandes Ligas no
+-- se juega el 1 de enero, así que un DEBUT ese día solo puede ser relleno; en cambio la gente SÍ
+-- nace el 1 de enero. Medido: figuran tres, y dos son de verdad —Fernando Tatís (949 juegos) y
+-- Rafael Roque (56)—. Apagar el 1 de enero a ciegas les borraría el cumpleaños a los dos.
+--
+-- Por eso esto es una LISTA A MANO, caso por caso, cuando el dueño confirma cuál es relleno.
+--
+-- QUÉ APAGA. `90_cumpleanos.sql` no lo publica —no se felicita por una fecha inventada— y
+-- `92_fallecimiento.sql` le quita la edad al morir, que sale de restar el natalicio. El aniversario
+-- de la muerte SÍ se publica: esa fecha sí se conoce.
+IF OBJECT_ID('tempdb..#sin_natalicio') IS NOT NULL DROP TABLE #sin_natalicio;
+CREATE TABLE #sin_natalicio (retro_id varchar(20) PRIMARY KEY);
+
+INSERT INTO #sin_natalicio (retro_id) VALUES
+    ('san-p101');   -- Pedro San (mlbID 817384), confirmado por el dueño el 2026-08-04

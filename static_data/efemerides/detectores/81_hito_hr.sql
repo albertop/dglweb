@@ -23,7 +23,14 @@ SELECT  'hito_hr' AS tipo,
         -- tiene rareza de evento, tiene rareza de NÚMERO.
         --
         -- Solo se dice cuando son cinco o menos. Con veinte no es noticia, es una lista.
-        'Conectó su jonrón {magnitud} contra {rival_nombre}: {detalle}.'
+        --
+        -- Y SI ESE DÍA SOLO BATEÓ UNO, NO SE DICE (dueño, 2026-08-04). «Conectó su jonrón 400: ese
+        -- día bateó 1 jonrón» está diciendo dos veces la misma cosa — el jonrón 400 ES ese jonrón.
+        -- La coletilla solo aporta cuando hubo más de uno, porque entonces cuenta algo nuevo: que el
+        -- hito cayó en un día de dos o tres. Es el caso de la mayoría, así que la plantilla se parte.
+        CASE WHEN c.B_HR <= 1
+             THEN 'Conectó su jonrón {magnitud} contra {rival_nombre}.'
+             ELSE 'Conectó su jonrón {magnitud} contra {rival_nombre}: {detalle}.' END
             + CASE WHEN cu.cuantos <= 5
                    THEN CASE WHEN cu.cuantos = 1 THEN ' Es el único dominicano que ha llegado ahí.'
                              ELSE ' Solo ' + CAST(cu.cuantos AS varchar(2)) + ' dominicanos han llegado ahí.' END
