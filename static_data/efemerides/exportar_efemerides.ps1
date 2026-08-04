@@ -412,7 +412,20 @@ $fusionados = [System.Collections.Generic.List[object]]::new()
 # porque cada uno se fusionaba con el cumpleaños del mismo jugador. Lo destapó la muestra de
 # redacción, no una comprobación — el conteo por tipo lo enseñaba y nadie lo estaba leyendo.
 foreach ($g in ($hechos | Group-Object { "$($_.mlb_id)|$($_.game_id)|$($_.event_id)|$($_.fecha)" })) {
-    $ordenados = @($g.Group | Sort-Object -Property puntaje -Descending)
+    # MANDA LA RAREZA, NO EL PUNTAJE, y esto se corrigió después de verlo fallar.
+    #
+    # La regla era «se queda el de mayor puntaje». Con 46 detectores corriendo salió el problema: un
+    # WALK-OFF DE GRAND SLAM aparecía etiquetado como simple «walk-off de jonrón». Los dos disparan
+    # sobre el mismo turno, y aunque la rareza del slam es 468 contra 355, el jonrón ganaba por
+    # puntaje total — el slam quedaba en percentil bajo dentro de sus 20 hermanos mientras el jonrón
+    # quedaba alto dentro de sus 262.
+    #
+    # Siete de los veinte walk-off de grand slam se estaban perdiendo así.
+    #
+    # La rareza es lo que codifica QUÉ TAN ESPECÍFICO es el hecho, y un hecho más específico nunca
+    # debe perder contra uno que lo contiene. El puntaje solo desempata.
+    $ordenados = @($g.Group | Sort-Object -Property @{Expression='rareza'; Descending=$true},
+                                                    @{Expression='puntaje'; Descending=$true})
     $principal = $ordenados[0]
     $etiquetas = @($ordenados | Select-Object -Skip 1 | ForEach-Object { $_.tipo })
     $principal | Add-Member -NotePropertyName etiquetas -NotePropertyValue ($etiquetas -join ' ')

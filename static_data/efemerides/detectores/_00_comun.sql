@@ -165,3 +165,18 @@ LEFT  JOIN wb ON wb.GAME_ID = d.GAME_ID AND wb.pid = d.PLAYER_ID
 LEFT  JOIN wp ON wp.GAME_ID = d.GAME_ID AND wp.pid = d.PLAYER_ID;
 
 CREATE CLUSTERED INDEX ix_juegos ON #juegos(PLAYER_ID, game_id);
+
+-- --- La fecha de cada juego -----------------------------------------------------------
+-- `r24Events` NO trae la fecha: solo `GAME_ID`. Los detectores de evento la necesitan —una efeméride
+-- sin fecha no es una efeméride— así que se resuelve una vez acá y no en cada uno.
+--
+-- Las dos tablas de juegos, porque la postemporada entra en todas las gestas (decisión del dueño).
+IF OBJECT_ID('tempdb..#fechas') IS NOT NULL DROP TABLE #fechas;
+SELECT  g.GAME_ID AS game_id, CAST(g.GAME_DT AS date) AS fecha
+INTO    #fechas
+FROM    dbo.retroGamesReg g
+UNION ALL
+SELECT  gp.GAME_ID, CAST(gp.GAME_DT AS date)
+FROM    dbo.retroGamesPost gp;
+
+CREATE UNIQUE CLUSTERED INDEX ix_fechas ON #fechas(game_id);
