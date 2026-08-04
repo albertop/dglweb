@@ -21,7 +21,7 @@
 -- GRANO: juego-jugador (292.948), el mismo que los hitos de carrera.
 -- =====================================================================================
 SELECT  'hito_w20' AS tipo,
-        '20 victorias en una temporada' AS gesta,
+        '20+ victorias en una temporada' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         292948 AS universo,

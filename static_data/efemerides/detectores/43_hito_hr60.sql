@@ -21,7 +21,7 @@
 -- GRANO: juego-jugador (292.948), el mismo que los hitos de carrera.
 -- =====================================================================================
 SELECT  'hito_hr60' AS tipo,
-        '60 jonrones en una temporada' AS gesta,
+        '60+ jonrones en una temporada' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         292948 AS universo,

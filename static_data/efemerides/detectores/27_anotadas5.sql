@@ -1,10 +1,10 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Cuatro o más anotadas. Medido: 233 veces. Rareza 340.
 --
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'anotadas5' AS tipo,
-        '5 carreras anotadas en un juego' AS gesta,
+        '5+ carreras anotadas en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

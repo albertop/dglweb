@@ -17,7 +17,7 @@
 -- GRANO: juego-jugador (292.948), el mismo que los hitos de carrera.
 -- =====================================================================================
 SELECT  'hito_k200' AS tipo,
-        '200 ponches en una temporada' AS gesta,
+        '200+ ponches en una temporada' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         292948 AS universo,

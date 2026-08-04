@@ -25,7 +25,7 @@
 -- GRANO: juego-jugador (292.948), el mismo que los hitos de carrera.
 -- =====================================================================================
 SELECT  'hito_rbi125' AS tipo,
-        '125 empujadas en una temporada' AS gesta,
+        '125+ empujadas en una temporada' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         292948 AS universo,

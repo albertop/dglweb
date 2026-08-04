@@ -31,40 +31,45 @@
 --
 -- GRANO: el debut. `N` = 961, los debuts con edad fiable.
 -- =====================================================================================
+WITH base AS (
+    SELECT  m.mlbID, m.nameList, m.debutDate, m.birthDate,
+            DATEDIFF(YEAR, m.birthDate, m.debutDate)
+              - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
+                       OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
+                     THEN 1 ELSE 0 END AS anios
+    FROM    dbo.dglMaster m
+    WHERE   m.debutDate IS NOT NULL
+      AND   m.birthDate IS NOT NULL
+      AND   NOT (MONTH(m.debutDate) = 1 AND DAY(m.debutDate) = 1)
+      AND   m.retroID NOT IN (SELECT retro_id FROM #sin_natalicio)
+),
+edad AS (
+    SELECT  b.*, DATEDIFF(DAY, DATEADD(YEAR, b.anios, b.birthDate), b.debutDate) AS dias
+    FROM    base b
+)
 SELECT  'debut_veterano' AS tipo,
         'un debut a los 30 años o más' AS gesta,
         'persona' AS rol,
         'completa' AS cobertura,
         961 AS universo,
         1 AS situar,
-        'Debutó en Grandes Ligas a los {detalle} años, cuando casi nadie debuta ya.' AS plantilla,
-        m.mlbID AS mlb_id,
-        m.nameList AS nombre,
-        DATEFROMPARTS(YEAR(GETDATE()), MONTH(m.debutDate), DAY(m.debutDate)) AS fecha,
-        YEAR(m.debutDate) AS temporada,
+        'Debutó en Grandes Ligas con {detalle}, cuando casi nadie debuta ya.' AS plantilla,
+        e.mlbID AS mlb_id,
+        e.nameList AS nombre,
+        DATEFROMPARTS(YEAR(GETDATE()), MONTH(e.debutDate), DAY(e.debutDate)) AS fecha,
+        YEAR(e.debutDate) AS temporada,
         '' AS game_id, 0 AS event_id, '-' AS game_type,
         '' AS equipo, '' AS rival, 0 AS en_casa,
         1 AS signo,
-        -- Acá la edad va derecha: más viejo, más gesta. No hay que invertir nada.
-        DATEDIFF(YEAR, m.birthDate, m.debutDate)
-          - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
-                   OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
-                 THEN 1 ELSE 0 END AS magnitud,
+        -- Acá la edad va derecha: más viejo, más gesta. En días, por el mismo desempate que allá.
+        (e.anios * 365) + e.dias AS magnitud,
         NULL AS wpa_jugador, NULL AS li_max,
-        CAST(DATEDIFF(YEAR, m.birthDate, m.debutDate)
-             - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
-                      OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
-                    THEN 1 ELSE 0 END AS varchar(3)) AS detalle,
+        -- AÑOS Y DÍAS (dueño, 2026-08-04), igual que en `11_debut_joven`.
+        CAST(e.anios AS varchar(3)) + ' años y ' + CAST(e.dias AS varchar(3))
+            + CASE WHEN e.dias = 1 THEN ' día' ELSE ' días' END AS detalle,
         '' AS equipo_nombre, '' AS rival_nombre, '' AS oponente
-FROM    dbo.dglMaster m
-WHERE   m.debutDate IS NOT NULL
-  AND   m.birthDate IS NOT NULL
-  AND   NOT (MONTH(m.debutDate) = 1 AND DAY(m.debutDate) = 1)
-  AND   m.retroID NOT IN (SELECT retro_id FROM #sin_natalicio)
-  AND   (DATEDIFF(YEAR, m.birthDate, m.debutDate)
-         - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
-                  OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
-                THEN 1 ELSE 0 END) >= 30;
+FROM    edad e
+WHERE   e.anios >= 30;
 
 -- =====================================================================================
 -- LA LISTA — «¿quiénes debutaron pasados los 30?»

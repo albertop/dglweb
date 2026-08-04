@@ -16,7 +16,7 @@
 -- GRANO: juego-jugador (292.948), el mismo que los hitos de carrera.
 -- =====================================================================================
 SELECT  'hito_h200' AS tipo,
-        '200 hits en una temporada' AS gesta,
+        '200+ hits en una temporada' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         292948 AS universo,

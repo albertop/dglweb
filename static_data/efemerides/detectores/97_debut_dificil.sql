@@ -43,7 +43,7 @@ debut AS (
     WHERE  p.rn = 1 AND rvb.rv <= -1.5
 )
 SELECT  'debut_dificil'                           AS tipo,
-        'un debut de -1,5 carreras de valor o peor' AS gesta,
+        'un debut de -1.5 carreras de valor o peor' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         292948                                    AS universo,

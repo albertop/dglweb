@@ -29,7 +29,7 @@ WITH cruce AS (
     WHERE   t.hr_ac >= 30 AND t.sb_ac >= 30
 )
 SELECT  'hito_3030' AS tipo,
-        'una temporada de 30 jonrones y 30 robos' AS gesta,
+        'una temporada de 30+ jonrones y 30+ robos' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         292948 AS universo,

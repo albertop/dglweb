@@ -18,6 +18,10 @@
 -- Y la lista se defiende sola: Griffin, Rodríguez, Cedeño, Ramírez y Beltré juntan más de 11.000
 -- juegos de Grandes Ligas entre los cinco.
 --
+-- LA EDAD VA EN AÑOS Y DÍAS (dueño, 2026-08-04), y en este detector es lo que da la noticia. «18
+-- años» tapa la diferencia entre el que debutó recién cumplidos y el que estaba a una semana de
+-- cumplir 19, y en precocidad esa diferencia ES el dato — así se cuentan estos récords en el béisbol.
+--
 -- SE FUSIONA CON `91_debut.sql` A PROPÓSITO. Los dos son del mismo hombre, el mismo día y sin juego
 -- —`game_id` vacío, `event_id` cero— así que caen en la misma clave de fusión (sección 7). Manda
 -- este, que tiene mucha más rareza, y el debut simple queda de etiqueta. Es lo correcto: «debutó a
@@ -30,41 +34,50 @@
 -- GRANO: el debut. `N` = 961, los debuts con edad fiable. No son los 292.948 juegos-jugador: la
 -- oportunidad de debutar joven se tiene UNA vez en la vida.
 -- =====================================================================================
+WITH base AS (
+    SELECT  m.mlbID, m.nameList, m.debutDate, m.birthDate,
+            -- Los años cumplidos, con el descuento de cumpleaños no llegado: `DATEDIFF(YEAR, ...)`
+            -- cuenta fronteras de año calendario, no cumpleaños.
+            DATEDIFF(YEAR, m.birthDate, m.debutDate)
+              - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
+                       OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
+                     THEN 1 ELSE 0 END AS anios
+    FROM    dbo.dglMaster m
+    WHERE   m.debutDate IS NOT NULL
+      AND   m.birthDate IS NOT NULL
+      AND   NOT (MONTH(m.debutDate) = 1 AND DAY(m.debutDate) = 1)
+      AND   m.retroID NOT IN (SELECT retro_id FROM #sin_natalicio)
+),
+edad AS (
+    -- Los DÍAS desde el último cumpleaños antes del debut: se le suman los años al natalicio y se
+    -- resta. Sale exacto sin tener que pensar en bisiestos.
+    SELECT  b.*, DATEDIFF(DAY, DATEADD(YEAR, b.anios, b.birthDate), b.debutDate) AS dias
+    FROM    base b
+)
 SELECT  'debut_joven' AS tipo,
         'un debut antes de los 20 años' AS gesta,
         'persona' AS rol,
         'completa' AS cobertura,
         961 AS universo,
         1 AS situar,
-        'Debutó en Grandes Ligas a los {detalle} años, cuando todavía no llegaba a los 20.' AS plantilla,
-        m.mlbID AS mlb_id,
-        m.nameList AS nombre,
-        DATEFROMPARTS(YEAR(GETDATE()), MONTH(m.debutDate), DAY(m.debutDate)) AS fecha,
-        YEAR(m.debutDate) AS temporada,
+        'Debutó en Grandes Ligas con {detalle}, cuando todavía no llegaba a los 20.' AS plantilla,
+        e.mlbID AS mlb_id,
+        e.nameList AS nombre,
+        DATEFROMPARTS(YEAR(GETDATE()), MONTH(e.debutDate), DAY(e.debutDate)) AS fecha,
+        YEAR(e.debutDate) AS temporada,
         '' AS game_id, 0 AS event_id, '-' AS game_type,
         '' AS equipo, '' AS rival, 0 AS en_casa,
         1 AS signo,
-        -- MÁS JOVEN, MÁS GESTA: se invierte para que el percentil ordene al revés. Un debut a los 18
-        -- tiene que pesar más que uno a los 19, y la magnitud siempre premia el número mayor.
-        20 - (DATEDIFF(YEAR, m.birthDate, m.debutDate)
-              - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
-                       OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
-                     THEN 1 ELSE 0 END) AS magnitud,
+        -- MÁS JOVEN, MÁS GESTA: se invierte para que el percentil ordene al revés. Y se cuenta en
+        -- DÍAS, no en años, para que dos debutantes de la misma edad en años no queden empatados.
+        (20 * 365) - (e.anios * 365 + e.dias) AS magnitud,
         NULL AS wpa_jugador, NULL AS li_max,
-        CAST(DATEDIFF(YEAR, m.birthDate, m.debutDate)
-             - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
-                      OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
-                    THEN 1 ELSE 0 END AS varchar(3)) AS detalle,
+        -- AÑOS Y DÍAS. La concordancia se resuelve acá: «1 día» y no «1 días».
+        CAST(e.anios AS varchar(3)) + ' años y ' + CAST(e.dias AS varchar(3))
+            + CASE WHEN e.dias = 1 THEN ' día' ELSE ' días' END AS detalle,
         '' AS equipo_nombre, '' AS rival_nombre, '' AS oponente
-FROM    dbo.dglMaster m
-WHERE   m.debutDate IS NOT NULL
-  AND   m.birthDate IS NOT NULL
-  AND   NOT (MONTH(m.debutDate) = 1 AND DAY(m.debutDate) = 1)
-  AND   m.retroID NOT IN (SELECT retro_id FROM #sin_natalicio)
-  AND   (DATEDIFF(YEAR, m.birthDate, m.debutDate)
-         - CASE WHEN MONTH(m.debutDate) < MONTH(m.birthDate)
-                  OR (MONTH(m.debutDate) = MONTH(m.birthDate) AND DAY(m.debutDate) < DAY(m.birthDate))
-                THEN 1 ELSE 0 END) < 20;
+FROM    edad e
+WHERE   e.anios < 20;
 
 -- =====================================================================================
 -- LA LISTA — «¿quiénes debutaron antes de los 20?»
