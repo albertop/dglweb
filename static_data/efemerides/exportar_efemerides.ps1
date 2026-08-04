@@ -129,11 +129,17 @@ function Get-Magnitud {
         Percentil y no una escala absoluta porque cada tipo mide otra cosa: 4 jonrones, 15 ponches y
         0,87 de WPA no se comparan entre sí, pero sí contra los suyos.
     #>
-    param([double] $Valor, [double[]] $Todas)
+    param([double] $Valor, [double[]] $Todas, [int] $Signo)
 
-    if ($Todas.Count -le 1) { return [double]$TOPE_MAGNITUD }
+    # Los negativos corren a MEDIA ESCALA también acá, no solo en la rareza. La primera versión solo
+    # partía la rareza, y el resultado se vio al correr 33 detectores: `cs3` —atrapado robando tres
+    # veces, una sola vez en la historia— sacaba 550 y empataba con un juego de TRES JONRONES (552).
+    # Una deshonra no puede valer lo que una hazaña por el mero hecho de ser rara.
+    $tope = if ($Signo -lt 0) { [double]$TOPE_MAGNITUD / 2 } else { [double]$TOPE_MAGNITUD }
+
+    if ($Todas.Count -le 1) { return $tope }
     $menores = @($Todas | Where-Object { $_ -lt $Valor }).Count
-    return $TOPE_MAGNITUD * ($menores / [double]($Todas.Count - 1))
+    return $tope * ($menores / [double]($Todas.Count - 1))
 }
 
 function Get-Impacto {
@@ -161,11 +167,15 @@ function Get-Relieve {
         Con cobertura parcial NO se da: no sabemos si fue el primero, solo que es el primero que
         vemos. Ver 5.2.5.
     #>
-    param([int] $Orden, [int] $VecesTotal, [bool] $Completa, [bool] $Situar)
+    param([int] $Orden, [int] $VecesTotal, [bool] $Completa, [int] $Situar, [int] $Signo)
+
+    # A UNA DESHONRA NO SE LE DA EL BONO DE «EL ÚNICO». Ser el único que falló así no es un honor, y
+    # premiarlo era lo que ponía `cs3` a la altura de un juego de tres jonrones.
+    if ($Signo -lt 0) { return 0.0 }
 
     # Sin `situar` no hay «primero» que premiar: el primero de una lista de cumpleaños es solo el
     # que nació más temprano en el año.
-    if (-not $Situar)   { return 0.0 }
+    if ($Situar -eq 0) { return 0.0 }
     if (-not $Completa) { return 0.0 }
     if ($VecesTotal -eq 1) { return [double]$TOPE_RELIEVE }        # el único
     if ($Orden -eq 1)      { return $TOPE_RELIEVE * 0.6 }          # el primero
@@ -183,10 +193,31 @@ function Get-Situacion {
         el de la historia, y publicarlo como total sería mentir con precisión decimal.
     #>
     param([int] $Orden, [int] $VecesTotal, [int] $JugadoresTotal, [int] $VecesJugador,
-          [bool] $Completa, [bool] $Situar)
+          [bool] $Completa, [int] $Situar)
 
-    if (-not $Situar)   { return "" }
+    if ($Situar -eq 0)  { return "" }
     if (-not $Completa) { return "" }
+
+    # `situar = 2` — SOLO SI ES EL PRIMERO O EL ÚNICO.
+    #
+    # Es para las gestas que TODOS hicieron. El debut es el caso: los 984 del maestro debutaron, así
+    # que «Es uno de los 984 dominicanos que lo ha logrado» no dice nada. Pero «Fue el primer
+    # dominicano en llegar a Grandes Ligas» es de las mejores efemérides que hay, y se perdería si el
+    # detector se apagara del todo con `situar = 0`.
+    if ($Situar -eq 2 -and $Orden -ne 1 -and $VecesTotal -ne 1) { return "" }
+
+    # EL VERBO CAMBIA CON EL SIGNO. La primera versión decía «lo ha logrado» para todo, y la muestra
+    # de redacción la dejó en evidencia: «Bateó para 3 dobles matanzas… Fue el primer dominicano en
+    # LOGRARLO» y «Lo atraparon robando 3 veces… Es el único dominicano que lo ha LOGRADO». Nadie
+    # logra un ponche. A una deshonra le pasa.
+    if ($Signo -lt 0) {
+        if ($VecesTotal -eq 1) { return "Es el único dominicano al que le ha pasado." }
+        if ($Orden -eq 1)      { return "Fue el primer dominicano al que le pasó." }
+        $frase = "Le ha pasado a $JugadoresTotal dominicanos."
+        if ($VecesJugador -gt 1) { $frase += " A él, $VecesJugador veces." }
+        return $frase
+    }
+
     if ($VecesTotal -eq 1)  { return "Es el único dominicano que lo ha logrado." }
     if ($Orden -eq 1)       { return "Fue el primer dominicano en lograrlo." }
 
@@ -301,7 +332,7 @@ foreach ($grupo in ($hechos | Group-Object tipo)) {
     $universo  = [double]$delTipo[0].universo
     $signo     = [int]$delTipo[0].signo
     $completa  = ([string]$delTipo[0].cobertura) -eq 'completa'
-    $situar    = [int]$delTipo[0].situar -eq 1
+    $situar    = [int]$delTipo[0].situar
     $rareza    = Get-Rareza -Veces $veces -Universo $universo -Signo $signo
 
     $magnitudes = @($delTipo | ForEach-Object { [double]$_.magnitud })
@@ -325,9 +356,9 @@ foreach ($grupo in ($hechos | Group-Object tipo)) {
     foreach ($f in $delTipo) {
         $f | Add-Member -NotePropertyName veces_jugador -NotePropertyValue $porJugador[[string]$f.mlb_id]
 
-        $mag  = Get-Magnitud -Valor ([double]$f.magnitud) -Todas $magnitudes
+        $mag  = Get-Magnitud -Valor ([double]$f.magnitud) -Todas $magnitudes -Signo $signo
         $imp  = Get-Impacto  -Wpa $f.wpa_jugador -Signo $signo
-        $rel  = Get-Relieve  -Orden $f.orden -VecesTotal $veces -Completa $completa -Situar $situar
+        $rel  = Get-Relieve  -Orden $f.orden -VecesTotal $veces -Completa $completa -Situar $situar -Signo $signo
         $tot  = $f.rareza + $mag + $imp + $rel
 
         $f | Add-Member -NotePropertyName puntaje -NotePropertyValue ([int][Math]::Round($tot))
@@ -363,7 +394,17 @@ foreach ($grupo in ($hechos | Group-Object tipo)) {
 $antes = $hechos.Count
 $fusionados = [System.Collections.Generic.List[object]]::new()
 
-foreach ($g in ($hechos | Group-Object { "$($_.mlb_id)|$($_.game_id)|$($_.event_id)" })) {
+# LA FECHA VA EN LA CLAVE, y no es redundante aunque lo parezca.
+#
+# La regla del diseño era «mismo jugador + mismo juego + mismo evento», que basta para las gestas de
+# juego porque ahí el `game_id` ya implica la fecha. Pero las gestas de PERSONA no cuelgan de ningún
+# juego: cumpleaños, debut y fallecimiento del mismo jugador llevan todos `game_id = ''` y
+# `event_id = 0`, así que colisionaban entre sí y la fusión se quedaba con una sola.
+#
+# El síntoma fue exacto: `91_debut.sql` devolvía 984 filas y el archivo terminaba con CERO debuts,
+# porque cada uno se fusionaba con el cumpleaños del mismo jugador. Lo destapó la muestra de
+# redacción, no una comprobación — el conteo por tipo lo enseñaba y nadie lo estaba leyendo.
+foreach ($g in ($hechos | Group-Object { "$($_.mlb_id)|$($_.game_id)|$($_.event_id)|$($_.fecha)" })) {
     $ordenados = @($g.Group | Sort-Object -Property puntaje -Descending)
     $principal = $ordenados[0]
     $etiquetas = @($ordenados | Select-Object -Skip 1 | ForEach-Object { $_.tipo })
@@ -429,6 +470,34 @@ $fusionados | Group-Object tipo | Sort-Object Count -Descending | ForEach-Object
     "  {0,-22} {1,5}  puntaje max {2}" -f $_.Name, $_.Count, (($_.Group | Measure-Object puntaje -Maximum).Maximum
 ) | Write-Host }
 
+# =====================================================================================
+# UNA LÍNEA DE MUESTRA POR DETECTOR — para validar la redacción
+# =====================================================================================
+#
+# Pedido del dueño: antes de dar un detector por bueno hay que LEER cómo queda su frase. Un umbral
+# se valida midiendo, pero una redacción solo se valida leyéndola — la concordancia de «1 empujadas»
+# y el «Cumple 46 años. Es uno de los 923 dominicanos que lo ha logrado» no los cazó ninguna medición.
+#
+# Se muestra la de MAYOR PUNTAJE de cada tipo, que es la que más se va a ver en la página, con su
+# frase de situación pegada. Los tipos que hoy devuelven cero salen igual, marcados: un detector
+# vacío es una decisión, no un olvido.
+
+"`n" + ("=" * 100) | Write-Host
+"MUESTRA DE REDACCION — una linea por detector" | Write-Host
+("=" * 100) | Write-Host
+
+foreach ($g in ($fusionados | Group-Object tipo | Sort-Object Name)) {
+    $m = $g.Group | Sort-Object puntaje -Descending | Select-Object -First 1
+    $signo = if ([int]$m.signo -lt 0) { '-' } else { '+' }
+    "`n[{0}] {1,-18} n={2,-4} pts={3}" -f $signo, $g.Name, $g.Count, $m.puntaje | Write-Host
+    "    {0:yyyy-MM-dd}  {1}" -f [datetime]$m.fecha, $m.titular | Write-Host
+    if ($m.situacion) { "    -> {0}" -f $m.situacion | Write-Host }
+}
+
+$vacios = $archivos | ForEach-Object { ($_.Name -replace '^\d+_', '') -replace '\.sql$', '' } |
+          Where-Object { $_ -notin ($fusionados.tipo | Select-Object -Unique) }
+if ($vacios) { "`n[ ] sin filas hoy: $($vacios -join ', ')" | Write-Host }
+
 "`nLas 10 de mayor puntaje:" | Write-Host
 $fusionados | Sort-Object puntaje -Descending | Select-Object -First 10 | ForEach-Object {
     "  {0,4}  {1:yyyy-MM-dd}  {2,-22} {3}" -f $_.puntaje, [datetime]$_.fecha, $_.nombre, $_.titular | Write-Host
@@ -471,8 +540,8 @@ if ($crudas) { $problemas += "$($crudas.Count) fila(s) con marcadores sin rellen
 # rareza sola les daba lo mismo, porque ponchar 5 veces es tan raro como batear el ciclo.
 $peorPositiva  = ($fusionados | Where-Object { [int]$_.signo -gt 0 } | Measure-Object puntaje -Minimum).Minimum
 $mejorNegativa = ($fusionados | Where-Object { [int]$_.signo -lt 0 } | Measure-Object puntaje -Maximum).Maximum
-if ($null -ne $mejorNegativa -and $mejorNegativa -gt 600) {
-    $problemas += "una gesta negativa saca $mejorNegativa, por encima del tope de su escala"
+if ($null -ne $mejorNegativa -and $mejorNegativa -gt 400) {
+    $problemas += "una gesta negativa saca $mejorNegativa, por encima del techo de 400 de su escala"
 }
 
 # Con cobertura parcial NO se publica el total: el número que vemos es el de la ventana, no el de la
@@ -481,7 +550,7 @@ $filtradas = @($fusionados | Where-Object { $_.cobertura -ne 'completa' -and $_.
 if ($filtradas) { $problemas += "$($filtradas.Count) fila(s) de cobertura parcial publican veces_total" }
 
 # La fusión debe haber dejado una sola fila por jugador-juego-evento.
-$repes = @($fusionados | Group-Object { "$($_.mlb_id)|$($_.game_id)|$($_.event_id)" } | Where-Object { $_.Count -gt 1 })
+$repes = @($fusionados | Group-Object { "$($_.mlb_id)|$($_.game_id)|$($_.event_id)|$($_.fecha)" } | Where-Object { $_.Count -gt 1 })
 if ($repes) { $problemas += "$($repes.Count) clave(s) repetida(s) tras la fusion" }
 
 "" | Write-Host

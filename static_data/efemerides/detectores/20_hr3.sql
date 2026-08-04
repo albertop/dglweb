@@ -12,7 +12,7 @@ SELECT  'hr3'                                   AS tipo,
         'completa'                                AS cobertura,
         1                                         AS situar,
         292948                                 AS universo,
-        'Conectó {magnitud} jonrones contra {rival_nombre}, ante el abridor {oponente}: {detalle}.'                              AS plantilla,
+        'Conectó {magnitud} jonrones contra {rival_nombre}: {detalle}.'                              AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,
         0                                         AS event_id,
         j.game_type, j.equipo, j.rival, j.en_casa,
@@ -21,6 +21,8 @@ SELECT  'hr3'                                   AS tipo,
         j.wpa_bat                                    AS wpa_jugador,
         j.li_max,
         CAST(j.B_RBI AS varchar(2)) + CASE WHEN j.B_RBI = 1 THEN ' empujada' ELSE ' empujadas' END + ' y ' + CAST(j.B_TB AS varchar(2)) + ' bases'                                  AS detalle,
-        j.equipo_nombre, j.rival_nombre, j.oponente
+        j.equipo_nombre, j.rival_nombre,
+        -- SIN ABRIDOR RIVAL: ver el porqué en el preludio. Esto es una gesta de JUEGO COMPLETO.
+        ''                                        AS oponente
 FROM    #juegos j
 WHERE   j.B_HR >= 3;

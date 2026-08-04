@@ -21,6 +21,8 @@ SELECT  'robadas4'                                   AS tipo,
         j.wpa_bat                                    AS wpa_jugador,
         j.li_max,
         CASE WHEN j.B_CS = 0 THEN 'sin que lo atraparan ni una vez' ELSE 'y lo atraparon ' + CAST(j.B_CS AS varchar(2)) + ' vez/veces' END                                  AS detalle,
-        j.equipo_nombre, j.rival_nombre, j.oponente
+        j.equipo_nombre, j.rival_nombre,
+        -- SIN ABRIDOR RIVAL: ver el porqué en el preludio. Esto es una gesta de JUEGO COMPLETO.
+        ''                                        AS oponente
 FROM    #juegos j
 WHERE   j.B_SB >= 4;

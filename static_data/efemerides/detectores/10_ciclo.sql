@@ -13,7 +13,7 @@ SELECT  'ciclo'                                   AS tipo,
         'completa'                                AS cobertura,
         1                                         AS situar,
         292948                                 AS universo,
-        'Bateó para el ciclo contra {rival_nombre}, ante el abridor {oponente}: {detalle}.'                              AS plantilla,
+        'Bateó para el ciclo contra {rival_nombre}: {detalle}.'                              AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,
         0                                         AS event_id,
         j.game_type, j.equipo, j.rival, j.en_casa,
@@ -22,6 +22,8 @@ SELECT  'ciclo'                                   AS tipo,
         j.wpa_bat                                    AS wpa_jugador,
         j.li_max,
         CAST(j.B_H AS varchar(2)) + ' hits y ' + CAST(j.B_RBI AS varchar(2)) + CASE WHEN j.B_RBI = 1 THEN ' empujada' ELSE ' empujadas' END                                  AS detalle,
-        j.equipo_nombre, j.rival_nombre, j.oponente
+        j.equipo_nombre, j.rival_nombre,
+        -- SIN ABRIDOR RIVAL: ver el porqué en el preludio. Esto es una gesta de JUEGO COMPLETO.
+        ''                                        AS oponente
 FROM    #juegos j
 WHERE   j.B_1B >= 1 AND j.B_2B >= 1 AND j.B_3B >= 1 AND j.B_HR >= 1;

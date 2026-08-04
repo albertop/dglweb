@@ -20,7 +20,9 @@ SELECT  'k15'                                   AS tipo,
         j.P_SO                                 AS magnitud,
         j.wpa_pit                                    AS wpa_jugador,
         j.li_max,
-        CAST(j.P_OUT / 3 AS varchar(3)) + CASE j.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + ' entradas y ' + CAST(j.P_ER AS varchar(2)) + CASE WHEN j.P_ER = 1 THEN ' limpia' ELSE ' limpias' END                                  AS detalle,
-        j.equipo_nombre, j.rival_nombre, j.oponente
+        CAST(j.P_OUT / 3 AS varchar(3)) + CASE j.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + ' entradas' + CASE WHEN j.P_ER = 0 THEN ' sin carreras limpias' WHEN j.P_ER = 1 THEN ' y 1 limpia' ELSE ' y ' + CAST(j.P_ER AS varchar(2)) + ' limpias' END                                  AS detalle,
+        j.equipo_nombre, j.rival_nombre,
+        -- SIN ABRIDOR RIVAL: ver el porqué en el preludio. Esto es una gesta de JUEGO COMPLETO.
+        ''                                        AS oponente
 FROM    #juegos j
 WHERE   j.P_SO >= 15;

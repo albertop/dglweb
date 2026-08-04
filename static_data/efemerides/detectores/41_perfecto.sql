@@ -23,6 +23,8 @@ SELECT  'perfecto'                                   AS tipo,
         j.wpa_pit                                    AS wpa_jugador,
         j.li_max,
         CAST(j.P_SO AS varchar(2)) + ' ponches'                                  AS detalle,
-        j.equipo_nombre, j.rival_nombre, j.oponente
+        j.equipo_nombre, j.rival_nombre,
+        -- SIN ABRIDOR RIVAL: ver el porqué en el preludio. Esto es una gesta de JUEGO COMPLETO.
+        ''                                        AS oponente
 FROM    #juegos j
 WHERE   j.P_H = 0 AND j.P_BB = 0 AND j.P_HP = 0 AND j.P_OUT >= 27;

@@ -138,9 +138,16 @@ SELECT  d.PLAYER_ID, m.mlbID AS mlb_id, m.nameList AS nombre,
         d.TEAM_ID AS equipo, d.OPPONENT_ID AS rival, d.HOME_FL AS en_casa,
         COALESCE(eq.nombre, '') AS equipo_nombre,
         COALESCE(ri.nombre, '') AS rival_nombre,
-        -- El abridor RIVAL: si el dominicano jugaba en casa, el rival abrió de visita. Es la vuelta
-        -- que se olvida y deja al jugador enfrentándose a su propio compañero.
-        COALESCE(op.nombre, '') AS oponente,
+        -- NO HAY ABRIDOR RIVAL ACÁ, Y ES DELIBERADO.
+        --
+        -- Una gesta de este grano se acumula A LO LARGO DE TODO EL JUEGO: un ciclo son cuatro
+        -- batazos que pueden ser contra cuatro lanzadores distintos, y siete empujadas se reparten
+        -- entre el abridor y el bullpen. Nombrar al abridor da a entender que la gesta fue contra él,
+        -- y eso es falso — lo señaló el dueño el 2026-08-03 al ver «Empujó 7 carreras ante el
+        -- abridor X».
+        --
+        -- El lanzador SOLO se nombra en las gestas de EVENTO, donde `r24Events.PITCHER_ID` dice
+        -- exactamente contra quién fue ese turno.
         wb.wpa AS wpa_bat, wp.wpa AS wpa_pit,
         COALESCE(wb.li, wp.li) AS li_max,
         d.B_AB, d.B_H, d.B_2B, d.B_3B, d.B_HR, d.B_RBI, d.B_R, d.B_BB, d.B_SO, d.B_SB, d.B_CS,
@@ -154,8 +161,6 @@ FROM    d
 INNER JOIN dbo.dglMaster m ON m.retroID = d.PLAYER_ID
 LEFT  JOIN #equipos   eq ON eq.codigo = d.TEAM_ID     AND d.GAME_DT BETWEEN eq.desde AND eq.hasta
 LEFT  JOIN #equipos   ri ON ri.codigo = d.OPPONENT_ID AND d.GAME_DT BETWEEN ri.desde AND ri.hasta
-LEFT  JOIN #abridores ab ON ab.game_id = d.GAME_ID
-LEFT  JOIN #nombres   op ON op.retro_id = CASE WHEN d.HOME_FL = 1 THEN ab.abridor_visita ELSE ab.abridor_casa END
 LEFT  JOIN wb ON wb.GAME_ID = d.GAME_ID AND wb.pid = d.PLAYER_ID
 LEFT  JOIN wp ON wp.GAME_ID = d.GAME_ID AND wp.pid = d.PLAYER_ID;
 

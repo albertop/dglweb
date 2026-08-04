@@ -25,6 +25,8 @@ SELECT  'no_hitter'                                   AS tipo,
         j.wpa_pit                                    AS wpa_jugador,
         j.li_max,
         CAST(j.P_SO AS varchar(2)) + CASE WHEN j.P_SO = 1 THEN ' ponche' ELSE ' ponches' END + ' y ' + CAST(j.P_BB + j.P_HP AS varchar(2)) + CASE WHEN (j.P_BB + j.P_HP) = 1 THEN ' hombre a base' ELSE ' hombres a base' END                                  AS detalle,
-        j.equipo_nombre, j.rival_nombre, j.oponente
+        j.equipo_nombre, j.rival_nombre,
+        -- SIN ABRIDOR RIVAL: ver el porqué en el preludio. Esto es una gesta de JUEGO COMPLETO.
+        ''                                        AS oponente
 FROM    #juegos j
 WHERE   j.P_H = 0 AND j.P_OUT >= 27;
