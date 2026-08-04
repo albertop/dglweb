@@ -115,7 +115,7 @@ IF OBJECT_ID('tempdb..#juegos') IS NOT NULL DROP TABLE #juegos;
 WITH d AS (
     SELECT r.PLAYER_ID, r.GAME_ID, r.GAME_DT, r.SEASON, r.TEAM_ID, r.OPPONENT_ID, r.HOME_FL, 'R' AS gt,
            r.B_AB, r.B_H, r.B_2B, r.B_3B, r.B_HR, r.B_RBI, r.B_R, r.B_BB, r.B_SO, r.B_SB, r.B_CS,
-           r.B_TB, r.B_HP, r.B_GDP,
+           r.B_TB, r.B_HP, r.B_GDP, r.B_SH,
            r.P_G, r.P_GS, r.P_CG, r.P_SHO, r.P_SV, r.P_W, r.P_OUT, r.P_H, r.P_R, r.P_ER,
            r.P_BB, r.P_HP, r.P_SO, r.P_GDP, r.P_PITCH
     FROM   dbo.retroDailyReg r
@@ -123,7 +123,7 @@ WITH d AS (
     UNION ALL
     SELECT p.PLAYER_ID, p.GAME_ID, p.GAME_DT, p.SEASON, p.TEAM_ID, p.OPPONENT_ID, p.HOME_FL, 'P',
            p.B_AB, p.B_H, p.B_2B, p.B_3B, p.B_HR, p.B_RBI, p.B_R, p.B_BB, p.B_SO, p.B_SB, p.B_CS,
-           p.B_TB, p.B_HP, p.B_GDP,
+           p.B_TB, p.B_HP, p.B_GDP, p.B_SH,
            p.P_G, p.P_GS, p.P_CG, p.P_SHO, p.P_SV, p.P_W, p.P_OUT, p.P_H, p.P_R, p.P_ER,
            p.P_BB, p.P_HP, p.P_SO, p.P_GDP, p.P_PITCH
     FROM   dbo.retroDailyPost p
@@ -151,7 +151,7 @@ SELECT  d.PLAYER_ID, m.mlbID AS mlb_id, m.nameList AS nombre,
         wb.wpa AS wpa_bat, wp.wpa AS wpa_pit,
         COALESCE(wb.li, wp.li) AS li_max,
         d.B_AB, d.B_H, d.B_2B, d.B_3B, d.B_HR, d.B_RBI, d.B_R, d.B_BB, d.B_SO, d.B_SB, d.B_CS,
-        d.B_TB, d.B_HP, d.B_GDP,
+        d.B_TB, d.B_HP, d.B_GDP, d.B_SH,
         -- El sencillo no existe como columna en Retrosheet: se deduce restando extrabases a los hits.
         (d.B_H - d.B_2B - d.B_3B - d.B_HR) AS B_1B,
         d.P_G, d.P_GS, d.P_CG, d.P_SHO, d.P_SV, d.P_W, d.P_OUT, d.P_H, d.P_R, d.P_ER,

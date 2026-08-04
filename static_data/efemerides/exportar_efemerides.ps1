@@ -558,7 +558,6 @@ if ($crudas) { $problemas += "$($crudas.Count) fila(s) con marcadores sin rellen
 
 # UNA DESHONRA NUNCA DEBE GANARLE A UNA HAZAÑA. Es la razón de ser de la escala partida (4.5): la
 # rareza sola les daba lo mismo, porque ponchar 5 veces es tan raro como batear el ciclo.
-$peorPositiva  = ($fusionados | Where-Object { [int]$_.signo -gt 0 } | Measure-Object puntaje -Minimum).Minimum
 $mejorNegativa = ($fusionados | Where-Object { [int]$_.signo -lt 0 } | Measure-Object puntaje -Maximum).Maximum
 if ($null -ne $mejorNegativa -and $mejorNegativa -gt 400) {
     $problemas += "una gesta negativa saca $mejorNegativa, por encima del techo de 400 de su escala"
