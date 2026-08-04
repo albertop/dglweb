@@ -71,6 +71,7 @@ lo demás igual para todos.
 | `tipo` | el slug del detector: `ciclo`, `hr3`, `walkoff`, `hito_hr`… |
 | `rol` | `bateador` \| `lanzador` \| `fildeador` \| `persona` |
 | `mlb_id` | el jugador, ya traducido desde `retroID` por `dglMaster` |
+| `nombre` | de `dglMaster.nameList`, SIEMPRE — ver 3.0 |
 | `fecha` | la del juego, o la del cumpleaños/debut/fallecimiento |
 | `temporada` | |
 | `game_id`, `event_id` | de Retrosheet; `event_id` es 0 en las gestas de juego completo |
@@ -89,6 +90,31 @@ lo demás igual para todos.
 
 Los cinco últimos **los calcula el motor**, no el detector. Un detector no puede saberlos: dependen
 de todas las filas de su tipo, y él solo ve las suyas.
+
+### 3.0. EL NOMBRE SALE DE `nameList`. SIEMPRE.
+
+Regla del dueño, y no admite excepciones: el nombre del jugador se toma de
+**`dglMaster.nameList`**. Nunca de `nameFirst1 + nameLast1`, nunca del `nameLast2`, nunca armado a
+mano.
+
+No es una preferencia de estilo, es corrección. `dglMaster` guarda el nombre civil completo —dos
+nombres y dos apellidos— y el nombre por el que se conoce al jugador es otro campo:
+
+| `nameFirst1` | `nameLast1` | `nameLast2` | `nameNick` | **`nameList`** |
+| --- | --- | --- | --- | --- |
+| Samuel | Peralta | Sosa | Sammy | **Sammy Sosa** |
+| Alexander | Rodríguez | | A-Rod | **Alex Rodríguez** |
+| David | Ortiz | Arias | Big Papi | **David Ortiz** |
+
+**Concatenar `nameFirst1 + nameLast1` produce «Samuel Peralta» para Sammy Sosa.** Medido: **107 de
+las 984 filas** darían un nombre distinto del correcto, y son precisamente los más conocidos —
+justamente los que más van a salir en el archivo.
+
+Este error lo cometí yo en una consulta de sondeo mientras se diseñaba esto, y por eso queda escrito
+acá: es invisible para quien lo escribe y evidente para cualquier lector dominicano.
+
+`nameNick` existe en 304 de las 984 filas y **no sustituye a `nameList`**; a lo sumo se le suma como
+adorno en el texto.
 
 ### 3.1. `rol` no es decorativo
 
@@ -111,7 +137,7 @@ dato en una noticia — sin el denominador, el lector no sabe si vio algo raro o
 
 | detector | veces | jugadores distintos | veces por jugador |
 | --- | ---: | ---: | ---: |
-| `rbi6` | 165 | 68 | 2,43 |
+| `rbi7` | 43 | 29 | 1,48 |
 | `hits5` | 153 | 93 | 1,65 |
 | **`k12`** | **137** | **34** | **4,03** |
 | `triples2` | 75 | 47 | 1,60 |
@@ -233,17 +259,33 @@ hoy; el exportador la recalcula en cada corrida.
 | `extrabases4` | `B_2B + B_3B + B_HR >= 4` | 33 | 433 |
 | `cg_1hit` | juego completo de un solo hit | 37 | 428 |
 | `cg_dominante` | CG, 10+ K, cero limpias | 41 | 423 |
-| `hr3` | `B_HR >= 3` | 64 | 402 |
+| `rbi7` | `B_RBI >= 7` | 43 | 421 |
+| `hr3` | `B_HR >= 3` — nadie ha llegado a 4, ver 5.1.2 | 64 | 402 |
 | `triples2` | `B_3B >= 2` — ver 5.1.1 | 74 | 395 |
 | `boletos4` | `B_BB >= 4` | 75 | 394 |
 | `bases12` | `B_TB >= 12` | 85 | 388 |
 | `k12` | `P_SO >= 12` | 137 | 365 |
 | `hits5` | `B_H >= 5` | 153 | 360 |
-| `rbi6` | `B_RBI >= 6` | 165 | 357 |
 | `anotadas4` | `B_R >= 4` | 233 | 340 |
 | `blanqueada` | `P_SHO >= 1` | 271 | 333 |
 | `bases10` | `B_TB >= 10` | 369 | 318 |
 | `ponches5` ⚠️ | `B_SO >= 5` — **`signo = -1`** | 20 | **229** |
+
+#### 5.1.0. `rbi7` y no `rbi6`
+
+Decisión del dueño. El umbral estaba en 6 y subió a 7. Medido, la diferencia es grande:
+
+| empujadas | veces | jugadores |
+| ---: | ---: | ---: |
+| 6 | 122 | 61 |
+| 7 | 32 | 21 |
+| 8 | 7 | 6 |
+| 9 | 3 | 3 |
+| **10** | **1** | **1** |
+
+Con `>= 6` eran 165 hechos y rareza 357. Con `>= 7` son **43 y rareza 421** — pasa de estar entre
+las corrientes a estar entre las buenas. El tope dominicano son **10 empujadas en un juego**, una
+sola vez: Alex Rodríguez, 26 de abril de 2005, con 3 jonrones y 13 bases alcanzadas.
 
 #### 5.1.1. Cómo se eligió el umbral de los triples, y por qué NO hay un detector de 3
 
@@ -264,6 +306,12 @@ cuenta*, la magnitud define *cuánto*.
 
 Es el patrón a seguir para cualquier umbral nuevo: se elige el corte donde la gesta deja de ser
 rutina, no donde se vuelve única.
+
+#### 5.1.2. Nadie ha bateado 4 jonrones
+
+Los 64 juegos de `hr3` son **exactamente de 3**, por 36 jugadores. Ningún dominicano ha conectado
+cuatro en un juego. Por eso el umbral se queda en 3 y no hay detector de 4 — el día que pase, la
+magnitud (4.2) lo va a subir sola al tope de su tipo, igual que con los triples.
 
 ### 5.2. Gestas de evento (`r24Events`, `retroEventsReg`)
 
@@ -510,7 +558,7 @@ las colapsa—. Medido después de fusionar:
 
 | | filas |
 | --- | ---: |
-| juegos-jugador con al menos una gesta | **1.354** |
+| juegos-jugador con al menos una gesta | **1.264** |
 | gestas y momentos de evento | ~1.900 |
 | hitos de carrera | 831 |
 | cumpleaños + debut + fallecimiento + Juego de Estrellas | ~2.250 |
