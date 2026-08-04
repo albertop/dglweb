@@ -1117,13 +1117,13 @@ LA LECCIÓN, que es más grande que este script: **un aviso roto es peor que no 
 «no sé si corrió», dice «no corrió» — o peor, se calla y parece que todo está bien. Y un monitor que
 nunca ha demostrado que avisa no cuenta como aviso.
 
-PENDIENTE (del dueño, en la interfaz de Kuma):
+**CERRADO (dueño, 2026-08-03).** Las dos mitades quedaron arregladas y probadas: el `sed` corrió en
+el `traer_respaldos.sh` de linuxbox y la notificación de Telegram quedó marcada en el monitor. El
+dueño confirma que **funciona perfectamente**.
 
-* **Revisar los demás monitores uno por uno**: que cada uno tenga marcada la notificación. El de
-  respaldo se creó después que los otros y por eso se quedó sin ella; puede no ser el único.
-* **Probar cada uno provocando el fallo** —pausar y reanudar, o dejar vencer un ciclo— y confirmar que
-  el mensaje llega. Sin eso, «tengo monitor» es una suposición.
-* Lo del respaldo es lo más urgente de la lista: es lo único del sistema que no se puede rehacer.
+Lo que sigue valiendo de este incidente no es la tarea, es la lección de arriba: un aviso que nunca
+ha demostrado que avisa no cuenta como aviso. Si mañana se crea un monitor nuevo, se prueba
+provocando el fallo antes de darlo por bueno.
 
 ## Incidente — un reinicio del demonio de Docker paró el pipeline 12,5 horas (2026-08-01)
 

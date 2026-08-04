@@ -215,7 +215,7 @@ rareza = 600 × (1 − log(n) / log(N))
 
 `n` = cuántas veces ocurrió esa gesta en 116 temporadas. `N` = el universo del detector, y **no es
 uno solo: depende del grano** — 292.948 juegos-jugador, 822.764 turnos al bate, 622.652 bateadores
-enfrentados, 162.797 medias entradas lanzadas. Ver 5.2.9.
+enfrentados, 162.797 medias entradas lanzadas. Ver 5.2.11.
 
 La propiedad que importa: **un detector nuevo se calibra solo**. Si mañana se agrega uno que dispara
 5.000 veces, se hunde solo y no inunda el calendario. Nadie tiene que sentarse a decidir cuánto vale.
@@ -268,16 +268,16 @@ dos.
 
 ---
 
-## 5. El inventario: 59 detectores
+## 5. El inventario: 61 detectores
 
 | grupo | detectores |
 | --- | ---: |
 | gestas de juego (5.1) | 30 |
-| gestas de evento (5.2) | 18 |
+| gestas de evento (5.2) | 20 |
 | hitos de carrera (5.4) | 7 |
 | fechas de persona (5.5) | 4 |
 
-La `N` de cada detector depende de su grano — ver 5.2.9. La columna *rareza* es lo que da la fórmula
+La `N` de cada detector depende de su grano — ver 5.2.11. La columna *rareza* es lo que da la fórmula
 hoy; el exportador la recalcula en cada corrida.
 
 ### 5.1. Gestas de juego (`retroDaily*`)
@@ -294,6 +294,8 @@ hoy; el exportador la recalcula en cada corrida.
 | `robadas4` | `B_SB >= 4` | 14 | 474 |
 | `k15` | `P_SO >= 15` | 16 | 468 |
 | `gidp_inducidos` | `P_GDP >= 4` — ver 5.1.13 | 19 | 460 |
+| `ciclo_inverso` | HR, 3B, 2B y 1B EN ESE ORDEN — ver 5.2.10 | 1 | 600 |
+| `ciclo_natural` | 1B, 2B, 3B y HR EN ESE ORDEN — ver 5.2.10 | 0 | — |
 | `ciclo` | 1B, 2B, 3B y HR en el mismo juego | 20 | 457 |
 | `extrabases4` | `B_2B + B_3B + B_HR >= 4` | 33 | 433 |
 | `cg_1hit` | juego completo de un solo hit | 37 | 428 |
@@ -493,7 +495,7 @@ Cinco de los ocho son blanqueadas y dos son sin hits.
    lanzamientos que son **16 outs**, o sea 5⅓ entradas. No es una joya, es un juego que se suspendió.
 
 Su universo también es distinto: como el detector empieza en 1989, la `N` son los **251.106**
-juegos-jugador de 1989 en adelante, no los 292.948 de toda la historia. Es la regla del grano (5.2.9)
+juegos-jugador de 1989 en adelante, no los 292.948 de toda la historia. Es la regla del grano (5.2.11)
 aplicada al tiempo.
 
 **Por qué `P_PITCH` y no `scastPitch`.** Se pidió usar `dbo.scastPitch`, pero esa tabla **empieza en
@@ -819,7 +821,33 @@ El récord es de otra dimensión: **Yordano Ventura tiró 26 rectas de 100+ mill
 
 Los dos son de cobertura parcial, así que **no publican totales** (5.2.5).
 
-#### 5.2.9. La `N` no depende del `rol`: depende del grano
+#### 5.2.10. `ciclo_natural` y `ciclo_inverso` — el orden importa
+
+El ciclo pide los cuatro batazos; el **natural** los pide **en orden ascendente**: sencillo, doble,
+triple, jonrón. Necesita `r24Events`, porque `retroDaily` solo dice cuántos hubo, no en qué orden.
+
+Se detecta comparando el `EVENT_ID` del PRIMER batazo de cada tipo: natural si
+`e(1B) < e(2B) < e(3B) < e(HR)`.
+
+| | veces | jugadores |
+| --- | ---: | ---: |
+| ciclos (los cuatro batazos) | 20 | 16 |
+| **ciclo natural** | **0** | 0 |
+| **ciclo inverso** | **1** | 1 |
+
+**Ningún dominicano ha bateado un ciclo natural en 116 años.** El detector se escribe igual y se deja
+vacío, por lo mismo que `ponches6` (sección 8): cuesta nada y empieza a producir el día que pase.
+
+**Pero hay un ciclo INVERSO** —jonrón, triple, doble, sencillo, en ese orden— que es la imagen espejo
+y se celebra igual: **Carlos Gómez, 7 de mayo de 2008**, con Minnesota en Chicago. Único, así que
+rareza 600.
+
+**Y de paso, una comprobación que vale la pena registrar:** los 20 ciclos que cuenta `r24Events`
+cuadran exactamente con los 20 de `retroDaily`. Son dos tablas distintas, con granos distintos,
+llegando al mismo número. Cuando el detector de un lado y el del otro coinciden, la definición está
+bien escrita.
+
+#### 5.2.11. La `N` no depende del `rol`: depende del grano
 
 Primero se escribió que la `N` de la rareza dependía del `rol`. Con `k4_inning` quedó claro que eso
 era quedarse corto: dos detectores de lanzador pueden tener universos distintos, porque lo que
