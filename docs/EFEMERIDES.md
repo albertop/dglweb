@@ -116,6 +116,32 @@ acá: es invisible para quien lo escribe y evidente para cualquier lector domini
 `nameNick` existe en 304 de las 984 filas y **no sustituye a `nameList`**; a lo sumo se le suma como
 adorno en el texto.
 
+#### 3.0.1. `nameList` es para MOSTRAR. Para AGRUPAR se usa el id. Siempre.
+
+La otra mitad de la regla, y la más peligrosa de las dos porque el error no se ve: **`nameList` no
+es único**. Contar «cuántos dominicanos lo han hecho» agrupando por nombre da un número **menor** que
+el real, y menor sin avisar.
+
+Medido: **19 nombres repetidos, 41 jugadores afectados.** Y no son casos oscuros:
+
+| nombre | jugadores distintos |
+| --- | ---: |
+| Luis Castillo | **3** |
+| Luis De los Santos | 3 |
+| Luis García | 3 |
+| Nelson Cruz | 2 |
+| José Ramírez | 2 |
+| Tony Peña | 2 |
+| …y 13 más | 2 |
+
+Hay **dos Nelson Cruz** y **dos José Ramírez** en el maestro. Agrupar por nombre los fundiría en uno.
+
+**Regla: `jugadores_total`, `veces_jugador`, `orden_jugador` y cualquier otro conteo se agrupan por
+`retroID` / `mlbID`. `nameList` solo se imprime.**
+
+Todos los números de este documento se midieron así — agrupando por `PLAYER_ID` — así que son
+correctos. La regla queda escrita para que la implementación no se desvíe.
+
 ### 3.1. `rol` no es decorativo
 
 El triple play sin asistencia lo hace **el fildeador**. Sin `rol`, el detector tendría que salir de
@@ -306,6 +332,50 @@ cuenta*, la magnitud define *cuánto*.
 
 Es el patrón a seguir para cualquier umbral nuevo: se elige el corte donde la gesta deja de ser
 rutina, no donde se vuelve única.
+
+#### 5.1.1.1. Los siete juegos de 6 hits
+
+Mismo patrón que los triples: entran por `hits5` y la magnitud los sube sola. De los 153 juegos de
+5 o más hits, **7 son de 6 hits, por 7 jugadores distintos** — y seis de los siete fueron de 6-de-6:
+
+| fecha | jugador | |
+| --- | --- | --- |
+| 1964-07-10 | Jesús Alou | 6-6, 1 HR |
+| 1993-07-02 | Sammy Sosa | 6-6 |
+| 2004-05-08 | Alfonso Soriano | 6-6, 4 RBI |
+| 2004-05-27 | Carlos Peña | 6-6, **2 HR y 5 RBI** |
+| 2013-05-28 | Jean Segura | 6 de 7 |
+| 2019-08-13 | Rafael Devers | 6-6, 3 RBI |
+| 2023-05-26 | Luis García | 6-6 |
+
+Dos nombres de esta lista son la prueba de las reglas de la 3.0: **Sammy Sosa** —que concatenando
+saldría como «Samuel Peralta»— y **Luis García**, que son tres jugadores distintos en el maestro.
+
+#### 5.1.1.2. Las 14 de `robadas4`, y la única de 5
+
+Es el detector más raro del grupo de juego (rareza 474). Las 14, completas — **12 jugadores
+distintos**, con Luis Polonia y Elly De La Cruz repitiendo:
+
+| robadas | fecha | jugador | |
+| ---: | --- | --- | --- |
+| **5** | 2008-06-14 | **Willy Taveras** | COL vs CHW |
+| 4 | 1984-04-25 | Dámaso García | TOR |
+| 4 | 1992-06-10 | Luis Polonia | CAL |
+| 4 | 1993-09-29 | Sammy Sosa | CHC |
+| 4 | 1994-06-26 | Luis Polonia | NYY |
+| 4 | 1998-08-01 | José Offerman | KC |
+| 4 | 2000-05-17 | Luis Castillo | FLA |
+| 4 | 2004-06-19 | Ángel Berroa | KC |
+| 4 | 2007-09-15 | Rafael Furcal | LAD |
+| 4 | 2009-08-15 | Julio Borbón | TEX |
+| 4 | 2018-05-15 | Jean Segura | SEA |
+| 4 | 2023-04-26 | Esteury Ruiz | OAK |
+| 4 | 2024-05-16 | Elly De La Cruz | CIN |
+| 4 | 2024-07-28 | Elly De La Cruz | CIN |
+
+**En 13 de los 14 no atraparon a nadie robando.** El único atrapado es De La Cruz en el primero de
+los suyos. Es el tipo de dato que el campo `detalle` debe cargar: la gesta es «4 robadas», pero
+«4 de 4» es mejor efeméride que «4 de 5».
 
 #### 5.1.2. Nadie ha bateado 4 jonrones
 
