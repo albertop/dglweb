@@ -176,7 +176,7 @@ dato en una noticia — sin el denominador, el lector no sabe si vio algo raro o
 | `triples2` | 75 | 47 | 1,60 |
 | `hr3` | 64 | 36 | 1,78 |
 | `ciclo` | 20 | 16 | 1,25 |
-| `ponches5` | 20 | 17 | 1,18 |
+| `sombrero_platino` | 20 | 17 | 1,18 |
 | **`k15`** | **16** | **6** | **2,67** |
 | `robadas4` | 14 | 12 | 1,17 |
 | `no_hitter` | 10 | 10 | 1,00 |
@@ -268,11 +268,11 @@ dos.
 
 ---
 
-## 5. El inventario: 61 detectores
+## 5. El inventario: 63 detectores
 
 | grupo | detectores |
 | --- | ---: |
-| gestas de juego (5.1) | 30 |
+| gestas de juego (5.1) | 32 |
 | gestas de evento (5.2) | 20 |
 | hitos de carrera (5.4) | 7 |
 | fechas de persona (5.5) | 4 |
@@ -314,7 +314,9 @@ hoy; el exportador la recalcula en cada corrida.
 | `cs3` ⚠️ | `B_CS >= 3` — **`signo = -1`**, ver 5.1.5 | 1 | **300** |
 | `gidp3` ⚠️ | `B_GDP >= 3` — **`signo = -1`**, ver 5.1.12 | 10 | **245** |
 | `paliza` ⚠️ | `P_H >= 10` y `P_R >= 10` — **`signo = -1`** | 19 | **230** |
-| `ponches5` ⚠️ | `B_SO >= 5` — **`signo = -1`** | 20 | **229** |
+| `sombrero_platino` ⚠️ | `B_SO = 5` — **`signo = -1`**, ver 5.1.14 | 20 | **229** |
+| `sombrero_dorado` ⚠️ | `B_SO = 4` — **`signo = -1`**, ver 5.1.14 | 499 | **152** |
+| `sombrero_titanio` ⚠️ | `B_SO >= 6` — nunca ha pasado, ver 5.1.14 | 0 | — |
 | `hbp_propinados` ⚠️ | 3+ pelotazos propinados — **`signo = -1`**, ver 5.1.9 | 25 | **223** |
 
 #### 5.1.0. Cada cuánto pasa cada cosa
@@ -337,7 +339,7 @@ es la tabla para decidir umbrales de aquí en adelante.
 | `cg_1hit` | 37 | 0,32 |
 | `extrabases4` | 33 | 0,28 |
 | `ciclo` | 20 | 0,17 |
-| `ponches5` | 20 | 0,17 |
+| `sombrero_platino` | 20 | 0,17 |
 | `k15` | 16 | 0,14 |
 | `robadas4` | 14 | 0,12 |
 | `no_hitter` | 10 | 0,09 |
@@ -589,7 +591,7 @@ ya estaba en la lista de 6 hits. Es **una** efeméride con dos etiquetas, no dos
 
 #### 5.1.12. `gidp3` — la doble matanza del bateador
 
-Negativa, como `ponches5` y `cs3`.
+Negativa, como `sombrero_dorado` y `cs3`.
 
 | GIDP en un juego | dominicanos | toda la liga |
 | ---: | ---: | ---: |
@@ -628,6 +630,30 @@ juego completo de una sola carrera limpia.** Ningún dominicano ha llegado a sei
 **Pedro Astacio aparece dos veces** (1992 y 1996), y el suyo del 3 de julio de 1992 fue juego
 completo sin carreras limpias. Es el caso que `veces_jugador` convierte en «por segunda vez en su
 carrera».
+
+#### 5.1.14. Los sombreros — y por qué los tiers son EXACTOS
+
+Ponchar cuatro veces en un juego tiene nombre propio en el béisbol —**sombrero dorado**— y los
+escalones de arriba también. Usarlos no es adorno: un texto que dice «se puso el sombrero dorado» se
+lee solo, y una efeméride que se lee sola es la que se comparte.
+
+| tier | ponches | dominicanos | jugadores | por temporada | rareza |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **dorado** | 4 | 499 | 172 | 4,30 | **152** |
+| **platino** | 5 | 20 | 17 | 0,17 | **229** |
+| **titanio** | 6 | **0** | 0 | — | — |
+
+**LOS TIERS SON EXACTOS, no acumulativos, y esto corrige un error del diseño.** `ponches5` estaba
+definido como `B_SO >= 5`, y en la jerarquía real un juego de cinco ponches es **platino**, no
+dorado: son escalones, no umbrales. Hoy el número no cambia porque ningún dominicano tiene seis, pero
+la definición estaba mal para el día que pase — y además, con `>=` un mismo juego dispararía dos
+detectores y habría que fusionarlos por nada.
+
+**El dorado es el detector más ruidoso del inventario** (4,30 por temporada) y entra igual, por dos
+razones: tiene nombre reconocible, y su rareza de 152 lo deja tan abajo que nunca va a desplazar a
+una gesta de verdad. Funciona como relleno con gracia, que es justo lo que le falta a un día flojo.
+
+El titanio nace vacío, como `ciclo_natural`: cuesta nada y empieza a producir el día que pase.
 
 #### 5.1.6. Nadie ha bateado 4 jonrones
 
@@ -836,7 +862,7 @@ Se detecta comparando el `EVENT_ID` del PRIMER batazo de cada tipo: natural si
 | **ciclo inverso** | **1** | 1 |
 
 **Ningún dominicano ha bateado un ciclo natural en 116 años.** El detector se escribe igual y se deja
-vacío, por lo mismo que `ponches6` (sección 8): cuesta nada y empieza a producir el día que pase.
+vacío, por lo mismo que `sombrero_titanio` (5.1.14): cuesta nada y empieza a producir el día que pase.
 
 **Pero hay un ciclo INVERSO** —jonrón, triple, doble, sencillo, en ese orden— que es la imagen espejo
 y se celebra igual: **Carlos Gómez, 7 de mayo de 2008**, con Minnesota en Chicago. Único, así que
