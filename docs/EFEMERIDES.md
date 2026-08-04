@@ -5,7 +5,7 @@ protagonizado por dominicanos. El sitio no calcula nada: filtra por mes y día, 
 pinta.
 
 Este documento es el diseño. Todos los números que aparecen abajo están **medidos contra `DGL` en
-SQL Server**, no estimados. Última revisión completa: **2026-08-04**, con 93 detectores corriendo.
+SQL Server**, no estimados. Última revisión completa: **2026-08-04**, con 96 detectores corriendo.
 
 ---
 
@@ -471,7 +471,7 @@ dos.
 
 ---
 
-## 5. El inventario: 93 detectores
+## 5. El inventario: 96 detectores
 
 | grupo | detectores |
 | --- | ---: |
@@ -479,7 +479,7 @@ dos.
 | gestas de evento (5.2) | 17 |
 | gestas de Statcast (5.3) | 3 |
 | gestas colectivas (5.4) | 6 |
-| hitos de carrera (5.5) | 7 |
+| hitos de carrera (5.5) | 10 |
 | hitos de temporada (5.6) | 10 |
 | debut, edad y Juego de Estrellas (5.7) | 8 |
 | fuera de sitio: el que no debería estar ahí (5.8) | 4 |
@@ -694,15 +694,39 @@ dentro del propio `.sql`.
 
 ### 5.5. Hitos de carrera (suma acumulada, `N` = 292.948)
 
-| detector | gesta | escalón | n | rareza |
-| --- | --- | ---: | ---: | ---: |
-| `hito_hit` | un hito de hits de por vida | 500 | 267 | 334 |
-| `hito_hr` | un hito de jonrones de por vida | 100 | 137 | 366 |
-| `hito_k` | un hito de ponches de por vida | 500 | 117 | 373 |
-| `hito_sb` | un hito de robos de por vida | 100 | 88 | 387 |
-| `hito_rbi` | un hito de empujadas de por vida | 500 | 87 | 387 |
-| `hito_sv` | un hito de salvados de por vida | 50 | 73 | 396 |
-| `hito_win` | un hito de victorias de por vida | 50 | 62 | 403 |
+| detector | gesta | marcas | n |
+| --- | --- | --- | ---: |
+| `hito_hit` | un hito de hits de por vida | cada 500 | 267 |
+| `hito_hr` | un hito de jonrones de por vida | **100, 200, 300, 450, 500, 600, 700** | 135 |
+| `hito_k` | un hito de ponches de por vida | cada 500 | 117 |
+| `hito_sb` | un hito de robos de por vida | cada 100 | 88 |
+| `hito_rbi` | un hito de empujadas de por vida | cada 500 | 87 |
+| `hito_sv` | un hito de salvados de por vida | cada 50 | 73 |
+| `hito_win` | un hito de victorias de por vida | cada 50 | 62 |
+| `hito_2b` | un hito de dobles de por vida | **450, 500, 600** | 19 |
+| `hito_3b` | un hito de triples de por vida | **75, 100** | 7 |
+| `hito_r` | un hito de carreras anotadas de por vida | **1500, 2000** | 5 |
+
+#### 5.5.1. Las marcas se declaran en una LISTA, no en un escalón
+
+`hito_hr` se detectaba con división entera cada 100. El dueño cambió el 400 por el **450** y eso
+rompió el mecanismo: una progresión regular no puede expresar «450 pero no 400».
+
+Ahora el detector declara sus marcas explícitamente y el cruce se comprueba contra el acumulado del
+juego anterior, lo que sirve para cualquier lista. **Y era necesario**, porque las tres estadísticas
+nuevas no tienen marcas equiespaciadas: 450-500-600 en dobles, 75-100 en triples, 1500-2000 en
+carreras anotadas.
+
+**El umbral sale de la distribución de la propia estadística, no de copiar el de otra.** Cien triples
+de por vida son más difíciles hoy que quinientos dobles: el triple se extinguió con los estadios
+modernos, y ponerle el hito en 200 —como en los jonrones— dejaría el detector vacío para siempre.
+
+| | los que llegan | el techo dominicano |
+| --- | ---: | --- |
+| 700 jonrones | 2 | Albert Pujols, 722 |
+| 2.000 anotadas | **1** | Alex Rodríguez, 2.064 |
+| 600 dobles | 3 | Albert Pujols, 704 |
+| 100 triples | 2 | José Reyes, 132 |
 
 **Suman temporada regular Y postemporada** (decisión del dueño). No es como los cuenta MLB —ellos
 separan— pero es coherente con el resto del archivo, donde octubre cuenta igual que junio. La
@@ -1186,10 +1210,10 @@ las colapsa—. Medido después de fusionar:
 | | filas |
 | --- | ---: |
 | gestas de juego, evento, Statcast y colectivas | 1.718 |
-| hitos de carrera y de temporada | 969 |
+| hitos de carrera y de temporada | 998 |
 | cumpleaños + debut + fallecimiento | 1.920 |
 | Juego de Estrellas, debut y primicias | 114 |
-| **total, medido tras la fusión** | **5.721** |
+| **total, medido tras la fusión** | **5.750** |
 
 Bien por debajo de 5 MB. Para comparar: `dom_players` ya carga 9.133 filas por esta misma vía.
 
