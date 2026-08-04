@@ -1026,12 +1026,22 @@ con la anterior: si octubre cuenta para el ciclo, cuenta para el hit 2000. Medid
 Nada. Las tres decisiones abiertas se cerraron el 2026-08-03. Si aparece una nueva, va acá y no
 enterrada en un `.sql`.
 
-## 11. Fuera de alcance, por ahora
+## 11. Fuera de alcance
 
-- **El inning inmaculado** (9 lanzamientos, 3 ponches). `r24Events_PitchCount` tiene 7.107.316 filas
-  y probablemente lo soporta, pero no se ha medido si el conteo por lanzamiento alcanza para
-  identificarlo con seguridad.
+### 11.1. Descartado por decisión, no por dificultad
+
+**Las gestas de EQUIPO.** La lista de *game notes* de MLB trae seis —remontar una desventaja de 7
+carreras, 17+ carreras en un juego, 13+ entradas, tres jonrones seguidos, 8+ carreras en una entrada,
+triple play— y el dueño las descartó el 2026-08-03.
+
+La razón encaja con lo que es este archivo: **es de jugadores dominicanos, no de equipos**. Meterlas
+obligaría a un `rol = equipo` sin `mlb_id`, y entonces la mitad del contrato —el nombre, los conteos
+por jugador, el enlace a la ficha— se queda vacío. No es que no se pueda; es que sería otro archivo.
+
+### 11.2. Pendiente, con el camino ya abierto
+
 - **Triple plays con dominicano fildeando** de cualquier tipo: hay **68**, y saldrían por la misma
   vía que `triple_play_solo` ahora que el contrato tiene `rol`.
 - **El Salón de la Fama dominicano.** `dglMaster.yearDomHof` da el año pero no el día, y una
-  efeméride necesita fecha exacta.
+  efeméride necesita fecha exacta. Son 24 de los 61 fallecidos, así que el dato existe y vale — lo
+  que falta es la fecha.
