@@ -16,6 +16,7 @@ from dglweb.stats.models import (
     Batting,
     DomPlayer,
     DomSalary,
+    Efemeride,
     Pitching,
     SeasonDates,
     fechas_fuera_de_orden,
@@ -337,6 +338,154 @@ class DomPlayersLoader(Loader):
         return resuelta
 
 
+@register
+class EfemeridesLoader(Loader):
+    """Efemérides dominicanas: lo que pasó «un día como hoy».
+
+    El CSV lo produce `static_data/efemerides/exportar_efemerides.ps1`, que corre 96 detectores
+    contra SQL Server y trae el texto YA REDACTADO. El diseño está en `docs/EFEMERIDES.md`.
+
+    SE REEMPLAZA ENTERA. Retrosheet publica una vez al año y entre publicación y publicación el
+    pasado no cambia, así que no hay nada que reconciliar: `truncate` y listo.
+
+    NO DECLARA `rebuilds`. No alimenta ningún cálculo del sitio — es contenido terminado, no una
+    fuente de la que se deriven otras tablas.
+
+    POR QUÉ LA VALIDACIÓN NO MIRA EL CONTENIDO. El exportador ya trae sus propias autocomprobaciones
+    —puntaje dentro de rango, ninguna fila sin titular, ningún marcador `{campo}` sin rellenar,
+    ninguna clave repetida tras la fusión— y las corre sobre los datos completos, que es donde se
+    pueden comprobar. Repetirlas acá sería duplicar la regla en dos lenguajes y arriesgarse a que se
+    separen. Lo que sí se comprueba es lo que el CSV puede romper AL CRUZAR LA FRONTERA: tipos,
+    fechas y campos obligatorios.
+    """
+
+    table = "dgl_efemerides"
+    model = Efemeride
+    # Ninguno de estos números es una medida acumulable, así que sumarlos no dice nada: `mes` y `dia`
+    # son coordenadas, `signo` vale ±1, `magnitud` cambia de unidad según el tipo —jonrones en uno,
+    # WPA en otro— y los conteos son atributos de la fila, no cantidades. Sin medidas que sumar, la
+    # comparación se queda con las filas, que es lo que de verdad hay que mirar antes de reemplazar
+    # el archivo entero.
+    no_sum: ClassVar[tuple[str, ...]] = (
+        "signo", "mes", "dia", "temporada", "anos", "event_id", "en_casa",
+        "magnitud", "wpa_jugador", "li_max", "rareza", "puntaje",
+        "veces_total", "jugadores_total", "orden", "veces_jugador", "orden_jugador",
+    )
+    columns: ClassVar[dict[str, str]] = {
+        "tipo": "tipo",
+        "gesta": "gesta",
+        "etiquetas": "etiquetas",
+        "rol": "rol",
+        "signo": "signo",
+        "cobertura": "cobertura",
+        "mlb_id": "mlb_id",
+        "nombre": "nombre",
+        "fecha": "fecha",
+        "mes": "mes",
+        "dia": "dia",
+        "temporada": "temporada",
+        "anos": "anos",
+        "game_id": "game_id",
+        "event_id": "event_id",
+        "game_type": "game_type",
+        "equipo": "equipo",
+        "equipo_nombre": "equipo_nombre",
+        "rival": "rival",
+        "rival_nombre": "rival_nombre",
+        "en_casa": "en_casa",
+        "oponente": "oponente",
+        "magnitud": "magnitud",
+        "wpa_jugador": "wpa_jugador",
+        "li_max": "li_max",
+        "detalle": "detalle",
+        "veces_total": "veces_total",
+        "jugadores_total": "jugadores_total",
+        "orden": "orden",
+        "veces_jugador": "veces_jugador",
+        "orden_jugador": "orden_jugador",
+        "rareza": "rareza",
+        "puntaje": "puntaje",
+        "titular": "titular",
+        "situacion": "situacion",
+    }
+
+    # Los que no admiten vacío: sin ellos la fila no se puede ni pintar ni ordenar.
+    _OBLIGATORIOS: ClassVar[tuple[str, ...]] = ("tipo", "mlb_id", "fecha", "titular")
+    _TEXTO: ClassVar[tuple[str, ...]] = (
+        "tipo", "gesta", "etiquetas", "rol", "cobertura", "nombre",
+        "game_id", "game_type", "equipo", "equipo_nombre", "rival", "rival_nombre",
+        "oponente", "detalle",
+    )
+    # `titular` y `situacion` son `TextField`, sin `max_length`: no se recortan.
+    _LIBRE: ClassVar[tuple[str, ...]] = ("titular", "situacion")
+    _ENTEROS: ClassVar[tuple[str, ...]] = (
+        "signo", "mlb_id", "mes", "dia", "temporada", "anos", "event_id", "en_casa",
+        "orden", "veces_jugador", "orden_jugador", "puntaje",
+    )
+    # Nulos legítimos: con cobertura parcial los totales van vacíos a propósito, y el WPA y el
+    # leverage solo existen en las gestas que cuelgan de un turno.
+    _ENTEROS_NULABLES: ClassVar[tuple[str, ...]] = ("veces_total", "jugadores_total")
+    _DECIMALES: ClassVar[tuple[str, ...]] = ("magnitud", "rareza")
+    _DECIMALES_NULABLES: ClassVar[tuple[str, ...]] = ("wpa_jugador", "li_max")
+
+    def resolve(self, row: dict[str, str]) -> dict[str, Any]:
+        """Traduce la fila del CSV a campos del modelo.
+
+        Los obligatorios levantan `ValueError`, que el motor convierte en un problema con su número
+        de línea. No se descartan en silencio: una fila sin titular es un archivo mal generado, y
+        tragársela dejaría un CSV que parece más sano de lo que está.
+        """
+        for campo in self._OBLIGATORIOS:
+            if not (row.get(campo) or "").strip():
+                raise ValueError(f"{campo} vacío")
+
+        largos = {campo.name: campo.max_length for campo in Efemeride._meta.fields}
+        resuelta: dict[str, Any] = {
+            campo: _texto(row.get(campo), largos[campo]) for campo in self._TEXTO
+        }
+        resuelta.update({campo: (row.get(campo) or "").strip() for campo in self._LIBRE})
+        resuelta["fecha"] = _fecha(row.get("fecha"))
+        resuelta.update({campo: _entero_exigido(row.get(campo), campo) for campo in self._ENTEROS})
+        resuelta.update({campo: _entero(row.get(campo)) for campo in self._ENTEROS_NULABLES})
+        resuelta.update({campo: _decimal_exigido(row.get(campo), campo) for campo in self._DECIMALES})
+        resuelta.update({campo: _decimal(row.get(campo)) for campo in self._DECIMALES_NULABLES})
+        return resuelta
+
+    def checks(self, rows: list[dict[str, Any]]) -> list[Problem]:
+        """Lo único que el exportador no puede comprobar: que el CSV llegue completo.
+
+        El resto de la salud del archivo ya la verifica el `.ps1` sobre los datos crudos. Acá se
+        atajan dos formas de subir un archivo a medias que la comparación por sí sola no delata,
+        porque un CSV recortado es un CSV válido.
+        """
+        problemas: list[Problem] = []
+
+        # 1. El calendario. El archivo tiene que cubrir casi todo el año — con los cumpleaños solos
+        #    ya pasan de 330 días. Si llegan pocos, se subió un archivo parcial o filtrado.
+        dias = {(row["mes"], row["dia"]) for row in rows}
+        if len(dias) < 300:
+            problemas.append(
+                Problem(
+                    f"El archivo solo cubre {len(dias)} días del calendario. Un archivo completo pasa "
+                    "de 350: con los cumpleaños solos ya son más de 330. Parece un CSV recortado.",
+                )
+            )
+
+        # 2. La variedad de detectores. Si vienen cuatro tipos, alguien exportó con la carpeta de
+        #    detectores a medias.
+        tipos = {row["tipo"] for row in rows}
+        if len(tipos) < 40:
+            problemas.append(
+                Problem(
+                    f"El archivo trae {len(tipos)} tipos de efeméride distintos y el exportador corre "
+                    "casi cien detectores. Revisá que la corrida no se haya cortado a la mitad.",
+                    sorted(tipos)[:20],
+                )
+            )
+
+        return problemas
+
+
 def _texto(crudo: str | None, largo: int | None) -> str:
     return (crudo or "").strip()[:largo]
 
@@ -370,6 +519,38 @@ def _fecha(crudo: str | None) -> date | None:
 def _entero(crudo: str | None) -> int | None:
     texto = (crudo or "").strip()
     return int(float(texto)) if texto else None  # `float` primero: el CSV puede traer «210.0»
+
+
+def _entero_exigido(crudo: str | None, campo: str) -> int:
+    """Como `_entero`, pero el vacío es un error con nombre y no un `None` que reviente al escribir.
+
+    Sin esto, una columna numérica que llega vacía pasa la comparación —el motor no la mira— y
+    explota en el `INSERT`, después de que la pantalla dijo que todo estaba bien. Acá levanta
+    `ValueError` y el motor lo convierte en un problema con su número de línea, que es donde el
+    usuario puede hacer algo.
+    """
+    valor = _entero(crudo)
+    if valor is None:
+        raise ValueError(f"{campo} vacío y es obligatorio")
+    return valor
+
+
+def _decimal(crudo: str | None) -> float | None:
+    """Acepta notación científica, que es como PowerShell escribe los WPA muy chicos.
+
+    Medido sobre el CSV de efemérides: hay valores como «7.82716988860389E-05». `float()` los parsea
+    sin ayuda; lo que no hay que hacer es filtrarlos con una expresión regular de dígitos y punto,
+    porque los daría por inválidos.
+    """
+    texto = (crudo or "").strip()
+    return float(texto) if texto else None
+
+
+def _decimal_exigido(crudo: str | None, campo: str) -> float:
+    valor = _decimal(crudo)
+    if valor is None:
+        raise ValueError(f"{campo} vacío y es obligatorio")
+    return valor
 
 
 def _booleano(crudo: str | None) -> bool | None:

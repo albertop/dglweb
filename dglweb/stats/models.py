@@ -2048,3 +2048,107 @@ class TeamSeasonGames(models.Model):
 
     def __str__(self) -> str:
         return f"{self.season} {self.team} ({self.league}): {self.games}"
+
+
+class Efemeride(models.Model):
+    """Lo que pasó «un día como hoy» en Grandes Ligas protagonizado por dominicanos.
+
+    El diseño completo, con el porqué de cada umbral, está en `docs/EFEMERIDES.md`. Acá solo hace
+    falta saber tres cosas para entender la forma de la tabla:
+
+    EL SITIO NO CALCULA NADA. Filtra por `mes` y `dia`, ordena por `puntaje` y pinta `titular` y
+    `situacion`, que llegan ya redactados. Por eso hay columnas que parecen redundantes —`mes`,
+    `dia` y `anos` se pueden derivar de `fecha`— y no lo son: existen para que la consulta del día
+    sea un índice y no una función sobre cada fila.
+
+    SE REGENERA ENTERA CADA AÑO. Retrosheet publica una vez, en la offseason, y entre publicación y
+    publicación el pasado no cambia. El modo es `truncate`: no hay reconciliación ni histórico.
+
+    LOS CAMPOS ESTRUCTURADOS VIAJAN IGUAL aunque el texto venga hecho. Sirven para enlazar la ficha
+    del jugador (`mlb_id`), filtrar por tipo, separar hazañas de deshonras (`signo`) y ordenar. Sin
+    ellos el archivo sería una lista de frases y no un dato.
+    """
+
+    # --- Qué pasó ---------------------------------------------------------------------
+    tipo = models.CharField(max_length=40, verbose_name="Tipo")
+    # La gesta en palabras —«5+ hits en un juego»—, que es lo que el motor usa para armar la frase
+    # de situación. Viaja al sitio para poder agrupar o explicar sin volver a redactar.
+    gesta = models.CharField(max_length=120, verbose_name="Gesta")
+    # Los otros detectores que dispararon sobre el mismo hecho y perdieron la fusión. Vacío casi
+    # siempre; separados por espacio cuando hay varios.
+    etiquetas = models.CharField(max_length=200, blank=True, verbose_name="Etiquetas")
+    rol = models.CharField(max_length=12, verbose_name="Rol")
+    # +1 hazaña, -1 deshonra. El sitio las puede presentar aparte.
+    signo = models.SmallIntegerField(verbose_name="Signo")
+    # `completa` o `parcial`. Con cobertura parcial los totales van vacíos a propósito: el número que
+    # tenemos es el de la ventana que vemos, no el de la historia.
+    cobertura = models.CharField(max_length=10, verbose_name="Cobertura")
+
+    # --- Quién y cuándo ---------------------------------------------------------------
+    mlb_id = models.PositiveIntegerField(db_index=True, verbose_name="MLB ID")
+    nombre = models.CharField(max_length=60, verbose_name="Jugador")
+    fecha = models.DateField(verbose_name="Fecha")
+    # Derivados de `fecha` a propósito — ver la nota de arriba.
+    mes = models.PositiveSmallIntegerField(verbose_name="Mes")
+    dia = models.PositiveSmallIntegerField(verbose_name="Día")
+    temporada = models.PositiveSmallIntegerField(verbose_name="Temporada")
+    anos = models.PositiveSmallIntegerField(verbose_name="Años transcurridos")
+
+    # --- Dónde ------------------------------------------------------------------------
+    # Vacío en las gestas de persona (cumpleaños, debut, fallecimiento), que no cuelgan de un juego.
+    game_id = models.CharField(max_length=20, blank=True, verbose_name="Juego")
+    event_id = models.PositiveIntegerField(default=0, verbose_name="Evento")
+    game_type = models.CharField(max_length=1, verbose_name="Tipo de juego")
+    equipo = models.CharField(max_length=5, blank=True, verbose_name="Equipo")
+    equipo_nombre = models.CharField(max_length=40, blank=True, verbose_name="Nombre del equipo")
+    rival = models.CharField(max_length=5, blank=True, verbose_name="Rival")
+    rival_nombre = models.CharField(max_length=40, blank=True, verbose_name="Nombre del rival")
+    en_casa = models.SmallIntegerField(verbose_name="En casa")
+    # El lanzador o bateador al que enfrentó, cuando la gesta es de un turno.
+    oponente = models.CharField(max_length=60, blank=True, verbose_name="Oponente")
+
+    # --- Los números ------------------------------------------------------------------
+    # `magnitud` es float y no entero porque no siempre cuenta cosas: en los walk-off es el WPA.
+    magnitud = models.FloatField(verbose_name="Magnitud")
+    wpa_jugador = models.FloatField(null=True, blank=True, verbose_name="WPA")
+    li_max = models.FloatField(null=True, blank=True, verbose_name="Leverage máximo")
+    detalle = models.CharField(max_length=200, blank=True, verbose_name="Detalle")
+
+    # --- Los conteos, que calcula el motor --------------------------------------------
+    # Nulos cuando la cobertura es parcial. NULL y 0 significan cosas distintas: cero es un dato y
+    # esto es una ausencia.
+    veces_total = models.PositiveIntegerField(null=True, blank=True, verbose_name="Veces en total")
+    jugadores_total = models.PositiveIntegerField(null=True, blank=True, verbose_name="Jugadores distintos")
+    orden = models.PositiveIntegerField(verbose_name="Orden cronológico")
+    veces_jugador = models.PositiveIntegerField(verbose_name="Veces de este jugador")
+    orden_jugador = models.PositiveIntegerField(verbose_name="Cuál de las suyas")
+
+    # --- El puntaje y el texto --------------------------------------------------------
+    rareza = models.FloatField(verbose_name="Rareza")
+    puntaje = models.PositiveSmallIntegerField(verbose_name="Puntaje")
+    titular = models.TextField(verbose_name="Titular")
+    situacion = models.TextField(blank=True, verbose_name="Situación")
+
+    class Meta:
+        db_table = "dgl_efemerides"
+        constraints = [
+            # La clave natural del dataset. Comprobado contra las 5.750 filas del archivo: no se
+            # repite ninguna. La fecha NO hace falta acá aunque sí esté en la clave de fusión del
+            # exportador — allá hay que distinguir cumpleaños de debut del mismo hombre, que llevan
+            # `game_id` vacío, y acá los distingue el `tipo`.
+            models.UniqueConstraint(
+                fields=["tipo", "game_id", "mlb_id", "event_id"], name="uniq_efemeride"
+            ),
+        ]
+        indexes = [
+            # LA CONSULTA DEL SITIO, y la razón de que `mes` y `dia` sean columnas. Trae el día del
+            # calendario ya ordenado por importancia, sin tocar una función de fecha.
+            models.Index(fields=["mes", "dia", "-puntaje"], name="idx_efemeride_dia"),
+            models.Index(fields=["tipo"], name="idx_efemeride_tipo"),
+        ]
+        ordering = ["mes", "dia", "-puntaje", "fecha"]
+        verbose_name = "efeméride"
+        verbose_name_plural = "efemérides"
+
+    def __str__(self) -> str:
+        return f"{self.fecha} {self.nombre}: {self.titular[:60]}"
