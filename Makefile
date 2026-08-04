@@ -50,9 +50,17 @@ checkshell: ; @for f in deploy/*.sh deploy/postgres/init/*.sh deploy_dglweb_imag
 # El de PowerShell se comprueba con el analizador de .NET, sin ejecutarlo. Solo corre donde haya
 # `pwsh` o `powershell` —o sea, en la máquina del dueño— y se salta en silencio en otros sitios: es
 # preferible a que el gate falle en el CI por un archivo que allí nadie va a usar.
+#
+# LOS COMPRUEBA TODOS, no solo el del PDF. Hasta el 2026-08-03 esta regla nombraba UN archivo a mano
+# y los siete `.ps1` de `static_data/` nunca se miraron — que son justo los que corren una o dos
+# veces al año, o sea los que más tardan en delatar un error de sintaxis. Se descubrió al agregar
+# `exportar_efemerides.ps1` y ver que el gate lo ignoraba.
 checkps1: ; @command -v powershell >/dev/null 2>&1 || command -v pwsh >/dev/null 2>&1 || { echo "  (sin PowerShell, se omite)"; exit 0; }; \
-	printf "  %-42s " "docs/generar_pdf_banners.ps1"; \
-	powershell -NoProfile -Command "\$$e=\$$null; \$$null=[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'docs/generar_pdf_banners.ps1'),[ref]\$$null,[ref]\$$e); if(\$$e.Count){exit 1}"; echo ok
+	for f in $$(find . -name '*.ps1' -not -path './staticfiles/*' -not -path './node_modules/*' | sort); do \
+	  printf "  %-42s " "$$f"; \
+	  powershell -NoProfile -Command "\$$e=\$$null; \$$null=[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path '$$f'),[ref]\$$null,[ref]\$$e); if(\$$e.Count){\$$e|ForEach-Object{Write-Host \$$_.Message}; exit 1}" || exit 1; \
+	  echo ok; \
+	done
 
 # `config -q` valida sintaxis Y esquema de compose. Las variables van con valores de mentira porque
 # los `${VAR:?falta}` abortarían — y esos `:?` son deliberados, así que hay que darles algo.

@@ -1004,6 +1004,45 @@ cualquier otro código.
 6 veces en un juego —en toda la liga solo ha pasado 8 veces en 116 años— pero el detector cuesta
 nada y empieza a producir el día que pase.
 
+### 8.0. Lo que la implementación obligó a cambiar
+
+El motor y los primeros cinco detectores se escribieron el 2026-08-03. Correrlo destapó cuatro cosas
+que el diseño no había previsto, y todas están ya en el código:
+
+**1. `situar` — un campo más del contrato.** La frase «uno de los N dominicanos que lo ha logrado»
+(3.3) **no aplica a todas las gestas**, y solo el detector sabe si aplica a la suya. La primera
+corrida publicó «Cumple 46 años. Es uno de los 923 dominicanos que lo ha logrado», que es un
+disparate. Peor: el bono de relieve le daba +30 a Fernando Tatís por nacer un 1 de enero —el primero
+de la lista— y con eso superaba a Albert Pujols, que tiene tres veces más juegos.
+
+No se decide por `rol`, porque `debut` también es `rol = persona` y ahí la frase **sí** vale: «el
+primer dominicano en llegar a Grandes Ligas» es de las mejores efemérides que hay.
+
+**2. El juego perfecto necesita detector propio.** Metido dentro de `no_hitter`, el perfecto de
+Domingo Germán sacaba **767 puntos y quedaba DEBAJO** del no-hitter de Ervin Santana (774): el de
+Santana fue un juego cerrado y el de Germán un 11-0, así que el bono de impacto hundía la gesta más
+rara del béisbol.
+
+Esto **no contradice** el patrón de 5.1.2 —no crear un detector por escalón—, lo delimita: tres
+triples es la *misma* gesta que dos, más grande; un perfecto **no es un no-hitter mejor**, es no
+permitir nada. Con detector propio, la rareza (`n=1` → 600) lo pone donde va y el impacto solo
+desempata. Ahora saca 926 y encabeza el archivo.
+
+**3. El orden del archivo.** Decisión del dueño: `mes`, `dia`, luego **puntaje descendente** —dentro
+del día manda la importancia— y **fecha ascendente** como desempate. El tercer nivel no sobra: dos
+gestas del mismo tipo el mismo día del calendario sacan casi el mismo puntaje, y sin él el orden lo
+decidiría el azar. Con la fecha, el archivo es **estable**: la misma entrada da siempre la misma
+salida, que es lo que hace que la pantalla de comparación enseñe solo lo que de verdad cambió.
+
+**4. Los `.ps1` van en UTF-8 CON BOM.** Windows PowerShell 5.1 —el `powershell` del gate, no el
+`pwsh` 7— lee un `.ps1` sin BOM **como ANSI**. Las rayas largas y los acentos se decodifican en bytes
+que incluyen comillas, desbalancean las cadenas y el archivo deja de parsear. El motor no arrancaba
+bajo 5.1 y sí bajo 7.
+
+De paso se descubrió que **el gate solo miraba un `.ps1`** y los seis de `static_data/` nunca se
+comprobaron — justo los que corren una o dos veces al año, o sea los que más tardan en delatar un
+error. `make checkps1` ahora los recorre todos.
+
 ### 8.1. Por qué PowerShell y no Python
 
 En la máquina del dueño **no hay Python fuera de Docker**, y un contenedor no llega a SQL Server con
@@ -1013,6 +1052,17 @@ esa razón. Esto sigue el mismo camino y no obliga a instalar nada.
 
 La consecuencia de diseño: **la lógica vive en SQL**, y PowerShell es la tubería. Que es lo que
 conviene igual — los detectores son consultas, no programas.
+
+El dueño ofreció pasarlo a Python el 2026-08-03 y se mantuvo PowerShell por lo de arriba. **Lo que se
+pierde es real y conviene decirlo**: en Python el motor tendría `ruff`, `mypy` y tests unitarios del
+puntaje; acá solo tiene comprobación de sintaxis.
+
+Se compensa con **autocomprobaciones dentro del propio script** (sección 6 de
+`exportar_efemerides.ps1`): puntaje dentro de 0-1000, ninguna fila sin titular, ningún marcador
+`{campo}` sin rellenar, ninguna deshonra por encima del tope de su escala, ninguna fila de cobertura
+parcial publicando totales, y ninguna clave repetida tras la fusión. No son teóricas: los dos
+primeros fallos del motor se cazaron mirando la salida, y esto es mirarla sin depender de que alguien
+se acuerde.
 
 ---
 
