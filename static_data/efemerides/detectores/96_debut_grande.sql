@@ -67,7 +67,8 @@ SELECT  'debut_grande'                            AS tipo,
         b.rv                                      AS magnitud,
         j.wpa_bat                                 AS wpa_jugador,
         j.li_max,
-        CAST(j.B_H AS varchar(2)) + ' hits en ' + CAST(j.B_AB AS varchar(2)) + ' turnos'
+        CAST(j.B_H AS varchar(2)) + CASE WHEN j.B_H = 1 THEN ' hit' ELSE ' hits' END + ' en '
+            + CAST(j.B_AB AS varchar(2)) + CASE WHEN j.B_AB = 1 THEN ' turno' ELSE ' turnos' END
             + CASE WHEN j.B_HR > 0 THEN ', con ' + CAST(j.B_HR AS varchar(2))
                         + CASE WHEN j.B_HR = 1 THEN ' jonrón' ELSE ' jonrones' END ELSE '' END
             + CASE WHEN j.B_RBI > 0 THEN ' y ' + CAST(j.B_RBI AS varchar(2))

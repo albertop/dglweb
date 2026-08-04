@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- JUEGO COMPLETO DE MÁS DE NUEVE ENTRADAS. Medido: 17 veces.
 --
 -- No es un juego completo cualquiera: es el que se fue a entradas extra y el mismo hombre siguió
@@ -45,7 +45,7 @@ SELECT  'cg_extra' AS tipo,
         j.li_max,
         CAST(j.P_OUT / 3 AS varchar(2)) + ' entradas'
             + CASE WHEN j.P_OUT % 3 = 1 THEN ' y un tercio' WHEN j.P_OUT % 3 = 2 THEN ' y dos tercios' ELSE '' END
-            + ', ' + CAST(j.P_SO AS varchar(2)) + ' ponches'
+            + ', ' + CAST(j.P_SO AS varchar(2)) + CASE WHEN j.P_SO = 1 THEN ' ponche' ELSE ' ponches' END
             + CASE WHEN j.P_ER = 0 THEN ' y ni una carrera limpia'
                    WHEN j.P_ER = 1 THEN ' y 1 carrera limpia'
                    ELSE ' y ' + CAST(j.P_ER AS varchar(2)) + ' limpias' END AS detalle,

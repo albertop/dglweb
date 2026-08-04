@@ -70,7 +70,8 @@ SELECT  'paliza' AS tipo,
         -- «EN 0 ENTRADAS» NO SE DICE. Un lanzador al que sacan sin retirar a nadie no lanzó cero
         -- entradas: no sacó un out, que es lo que hay que escribir. Y el número de bateadores va acá
         -- porque es la mitad de la medida — sin él, «le costó una carrera a cada uno» no se sostiene.
-        CAST(j.P_R AS varchar(2)) + ' carreras y ' + CAST(j.P_H AS varchar(2)) + ' hits '
+        CAST(j.P_R AS varchar(2)) + CASE WHEN j.P_R = 1 THEN ' carrera' ELSE ' carreras' END + ' y '
+            + CAST(j.P_H AS varchar(2)) + CASE WHEN j.P_H = 1 THEN ' hit ' ELSE ' hits ' END
             + CASE WHEN j.P_OUT = 0
                    THEN 'sin sacar un solo out'
                    ELSE 'en ' + CAST(j.P_OUT / 3 AS varchar(3))

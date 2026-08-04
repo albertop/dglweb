@@ -20,7 +20,7 @@ SELECT  'hbp_propinados' AS tipo,
         j.P_HP AS magnitud,
         NULL AS wpa_jugador,
         j.li_max,
-        CAST(j.P_OUT / 3 AS varchar(3)) + CASE j.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + ' entradas' AS detalle,
+        CAST(j.P_OUT / 3 AS varchar(3)) + CASE j.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + CASE WHEN j.P_OUT BETWEEN 3 AND 5 THEN ' entrada' ELSE ' entradas' END AS detalle,
         j.equipo_nombre, j.rival_nombre,
         '' AS oponente
 FROM    #juegos j

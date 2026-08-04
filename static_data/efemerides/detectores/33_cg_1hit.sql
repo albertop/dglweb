@@ -20,7 +20,7 @@ SELECT  'cg_1hit' AS tipo,
         j.P_SO AS magnitud,
         j.wpa_pit AS wpa_jugador,
         j.li_max,
-        CAST(j.P_OUT / 3 AS varchar(3)) + CASE j.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + ' entradas' + ' y ' + CAST(j.P_SO AS varchar(2)) + ' ponches' AS detalle,
+        CAST(j.P_OUT / 3 AS varchar(3)) + CASE j.P_OUT % 3 WHEN 1 THEN '.1' WHEN 2 THEN '.2' ELSE '' END + ' entradas' + ' y ' + CAST(j.P_SO AS varchar(2)) + CASE WHEN j.P_SO = 1 THEN ' ponche' ELSE ' ponches' END AS detalle,
         j.equipo_nombre, j.rival_nombre,
         '' AS oponente
 FROM    #juegos j

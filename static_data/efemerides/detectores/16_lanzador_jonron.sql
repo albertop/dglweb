@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- UN LANZADOR CONECTA JONRÓN. Medido: 41 veces, 24 lanzadores.
 --
 -- La estampa contraria a `14_posicion_lanzando`: acá el que no debería es el que batea. Y hay
@@ -40,7 +40,8 @@ SELECT  'lanzador_jonron' AS tipo,
         NULL                                      AS wpa_jugador,
         j.li_max,
         CASE WHEN j.B_HR > 1 THEN 'conectó ' + CAST(j.B_HR AS varchar(2)) + ' esa tarde'
-             ELSE 'ese mismo día lanzó ' + CAST(j.P_OUT / 3 AS varchar(2)) + ' entradas' END
+             ELSE 'ese mismo día lanzó ' + CAST(j.P_OUT / 3 AS varchar(2))
+                  + CASE WHEN j.P_OUT / 3 = 1 THEN ' entrada' ELSE ' entradas' END END
         + CASE WHEN j.B_RBI > 1 THEN ' y empujó ' + CAST(j.B_RBI AS varchar(2)) ELSE '' END AS detalle,
         j.equipo_nombre, j.rival_nombre,
         ''                                        AS oponente
