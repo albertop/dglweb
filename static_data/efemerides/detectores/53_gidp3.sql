@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Tres o mas dobles matanzas bateadas. Medido: 10 veces, 10 jugadores. Rareza 245.
 --
 -- Con umbral 2 serian 549 juegos (4,73 por temporada) y eso no es efemeride. Ningun dominicano ha
@@ -7,6 +7,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'gidp3' AS tipo,
+        '3+ dobles matanzas bateadas en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

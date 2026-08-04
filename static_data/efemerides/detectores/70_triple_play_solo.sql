@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Triple play SIN ASISTENCIA: los tres outs los hace un solo fildeador.
 --
 -- UNO SOLO EN LA HISTORIA DOMINICANA: Rafael Furcal, 10 de agosto de 2003, campocorto, quinto
@@ -27,6 +27,7 @@ WITH tp AS (
       AND   ISNULL(e.ASS1_FLD_CD, 0) = 0         -- y nadie le ayudó
 )
 SELECT  'triple_play_solo'                        AS tipo,
+        'un triple play sin asistencia' AS gesta,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

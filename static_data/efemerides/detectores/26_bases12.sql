@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Doce o más bases alcanzadas. Medido: 85 veces, 44 jugadores. Rareza 388.
 --
 -- HABÍA DOS DETECTORES DEL MISMO STAT —`bases10` y `bases12`— y eso contradice el patrón: un
@@ -9,6 +9,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'bases12'                                   AS tipo,
+        '12+ bases alcanzadas en un juego' AS gesta,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

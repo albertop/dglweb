@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- ACTUACIÓN EN EL JUEGO DE ESTRELLAS.
 --
 -- Solo cuando HIZO algo: jonrón, dos o más hits, ganó el juego o lo salvó. Son 32.
@@ -27,6 +27,7 @@
 -- que es rarísimo, y no: es raro DENTRO del Juego de Estrellas, que es donde ocurre.
 -- =====================================================================================
 SELECT  'estrellas_actuacion'                     AS tipo,
+        'una actuación destacada en el Juego de Estrellas' AS gesta,
         CASE WHEN a.P_OUT > 0 THEN 'lanzador' ELSE 'bateador' END AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

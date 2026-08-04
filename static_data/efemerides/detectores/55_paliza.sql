@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- LA PALIZA, MEDIDA POR RITMO: valor de carreras por bateador enfrentado. Medido: 79 veces.
 --
 -- IDEA DEL DUEÑO (2026-08-04), y arregla un detector que estaba mal planteado.
@@ -49,6 +49,7 @@ WITH ritmo AS (
         AND SUM(e.RUN_VALUE) / NULLIF(CAST(COUNT(1) AS float), 0) >= 1.0
 )
 SELECT  'paliza' AS tipo,
+        'una salida de una carrera por bateador enfrentado' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

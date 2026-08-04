@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- DIEZ O MÁS DOMINICANOS EN UN MISMO JUEGO, contando TODO: los dos equipos, abridores,
 -- relevistas, emergentes, corredores emergentes y sustitutos defensivos.
 --
@@ -48,6 +48,7 @@ elegido AS (
     FROM    conteo c
 )
 SELECT  'dominicanos_juego'                       AS tipo,
+        '10+ dominicanos en un mismo juego' AS gesta,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         203908                                    AS universo,

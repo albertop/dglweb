@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El ciclo NATURAL: sencillo, doble, triple y jonrón EN ESE ORDEN.
 --
 -- HOY DEVUELVE CERO. Ningún dominicano ha bateado un ciclo natural en 116 años — de los 20 ciclos,
@@ -28,6 +28,7 @@ cierre AS (
     WHERE   p.e1 < p.e2 AND p.e2 < p.e3 AND p.e3 < p.e4
 )
 SELECT  'ciclo_natural'                           AS tipo,
+        'un ciclo natural' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

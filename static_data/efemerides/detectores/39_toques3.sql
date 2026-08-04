@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- TRES O MAS TOQUES DE SACRIFICIO en un juego. Medido: 6 veces, 5 jugadores. Rareza 515.
 --
 -- EL UMBRAL SE CALCULO. Con 2 serian 243 juegos (2,09 por temporada) y un toque no es una gesta: es
@@ -15,6 +15,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'toques3' AS tipo,
+        '3+ toques de sacrificio en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

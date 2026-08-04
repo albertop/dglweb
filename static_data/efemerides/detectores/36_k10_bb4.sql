@@ -1,9 +1,10 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Dominante y salvaje a la vez: 10+ ponches con 4+ boletos. Medido: 73 veces. Rareza 395.
 --
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'k10_bb4' AS tipo,
+        '10+ ponches y 4+ boletos en un juego' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

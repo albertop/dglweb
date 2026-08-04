@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Quince o más ponches. Medido: 16 veces, SEIS lanzadores. Rareza 468.
 --
 -- Es de los casos donde los dos conteos más se separan: 16 juegos pero solo 6 lanzadores, o sea 2,67
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'k15'                                   AS tipo,
+        '15+ ponches en un juego' AS gesta,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

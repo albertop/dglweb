@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- CUATRO ponches en la misma entrada.
 --
 -- Solo se puede si un strike tres se le escapa al receptor y el bateador llega a primera: el
@@ -29,6 +29,7 @@ WITH porInning AS (
     HAVING  SUM(CAST(v.SO AS int)) >= 4
 )
 SELECT  'k4_inning'                               AS tipo,
+        '4 ponches en una sola entrada' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL DEBUT GRANDE: el mejor primer juego de un dominicano, medido por VALOR DE CARRERAS.
 --
 -- Idea del dueño (2026-08-04), y es la medida correcta para esto por la misma razón que en
@@ -50,6 +50,7 @@ debut AS (
     WHERE  p.rn = 1 AND rvb.rv >= 1.5
 )
 SELECT  'debut_grande'                            AS tipo,
+        'un debut de 1,5+ carreras de valor' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         292948                                    AS universo,

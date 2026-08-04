@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El walk-off de GRAND SLAM. Medido: 20 veces, 17 jugadores. Rareza 468.
 --
 -- OJO: este detector estuvo mal definido en el diseño. Se escribió como «walk-off con 2 outs y bases
@@ -10,6 +10,7 @@
 -- Acá SÍ se nombra al lanzador: el turno se enfrentó a UN hombre, así que decirlo es verdad.
 -- =====================================================================================
 SELECT  'walkoff_slam' AS tipo,
+        'un walk-off de grand slam' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

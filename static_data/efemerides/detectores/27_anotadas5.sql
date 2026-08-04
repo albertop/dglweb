@@ -3,7 +3,8 @@
 --
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
-SELECT  'anotadas4' AS tipo,
+SELECT  'anotadas5' AS tipo,
+        '5 carreras anotadas en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,
@@ -20,7 +21,17 @@ SELECT  'anotadas4' AS tipo,
         j.equipo_nombre, j.rival_nombre,
         '' AS oponente
 FROM    #juegos j
-WHERE   j.B_R >= 4;
+-- CINCO Y NO CUATRO (dueno, 2026-08-04). Con cuatro eran 233 juegos de 93 jugadores —2,01 por
+-- temporada— y el propio dueno lo leyo como demasiado ancho. Medido:
+--
+--     B_R >= 4    233 juegos    93 jugadores    2,01 por temporada
+--     B_R >= 5     12 juegos    10 jugadores    0,10
+--     B_R >= 6      0                          nunca ha pasado
+--
+-- CINCO ES EL RECORD DOMINICANO, no un corte mas: nadie ha anotado seis en un juego. Asi que este
+-- detector deja de ser un umbral y pasa a ser la lista completa de los que llegaron al techo, que es
+-- exactamente lo que le da sentido a una efemeride.
+WHERE   j.B_R >= 5;
 
 -- =====================================================================================
 -- LA LISTA — para cuando pregunten «¿quiénes son esos, y cuándo?»

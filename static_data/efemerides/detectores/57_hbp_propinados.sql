@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Tres o mas pelotazos propinados. Medido: 25 veces, 20 lanzadores. Rareza 223.
 --
 -- Va en NEGATIVO: golpear a tres es un fallo de control. Con umbral 2 serian 411 juegos (3,54 por
@@ -7,6 +7,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'hbp_propinados' AS tipo,
+        '3+ pelotazos propinados en un juego' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- LOS TRES JARDINEROS, DOMINICANOS.
 --
 -- Los tres puestos del jardín ocupados por dominicanos a la vez, en la misma media entrada.
@@ -35,6 +35,7 @@ elegido AS (
     FROM    juegos_con_jardin j
 )
 SELECT  'jardin_dominicano'                       AS tipo,
+        'el jardín entero dominicano' AS gesta,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,

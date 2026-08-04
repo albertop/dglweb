@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- CINCO O MÁS LANZADORES DOMINICANOS EN UN MISMO JUEGO, CONTANDO LOS DOS EQUIPOS.
 --
 -- El hermano de `93_lanzadores_equipo`, un escalón más arriba: no importa de qué lado salieron.
@@ -59,6 +59,7 @@ elegido AS (
     FROM    conteo c
 )
 SELECT  'lanzadores_juego'                        AS tipo,
+        '5+ lanzadores dominicanos en un juego' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         203908                                    AS universo,

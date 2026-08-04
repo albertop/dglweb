@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Doce o más ponches. Medido: 137 veces, 34 lanzadores. Rareza 365.
 --
 -- CUATRO JUEGOS POR LANZADOR de promedio: es el detector que obligó a distinguir «cuántas veces» de
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'k12'                                   AS tipo,
+        '12+ ponches en un juego' AS gesta,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

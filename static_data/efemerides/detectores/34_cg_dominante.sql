@@ -1,9 +1,10 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Juego completo con 10+ ponches y cero limpias. Medido: 41 veces. Rareza 423.
 --
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'cg_dominante' AS tipo,
+        'un juego completo con 10+ ponches y cero limpias' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

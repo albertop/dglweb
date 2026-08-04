@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El ciclo: sencillo, doble, triple y jonrón en el mismo juego. Medido: 20 veces, 16 jugadores.
 -- Rareza 457.
 --
@@ -9,6 +9,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'ciclo'                                   AS tipo,
+        'un ciclo' AS gesta,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

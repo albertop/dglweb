@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El walk-off: el turno que acabó el juego. Medido: 938 veces, 232 jugadores. Rareza 299.
 --
 -- GRANO: turno al bate. Universo 822764. Sale de `#turnos` (preludio `_01_turnos.sql`).
@@ -6,6 +6,7 @@
 -- Acá SÍ se nombra al lanzador: el turno se enfrentó a UN hombre, así que decirlo es verdad.
 -- =====================================================================================
 SELECT  'walkoff' AS tipo,
+        'un walk-off' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

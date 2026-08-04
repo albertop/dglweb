@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Atrapado robando tres veces. Medido: UNA vez — Luis Polonia, 1993-05-24, sin robarse
 -- ninguna. Rareza 300, el tope de la escala negativa.
 --
@@ -10,6 +10,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'cs3' AS tipo,
+        '3+ veces atrapado robando en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Blanqueada en juego completo. Medido: 271 veces. Rareza 333.
 --
 -- Es de los tres que más volumen mueven (2,34 por temporada). Entra igual: una blanqueada completa
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'blanqueada'                                   AS tipo,
+        'una blanqueada en juego completo' AS gesta,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

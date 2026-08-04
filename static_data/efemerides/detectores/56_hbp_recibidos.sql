@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Dos o mas pelotazos recibidos. Medido: 120 veces, 67 jugadores. Rareza 372.
 --
 -- VA EN POSITIVO, y es un juicio: al bateador no le pasa por culpa suya. Los propinados van en
@@ -7,6 +7,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'hbp_recibidos' AS tipo,
+        '2+ pelotazos recibidos en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

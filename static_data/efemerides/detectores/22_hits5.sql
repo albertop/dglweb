@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Cinco o más hits. Medido: 153 veces, 93 jugadores. Rareza 360.
 --
 -- Se revisó porque 153 parecía mucho; medido por temporada son 1,32 — nada. Y no tiene punto
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'hits5'                                   AS tipo,
+        '5+ hits en un juego' AS gesta,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

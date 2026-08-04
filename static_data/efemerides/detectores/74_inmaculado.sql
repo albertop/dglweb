@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL INNING INMACULADO: nueve lanzamientos, tres ponches, ni uno de más. La entrada perfecta.
 --
 -- Medido: OCHO dominicanos desde 2008.
@@ -18,6 +18,7 @@
 -- el de la historia. Publicarlo como total sería mentir con precisión decimal.
 -- =====================================================================================
 SELECT  'inmaculado' AS tipo,
+        'un inning inmaculado' AS gesta,
         'lanzador' AS rol,
         'parcial' AS cobertura,
         1 AS situar,

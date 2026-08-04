@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- JONRÓN DENTRO DEL PARQUE.
 --
 -- Medido: 22 dominicanos desde 2008, de 220 en toda la liga.
@@ -30,6 +30,7 @@ WITH itp AS (
     GROUP BY s.batter, CAST(s.game_date AS date), s.game_pk, s.inning
 )
 SELECT  'hr_dentro_parque'                        AS tipo,
+        'un jonrón dentro del parque' AS gesta,
         'bateador'                                AS rol,
         'parcial'                                 AS cobertura,
         1                                         AS situar,

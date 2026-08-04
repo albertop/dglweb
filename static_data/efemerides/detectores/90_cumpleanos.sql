@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El cumpleaños.
 --
 -- GRANO: persona. No lleva `universo` de rareza porque la rareza no significa nada acá — todo el
@@ -15,6 +15,7 @@
 -- año de nacimiento sigue en `detalle`.
 -- =====================================================================================
 SELECT  'cumpleanos'                              AS tipo,
+        'un cumpleaños' AS gesta,
         'persona'                                 AS rol,
         'completa'                                AS cobertura,
         -- `situar = 0`: la frase «uno de los N dominicanos que lo ha logrado» NO aplica a cumplir

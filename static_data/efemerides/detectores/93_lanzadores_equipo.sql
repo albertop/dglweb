@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- CUATRO O MÁS LANZADORES DOMINICANOS PARA EL MISMO EQUIPO EN UN JUEGO.
 --
 -- No es la defensa parada en el terreno (eso es `79_seis_dominicanos`): es el desfile del bullpen.
@@ -54,6 +54,7 @@ elegido AS (
     FROM    conteo c
 )
 SELECT  'lanzadores_equipo'                       AS tipo,
+        '4+ lanzadores dominicanos en un mismo equipo' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         407816                                    AS universo,

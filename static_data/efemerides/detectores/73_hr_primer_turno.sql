@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- JONRÓN EN SU PRIMER TURNO EN GRANDES LIGAS.
 --
 -- Medido: QUINCE dominicanos, de 723 que han tenido al menos un turno. Rareza 353.
@@ -41,6 +41,7 @@ WITH numerados AS (
     FROM    #turnos t
 )
 SELECT  'hr_primer_turno'                         AS tipo,
+        'un jonrón en su primer turno de Grandes Ligas' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

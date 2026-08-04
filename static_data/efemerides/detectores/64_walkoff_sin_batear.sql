@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El walk-off anticlimático: boleto o pelotazo con las bases llenas. Medido: 28 veces, 26
 -- jugadores. Rareza 453.
 --
@@ -16,6 +16,7 @@
 -- Acá SÍ se nombra al lanzador: el turno se enfrentó a UN hombre, así que decirlo es verdad.
 -- =====================================================================================
 SELECT  'walkoff_sin_batear' AS tipo,
+        'un walk-off sin batear la pelota' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

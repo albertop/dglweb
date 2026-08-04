@@ -1,9 +1,10 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Cuatro o más extrabases en un juego. Medido: 33 veces. Rareza 433.
 --
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'extrabases4' AS tipo,
+        '4+ extrabases en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

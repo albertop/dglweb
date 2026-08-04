@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- GRAND SLAM DOMINICANO CONTRA LANZADOR DOMINICANO. Medido: 53 de los 520.
 --
 -- POR QUÉ SE REDUJO. El detector contaba TODOS los grand slams de dominicanos —520— y eso es casi
@@ -26,6 +26,7 @@
 -- el nombre carga el doble de peso, porque es la mitad de la efeméride.
 -- =====================================================================================
 SELECT  'grand_slam_vs_dominicano' AS tipo,
+        'un grand slam ante un lanzador dominicano' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

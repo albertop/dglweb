@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Juego sin hits, nueve entradas o más. Medido: 10 veces, 10 lanzadores — acá los dos conteos
 -- coinciden, cosa que casi no pasa. Rareza 490.
 --
@@ -12,6 +12,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'no_hitter'                                   AS tipo,
+        'un juego sin hits' AS gesta,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

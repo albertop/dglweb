@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El «casi no-hitter»: juego completo de un solo hit. Medido: 37 veces. Rareza 428.
 --
 -- Se pide P_H = 1 exacto y no <= 1: el cero ya es no_hitter, y con <= dispararían los dos sobre el
@@ -7,6 +7,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'cg_1hit' AS tipo,
+        'un juego completo de un solo hit' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

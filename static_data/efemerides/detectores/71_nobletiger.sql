@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- NOBLETIGER — No-Outs Bases-Loaded Ending with Team Incapable of Getting Easy Run.
 --
 -- El lanzador se encuentra BASES LLENAS Y NINGÚN OUT, y sale del inning sin permitir carrera.
@@ -55,9 +55,29 @@ escapes AS (
             ON v.GAME_ID = r.GAME_ID AND v.INN_CT = r.INN_CT
            AND v.BAT_HOME_ID = r.BAT_HOME_ID AND v.EVENT_ID >= r.EVENT_ID
     WHERE   r.sc_fin = r.sc0
+      -- ===========================================================================================
+      -- SOLO DEL NOVENO EN ADELANTE (dueño, 2026-08-04)
+      -- ===========================================================================================
+      --
+      -- Eran 325 escapes de 169 lanzadores, y el dueño lo leyó como demasiado: «169 son muchos».
+      -- Tenía razón, y no por el número sino por lo que el número significa — escapar de bases llenas
+      -- sin outs pasa el 12,9 % de las veces que se llega a esa situación. Es difícil, no excepcional.
+      --
+      -- LO QUE LO CONVIERTE EN EFEMÉRIDE ES EL INNING. En el tercero, un escape le ahorra a su equipo
+      -- unas carreras; en el noveno, GANA EL JUEGO. Medido sobre los 325:
+      --
+      --     todos los escapes            325    169 lanzadores
+      --     del noveno en adelante        44
+      --
+      -- Y la escala de WPA lo confirma sola: los cuatro escapes de más impacto de la historia
+      -- dominicana están TODOS en el noveno o en extra innings —Familia +0,890, Herrera en el 14
+      -- +0,878, Cordero +0,877, Tavárez +0,701—. El corte por inning no es un recorte arbitrario:
+      -- se queda justo con los que el componente de impacto (4.3) ya estaba levantando hasta arriba.
+      AND   r.INN_CT >= 9
     GROUP BY r.GAME_ID, r.EVENT_ID, r.SEASON, r.GAME_TYPE, r.INN_CT, r.BAT_HOME_ID, r.PITCHER_ID
 )
 SELECT  'nobletiger'                              AS tipo,
+        'un escape de bases llenas sin outs en el noveno o más allá' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

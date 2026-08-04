@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Dos o más triples. Medido: 75 veces, 47 jugadores. Rareza 395.
 --
 -- El umbral se corta donde deja de ser rutina, no donde se vuelve único: el único juego de TRES
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'triples2'                                   AS tipo,
+        '2+ triples en un juego' AS gesta,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

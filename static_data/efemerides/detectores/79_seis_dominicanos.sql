@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- SEIS DOMINICANOS EN EL TERRENO A LA VEZ, para el mismo equipo.
 --
 -- Cuenta los NUEVE puestos: lanzador, receptor, el cuadro y el jardín.
@@ -77,6 +77,7 @@ elegido AS (
     WHERE   m.rn = 1
 )
 SELECT  'seis_dominicanos'                        AS tipo,
+        'seis dominicanos en el terreno a la vez' AS gesta,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,

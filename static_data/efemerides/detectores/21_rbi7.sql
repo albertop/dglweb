@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Siete o más empujadas. Medido: 43 veces, 29 jugadores. Rareza 421.
 --
 -- El umbral subió de 6 a 7 por decisión del dueño, y la diferencia es grande: con 6 eran 165 hechos
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'rbi7'                                   AS tipo,
+        '7+ empujadas en un juego' AS gesta,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

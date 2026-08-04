@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Walk-off de jonrón. Medido: 262 veces, 100 jugadores. Rareza 355.
 --
 -- GRANO: turno al bate. Universo 822764. Sale de `#turnos` (preludio `_01_turnos.sql`).
@@ -6,6 +6,7 @@
 -- Acá SÍ se nombra al lanzador: el turno se enfrentó a UN hombre, así que decirlo es verdad.
 -- =====================================================================================
 SELECT  'walkoff_hr' AS tipo,
+        'un walk-off de jonrón' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

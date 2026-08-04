@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El jonrón 100, 200, 300… Medido: 137 cruces.
 --
 -- Sale de `#carrera` (preludio `_02_carrera.sql`), que ya trae el acumulado juego a juego.
@@ -13,6 +13,7 @@
 -- percentil dentro de su propio tipo. Ver docs/EFEMERIDES.md 4.7.
 -- =====================================================================================
 SELECT  'hito_hr' AS tipo,
+        'un hito de jonrones de por vida' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         2 AS situar,

@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- LOS CUATRO DEL CUADRO, DOMINICANOS.
 --
 -- Primera, segunda, tercera y el campocorto ocupados por dominicanos a la vez, en la misma media entrada.
@@ -33,6 +33,7 @@ elegido AS (
     FROM    juegos_con_cuadro j
 )
 SELECT  'cuadro_dominicano'                       AS tipo,
+        'el cuadro entero dominicano' AS gesta,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,

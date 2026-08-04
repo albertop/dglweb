@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Tres jonrones en un juego. Medido: 64 veces, 36 jugadores. Rareza 402.
 --
 -- El umbral se queda en 3 y NO hay detector de 4: ningún dominicano ha bateado cuatro en un juego.
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'hr3'                                   AS tipo,
+        '3+ jonrones en un juego' AS gesta,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

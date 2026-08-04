@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El turno que decidió un juego: mucha tensión Y mucho desenlace. Medido: 154 veces. Rareza 342.
 --
 -- EL CORTE PIDE LAS DOS COSAS, y por eso son 154 y no miles. Solo `LI >= 3` daría 5.159 turnos
@@ -12,6 +12,7 @@
 -- Acá SÍ se nombra al lanzador: el turno se enfrentó a UN hombre, así que decirlo es verdad.
 -- =====================================================================================
 SELECT  'turno_clave' AS tipo,
+        'un batazo que decidió un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

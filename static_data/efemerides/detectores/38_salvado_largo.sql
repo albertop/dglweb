@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El salvado LARGO: tres entradas o más para cerrar. Medido: 146 veces, 60 lanzadores. Rareza 362.
 --
 -- EL UMBRAL SE CALCULO, no se eligió. Los salvados a secas son 5.795 (50 por temporada) y no son
@@ -15,6 +15,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'salvado_largo' AS tipo,
+        'un salvado de 3+ entradas' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

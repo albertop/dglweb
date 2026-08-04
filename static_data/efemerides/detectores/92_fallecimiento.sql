@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El aniversario del fallecimiento. Medido: 61 dominicanos, 1943-2025, en 55 dias del calendario.
 -- Veinticuatro de ellos estan en el Salon de la Fama dominicano.
 --
@@ -14,6 +14,7 @@
 -- Ver docs/EFEMERIDES.md 4.6.
 -- =====================================================================================
 SELECT  'fallecimiento' AS tipo,
+        'un aniversario de fallecimiento' AS gesta,
         'persona' AS rol,
         'completa' AS cobertura,
         0 AS situar,

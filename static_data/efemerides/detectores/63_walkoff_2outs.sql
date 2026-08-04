@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El batazo más dramático que hay: dos outs, perdiendo, y se acabó el juego. Medido: 22 veces,
 -- 17 jugadores. Rareza 464.
 --
@@ -10,6 +10,7 @@
 -- Acá SÍ se nombra al lanzador: el turno se enfrentó a UN hombre, así que decirlo es verdad.
 -- =====================================================================================
 SELECT  'walkoff_2outs' AS tipo,
+        'un walk-off de jonrón con dos outs y perdiendo' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

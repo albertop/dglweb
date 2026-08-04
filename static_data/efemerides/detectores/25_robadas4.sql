@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Cuatro o más robadas. Medido: 14 veces, 12 jugadores. Rareza 474 — la más alta del grupo.
 --
 -- El máximo dominicano son CINCO, una sola vez: Willy Taveras, 2008-06-14. En 13 de los 14 no
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'robadas4'                                   AS tipo,
+        '4+ robos en un juego' AS gesta,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

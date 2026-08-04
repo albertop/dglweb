@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Seis o mas ponches. HOY DEVUELVE CERO: ningun dominicano lo ha hecho, y en toda la liga
 -- solo ha pasado 8 veces en 116 anos.
 --
@@ -8,6 +8,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'sombrero_titanio' AS tipo,
+        '6+ ponches en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

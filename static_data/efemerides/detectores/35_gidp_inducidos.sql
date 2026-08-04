@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Cuatro o más dobles matanzas inducidas. Medido: 19 veces, 14 lanzadores. Rareza 460.
 --
 -- Es HAZAÑA, al reves que gidp3: inducir una doble matanza es salir de un lio con un lanzamiento.
@@ -7,6 +7,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'gidp_inducidos' AS tipo,
+        '4+ dobles matanzas inducidas en un juego' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

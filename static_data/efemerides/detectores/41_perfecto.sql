@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El juego perfecto. Medido: 1 vez — Domingo Germán, 2023-06-28. Rareza 600, el tope.
 --
 -- POR QUÉ LLEVA DETECTOR PROPIO Y NO ES «UN NO-HITTER CON MÁS MAGNITUD». El patrón general dice lo
@@ -10,6 +10,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'perfecto'                                   AS tipo,
+        'un juego perfecto' AS gesta,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

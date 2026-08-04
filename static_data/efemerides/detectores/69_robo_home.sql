@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Robo de HOME.
 --
 -- GRANO PROPIO: veces en tercera base (92.821), no turnos al bate. Quien roba home no está bateando
@@ -11,6 +11,7 @@
 -- solo se puede robar home.
 -- =====================================================================================
 SELECT  'robo_home'                               AS tipo,
+        'un robo de home' AS gesta,
         'corredor'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

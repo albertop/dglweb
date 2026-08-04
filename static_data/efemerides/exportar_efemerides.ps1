@@ -32,7 +32,7 @@ $OutputPath = "$PSScriptRoot\..\csv\dgl_efemerides.csv"
 # falte una columna aborta la corrida entera en vez de colar filas mutiladas que nadie va a mirar
 # hasta que salgan mal en la página.
 $CONTRATO = @(
-    'tipo', 'rol', 'cobertura', 'universo', 'plantilla', 'situar',
+    'tipo', 'gesta', 'rol', 'cobertura', 'universo', 'plantilla', 'situar',
     'mlb_id', 'nombre', 'fecha', 'temporada', 'game_id', 'event_id', 'game_type',
     'equipo', 'rival', 'en_casa', 'signo', 'magnitud', 'wpa_jugador', 'li_max', 'detalle',
     'equipo_nombre', 'rival_nombre', 'oponente'
@@ -193,7 +193,7 @@ function Get-Situacion {
         el de la historia, y publicarlo como total sería mentir con precisión decimal.
     #>
     param([int] $Orden, [int] $VecesTotal, [int] $JugadoresTotal, [int] $VecesJugador,
-          [int] $OrdenJugador, [bool] $Completa, [int] $Situar, [int] $Signo)
+          [int] $OrdenJugador, [bool] $Completa, [int] $Situar, [int] $Signo, [string] $Gesta)
 
     if ($Situar -eq 0)  { return "" }
     if (-not $Completa) { return "" }
@@ -206,25 +206,41 @@ function Get-Situacion {
     # detector se apagara del todo con `situar = 0`.
     if ($Situar -eq 2 -and $Orden -ne 1 -and $VecesTotal -ne 1) { return "" }
 
-    # EL VERBO CAMBIA CON EL SIGNO. La primera versión decía «lo ha logrado» para todo, y la muestra
-    # de redacción la dejó en evidencia: «Bateó para 3 dobles matanzas… Fue el primer dominicano en
-    # LOGRARLO» y «Lo atraparon robando 3 veces… Es el único dominicano que lo ha LOGRADO». Nadie
-    # logra un ponche. A una deshonra le pasa.
-    if ($Signo -lt 0) {
-        if ($VecesTotal -eq 1) { return "Es el único dominicano al que le ha pasado." }
-        if ($Orden -eq 1)      { return "Fue el primer dominicano al que le pasó." }
-        $frase = "Le ha pasado a $JugadoresTotal dominicanos."
-        if ($VecesJugador -gt 1) { $frase += " A él le pasó $VecesJugador veces." }
-        return $frase
-    }
-
-    if ($VecesTotal -eq 1)  { return "Es el único dominicano que lo ha logrado." }
-    if ($Orden -eq 1)       { return "Fue el primer dominicano en lograrlo." }
+    # =================================================================================================
+    # LA FRASE DICE QUÉ SE CUENTA. «lo ha logrado» no bastaba.
+    # =================================================================================================
+    #
+    # El dueño lo cazó el 2026-08-04 sobre tres detectores a la vez:
+    #
+    #     «Disparó 6 hits… Es uno de los 93 dominicanos que lo ha logrado»
+    #
+    # Noventa y tres dominicanos NO han dado 6 hits en un juego: han dado CINCO O MÁS, que es el
+    # umbral del detector. El titular habla de un caso concreto y el denominador cuenta la categoría,
+    # así que el «lo» los pegaba mal. Lo mismo con `k12` (14 ponches contra un umbral de 12) y con
+    # `k15` (17 contra 15).
+    #
+    # LA SOLUCIÓN ES QUE EL DETECTOR DIGA SU GESTA —«5+ hits en un juego»— porque el motor no puede
+    # deducirla: solo el `.sql` sabe dónde puso su corte. Va en el contrato, como `plantilla`.
+    #
+    # Y CON LA GESTA DELANTE, LA CONSTRUCCIÓN CAMBIA A «con», que es lo que la hace encajar:
+    # «uno de los 93 dominicanos CON 5+ hits en un juego». Se pierde el verbo —y con él la distinción
+    # entre «lo logró» y «le pasó» que se había introducido para las deshonras— pero se gana lo que
+    # importa, que es decir QUÉ se cuenta. La distinción de signo no se pierde del todo: sobrevive en
+    # la coletilla de abajo, que sigue diciendo «para él fue la 3ª de sus 5 veces» o «a él le pasó 3
+    # veces» según corresponda.
+    if ($VecesTotal -eq 1) { return "Es el único dominicano con $Gesta." }
+    if ($Orden -eq 1)      { return "Fue el primer dominicano con $Gesta." }
 
     $frase = if ($JugadoresTotal -eq 1) {
-        "Es el único dominicano que lo ha logrado, y van $VecesTotal veces."
+        "Es el único dominicano con $Gesta, y van $VecesTotal veces."
     } else {
-        "Es uno de los $JugadoresTotal dominicanos que lo ha logrado."
+        "Es uno de los $JugadoresTotal dominicanos con $Gesta."
+    }
+
+    # La coletilla de las deshonras conserva el «le pasó», que es donde el verbo sí cabe.
+    if ($Signo -lt 0) {
+        if ($VecesJugador -gt 1) { $frase += " A él le pasó $VecesJugador veces." }
+        return $frase
     }
     # «Para él, la número 5» era TRIPLEMENTE ambiguo, y lo cazó el dueño leyendo la muestra:
     #
@@ -399,7 +415,8 @@ foreach ($grupo in ($hechos | Group-Object tipo)) {
         $f | Add-Member -NotePropertyName anos -NotePropertyValue ((Get-Date).Year - $fecha.Year)
 
         $situacion = Get-Situacion -Orden $f.orden -VecesTotal $veces -JugadoresTotal $jugadores `
-                                   -VecesJugador $f.veces_jugador -OrdenJugador $f.orden_jugador -Completa $completa -Situar $situar -Signo $signo
+                                   -VecesJugador $f.veces_jugador -OrdenJugador $f.orden_jugador -Completa $completa `
+                                   -Situar $situar -Signo $signo -Gesta ([string]$f.gesta)
         $titular = Expand-Plantilla -Plantilla ([string]$f.plantilla) -Fila $f
         $f | Add-Member -NotePropertyName titular -NotePropertyValue $titular
         $f | Add-Member -NotePropertyName situacion -NotePropertyValue $situacion
@@ -461,7 +478,7 @@ Write-Host "Fusion: $antes hechos -> $($fusionados.Count) efemerides"
 $fechaISO = @{ Name = 'fecha'; Expression = { ([datetime]$_.fecha).ToString('yyyy-MM-dd') } }
 
 $columnas = @(
-    'tipo', 'etiquetas', 'rol', 'signo', 'cobertura',
+    'tipo', 'gesta', 'etiquetas', 'rol', 'signo', 'cobertura',
     'mlb_id', 'nombre', $fechaISO, 'mes', 'dia', 'temporada', 'anos',
     'game_id', 'event_id', 'game_type', 'equipo', 'equipo_nombre', 'rival', 'rival_nombre', 'en_casa', 'oponente',
     'magnitud', 'wpa_jugador', 'li_max', 'detalle',
@@ -583,6 +600,11 @@ if ($null -ne $mejorNegativa -and $mejorNegativa -gt 400) {
 # historia. Ver 5.2.5.
 $filtradas = @($fusionados | Where-Object { $_.cobertura -ne 'completa' -and $_.veces_total })
 if ($filtradas) { $problemas += "$($filtradas.Count) fila(s) de cobertura parcial publican veces_total" }
+
+# UN DETECTOR QUE SITÚA PERO NO DECLARA SU GESTA publicaría «uno de los 93 dominicanos con .» —
+# la frase se arma con la gesta dentro, así que si viene vacía sale rota, no incompleta.
+$mudas2 = @($fusionados | Where-Object { [int]$_.situar -ne 0 -and [string]::IsNullOrWhiteSpace($_.gesta) })
+if ($mudas2) { $problemas += "$($mudas2.Count) fila(s) situan sin declarar gesta" }
 
 # La fusión debe haber dejado una sola fila por jugador-juego-evento.
 $repes = @($fusionados | Group-Object { "$($_.mlb_id)|$($_.game_id)|$($_.event_id)|$($_.fecha)" } | Where-Object { $_.Count -gt 1 })

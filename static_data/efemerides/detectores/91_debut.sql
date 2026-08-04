@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El aniversario del debut.
 --
 -- `situar = 1`, al reves que el cumpleanos: aca la frase SI vale. «El primer dominicano en llegar a
@@ -10,6 +10,7 @@
 -- Ver docs/EFEMERIDES.md 4.6.
 -- =====================================================================================
 SELECT  'debut' AS tipo,
+        'un debut en Grandes Ligas' AS gesta,
         'persona' AS rol,
         'completa' AS cobertura,
         2 AS situar,

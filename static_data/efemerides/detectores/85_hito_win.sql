@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- La victoria 50, 100, 150… Medido: 62 cruces, el hito mas raro.
 --
 -- Sale de `#carrera` (preludio `_02_carrera.sql`), que ya trae el acumulado juego a juego.
@@ -13,6 +13,7 @@
 -- percentil dentro de su propio tipo. Ver docs/EFEMERIDES.md 4.7.
 -- =====================================================================================
 SELECT  'hito_win' AS tipo,
+        'un hito de victorias de por vida' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         2 AS situar,

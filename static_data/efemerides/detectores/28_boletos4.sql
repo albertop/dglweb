@@ -1,9 +1,10 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Cuatro o más boletos. Medido: 75 veces. Rareza 394. La paciencia también es gesta.
 --
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'boletos4' AS tipo,
+        '4+ boletos en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

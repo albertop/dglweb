@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El ciclo inverso: jonrón, triple, doble y sencillo EN ESE ORDEN.
 --
 -- GRANO: juego-jugador. Universo 292.948.
@@ -35,6 +35,7 @@ orden AS (
     GROUP BY GAME_ID, BATTER_ID
 )
 SELECT  'ciclo_inverso'                           AS tipo,
+        'un ciclo inverso' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El ponche 500, 1000, 1500… Medido: 117 cruces.
 --
 -- Sale de `#carrera` (preludio `_02_carrera.sql`), que ya trae el acumulado juego a juego.
@@ -13,6 +13,7 @@
 -- percentil dentro de su propio tipo. Ver docs/EFEMERIDES.md 4.7.
 -- =====================================================================================
 SELECT  'hito_k' AS tipo,
+        'un hito de ponches de por vida' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         2 AS situar,

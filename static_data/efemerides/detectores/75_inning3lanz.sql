@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- TRES LANZAMIENTOS, TRES OUTS. El opuesto exacto del inning inmaculado: aquel es la entrada más
 -- dominante posible, esta es la más eficiente.
 --
@@ -13,6 +13,7 @@
 -- el de la historia. Publicarlo como total sería mentir con precisión decimal.
 -- =====================================================================================
 SELECT  'inning3lanz' AS tipo,
+        'una entrada de tres lanzamientos' AS gesta,
         'lanzador' AS rol,
         'parcial' AS cobertura,
         1 AS situar,

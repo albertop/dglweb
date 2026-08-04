@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Cinco ponches en un juego. Medido: 20 veces, 17 jugadores. Rareza 229.
 --
 -- Tan raro como batear el ciclo —20 veces cada uno— y por eso existe la escala partida: la rareza
@@ -7,6 +7,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'sombrero_platino' AS tipo,
+        '5 ponches en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

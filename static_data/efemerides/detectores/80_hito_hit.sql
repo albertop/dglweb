@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El hit 500, 1000, 1500… Medido: 267 cruces, el hito mas frecuente.
 --
 -- Sale de `#carrera` (preludio `_02_carrera.sql`), que ya trae el acumulado juego a juego.
@@ -13,6 +13,7 @@
 -- percentil dentro de su propio tipo. Ver docs/EFEMERIDES.md 4.7.
 -- =====================================================================================
 SELECT  'hito_hit' AS tipo,
+        'un hito de hits de por vida' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         2 AS situar,

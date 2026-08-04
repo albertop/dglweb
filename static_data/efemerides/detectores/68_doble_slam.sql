@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- DOS grand slams del mismo bateador en el mismo juego.
 --
 -- UNA SOLA VEZ EN LA HISTORIA DOMINICANA, y es el récord de Grandes Ligas: Fernando Tatís, 23 de
@@ -21,6 +21,7 @@ WITH dobles AS (
     HAVING  COUNT(1) >= 2
 )
 SELECT  'doble_slam'                              AS tipo,
+        'dos grand slams en el mismo juego' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

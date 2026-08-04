@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- LA PRIMERA VEZ QUE UN DOMINICANO ABRE UN JUEGO EN CADA POSICIÓN.
 --
 -- Nueve efemérides, una por puesto, y todas son historia:
@@ -87,6 +87,7 @@ resuelto AS (
     LEFT JOIN #juegos j       ON j.game_id = p.game_id AND j.PLAYER_ID = p.pid
 )
 SELECT  'primero_posicion'                        AS tipo,
+        'la primera apertura dominicana en su posición' AS gesta,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,

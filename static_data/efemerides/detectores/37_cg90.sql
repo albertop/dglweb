@@ -16,6 +16,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'cg90' AS tipo,
+        'un juego completo de menos de 90 lanzamientos' AS gesta,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

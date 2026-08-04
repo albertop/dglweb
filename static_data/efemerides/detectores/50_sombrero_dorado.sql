@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- El «sombrero dorado»: ponchado cuatro veces. Medido: 499 veces, 172 jugadores. Rareza 152.
 --
 -- LOS TIERS SON EXACTOS, NO ACUMULATIVOS: cinco ponches es PLATINO, no dorado. Son escalones, no
@@ -10,6 +10,7 @@
 -- Sale de `#juegos` (preludio `_00_comun.sql`). Sin abridor rival: gesta de juego completo.
 -- =====================================================================================
 SELECT  'sombrero_dorado' AS tipo,
+        '4 ponches en un juego' AS gesta,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

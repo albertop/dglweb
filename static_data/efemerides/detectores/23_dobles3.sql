@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- Tres o más dobles. Medido: 136 veces, 80 jugadores. Rareza 366.
 --
 -- NO lo cubría `extrabases4`: ese suma dobles, triples y jonrones, así que un juego de tres dobles
@@ -8,6 +8,7 @@
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'dobles3'                                   AS tipo,
+        '3+ dobles en un juego' AS gesta,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
