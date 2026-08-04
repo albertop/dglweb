@@ -1,17 +1,30 @@
 ﻿-- =====================================================================================
--- El jonrón 100, 200, 300… Medido: 137 cruces.
+-- El jonrón 100, 200, 300, 450, 500, 600 y 700.
 --
 -- Sale de `#carrera` (preludio `_02_carrera.sql`), que ya trae el acumulado juego a juego.
 --
--- EL CRUCE se detecta con división entera: si el total dividido por el escalón subió respecto
--- del total ANTES de este juego, es que se pasó una marca redonda. Funciona aunque el jugador
--- cruce dos marcas el mismo día — cosa que con escalón 50 y un juego de dos salvados no pasa,
--- pero la fórmula no depende de eso.
+-- LA LISTA DE MARCAS ES EXPLÍCITA, NO UN ESCALÓN FIJO (dueño, 2026-08-04). Antes se detectaba con
+-- división entera cada 100, lo que daba 100-200-300-400-500-600-700. El dueño cambió el 400 por el
+-- **450**, y esa marca no cabe en ninguna progresión regular: 450 es una cifra que se celebra sola,
+-- igual que las 3.000 imparables o los 300 salvados.
+--
+-- Con una lista, cada hito se elige por lo que significa y no por dónde cae la aritmética. Es el
+-- mismo mecanismo que usan `hito_r`, `hito_2b` y `hito_3b`, donde las marcas ni siquiera están
+-- espaciadas por igual.
+--
+-- EL CRUCE se detecta comparando el acumulado de este juego contra el de antes: si el de antes no
+-- llegaba a la marca y este sí, se pasó ahí. Sirve para cualquier lista.
+--
+-- CUÁNTOS DOMINICANOS ALCANZAN CADA CIFRA, medido: 100 lo cruzaron 65, 200 lo cruzaron 28, 300 son
+-- 16, 450 son 8, 500 son 5, 600 son 3 y 700 son 2 — Albert Pujols (722) y Alex Rodríguez (709).
 --
 -- LA MAGNITUD ES LA CIFRA ALCANZADA, no el número de veces. Es lo que hace que el hit 3000 pese
 -- más que el hit 500 sin mantener ninguna tabla de importancia: el motor lo convierte en
 -- percentil dentro de su propio tipo. Ver docs/EFEMERIDES.md 4.7.
 -- =====================================================================================
+WITH marcas AS (
+    SELECT marca FROM (VALUES (100), (200), (300), (450), (500), (600), (700)) v(marca)
+)
 SELECT  'hito_hr' AS tipo,
         'un hito de jonrones de por vida' AS gesta,
         'bateador' AS rol,
@@ -40,17 +53,18 @@ SELECT  'hito_hr' AS tipo,
         0 AS event_id,
         c.game_type, c.equipo, c.rival, c.en_casa,
         1 AS signo,
-        (c.ac_hr / 100) * 100 AS magnitud,
+        mk.marca AS magnitud,
         c.wpa_bat AS wpa_jugador,
         c.li_max,
         'ese día bateó ' + CAST(c.B_HR AS varchar(2)) + CASE WHEN c.B_HR = 1 THEN ' jonrón' ELSE ' jonrones' END AS detalle,
         c.equipo_nombre, c.rival_nombre,
         '' AS oponente
 FROM    #carrera c
+-- El cruce: antes de este juego no llegaba a la marca y después sí.
+INNER JOIN marcas mk ON c.ac_hr >= mk.marca AND (c.ac_hr - c.B_HR) < mk.marca
 -- Cuántos dominicanos DISTINTOS alcanzaron alguna vez esta misma cifra. Se agrupa por PLAYER_ID y
 -- nunca por nombre: hay tres Luis Castillo y dos Nelson Cruz en el maestro (ver 3.0.1).
 CROSS APPLY (SELECT COUNT(DISTINCT x.PLAYER_ID) AS cuantos
              FROM   #carrera x
-             WHERE  x.ac_hr >= (c.ac_hr / 100) * 100) cu
-WHERE   c.B_HR > 0
-  AND   c.ac_hr / 100 > (c.ac_hr - c.B_HR) / 100;
+             WHERE  x.ac_hr >= mk.marca) cu
+WHERE   c.B_HR > 0;

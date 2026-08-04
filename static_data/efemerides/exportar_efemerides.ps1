@@ -228,13 +228,23 @@ function Get-Situacion {
     # importa, que es decir QUÉ se cuenta. La distinción de signo no se pierde del todo: sobrevive en
     # la coletilla de abajo, que sigue diciendo «para él fue la 3ª de sus 5 veces» o «a él le pasó 3
     # veces» según corresponda.
-    if ($VecesTotal -eq 1) { return "Es el único dominicano con $Gesta." }
-    if ($Orden -eq 1)      { return "Fue el primer dominicano con $Gesta." }
+    # EL NEXO NO SIEMPRE ES «con». Casi todas las gestas son sintagmas nominales y encajan solas —«uno
+    # de los 93 dominicanos CON 5+ hits en un juego»— pero unas pocas son ACCIONES, y ahí «con» no es
+    # español: «el primer dominicano CON ponchar 4 veces al mismo bateador» no se puede leer.
+    #
+    # El detector lo resuelve declarando la gesta empezando por «en » o «que », y entonces se pega
+    # directa: «el primer dominicano EN romper un juego perfecto en el noveno». Se elige el infinitivo
+    # con «en» porque es la única forma que funciona en las TRES frases sin cambiar de número — «uno
+    # de los 12 dominicanos que rompió» pediría plural, «en romper» no pide nada.
+    $nexo = if ($Gesta -like 'en *' -or $Gesta -like 'que *') { $Gesta } else { "con $Gesta" }
+
+    if ($VecesTotal -eq 1) { return "Es el único dominicano $nexo." }
+    if ($Orden -eq 1)      { return "Fue el primer dominicano $nexo." }
 
     $frase = if ($JugadoresTotal -eq 1) {
-        "Es el único dominicano con $Gesta, y van $VecesTotal veces."
+        "Es el único dominicano $nexo, y van $VecesTotal veces."
     } else {
-        "Es uno de los $JugadoresTotal dominicanos con $Gesta."
+        "Es uno de los $JugadoresTotal dominicanos $nexo."
     }
 
     # La coletilla de las deshonras conserva el «le pasó», que es donde el verbo sí cabe.

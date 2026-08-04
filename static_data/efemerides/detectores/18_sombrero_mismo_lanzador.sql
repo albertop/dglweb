@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL SOMBRERO DORADO DE UN SOLO HOMBRE: los cuatro ponches, del MISMO lanzador.
 --
 -- ES EL ÚNICO SOMBRERO DORADO QUE PUBLICA EL ARCHIVO. El detector pasó por tres versiones y las dos
@@ -48,8 +48,7 @@ SELECT  'sombrero_mismo_lanzador' AS tipo,
         d.ponches                                 AS magnitud,
         NULL                                      AS wpa_jugador,
         j.li_max,
-        COALESCE(lz.nombre, 'el mismo lanzador') + ' lo ponchó las ' + CAST(d.ponches AS varchar(2))
-            + ' veces que se vieron' AS detalle,
+        COALESCE(lz.nombre, 'el mismo lanzador') + ' lo ponchó ' + CAST(d.ponches AS varchar(2)) + ' veces' AS detalle,
         j.equipo_nombre, j.rival_nombre,
         COALESCE(lz.nombre, '')                   AS oponente
 FROM    duelo d

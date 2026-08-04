@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- DEBUTÓ A LOS 30 AÑOS O MÁS. Medido: 9 dominicanos.
 --
 -- El contrario exacto de `11_debut_joven.sql`, y la historia que cuenta es otra: no es precocidad,
@@ -53,7 +53,7 @@ SELECT  'debut_veterano' AS tipo,
         'completa' AS cobertura,
         961 AS universo,
         1 AS situar,
-        'Debutó en Grandes Ligas con {detalle}, cuando casi nadie debuta ya.' AS plantilla,
+        'Debutó en Grandes Ligas con {detalle}.' AS plantilla,
         e.mlbID AS mlb_id,
         e.nameList AS nombre,
         DATEFROMPARTS(YEAR(GETDATE()), MONTH(e.debutDate), DAY(e.debutDate)) AS fecha,

@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- ROMPIÓ EL NO-HITTER EN EL NOVENO. Medido: 13 veces, 12 bateadores.
 --
 -- Pedido del dueño (2026-08-04). El bateador que da el PRIMER HIT del juego cuando ya se llegó al
@@ -33,7 +33,7 @@ roto AS (
     SELECT * FROM hits WHERE rn = 1 AND INN_CT >= 9
 )
 SELECT  'nohit_roto'                              AS tipo,
-        'el hit que rompió un no-hitter en el noveno' AS gesta,
+        'en romper un no-hitter en el noveno' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         822764                                    AS universo,

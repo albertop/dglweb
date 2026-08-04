@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- ROMPIÓ EL JUEGO PERFECTO EN EL NOVENO. Medido: 2 dominicanos.
 --
 --     2019-07-14   Hanser Alberto
@@ -33,7 +33,7 @@ roto AS (
     SELECT * FROM embasado WHERE rn = 1 AND INN_CT >= 9
 )
 SELECT  'perfecto_roto' AS tipo,
-        'el embasado que rompió un juego perfecto en el noveno' AS gesta,
+        'en romper un juego perfecto en el noveno' AS gesta,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         822764                                    AS universo,

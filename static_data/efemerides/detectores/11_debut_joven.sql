@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- DEBUTÓ ANTES DE CUMPLIR 20 AÑOS. Medido: 15 dominicanos.
 --
 -- EL UMBRAL, sobre los 961 debuts con edad fiable (edad media: 23,5 años):
@@ -60,7 +60,7 @@ SELECT  'debut_joven' AS tipo,
         'completa' AS cobertura,
         961 AS universo,
         1 AS situar,
-        'Debutó en Grandes Ligas con {detalle}, cuando todavía no llegaba a los 20.' AS plantilla,
+        'Debutó en Grandes Ligas con {detalle}.' AS plantilla,
         e.mlbID AS mlb_id,
         e.nameList AS nombre,
         DATEFROMPARTS(YEAR(GETDATE()), MONTH(e.debutDate), DAY(e.debutDate)) AS fecha,

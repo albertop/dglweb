@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL QUE PONE EL SOMBRERO: un lanzador dominicano poncha CUATRO VECES al mismo bateador.
 --
 -- Pedido del dueño. Es el mismo hecho que `18_sombrero_mismo_lanzador` visto desde el montículo, y
@@ -33,7 +33,7 @@ WITH duelo AS (
     HAVING  COUNT(1) >= 4
 )
 SELECT  'sombrero_propinado' AS tipo,
-        'ponchar 4 veces al mismo bateador en un juego' AS gesta,
+        'en ponchar 4 veces al mismo bateador en un juego' AS gesta,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         292948                                    AS universo,
@@ -46,7 +46,7 @@ SELECT  'sombrero_propinado' AS tipo,
         d.ponches                                 AS magnitud,
         NULL                                      AS wpa_jugador,
         j.li_max,
-        'lo ponchó las ' + CAST(d.ponches AS varchar(2)) + ' veces que se vieron'
+        'lo ponchó ' + CAST(d.ponches AS varchar(2)) + ' veces'
             -- Dominicano contra dominicano: el dato que convierte el hecho en historia.
             + CASE WHEN dom.retroID IS NOT NULL THEN ', y era su compatriota' ELSE '' END AS detalle,
         j.equipo_nombre, j.rival_nombre,

@@ -12,7 +12,10 @@ SELECT  'hbp_recibidos' AS tipo,
         'completa' AS cobertura,
         1 AS situar,
         292948 AS universo,
-        'Recibió {magnitud} pelotazos contra {rival_nombre}: {detalle}.' AS plantilla,
+        -- SIN COLETILLA (dueño, 2026-08-04). Decía «: llegó a base N veces» y era redundante — los
+        -- pelotazos que acaba de nombrar el titular ya son la mitad de esas veces, así que el número
+        -- no aportaba nada y sonaba a relleno.
+        'Recibió {magnitud} pelotazos contra {rival_nombre}.' AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,
         0 AS event_id,
         j.game_type, j.equipo, j.rival, j.en_casa,

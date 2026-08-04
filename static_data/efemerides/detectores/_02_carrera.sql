@@ -22,7 +22,7 @@ SELECT  j.PLAYER_ID, j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id, j.game
         j.equipo, j.rival, j.en_casa, j.equipo_nombre, j.rival_nombre,
         j.wpa_bat, j.wpa_pit, j.li_max,
         -- Lo que hizo ESE día. El detector lo usa para el detalle del texto.
-        j.B_H, j.B_HR, j.B_RBI, j.B_SB, j.P_SO, j.P_W, j.P_SV,
+        j.B_H, j.B_HR, j.B_RBI, j.B_SB, j.B_R, j.B_2B, j.B_3B, j.P_SO, j.P_W, j.P_SV,
         j.P_OUT, j.P_H, j.P_ER,
         -- Y el acumulado HASTA ese juego, incluido.
         SUM(j.B_H)   OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_h,
@@ -31,7 +31,12 @@ SELECT  j.PLAYER_ID, j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id, j.game
         SUM(j.B_SB)  OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_sb,
         SUM(j.P_SO)  OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_k,
         SUM(j.P_W)   OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_w,
-        SUM(j.P_SV)  OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_sv
+        SUM(j.P_SV)  OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_sv,
+        -- Carreras anotadas, dobles y triples: los tres hitos de carrera que pidió el dueño el
+        -- 2026-08-04 y que no existían. Mismo patrón que los de arriba.
+        SUM(j.B_R)   OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_r,
+        SUM(j.B_2B)  OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_2b,
+        SUM(j.B_3B)  OVER (PARTITION BY j.PLAYER_ID ORDER BY j.fecha, j.game_id ROWS UNBOUNDED PRECEDING) AS ac_3b
 INTO    #carrera
 FROM    #juegos j;
 
