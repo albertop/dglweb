@@ -297,6 +297,12 @@ if ($archivos.Count -eq 0) { Write-Error "No hay detectores en $carpeta"; exit 1
 Write-Host "Preludios: $($preludios.Count)   Detectores: $($archivos.Count)"
 $hechos = [System.Collections.Generic.List[object]]::new()
 
+# QUÉ DEVOLVIÓ CADA ARCHIVO. Se guarda por NOMBRE DE ARCHIVO, no por tipo, para que la muestra de
+# redacción pueda recorrer los detectores definidos en vez de los tipos que sobrevivieron. Ver la
+# sección de la muestra para el porqué.
+$tipoDeArchivo   = @{}
+$crudasDeArchivo = @{}
+
 try {
     $cn = Get-Conexion
 
@@ -314,6 +320,10 @@ try {
         $filas = Invoke-Detector -Conexion $cn -Archivo $a
         $seg = [int]((Get-Date) - $t0).TotalSeconds
         "  {0,-34} {1,6} filas  {2,4}s" -f $a.Name, $filas.Count, $seg | Write-Host
+        $crudasDeArchivo[$a.Name] = $filas.Count
+        # El `tipo` sale de la fila, no del nombre del archivo: son iguales por convención pero el
+        # contrato no lo exige, y la muestra tiene que seguir funcionando si algún día difieren.
+        $tipoDeArchivo[$a.Name] = if ($filas.Count -gt 0) { [string]$filas[0].tipo } else { '' }
         foreach ($f in $filas) { $hechos.Add($f) }
     }
 }
@@ -539,17 +549,53 @@ $fusionados | Group-Object tipo | Sort-Object Count -Descending | ForEach-Object
 "MUESTRA DE REDACCION — una linea por detector" | Write-Host
 ("=" * 100) | Write-Host
 
-foreach ($g in ($fusionados | Group-Object tipo | Sort-Object Name)) {
-    $m = $g.Group | Sort-Object puntaje -Descending | Select-Object -First 1
+# SE RECORREN LOS DETECTORES DEFINIDOS, NO LOS TIPOS QUE SOBREVIVIERON. Es una fila por `.sql`,
+# siempre, y el dueño lo pidió así con razón: la versión anterior agrupaba `$fusionados` por tipo, de
+# modo que un detector que devolvía filas y las perdía TODAS en la fusión desaparecía de la muestra —
+# y encima salía listado como «sin filas hoy», que es falso. Produjo, y fue absorbido: son dos cosas
+# distintas y las dos hay que poder verlas.
+$fusPorTipo = @{}
+$fusionados | Group-Object tipo | ForEach-Object { $fusPorTipo[$_.Name] = $_.Group }
+$crudosPorTipo = @{}
+$hechos | Group-Object tipo | ForEach-Object { $crudosPorTipo[$_.Name] = $_.Group }
+
+$sinFilas  = @()
+$absorbidos = @()
+
+foreach ($a in $archivos) {
+    $t = [string]$tipoDeArchivo[$a.Name]
+
+    # 1. No devolvió nada. Es una decisión, no un olvido — `sombrero_titanio` y `ciclo_natural` viven
+    #    acá esperando el día que pase.
+    if ([string]::IsNullOrEmpty($t)) {
+        "`n[ ] {0,-22} n=0     — el detector existe y hoy no encuentra nada" -f ($a.Name -replace '\.sql$','') | Write-Host
+        $sinFilas += ($a.Name -replace '\.sql$','')
+        continue
+    }
+
+    # 2. Devolvió filas pero la fusión se las llevó todas: sus hechos viven como ETIQUETA de otro
+    #    tipo más raro. Se muestra igual, desde los hechos crudos, para poder leer su redacción.
+    if (-not $fusPorTipo.ContainsKey($t)) {
+        $m = $crudosPorTipo[$t] | Select-Object -First 1
+        "`n[~] {0,-22} n={1,-4} — las {1} filas se fusionaron en otro tipo, ninguna quedó de titular" -f $t, $crudosPorTipo[$t].Count | Write-Host
+        "    {0:yyyy-MM-dd}  {1}" -f [datetime]$m.fecha, $m.titular | Write-Host
+        $absorbidos += $t
+        continue
+    }
+
+    # 3. El caso normal: se muestra la de mayor puntaje, que es la que más se va a ver en la página.
+    $g = $fusPorTipo[$t]
+    $m = $g | Sort-Object puntaje -Descending | Select-Object -First 1
     $signo = if ([int]$m.signo -lt 0) { '-' } else { '+' }
-    "`n[{0}] {1,-18} n={2,-4} pts={3}" -f $signo, $g.Name, $g.Count, $m.puntaje | Write-Host
+    $crudas = $crudosPorTipo[$t].Count
+    $nota = if ($crudas -ne $g.Count) { " (de $crudas, $($crudas - $g.Count) fusionadas)" } else { "" }
+    "`n[{0}] {1,-22} n={2,-4} pts={3}{4}" -f $signo, $t, $g.Count, $m.puntaje, $nota | Write-Host
     "    {0:yyyy-MM-dd}  {1}" -f [datetime]$m.fecha, $m.titular | Write-Host
     if ($m.situacion) { "    -> {0}" -f $m.situacion | Write-Host }
 }
 
-$vacios = $archivos | ForEach-Object { ($_.Name -replace '^\d+_', '') -replace '\.sql$', '' } |
-          Where-Object { $_ -notin ($fusionados.tipo | Select-Object -Unique) }
-if ($vacios) { "`n[ ] sin filas hoy: $($vacios -join ', ')" | Write-Host }
+"`n{0} detectores: {1} con titular propio, {2} absorbidos por la fusion, {3} sin filas." -f `
+    $archivos.Count, ($archivos.Count - $sinFilas.Count - $absorbidos.Count), $absorbidos.Count, $sinFilas.Count | Write-Host
 
 "`nLas 10 de mayor puntaje:" | Write-Host
 $fusionados | Sort-Object puntaje -Descending | Select-Object -First 10 | ForEach-Object {

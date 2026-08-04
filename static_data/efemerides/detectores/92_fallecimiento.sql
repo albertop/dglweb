@@ -18,7 +18,22 @@ SELECT  'fallecimiento' AS tipo,
         'persona' AS rol,
         'completa' AS cobertura,
         0 AS situar,
-        984 AS universo,
+        -- EL UNIVERSO SON LOS FALLECIDOS, NO EL MAESTRO ENTERO (dueño, 2026-08-04).
+        --
+        -- Con `N = 984` la fórmula veía 61 de 984 y decía «esto es raro»: 242 de rareza, y el tipo
+        -- llegaba a 442 puntos. Eso lo ponía POR ENCIMA de gestas reales —`robo_home` tiene techo 397
+        -- y `jardin_dominicano` 374— y rompía el principio de que una fecha de persona no desplace a
+        -- una hazaña.
+        --
+        -- Y el error era de planteamiento, no de calibración: la pregunta «¿qué tan raro es que un
+        -- dominicano tenga aniversario de fallecimiento?» solo tiene sentido entre los que fallecieron.
+        -- Entre ellos la respuesta es «todos», así que la rareza es CERO y el puntaje lo pone entero
+        -- la magnitud —los juegos de su carrera—, igual que en el cumpleaños y el debut. Es la regla
+        -- del grano (docs/EFEMERIDES.md 5.8) aplicada bien.
+        --
+        -- SE CUENTA, NO SE ESCRIBE: la cifra sube sola cada vez que muere un pelotero, y un 61 fijo
+        -- se quedaría viejo en silencio — dando rareza positiva sin que nadie se entere.
+        (SELECT COUNT(1) FROM dbo.dglMaster WHERE deathDate IS NOT NULL) AS universo,
         -- «Falleció a los X años de edad» y NO «Murió hace X años» (dueño, 2026-08-03). La edad al
         -- morir dice algo del hombre; los años transcurridos solo dicen en qué año estamos, y encima
         -- envejecen solos: el mismo texto cambia cada 1 de enero sin que pase nada.

@@ -1,0 +1,57 @@
+﻿-- =====================================================================================
+-- EL HIT 200 DE UNA TEMPORADA. Medido: 28 temporadas, 18 jugadores.
+--
+-- El techo dominicano son los 231 de MATEO ALOU en 1969. Le siguen Felipe Alou con 218 en 1966 y
+-- Alex Rodriguez con 215 en 1996. Vladimir Guerrero y Miguel Tejada aparecen cuatro veces cada uno.
+--
+-- Doscientos hits es la marca clasica del bateador de contacto. Con 210 quedarian 9 temporadas y se
+-- perderia media lista.
+--
+-- SOLO TEMPORADA REGULAR, porque el hito ES el numero de temporada regular. El porque esta en el
+-- preludio _05_temporada.sql, que es donde se calcula el acumulado.
+--
+-- COMO SE DETECTA EL CRUCE: el juego en que el acumulado llega al umbral y el acumulado ANTERIOR
+-- todavia no habia llegado. Da UNA fila por temporada, la del dia exacto.
+--
+-- GRANO: juego-jugador (292.948), el mismo que los hitos de carrera.
+-- =====================================================================================
+SELECT  'hito_h200' AS tipo,
+        '200 hits en una temporada' AS gesta,
+        'bateador' AS rol,
+        'completa' AS cobertura,
+        292948 AS universo,
+        1 AS situar,
+        -- El titular dice con cuanto CERRO la temporada, que es lo que convierte «llego a 50» en
+        -- «llego a 50 y termino con 66».
+        'Llegó a 200 hits en la temporada, contra {rival_nombre}: ' +
+        CASE WHEN t.h_tot > 200
+             THEN 'terminó la temporada con ' + CAST(t.h_tot AS varchar(4)) + '.'
+             ELSE 'y ahí cerró el año.' END AS plantilla,
+        t.mlb_id, t.nombre, t.fecha, t.temporada, t.game_id,
+        0 AS event_id,
+        'R' AS game_type,
+        t.equipo, t.rival, t.en_casa,
+        1 AS signo,
+        -- La MAGNITUD es el total de la temporada, no el acumulado al cruzar: al cruzar todos rondan
+        -- el umbral y no se distinguirian entre si.
+        t.h_tot AS magnitud,
+        NULL AS wpa_jugador,
+        NULL AS li_max,
+        CAST(t.h_tot AS varchar(4)) AS detalle,
+        t.equipo_nombre, t.rival_nombre,
+        '' AS oponente
+FROM    #temporada t
+WHERE   t.h_ac >= 200
+  AND   (t.h_ac - t.B_H) < 200;
+
+-- =====================================================================================
+-- LA LISTA — las temporadas que llegaron
+-- =====================================================================================
+/*
+SELECT  m.nameList AS jugador, r.SEASON AS temporada, SUM(r.B_H) AS total
+FROM    dbo.retroDailyReg r
+INNER JOIN dbo.dglMaster m ON m.retroID = r.PLAYER_ID
+GROUP BY m.nameList, r.SEASON
+HAVING  SUM(r.B_H) >= 200
+ORDER BY total DESC;
+*/
