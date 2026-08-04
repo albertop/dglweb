@@ -81,6 +81,14 @@ lo demás igual para todos.
 | `wpa_jugador` | cuánto movió la probabilidad de ganar ese juego |
 | `li_max` | el leverage más alto en que estuvo |
 | `detalle` | los datos propios del tipo, para el texto |
+| **`veces_total`** | cuántas veces ha pasado en la historia dominicana — ver 3.3 |
+| **`jugadores_total`** | cuántos dominicanos DISTINTOS lo han hecho |
+| **`orden`** | qué número es esta, en orden cronológico. `1` = la primera vez |
+| **`veces_jugador`** | cuántas veces lo ha hecho ESTE jugador |
+| **`orden_jugador`** | cuál de las suyas es esta |
+
+Los cinco últimos **los calcula el motor**, no el detector. Un detector no puede saberlos: dependen
+de todas las filas de su tipo, y él solo ve las suyas.
 
 ### 3.1. `rol` no es decorativo
 
@@ -92,6 +100,47 @@ que pasó. `rol = persona` es para cumpleaños, debut y fallecimiento, que no cu
 
 No calcula puntaje. No escribe texto. No sabe que existen otros detectores. Si un detector necesita
 saber algo de eso, el diseño está mal.
+
+### 3.3. La efeméride dice CUÁNTOS hay, y son DOS números
+
+Decisión del dueño: cada efeméride tiene que situarse. No basta «Domingo Germán ponchó a cuatro en
+una entrada»; hace falta **«uno de los 5 dominicanos que lo ha logrado»**. Eso es lo que convierte un
+dato en una noticia — sin el denominador, el lector no sabe si vio algo raro o algo de todos los días.
+
+**Y no es un número, son dos**, porque un mismo jugador repite. Medido:
+
+| detector | veces | jugadores distintos | veces por jugador |
+| --- | ---: | ---: | ---: |
+| `rbi6` | 165 | 68 | 2,43 |
+| `hits5` | 153 | 93 | 1,65 |
+| **`k12`** | **137** | **34** | **4,03** |
+| `triples2` | 75 | 47 | 1,60 |
+| `hr3` | 64 | 36 | 1,78 |
+| `ciclo` | 20 | 16 | 1,25 |
+| `ponches5` | 20 | 17 | 1,18 |
+| **`k15`** | **16** | **6** | **2,67** |
+| `robadas4` | 14 | 12 | 1,17 |
+| `no_hitter` | 10 | 10 | 1,00 |
+
+`k12` es el caso que obliga a distinguir: 137 juegos, pero **34 lanzadores**, cuatro juegos cada uno
+en promedio. Decir «uno de los 137» es engañoso — la frase honesta es «uno de los 34 dominicanos que
+lo ha hecho». En el otro extremo, los 10 no-hitters son de 10 lanzadores distintos y ahí los dos
+números coinciden.
+
+**Qué habilita cada campo en el texto:**
+
+| campo | la frase |
+| --- | --- |
+| `jugadores_total` | «uno de los 34 dominicanos que lo ha logrado» |
+| `veces_total` + `orden` | «la 7ª vez que un dominicano lo hace» |
+| `orden = 1` | «**el primer dominicano** en lograrlo» |
+| `veces_total = 1` | «**el único dominicano** que lo ha hecho» — Tatís, Furcal |
+| `veces_jugador > 1` | «por segunda vez en su carrera» |
+| la fecha | «hace 42 años» |
+
+`orden = 1` y `veces_total = 1` son exactamente lo que el bono de relieve dominicano (4.4) premiaba
+a ciegas. Ahora es **dato en la fila**, no un número escondido en el puntaje: el sitio lo puede decir
+con palabras además de ordenar por él.
 
 ---
 
@@ -124,8 +173,9 @@ de 14-2 vale menos que uno que ganó el juego. Sale directo de `r24Events`, no s
 
 ### 4.4. Relieve dominicano (0–50)
 
-«Primer dominicano en…», «único dominicano con…». Se computa comparando el hecho contra el resto del
-archivo, una vez que todos los detectores corrieron.
+«Primer dominicano en…», «único dominicano con…». Sale de los campos de la 3.3 —`orden = 1`,
+`veces_total = 1`— que el motor ya calcula para el texto. El bono y la frase leen el mismo dato, así
+que no pueden contradecirse: si la efeméride dice «el primero», el puntaje lo refleja.
 
 > Los cuatro topes —**600 / 200 / 150 / 50**— son **las únicas constantes puestas a mano** en todo el
 > sistema. Cualquier otra cosa sale de los datos.
