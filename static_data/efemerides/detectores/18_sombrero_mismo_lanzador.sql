@@ -1,20 +1,22 @@
 -- =====================================================================================
 -- EL SOMBRERO DORADO DE UN SOLO HOMBRE: los cuatro ponches, del MISMO lanzador.
 --
--- La segunda forma de estrechar el sombrero que pidió el dueño, y la más dura de las dos. Medido:
+-- ES EL ÚNICO SOMBRERO DORADO QUE PUBLICA EL ARCHIVO. El detector pasó por tres versiones y las dos
+-- primeras se retiraron por anchas (dueño). Medido:
 --
---     4 ponches en el juego, de quien sea        499 juegos   <- el detector viejo, retirado
---     4 ponches en 4 apariciones                 229          <- `50_sombrero_puro`
+--     4 ponches en el juego, de quien sea        499 juegos   <- primera version, retirada
+--     4 ponches en 4 apariciones exactas         231          <- segunda version, retirada
 --     4 ponches DEL MISMO LANZADOR                29 juegos, 25 bateadores   <- este
 --
--- POR QUÉ ES OTRA COSA. Poncharse cuatro veces contra cuatro lanzadores distintos es una mala tarde
--- repartida. Poncharse cuatro veces contra EL MISMO es que un hombre te tuvo el número toda la
--- noche, y eso es lo que hace la historia: no es el bateador el que estuvo mal, es que el otro pudo
--- con él cada vez que se vieron.
+-- POR QUÉ SE QUEDÓ ESTE Y NO OTRO. Poncharse cuatro veces contra cuatro lanzadores distintos es una
+-- mala tarde repartida, y con 231 filas seguía siendo el detector más abundante del inventario.
+-- Poncharse cuatro veces contra EL MISMO es que un hombre te tuvo el número toda la noche, y ahí sí
+-- hay historia: no es que el bateador estuviera mal, es que el otro pudo con él cada vez que se
+-- vieron. Veintinueve en 116 temporadas.
 --
--- SE FUSIONA CON `50_sombrero_puro` cuando coinciden —mismo bateador, mismo juego, `event_id` cero—
--- y manda este, que tiene más rareza. Es exactamente lo que la regla de fusión existe para hacer:
--- el hecho más específico no puede perder contra el que lo contiene.
+-- EL ESCALÓN DE ARRIBA SIGUE EN PIE: `51_sombrero_platino` son 5 ponches en un juego, sin pedir que
+-- sean del mismo lanzador — a esa altura el número ya basta. Y `52_sombrero_titanio` (6+) espera
+-- vacío al primero que lo haga.
 --
 -- ESTE DETECTOR NECESITA `r24Events`, no el game log: `retroDaily` dice cuántos ponches hubo pero no
 -- quién los propinó. Hay que agrupar los eventos por (juego, bateador, lanzador).

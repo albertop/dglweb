@@ -513,6 +513,7 @@ el exportador la recalcula en cada corrida.
 | `cg_1hit` | un juego completo de un solo hit | 25 | 447 |
 | `extrabases4` | 4+ extrabases en un juego | 33 | 433 |
 | `cg_dominante` | un juego completo con 10+ ponches y cero limpias | 41 | 423 |
+| `hits_sin_limpias` | 8+ hits permitidos sin una carrera limpia | 40 | 424 |
 | `rbi7` | 7+ empujadas en un juego | 43 | 421 |
 | `hr3` | 3+ jonrones en un juego | 64 | 402 |
 | `k10_bb4` | 10+ ponches y 4+ boletos en un juego | 73 | 396 |
@@ -529,26 +530,33 @@ el exportador la recalcula en cada corrida.
 | `sombrero_platino` ⚠️ | 5 ponches en un juego | 20 | **229** |
 | `hbp_propinados` ⚠️ | 3+ pelotazos propinados en un juego | 25 | **223** |
 | `paliza` ⚠️ | una salida de una carrera por bateador enfrentado | 79 | **196** |
-| `sombrero_puro` ⚠️ | 4 ponches en 4 apariciones | 231 | **170** |
 | `sombrero_titanio` ⚠️ | 6+ ponches en un juego | **0** | — |
 
 ⚠️ = escala negativa (4.5), salvo `cg90` que lleva universo propio (251.106, desde 1989).
 
-#### 5.1.1. El sombrero dorado se estrechó dos veces
+#### 5.1.1. El sombrero dorado se estrechó dos veces, y al final quedó uno
 
 El detector más ruidoso que ha tenido el inventario: 499 filas, 4,30 por temporada. El dueño lo marcó
-como demasiado y tenía razón — ponchar cuatro veces en un juego de seis apariciones es una mala
-noche, no una efeméride. Se partió en dos ejes distintos:
+como demasiado y tenía razón. Pasó por tres versiones y las dos primeras están retiradas:
 
-| | n | qué pide |
-| --- | ---: | --- |
-| el de antes | 499 | 4 ponches, daba igual cuántas veces fue al plato |
-| `sombrero_puro` | 231 | 4 ponches en **4 apariciones exactas** — ni una vez en base |
-| `sombrero_mismo_lanzador` | 28 | los 4 ponches **del mismo hombre** (5.2) |
+| versión | n | qué pedía | |
+| --- | ---: | --- | --- |
+| `sombrero_dorado` | 499 | 4 ponches, daba igual cuántas veces fue al plato | retirada |
+| `sombrero_puro` | 231 | 4 ponches en **4 apariciones exactas** — ni una vez en base | retirada |
+| **`sombrero_mismo_lanzador`** | **28** | los 4 ponches **del mismo hombre** (5.2) | vive |
+
+**Por qué no bastó la segunda.** Exigir 4-de-4 partió la lista por la mitad, pero con 231 filas seguía
+siendo el detector más abundante del archivo con diferencia. Y el problema de fondo no era el número:
+poncharse cuatro veces contra cuatro lanzadores distintos es una mala tarde repartida, no una
+historia. Que te ponche cuatro veces **el mismo hombre** sí lo es — no es que el bateador estuviera
+mal, es que el otro pudo con él cada vez que se vieron.
 
 Los escalones de arriba —`sombrero_platino` (5) y `sombrero_titanio` (6+, que nadie ha alcanzado)—
-son **exactos, no acumulativos**: en la jerarquía real un juego de cinco ponches es platino, no
-dorado.
+siguen en pie sin pedir un solo lanzador: a esa altura el número ya basta. Y son **exactos, no
+acumulativos**: en la jerarquía real un juego de cinco ponches es platino, no dorado.
+
+**Efecto en el archivo:** las efemérides negativas bajaron de 379 a 166. El sombrero pasó de ser un
+tercio de las deshonras a ser una de tantas.
 
 ### 5.2. Gestas de evento (grano turno al bate, `N` = 822.764)
 
@@ -935,13 +943,14 @@ Este documento los daba por hechos en versiones anteriores. **No existen como ar
 `rv_bateo` y `rv_pitcheo` envejecieron bien: la misma métrica que iban a usar —valor de carreras— es
 la que hoy sostiene `paliza`, `debut_grande` y `debut_dificil`.
 
-### 5.13. Dos detectores retirados
+### 5.13. Tres detectores retirados
 
 | detector | por qué se quitó |
 | --- | --- |
 | `bases10` | contradecía el patrón de un umbral por gesta: se quedó `bases12` |
 | `bases12` | **perdía 77 de sus 85 filas en la fusión** — casi todas eran también juegos de 5 hits o de 3 jonrones. Aportaba 8 efemérides y ninguna era suya |
-| `sombrero_dorado` | demasiado ancho (499). Sustituido por `sombrero_puro` y `sombrero_mismo_lanzador` — ver 5.1.1 |
+| `sombrero_dorado` | demasiado ancho (499) — ver 5.1.1 |
+| `sombrero_puro` | **seguía siendo demasiado ancho** (231), aun después de exigir 4-de-4. Queda solo `sombrero_mismo_lanzador`, con 28 |
 
 **La cuenta de fusión de la muestra fue lo que delató a `bases12`.** No se veía hasta que el bloque de
 redacción empezó a imprimir «de 85, 77 fusionadas» (8.2): un detector puede parecer sano por su `n` y
@@ -1176,11 +1185,11 @@ las colapsa—. Medido después de fusionar:
 
 | | filas |
 | --- | ---: |
-| gestas de juego, evento, Statcast y colectivas | 1.906 |
+| gestas de juego, evento, Statcast y colectivas | 1.718 |
 | hitos de carrera y de temporada | 969 |
 | cumpleaños + debut + fallecimiento | 1.920 |
 | Juego de Estrellas, debut y primicias | 114 |
-| **total, medido tras la fusión** | **5.909** |
+| **total, medido tras la fusión** | **5.721** |
 
 Bien por debajo de 5 MB. Para comparar: `dom_players` ya carga 9.133 filas por esta misma vía.
 
