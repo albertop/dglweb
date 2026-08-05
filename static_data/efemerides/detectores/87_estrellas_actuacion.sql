@@ -28,6 +28,7 @@
 -- =====================================================================================
 SELECT  'estrellas_actuacion'                     AS tipo,
         'una actuación destacada en el Juego de Estrellas' AS gesta,
+        '' AS participantes,
         CASE WHEN a.P_OUT > 0 THEN 'lanzador' ELSE 'bateador' END AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

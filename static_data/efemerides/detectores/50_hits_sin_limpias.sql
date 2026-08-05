@@ -34,6 +34,7 @@
 -- =====================================================================================
 SELECT  'hits_sin_limpias' AS tipo,
         '8+ hits permitidos sin una carrera limpia' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

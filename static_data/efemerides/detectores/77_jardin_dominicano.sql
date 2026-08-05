@@ -36,6 +36,10 @@ elegido AS (
 )
 SELECT  'jardin_dominicano'                       AS tipo,
         'el jardín entero dominicano' AS gesta,
+        -- LOS TRES DUEÑOS DE ESTA EFEMÉRIDE. La fila se atribuye al más reconocible, pero el jardín
+        -- fue de los tres y el perfil de cada uno tiene que encontrarla. Ver `exportar_efemerides.ps1`.
+        ' ' + CAST(h7.mlb_id AS varchar(10)) + ' ' + CAST(h8.mlb_id AS varchar(10))
+            + ' ' + CAST(h9.mlb_id AS varchar(10)) + ' ' AS participantes,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,

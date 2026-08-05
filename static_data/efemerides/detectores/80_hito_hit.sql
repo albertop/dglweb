@@ -14,6 +14,7 @@
 -- =====================================================================================
 SELECT  'hito_hit' AS tipo,
         'un hito de hits de por vida' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         2 AS situar,

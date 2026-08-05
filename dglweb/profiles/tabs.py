@@ -1054,7 +1054,20 @@ class EfemeridesTab(PlayerTab):
     _VISIBLES = 20
 
     def _consulta(self, player: Player) -> models.QuerySet[Efemeride]:
-        return Efemeride.objects.filter(mlb_id=player.player_id).exclude(tipo__in=self._FUERA_DEL_PERFIL)
+        # DOS FORMAS DE SER DUEÑO DE UNA EFEMÉRIDE, y las dos cuentan acá.
+        #
+        # Casi siempre la fila es de un hombre y basta con `mlb_id`. Pero seis detectores narran
+        # gestas COLECTIVAS —el jardín entero dominicano, el cuadro entero, los cinco lanzadores— y
+        # de esas hay una sola fila, atribuida al más reconocible del grupo. Si el perfil solo mirara
+        # `mlb_id`, el 15 de septiembre de 1963 saldría en el de Felipe Alou y no en el de sus dos
+        # hermanos, que estaban en el mismo jardín.
+        #
+        # `participantes` trae a los demás, y los espacios que lo envuelven son los que impiden que
+        # buscar al 12345 encuentre también al 123456. Por eso el patrón lleva espacio a los lados.
+        pk = player.player_id
+        return Efemeride.objects.filter(
+            models.Q(mlb_id=pk) | models.Q(participantes__contains=f" {pk} ")
+        ).exclude(tipo__in=self._FUERA_DEL_PERFIL)
 
     def applies_to(self, player: Player) -> bool:
         return self._consulta(player).exists()

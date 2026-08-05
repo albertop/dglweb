@@ -94,9 +94,15 @@ LEFT   JOIN #equipos ri ON ri.codigo = t.rival AND t.fecha BETWEEN ri.desde AND 
 -- altos en español suenan a acta notarial.
 ALTER TABLE #turnos ADD inning_txt varchar(20);
 
+-- FRASE COMPLETA, NO SOLO EL ORDINAL. Los nueve consumidores escriben `'en el ' + inning_txt`, así
+-- que lo que salga de acá tiene que poder cerrar la oración solo. Salía «en el 3er» —el ordinal sin
+-- sustantivo— y el titular terminaba a media palabra: «corrió las cuatro bases, en el 3er.».
+--
+-- Del décimo en adelante se invierte —«en el inning 10» y no «en el 10mo inning»— porque en español
+-- los ordinales altos no se usan hablando: nadie dice «decimotercer inning».
 UPDATE #turnos SET inning_txt =
     CASE WHEN inning >= 10 THEN 'inning ' + CAST(inning AS varchar(2))
          ELSE CASE inning WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er'
                           WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to'
-                          WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END
+                          WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END + ' inning'
     END;

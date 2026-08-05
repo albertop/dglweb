@@ -11,6 +11,7 @@
 -- =====================================================================================
 SELECT  'debut' AS tipo,
         'un debut en Grandes Ligas' AS gesta,
+        '' AS participantes,
         'persona' AS rol,
         'completa' AS cobertura,
         2 AS situar,

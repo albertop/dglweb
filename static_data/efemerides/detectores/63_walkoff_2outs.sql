@@ -11,6 +11,7 @@
 -- =====================================================================================
 SELECT  'walkoff_2outs' AS tipo,
         'un walk-off de jonrón con dos outs y perdiendo' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

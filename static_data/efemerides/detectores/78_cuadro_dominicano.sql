@@ -34,6 +34,10 @@ elegido AS (
 )
 SELECT  'cuadro_dominicano'                       AS tipo,
         'el cuadro entero dominicano' AS gesta,
+        -- LOS CUATRO DUEÑOS. La fila se atribuye al más reconocible, pero el cuadro fue de los cuatro
+        -- y el perfil de cada uno tiene que encontrarla. Ver `exportar_efemerides.ps1`.
+        ' ' + CAST(h3.mlb_id AS varchar(10)) + ' ' + CAST(h4.mlb_id AS varchar(10)) + ' '
+            + CAST(h5.mlb_id AS varchar(10)) + ' ' + CAST(h6.mlb_id AS varchar(10)) + ' ' AS participantes,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,

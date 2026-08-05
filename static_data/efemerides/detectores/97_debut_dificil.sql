@@ -42,6 +42,7 @@ debut AS (
 )
 SELECT  'debut_dificil'                           AS tipo,
         'un debut de -1.5 carreras de valor o peor' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

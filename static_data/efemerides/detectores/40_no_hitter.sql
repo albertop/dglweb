@@ -13,6 +13,7 @@
 -- =====================================================================================
 SELECT  'no_hitter'                                   AS tipo,
         'un juego sin hits' AS gesta,
+        '' AS participantes,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

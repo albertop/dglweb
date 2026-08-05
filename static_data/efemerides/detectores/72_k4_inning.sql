@@ -30,6 +30,7 @@ WITH porInning AS (
 )
 SELECT  'k4_inning'                               AS tipo,
         '4 ponches en una sola entrada' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
@@ -50,7 +51,7 @@ SELECT  'k4_inning'                               AS tipo,
         p.k                                       AS magnitud,
         NULL                                      AS wpa_jugador,
         NULL                                      AS li_max,
-        'tres outs en el ' + CASE WHEN p.INN_CT >= 10 THEN 'inning ' + CAST(p.INN_CT AS varchar(2)) ELSE CASE p.INN_CT WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END END + ', porque un strike tres se le escapó al receptor' AS detalle,
+        'tres outs en el ' + CASE WHEN p.INN_CT >= 10 THEN 'inning ' + CAST(p.INN_CT AS varchar(2)) ELSE CASE p.INN_CT WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END + ' inning' END + ', porque un strike tres se le escapó al receptor' AS detalle,
         COALESCE(eq.nombre, '')                   AS equipo_nombre,
         COALESCE(ri.nombre, '')                   AS rival_nombre,
         ''                                        AS oponente

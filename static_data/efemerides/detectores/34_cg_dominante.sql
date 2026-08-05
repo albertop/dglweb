@@ -5,6 +5,7 @@
 -- =====================================================================================
 SELECT  'cg_dominante' AS tipo,
         'un juego completo con 10+ ponches y cero limpias' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

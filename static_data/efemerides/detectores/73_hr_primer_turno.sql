@@ -42,6 +42,7 @@ WITH numerados AS (
 )
 SELECT  'hr_primer_turno'                         AS tipo,
         'un jonrón en su primer turno de Grandes Ligas' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

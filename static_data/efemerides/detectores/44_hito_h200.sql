@@ -17,6 +17,7 @@
 -- =====================================================================================
 SELECT  'hito_h200' AS tipo,
         '200+ hits en una temporada' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         288826 AS universo,

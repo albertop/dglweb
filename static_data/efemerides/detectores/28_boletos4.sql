@@ -5,6 +5,7 @@
 -- =====================================================================================
 SELECT  'boletos4' AS tipo,
         '4+ boletos en un juego' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

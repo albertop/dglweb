@@ -9,6 +9,7 @@
 -- =====================================================================================
 SELECT  'triples2'                                   AS tipo,
         '2+ triples en un juego' AS gesta,
+        '' AS participantes,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

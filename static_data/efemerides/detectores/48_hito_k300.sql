@@ -20,6 +20,7 @@
 -- =====================================================================================
 SELECT  'hito_k300' AS tipo,
         '300+ ponches en una temporada' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         288826 AS universo,

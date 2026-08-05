@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL PRIMER DOMINICANO EN ABRIR CADA POSICIÓN EN UN JUEGO DE ESTRELLAS.
 --
 -- Es el gemelo de `89_primero_posicion` —que hace lo mismo en temporada regular— pero en el escenario
@@ -46,6 +46,7 @@ primeros AS (
 )
 SELECT  'estrellas_primicia' AS tipo,
         'la primera apertura dominicana en su posición en un Juego de Estrellas' AS gesta,
+        '' AS participantes,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         283                                       AS universo,

@@ -65,7 +65,14 @@ elegido AS (
              WHERE h.retro_id IN (m.p1, m.p2, m.p3, m.p4, m.p5, m.p6, m.p7, m.p8, m.p9)
              ORDER BY h.juegos DESC, h.nombre) AS mlb_id,
             -- «A, B, C, D, E y F»: la última coma se convierte en « y », como se lee en voz alta.
-            (SELECT STUFF(lista, LEN(lista) - CHARINDEX(',', REVERSE(lista)) + 1, 2, ' y ')
+            -- LOS SEIS DUEÑOS. Ver `exportar_efemerides.ps1`: la fila es una, los dueños son varios.
+            (SELECT ' ' + STUFF((SELECT ' ' + CAST(h3.mlb_id AS varchar(10))
+                                 FROM   #huella h3
+                                 WHERE  h3.retro_id IN (m.p1, m.p2, m.p3, m.p4, m.p5,
+                                                        m.p6, m.p7, m.p8, m.p9)
+                                 ORDER BY h3.mlb_id
+                                 FOR XML PATH(''), TYPE).value('.', 'nvarchar(max)'), 1, 1, '') + ' '
+            ) AS participantes,            (SELECT STUFF(lista, LEN(lista) - CHARINDEX(',', REVERSE(lista)) + 1, 2, ' y ')
              FROM (SELECT STUFF((SELECT ', ' + h2.nombre
                                  FROM   #huella h2
                                  WHERE  h2.retro_id IN (m.p1, m.p2, m.p3, m.p4, m.p5,
@@ -78,6 +85,7 @@ elegido AS (
 )
 SELECT  'seis_dominicanos'                        AS tipo,
         'seis dominicanos en el terreno a la vez' AS gesta,
+        e.participantes,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,

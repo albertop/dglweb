@@ -9,6 +9,7 @@
 -- =====================================================================================
 SELECT  'hits5'                                   AS tipo,
         '5+ hits en un juego' AS gesta,
+        '' AS participantes,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

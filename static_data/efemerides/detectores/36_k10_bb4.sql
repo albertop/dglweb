@@ -5,6 +5,7 @@
 -- =====================================================================================
 SELECT  'k10_bb4' AS tipo,
         '10+ ponches y 4+ boletos en un juego' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

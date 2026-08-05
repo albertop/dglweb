@@ -17,6 +17,7 @@
 -- =====================================================================================
 SELECT  'walkoff_sin_batear' AS tipo,
         'un walk-off sin batear la pelota' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

@@ -34,6 +34,7 @@ WITH duelo AS (
 )
 SELECT  'sombrero_propinado' AS tipo,
         'en ponchar 4 veces al mismo bateador en un juego' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

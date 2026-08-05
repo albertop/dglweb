@@ -9,6 +9,7 @@
 -- =====================================================================================
 SELECT  'rbi7'                                   AS tipo,
         '7+ empujadas en un juego' AS gesta,
+        '' AS participantes,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

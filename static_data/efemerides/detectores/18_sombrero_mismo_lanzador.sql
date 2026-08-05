@@ -36,6 +36,7 @@ WITH duelo AS (
 )
 SELECT  'sombrero_mismo_lanzador' AS tipo,
         '4 ponches del mismo lanzador en un juego' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

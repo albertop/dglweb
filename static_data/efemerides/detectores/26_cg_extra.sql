@@ -30,6 +30,7 @@
 -- =====================================================================================
 SELECT  'cg_extra' AS tipo,
         'un juego completo de más de nueve entradas' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

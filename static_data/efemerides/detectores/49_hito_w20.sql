@@ -22,6 +22,7 @@
 -- =====================================================================================
 SELECT  'hito_w20' AS tipo,
         '20+ victorias en una temporada' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         288826 AS universo,

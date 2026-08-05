@@ -13,6 +13,7 @@
 -- =====================================================================================
 SELECT  'turno_clave' AS tipo,
         'un batazo que decidió un juego' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

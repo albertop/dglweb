@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- GANÓ, PERDIÓ O SALVÓ UN JUEGO DE ESTRELLAS. Medido: 11 veces, y es la lista completa.
 --
 --     GANARON (6)     1962 Juan Marichal     1964 Juan Marichal     1998 Bartolo Colón
@@ -23,6 +23,7 @@
 -- =====================================================================================
 SELECT  'estrellas_decision' AS tipo,
         'una decisión en el Juego de Estrellas' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         283                                       AS universo,

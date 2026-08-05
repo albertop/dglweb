@@ -31,6 +31,7 @@
 -- =====================================================================================
 SELECT  'fouls_turno' AS tipo,
         '10+ fouls en un solo turno' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'parcial'                                 AS cobertura,
         392630                                    AS universo,

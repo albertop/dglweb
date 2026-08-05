@@ -56,6 +56,7 @@ edad AS (
 )
 SELECT  'debut_joven' AS tipo,
         'un debut antes de los 20 años' AS gesta,
+        '' AS participantes,
         'persona' AS rol,
         'completa' AS cobertura,
         961 AS universo,

@@ -8,6 +8,7 @@
 -- =====================================================================================
 SELECT  'hbp_propinados' AS tipo,
         '3+ pelotazos propinados en un juego' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

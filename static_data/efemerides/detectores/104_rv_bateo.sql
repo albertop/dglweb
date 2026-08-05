@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL MEJOR JUEGO OFENSIVO, MEDIDO EN CARRERAS DE VALOR. Medido: 91 juegos, 43 jugadores.
 --
 -- Idea del dueño, y es distinta de todo lo demás del inventario: en vez de preguntar «¿cuántos
@@ -45,6 +45,7 @@ WITH rv AS (
 )
 SELECT  'rv_bateo' AS tipo,
         'un juego de 5+ carreras de valor generadas' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

@@ -27,6 +27,7 @@ WITH perfil AS (
 )
 SELECT  'lanzador_jonron' AS tipo,
         'un jonrón siendo lanzador' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

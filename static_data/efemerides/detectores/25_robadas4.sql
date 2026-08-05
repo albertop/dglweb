@@ -9,6 +9,7 @@
 -- =====================================================================================
 SELECT  'robadas4'                                   AS tipo,
         '4+ robos en un juego' AS gesta,
+        '' AS participantes,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

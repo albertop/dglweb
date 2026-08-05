@@ -21,6 +21,7 @@
 -- =====================================================================================
 SELECT  'hito_rbi150' AS tipo,
         '150+ empujadas en una temporada' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         288826 AS universo,

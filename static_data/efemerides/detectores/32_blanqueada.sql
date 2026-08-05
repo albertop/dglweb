@@ -9,6 +9,7 @@
 -- =====================================================================================
 SELECT  'blanqueada'                                   AS tipo,
         'una blanqueada en juego completo' AS gesta,
+        '' AS participantes,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

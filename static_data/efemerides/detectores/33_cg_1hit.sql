@@ -8,6 +8,7 @@
 -- =====================================================================================
 SELECT  'cg_1hit' AS tipo,
         'un juego completo de un solo hit' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

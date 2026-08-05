@@ -19,6 +19,7 @@
 -- =====================================================================================
 SELECT  'inmaculado' AS tipo,
         'un inning inmaculado' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'parcial' AS cobertura,
         1 AS situar,
@@ -30,7 +31,7 @@ SELECT  'inmaculado' AS tipo,
         1 AS signo,
         9 AS magnitud,
         NULL AS wpa_jugador, NULL AS li_max,
-        'nueve lanzamientos, tres ponches, en el ' + CASE WHEN i.inning >= 10 THEN 'inning ' + CAST(i.inning AS varchar(2)) ELSE CASE i.inning WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END END AS detalle,
+        'nueve lanzamientos, tres ponches, en el ' + CASE WHEN i.inning >= 10 THEN 'inning ' + CAST(i.inning AS varchar(2)) ELSE CASE i.inning WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END + ' inning' END AS detalle,
         p.equipo_nombre, p.rival_nombre,
         '' AS oponente
 FROM    #sc_inning i

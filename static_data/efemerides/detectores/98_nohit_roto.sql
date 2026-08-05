@@ -35,6 +35,7 @@ roto AS (
 )
 SELECT  'nohit_roto'                              AS tipo,
         'en romper un no-hitter en el noveno' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         811955                                    AS universo,
@@ -48,7 +49,7 @@ SELECT  'nohit_roto'                              AS tipo,
         (r.INN_CT * 3) + r.OUTS_CT                AS magnitud,
         NULL                                      AS wpa_jugador,
         NULL                                      AS li_max,
-        CASE WHEN r.INN_CT = 9 THEN '9no' ELSE 'inning ' + CAST(r.INN_CT AS varchar(2)) END
+        CASE WHEN r.INN_CT = 9 THEN '9no inning' ELSE 'inning ' + CAST(r.INN_CT AS varchar(2)) END
             + CASE WHEN r.OUTS_CT = 2 THEN ', con 2 outs' WHEN r.OUTS_CT = 1 THEN ', con 1 out' ELSE ', sin outs' END
             + CASE WHEN r.HR = 1 THEN ', y fue jonrón' ELSE '' END AS detalle,
         j.equipo_nombre, j.rival_nombre,

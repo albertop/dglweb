@@ -8,6 +8,7 @@
 -- =====================================================================================
 SELECT  'gidp_inducidos' AS tipo,
         '4+ dobles matanzas inducidas en un juego' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

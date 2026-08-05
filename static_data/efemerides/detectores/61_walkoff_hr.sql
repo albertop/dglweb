@@ -7,6 +7,7 @@
 -- =====================================================================================
 SELECT  'walkoff_hr' AS tipo,
         'un walk-off de jonrón' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

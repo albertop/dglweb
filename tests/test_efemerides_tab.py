@@ -21,9 +21,8 @@ from tests.test_players import _other_player
 
 
 def _jugador(**cambios: Any) -> Player:
-    return Player.objects.create(
-        **_other_player(player_id=646240, dgl_id="dev01", full_name="Rafael Devers", **cambios)
-    )
+    base = {"player_id": 646240, "dgl_id": "dev01", "full_name": "Rafael Devers"}
+    return Player.objects.create(**_other_player(**(base | cambios)))
 
 
 def _efemeride(jugador: Player, **cambios: Any) -> Efemeride:
@@ -241,3 +240,39 @@ def test_the_rendered_tab_shows_the_redacted_text_as_it_comes() -> None:
     assert "Bateó para el ciclo contra Philadelphia Phillies." in cuerpo
     assert "Es uno de los 16 dominicanos con un ciclo." in cuerpo
     assert "5 de abril de 2019" in cuerpo
+
+
+@pytest.mark.django_db
+def test_a_collective_feat_reaches_the_profile_of_everyone_who_was_there() -> None:
+    """El jardín de 1963 fue de los tres hermanos Alou, no solo del que va en la fila.
+
+    La fila es UNA y se atribuye al más reconocible del grupo — repetirla por cabeza rompería el
+    calendario, que enseñaría tres veces la misma frase el 15 de septiembre. Los otros dos viajan en
+    `participantes` y el tab los tiene que encontrar ahí.
+    """
+    felipe = _jugador(player_id=110186, dgl_id="alo01", full_name="Felipe Alou")
+    mateo = _jugador(player_id=110188, dgl_id="alo03", full_name="Mateo Alou")
+    _efemeride(
+        felipe,
+        tipo="jardin_dominicano",
+        participantes=" 110188 110186 110187 ",
+        titular="Los tres jardineros de San Francisco Giants fueron dominicanos.",
+    )
+
+    assert EfemeridesTab().applies_to(mateo)
+    assert "San Francisco Giants" in _pintar(mateo)
+
+
+@pytest.mark.django_db
+def test_a_shared_feat_does_not_leak_to_a_player_whose_id_is_a_substring() -> None:
+    """El 11018 no estuvo en ese jardín, y sin los espacios de guarda se lo llevaba.
+
+    `participantes__contains` es una búsqueda de texto: «11018» aparece dentro de «110186». Por eso
+    la columna llega envuelta en espacios y el patrón los lleva a los lados. Si alguien normaliza la
+    columna con un `.strip()`, esta prueba es la que lo cuenta.
+    """
+    felipe = _jugador(player_id=110186, dgl_id="alo01", full_name="Felipe Alou")
+    intruso = _jugador(player_id=11018, dgl_id="int01", full_name="Nadie")
+    _efemeride(felipe, tipo="jardin_dominicano", participantes=" 110188 110186 110187 ")
+
+    assert not EfemeridesTab().applies_to(intruso)

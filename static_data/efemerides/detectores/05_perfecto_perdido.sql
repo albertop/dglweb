@@ -30,6 +30,7 @@ perdido AS (
 )
 SELECT  'perfecto_perdido' AS tipo,
         'un juego perfecto perdido en el noveno o más allá' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,
@@ -42,7 +43,7 @@ SELECT  'perfecto_perdido' AS tipo,
         (p.INN_CT * 3) + p.OUTS_CT                AS magnitud,
         NULL                                      AS wpa_jugador,
         NULL                                      AS li_max,
-        CASE WHEN p.INN_CT = 9 THEN '9no' ELSE 'inning ' + CAST(p.INN_CT AS varchar(2)) END
+        CASE WHEN p.INN_CT = 9 THEN '9no inning' ELSE 'inning ' + CAST(p.INN_CT AS varchar(2)) END
             + CASE WHEN p.OUTS_CT = 2 THEN ' con 2 outs' WHEN p.OUTS_CT = 1 THEN ' con 1 out' ELSE '' END AS detalle,
         j.equipo_nombre, j.rival_nombre,
         COALESCE(bt.nombre, 'el bateador')        AS oponente

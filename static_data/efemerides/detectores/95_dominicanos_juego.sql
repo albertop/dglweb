@@ -40,6 +40,17 @@ WITH conteo AS (
 ),
 elegido AS (
     SELECT  c.game_id, c.dominicanos,
+            -- LOS DUEÑOS: los diez o doce que pasaron por el juego. La fila es una —el calendario
+            -- no puede decir doce veces lo mismo el mismo día— pero el perfil de cada uno la
+            -- encuentra por acá. Ver `exportar_efemerides.ps1`.
+            (SELECT ' ' + STUFF((SELECT ' ' + CAST(h4.mlb_id AS varchar(10))
+                                 FROM   #juegos j4
+                                 INNER JOIN #huella h4 ON h4.retro_id = j4.PLAYER_ID
+                                 WHERE  j4.game_id = c.game_id
+                                 GROUP BY h4.mlb_id
+                                 ORDER BY h4.mlb_id
+                                 FOR XML PATH(''), TYPE).value('.', 'nvarchar(max)'), 1, 1, '') + ' '
+            ) AS participantes,
             (SELECT TOP 1 h.mlb_id
              FROM   #juegos j2
              INNER JOIN #huella h ON h.retro_id = j2.PLAYER_ID
@@ -49,6 +60,7 @@ elegido AS (
 )
 SELECT  'dominicanos_juego'                       AS tipo,
         '10+ dominicanos en un mismo juego' AS gesta,
+        e.participantes,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         203908                                    AS universo,

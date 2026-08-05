@@ -9,6 +9,7 @@
 -- =====================================================================================
 SELECT  'sombrero_titanio' AS tipo,
         '6+ ponches en un juego' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

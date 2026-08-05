@@ -15,6 +15,7 @@
 -- =====================================================================================
 SELECT  'fallecimiento' AS tipo,
         'un aniversario de fallecimiento' AS gesta,
+        '' AS participantes,
         'persona' AS rol,
         'completa' AS cobertura,
         0 AS situar,

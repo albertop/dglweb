@@ -22,6 +22,7 @@
 -- =====================================================================================
 SELECT  'hito_hr60' AS tipo,
         '60+ jonrones en una temporada' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         288826 AS universo,

@@ -27,6 +27,7 @@
 -- =====================================================================================
 SELECT  'grand_slam_vs_dominicano' AS tipo,
         'un grand slam ante un lanzador dominicano' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

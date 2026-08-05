@@ -50,6 +50,7 @@ WITH ritmo AS (
 )
 SELECT  'paliza' AS tipo,
         'una salida de una carrera por bateador enfrentado' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

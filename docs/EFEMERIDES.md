@@ -114,7 +114,7 @@ Todos los detectores devuelven **exactamente las mismas columnas**. Esta es la p
 agregar una efeméride sea barato: el detector dice *qué pasó, a quién y cuándo*; el motor hace todo
 lo demás igual para todos.
 
-Son **25 columnas**, y la lista vive en la constante `$CONTRATO` del motor. Si a un detector le falta
+Son **26 columnas**, y la lista vive en la constante `$CONTRATO` del motor. Si a un detector le falta
 una, la corrida **aborta entera** en vez de colar filas mutiladas que nadie va a mirar hasta que
 salgan mal en la página. Si devuelve una de más, el motor **avisa** y sigue: casi siempre es una
 columna mal nombrada.
@@ -144,6 +144,7 @@ columna mal nombrada.
 | `wpa_jugador` | cuánto movió la probabilidad de ganar ese juego |
 | `li_max` | el leverage más alto en que estuvo |
 | `detalle` | los datos propios del tipo, para el texto |
+| `participantes` | los OTROS dueños de una gesta colectiva — vacío en el 93 % de las filas, ver 3.8 |
 
 **Las que agrega el motor**, y que ningún detector podría saber porque dependen de todas las filas de
 su tipo y él solo ve las suyas:
@@ -383,6 +384,45 @@ sus 5 veces» o «A él le pasó 3 veces» según el signo.
 
 Una autocomprobación (8.1) verifica que **ningún detector que sitúa deje la gesta vacía**: la frase se
 arma con ella dentro, así que sin gesta no sale incompleta, sale rota.
+
+### 3.8. `participantes`: cuando la gesta fue de varios
+
+Seis detectores no narran lo que hizo un hombre sino **lo que se vio en el terreno**: el jardín entero
+dominicano, el cuadro entero, los seis a la vez, los lanzadores de un equipo o de un juego, los
+dominicanos de un juego. Son **393 filas**, el 7 % del archivo.
+
+| detector | filas |
+| --- | ---: |
+| `jardin_dominicano` | 128 |
+| `lanzadores_juego` | 98 |
+| `lanzadores_equipo` | 90 |
+| `dominicanos_juego` | 50 |
+| `seis_dominicanos` | 15 |
+| `cuadro_dominicano` | 12 |
+
+**Se publica UNA fila, atribuida al más reconocible del grupo** —el de más juegos de carrera, con
+desempate por nombre para que no baile entre corridas— y el titular nombra a todos. La alternativa,
+emitir una fila por cabeza, arreglaba el perfil y **rompía el calendario**: el 15 de septiembre de
+1963 habría enseñado tres veces seguidas la misma frase sobre el jardín de los hermanos Alou.
+
+Pero el perfil de los otros dos también la tiene que tener, y por eso existe esta columna: trae los
+`mlb_id` de todos los del grupo, separados por espacio y **envueltos en espacio**:
+
+```
+ 110188 110186 110187
+```
+
+**Los dos espacios de los extremos no son cosmética.** El perfil los busca con un
+`participantes__contains=" 110186 "`, que es una búsqueda de texto, y sin ellos el primero y el
+último de la lista quedan sin espacio por un lado y no se encuentran a sí mismos. Eso pasó de verdad:
+la primera carga dejó la gesta de 1963 visible solo en el perfil de Felipe Alou, que iba en el medio.
+Y sin los espacios de guarda la búsqueda se va por el otro lado: `11018` aparece dentro de `110186`.
+
+El loader **reconstruye el envoltorio** en vez de confiar en lo que traiga el archivo (`_participantes`
+en `loaders.py`), porque el `.strip()` genérico de las columnas de texto es exactamente lo que se lo
+comió la primera vez. Dos pruebas lo cubren: los tres hermanos la ven, y el `11018` no.
+
+413 peloteros están tocados por al menos una gesta colectiva.
 
 ---
 
@@ -999,22 +1039,32 @@ bateador que enfrentó», el otro «de cada entrada que lanzó».
 Cada detector declara su grano y el motor toma la `N` que corresponde. Usar la equivocada no da error:
 da un puntaje que parece razonable y está mal, que es peor.
 
-### 5.12. ⚠️ Siete detectores diseñados que NUNCA se construyeron
+### 5.12. Ya no queda ningún detector diseñado sin construir
 
-Este documento los daba por hechos en versiones anteriores. **No existen como archivo.**
+Durante meses esta sección listaba siete que el documento daba por hechos y no existían como archivo.
+El dueño los reclamó el 2026-08-04 —«no estoy viendo las efemérides de HR de 480+ ni de lanzamientos
+de 100+»— y **los seis que faltaban se construyeron**:
 
-| detector | qué iba a ser | por qué no está |
-| --- | --- | --- |
-| `fouls_turno` | 10+ fouls en un turno, 2008+ | nunca se implementó |
-| `fouls_juego` | 16+ fouls en un juego, 2008+ | nunca se implementó |
-| `rv_bateo` | 5+ carreras de valor generadas | nunca se implementó |
-| `rv_pitcheo` | 5+ carreras evitadas | nunca se implementó |
-| `hr480` | jonrón de 480+ pies, 2015+ | nunca se implementó |
-| `vel100` | 15+ rectas de 100 mph, 2008+ | nunca se implementó |
-| `juego_estrellas` | asistencia al Juego de Estrellas | **descartado a propósito** — ver 5.7 |
+| detector | n | dónde vive |
+| --- | ---: | --- |
+| `hr480` | 12 | 5.3 |
+| `vel100` | 35 | 5.3 |
+| `fouls_turno` | 10 | 5.3 |
+| `fouls_juego` | 17 | 5.3 |
+| `rv_bateo` | 91 | 5.1 |
+| `rv_pitcheo` | 39 | 5.1 |
 
-`rv_bateo` y `rv_pitcheo` envejecieron bien: la misma métrica que iban a usar —valor de carreras— es
-la que hoy sostiene `paliza`, `debut_grande` y `debut_dificil`.
+El séptimo, `juego_estrellas` (asistencia al Juego de Estrellas), **sigue descartado a propósito** y no
+va a volver: se midió y las 283 apariciones caben en 18 días del calendario. Ver 5.7.
+
+**LA COMPROBACIÓN ES AUTOMÁTICA Y CONVIENE REPETIRLA.** Los `tipo` que declaran los `.sql` se pueden
+cruzar contra los que menciona este documento; así fue como se confirmó que no queda ninguno
+pendiente. Lo que la comprobación devuelve como «mencionado y no construido» hoy son solo los cuatro
+**retirados** —`bases10`, `bases12`, `sombrero_dorado`, `sombrero_puro` (5.13)— y el descartado.
+
+**Y dos detectores existen sin producir una sola fila**, que es distinto y es correcto:
+`sombrero_titanio` (6+ ponches en un juego) y `ciclo_natural`. Cuestan nada y empiezan a producir el
+día que pase. Ver 8.2, donde la muestra los marca con `[ ]` para que no se confundan con un olvido.
 
 ### 5.13. Tres detectores retirados
 

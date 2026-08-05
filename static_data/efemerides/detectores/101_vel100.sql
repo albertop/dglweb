@@ -31,6 +31,7 @@
 -- =====================================================================================
 SELECT  'vel100' AS tipo,
         '15+ rectas de 100 millas en un juego' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'parcial'                                 AS cobertura,
         41785                                     AS universo,

@@ -1,4 +1,4 @@
--- =====================================================================================
+﻿-- =====================================================================================
 -- EL MEJOR JUEGO DESDE EL MONTÍCULO, EN CARRERAS EVITADAS. Medido: 39 juegos, 18 lanzadores.
 --
 -- La contraparte de `104_rv_bateo`: el `RUN_VALUE` de los turnos que enfrentó, con el signo cambiado
@@ -37,6 +37,7 @@ WITH rv AS (
 )
 SELECT  'rv_pitcheo' AS tipo,
         'un juego de 5+ carreras de valor evitadas' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

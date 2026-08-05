@@ -88,6 +88,7 @@ resuelto AS (
 )
 SELECT  'primero_posicion'                        AS tipo,
         'la primera apertura dominicana en su posición' AS gesta,
+        '' AS participantes,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         0                                         AS situar,

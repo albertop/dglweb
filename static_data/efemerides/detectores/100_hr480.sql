@@ -28,6 +28,7 @@
 -- =====================================================================================
 SELECT  'hr480' AS tipo,
         'un jonrón de 480 pies o más' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'parcial'                                 AS cobertura,
         8413                                      AS universo,

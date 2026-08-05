@@ -407,6 +407,7 @@ class EfemeridesLoader(Loader):
         "puntaje": "puntaje",
         "titular": "titular",
         "situacion": "situacion",
+        "participantes": "participantes",
     }
 
     # Los que no admiten vacío: sin ellos la fila no se puede ni pintar ni ordenar.
@@ -449,6 +450,7 @@ class EfemeridesLoader(Loader):
         resuelta.update({campo: _entero(row.get(campo)) for campo in self._ENTEROS_NULABLES})
         resuelta.update({campo: _decimal_exigido(row.get(campo), campo) for campo in self._DECIMALES})
         resuelta.update({campo: _decimal(row.get(campo)) for campo in self._DECIMALES_NULABLES})
+        resuelta["participantes"] = _participantes(row.get("participantes"))
         return resuelta
 
     def checks(self, rows: list[dict[str, Any]]) -> list[Problem]:
@@ -488,6 +490,24 @@ class EfemeridesLoader(Loader):
 
 def _texto(crudo: str | None, largo: int | None) -> str:
     return (crudo or "").strip()[:largo]
+
+
+def _participantes(crudo: str | None) -> str:
+    """Los otros dueños de una gesta colectiva, envueltos en espacios y con espacio entre cada uno.
+
+    NO PASA POR `_texto` Y ESO ES EL PUNTO. El SQL emite `« 110188 110186 110187 »` con espacio al
+    principio y al final a propósito: el perfil los busca con `participantes__contains=" 110186 "`, y
+    esos dos espacios son lo único que impide que el 12345 se lleve las efemérides del 123456. Un
+    `.strip()` —que es lo que hace `_texto`— deja al primero y al último de la lista sin su espacio y
+    los vuelve invisibles en su propio perfil. Pasó: de los tres hermanos Alou en el jardín de 1963,
+    la efeméride solo aparecía en el perfil de Felipe, que iba en el medio.
+
+    Se reconstruye en vez de confiar en lo que venga: partir por espacios y volver a unir da el mismo
+    resultado aunque el CSV llegue sin los extremos, con espacios de más o de un exportador futuro
+    que use comas. Vacío se queda vacío — que es el caso de 5.409 de las 5.802 filas.
+    """
+    piezas = (crudo or "").replace(",", " ").split()
+    return f" {' '.join(piezas)} " if piezas else ""
 
 
 def _fecha(crudo: str | None) -> date | None:

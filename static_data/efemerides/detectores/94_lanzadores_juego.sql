@@ -47,7 +47,15 @@ elegido AS (
              INNER JOIN #huella h ON h.retro_id = j2.PLAYER_ID
              WHERE  j2.game_id = c.game_id AND j2.P_G >= 1
              ORDER BY h.juegos DESC, h.nombre) AS mlb_id,
-            (SELECT STUFF(lista, LEN(lista) - CHARINDEX(',', REVERSE(lista)) + 1, 2, ' y ')
+            -- LOS DUEÑOS: todos los que lanzaron ese día, de los dos equipos.
+            (SELECT ' ' + STUFF((SELECT ' ' + CAST(h4.mlb_id AS varchar(10))
+                                 FROM   #juegos j4
+                                 INNER JOIN #huella h4 ON h4.retro_id = j4.PLAYER_ID
+                                 WHERE  j4.game_id = c.game_id AND j4.P_G >= 1
+                                 GROUP BY h4.mlb_id
+                                 ORDER BY h4.mlb_id
+                                 FOR XML PATH(''), TYPE).value('.', 'nvarchar(max)'), 1, 1, '') + ' '
+            ) AS participantes,            (SELECT STUFF(lista, LEN(lista) - CHARINDEX(',', REVERSE(lista)) + 1, 2, ' y ')
              FROM (SELECT STUFF((SELECT ', ' + h2.nombre
                                  FROM   #juegos j3
                                  INNER JOIN #huella h2 ON h2.retro_id = j3.PLAYER_ID
@@ -60,6 +68,7 @@ elegido AS (
 )
 SELECT  'lanzadores_juego'                        AS tipo,
         '5+ lanzadores dominicanos en un juego' AS gesta,
+        e.participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         203908                                    AS universo,

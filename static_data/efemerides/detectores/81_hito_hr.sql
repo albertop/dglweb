@@ -27,6 +27,7 @@ WITH marcas AS (
 )
 SELECT  'hito_hr' AS tipo,
         'un hito de jonrones de por vida' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         2 AS situar,

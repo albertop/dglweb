@@ -49,6 +49,7 @@ debut AS (
 )
 SELECT  'debut_grande'                            AS tipo,
         'un debut de 1.5+ carreras de valor' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

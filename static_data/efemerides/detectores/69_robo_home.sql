@@ -12,6 +12,7 @@
 -- =====================================================================================
 SELECT  'robo_home'                               AS tipo,
         'un robo de home' AS gesta,
+        '' AS participantes,
         'corredor'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
@@ -31,7 +32,7 @@ SELECT  'robo_home'                               AS tipo,
         1                                         AS magnitud,
         NULL                                      AS wpa_jugador,
         NULL                                      AS li_max,
-        'en el ' + CASE WHEN e.INN_CT >= 10 THEN 'inning ' + CAST(e.INN_CT AS varchar(2)) ELSE CASE e.INN_CT WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END END + CASE WHEN e.OUTS_CT = 0 THEN ', sin outs' WHEN e.OUTS_CT = 1 THEN ', con 1 out' ELSE ', con ' + CAST(e.OUTS_CT AS varchar(1)) + ' outs' END AS detalle,
+        'en el ' + CASE WHEN e.INN_CT >= 10 THEN 'inning ' + CAST(e.INN_CT AS varchar(2)) ELSE CASE e.INN_CT WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END + ' inning' END + CASE WHEN e.OUTS_CT = 0 THEN ', sin outs' WHEN e.OUTS_CT = 1 THEN ', con 1 out' ELSE ', con ' + CAST(e.OUTS_CT AS varchar(1)) + ' outs' END AS detalle,
         COALESCE(eq.nombre, '')                   AS equipo_nombre,
         COALESCE(ri.nombre, '')                   AS rival_nombre,
         COALESCE(lz.nombre, '')                   AS oponente

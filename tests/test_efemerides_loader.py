@@ -60,6 +60,7 @@ def _fila(**cambios: str) -> dict[str, str]:
         "puntaje": "715",
         "titular": "Bateó para el ciclo contra Philadelphia Phillies: 5 hits y 1 empujada.",
         "situacion": "Es uno de los 16 dominicanos con un ciclo.",
+        "participantes": "",
     }
     return base | cambios
 
@@ -136,6 +137,33 @@ def test_a_complete_row_crosses_the_border_with_its_types_translated() -> None:
     assert ciclo["wpa_jugador"] == pytest.approx(0.32)
     assert ciclo["puntaje"] == 715
     assert ciclo["titular"].startswith("Bateó para el ciclo")
+    # Una gesta de uno solo no lleva a nadie más: vacío, no un espacio suelto.
+    assert ciclo["participantes"] == ""
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "crudo",
+    [
+        " 110188 110186 110187 ",  # como lo emite el SQL
+        "110188 110186 110187",  # si algo por el camino le hizo strip
+        "110188  110186   110187",  # con espacios de más
+        "110188,110186,110187",  # si un exportador futuro usa comas
+    ],
+)
+def test_the_participants_arrive_wrapped_in_spaces_however_the_file_writes_them(crudo: str) -> None:
+    """Los dos espacios de los extremos son lo que hace que la búsqueda del perfil sea correcta.
+
+    El tab busca `participantes__contains=" 110186 "`, y sin el espacio de guarda el primero y el
+    último de la lista quedan invisibles en su propio perfil — que es exactamente lo que pasó con
+    Mateo y Jesús Alou el día que se cargó por primera vez. Se reconstruye acá en vez de confiar en
+    lo que traiga el archivo.
+    """
+    rows, problems = _validar(*_relleno(400), _fila(tipo="jardin_dominicano", participantes=crudo))
+
+    assert problems == []
+    jardin = next(row for row in rows if row["tipo"] == "jardin_dominicano")
+    assert jardin["participantes"] == " 110188 110186 110187 "
 
 
 @pytest.mark.django_db

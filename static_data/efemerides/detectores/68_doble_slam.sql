@@ -22,6 +22,7 @@ WITH dobles AS (
 )
 SELECT  'doble_slam'                              AS tipo,
         'dos grand slams en el mismo juego' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

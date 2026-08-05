@@ -10,6 +10,7 @@
 -- =====================================================================================
 SELECT  'ciclo'                                   AS tipo,
         'un ciclo' AS gesta,
+        '' AS participantes,
         'bateador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

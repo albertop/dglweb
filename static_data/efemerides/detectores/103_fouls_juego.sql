@@ -25,6 +25,7 @@
 -- =====================================================================================
 SELECT  'fouls_juego' AS tipo,
         '16+ fouls en un juego' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'parcial'                                 AS cobertura,
         102228                                    AS universo,

@@ -16,6 +16,7 @@
 -- =====================================================================================
 SELECT  'toques3' AS tipo,
         '3+ toques de sacrificio en un juego' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

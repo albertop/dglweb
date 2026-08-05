@@ -28,6 +28,7 @@ WITH tp AS (
 )
 SELECT  'triple_play_solo'                        AS tipo,
         'un triple play sin asistencia' AS gesta,
+        '' AS participantes,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
@@ -52,7 +53,7 @@ SELECT  'triple_play_solo'                        AS tipo,
         CASE tp.PO1_FLD_CD
              WHEN 2 THEN 'de receptor' WHEN 3 THEN 'en primera' WHEN 4 THEN 'en segunda'
              WHEN 5 THEN 'en tercera'  WHEN 6 THEN 'de campocorto'
-             ELSE 'en el jardín' END + ', en el ' + CASE WHEN tp.INN_CT >= 10 THEN 'inning ' + CAST(tp.INN_CT AS varchar(2)) ELSE CASE tp.INN_CT WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END END AS detalle,
+             ELSE 'en el jardín' END + ', en el ' + CASE WHEN tp.INN_CT >= 10 THEN 'inning ' + CAST(tp.INN_CT AS varchar(2)) ELSE CASE tp.INN_CT WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END + ' inning' END AS detalle,
         COALESCE(eq.nombre, '')                   AS equipo_nombre,
         COALESCE(ri.nombre, '')                   AS rival_nombre,
         ''                                        AS oponente

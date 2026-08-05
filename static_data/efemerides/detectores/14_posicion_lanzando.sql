@@ -36,6 +36,7 @@ WITH perfil AS (
 )
 SELECT  'posicion_lanzando' AS tipo,
         'un juego lanzando siendo jugador de posición' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

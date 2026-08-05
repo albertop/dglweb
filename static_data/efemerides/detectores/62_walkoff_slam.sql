@@ -11,6 +11,7 @@
 -- =====================================================================================
 SELECT  'walkoff_slam' AS tipo,
         'un walk-off de grand slam' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

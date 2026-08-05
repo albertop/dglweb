@@ -16,6 +16,7 @@
 -- =====================================================================================
 SELECT  'cumpleanos'                              AS tipo,
         'un cumpleaños' AS gesta,
+        '' AS participantes,
         'persona'                                 AS rol,
         'completa'                                AS cobertura,
         -- `situar = 0`: la frase «uno de los N dominicanos que lo ha logrado» NO aplica a cumplir

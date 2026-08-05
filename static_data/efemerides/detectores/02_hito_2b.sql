@@ -32,6 +32,7 @@ WITH marcas AS (
 )
 SELECT  'hito_2b' AS tipo,
         'un hito de dobles de por vida' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         2 AS situar,

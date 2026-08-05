@@ -76,6 +76,7 @@ escapes AS (
 )
 SELECT  'nobletiger'                              AS tipo,
         'un escape de bases llenas sin outs en el noveno o más allá' AS gesta,
+        '' AS participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
@@ -97,7 +98,7 @@ SELECT  'nobletiger'                              AS tipo,
         e.wpa_escape                              AS magnitud,
         e.wpa_escape                              AS wpa_jugador,
         NULL                                      AS li_max,
-        'en el ' + CASE WHEN e.INN_CT >= 10 THEN 'inning ' + CAST(e.INN_CT AS varchar(2)) ELSE CASE e.INN_CT WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END END + ', y no le anotaron' AS detalle,
+        'en el ' + CASE WHEN e.INN_CT >= 10 THEN 'inning ' + CAST(e.INN_CT AS varchar(2)) ELSE CASE e.INN_CT WHEN 1 THEN '1er' WHEN 2 THEN '2do' WHEN 3 THEN '3er' WHEN 4 THEN '4to' WHEN 5 THEN '5to' WHEN 6 THEN '6to' WHEN 7 THEN '7mo' WHEN 8 THEN '8vo' ELSE '9no' END + ' inning' END + ', y no le anotaron' AS detalle,
         COALESCE(eq.nombre, '')                   AS equipo_nombre,
         COALESCE(ri.nombre, '')                   AS rival_nombre,
         ''                                        AS oponente

@@ -2077,6 +2077,16 @@ class Efemeride(models.Model):
     # Los otros detectores que dispararon sobre el mismo hecho y perdieron la fusión. Vacío casi
     # siempre; separados por espacio cuando hay varios.
     etiquetas = models.CharField(max_length=200, blank=True, verbose_name="Etiquetas")
+    # LOS OTROS DUEÑOS DE LA MISMA EFEMÉRIDE, separados por espacio y con espacio al principio y al
+    # final. Casi siempre vacío: una efeméride es de un hombre.
+    #
+    # Las gestas COLECTIVAS —el jardín entero dominicano, los seis en el terreno, los cinco
+    # lanzadores— son de tres, cuatro o doce a la vez. Emitir una fila por cada uno arreglaría el
+    # perfil y rompería el calendario: el 17 de septiembre de 1963 saldría tres veces la misma frase.
+    # Así que la fila es UNA, atribuida al más reconocible, y acá viajan los demás.
+    #
+    # El espacio de guarda no es cosmético: sin él, buscar «12345» encontraría también al 123456.
+    participantes = models.CharField(max_length=200, blank=True, verbose_name="Participantes")
     rol = models.CharField(max_length=12, verbose_name="Rol")
     # +1 hazaña, -1 deshonra. El sitio las puede presentar aparte.
     signo = models.SmallIntegerField(verbose_name="Signo")

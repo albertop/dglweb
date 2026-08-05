@@ -37,6 +37,7 @@ campo AS (
 )
 SELECT  'lanzador_en_posicion' AS tipo,
         'un juego jugando otra posición siendo lanzador' AS gesta,
+        '' AS participantes,
         'fildeador'                               AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

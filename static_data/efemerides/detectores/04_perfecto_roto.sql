@@ -35,6 +35,7 @@ roto AS (
 )
 SELECT  'perfecto_roto' AS tipo,
         'en romper un juego perfecto en el noveno' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         811955                                    AS universo,
@@ -50,7 +51,7 @@ SELECT  'perfecto_roto' AS tipo,
         (r.INN_CT * 3) + r.OUTS_CT                AS magnitud,
         NULL                                      AS wpa_jugador,
         NULL                                      AS li_max,
-        'en el ' + CASE WHEN r.INN_CT = 9 THEN '9no' ELSE 'inning ' + CAST(r.INN_CT AS varchar(2)) END
+        'en el ' + CASE WHEN r.INN_CT = 9 THEN '9no inning' ELSE 'inning ' + CAST(r.INN_CT AS varchar(2)) END
             + CASE WHEN r.OUTS_CT = 2 THEN ', con 2 outs' WHEN r.OUTS_CT = 1 THEN ', con 1 out' ELSE ', sin outs' END
             + CASE WHEN r.hit >= 1 THEN ', y con hit' ELSE ', y sin batear la pelota' END AS detalle,
         j.equipo_nombre, j.rival_nombre,

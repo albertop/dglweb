@@ -26,6 +26,7 @@
 -- =====================================================================================
 SELECT  'walkoff' AS tipo,
         'un walk-off estando abajo en el marcador' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

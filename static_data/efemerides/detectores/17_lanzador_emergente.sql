@@ -31,6 +31,7 @@ emergente AS (
 )
 SELECT  'lanzador_emergente' AS tipo,
         'un turno de bateador emergente siendo lanzador' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         288826                                    AS universo,

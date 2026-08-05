@@ -9,6 +9,7 @@
 -- =====================================================================================
 SELECT  'k15'                                   AS tipo,
         '15+ ponches en un juego' AS gesta,
+        '' AS participantes,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

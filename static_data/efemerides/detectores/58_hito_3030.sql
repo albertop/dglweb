@@ -30,6 +30,7 @@ WITH cruce AS (
 )
 SELECT  'hito_3030' AS tipo,
         'una temporada de 30+ jonrones y 30+ robos' AS gesta,
+        '' AS participantes,
         'bateador' AS rol,
         'completa' AS cobertura,
         288826 AS universo,

@@ -14,6 +14,7 @@
 -- =====================================================================================
 SELECT  'hito_sv' AS tipo,
         'un hito de salvados de por vida' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         2 AS situar,

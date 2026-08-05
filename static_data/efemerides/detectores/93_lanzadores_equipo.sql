@@ -42,7 +42,15 @@ elegido AS (
              WHERE  j2.game_id = c.game_id AND j2.equipo = c.equipo AND j2.P_G >= 1
              ORDER BY h.juegos DESC, h.nombre) AS mlb_id,
             -- «A, B, C y D» — la coma final se convierte en « y », que es como se lee en voz alta.
-            (SELECT STUFF(lista, LEN(lista) - CHARINDEX(',', REVERSE(lista)) + 1, 2, ' y ')
+            -- LOS DUEÑOS: todos los que lanzaron ese día por ese equipo.
+            (SELECT ' ' + STUFF((SELECT ' ' + CAST(h4.mlb_id AS varchar(10))
+                                 FROM   #juegos j4
+                                 INNER JOIN #huella h4 ON h4.retro_id = j4.PLAYER_ID
+                                 WHERE  j4.game_id = c.game_id AND j4.equipo = c.equipo AND j4.P_G >= 1
+                                 GROUP BY h4.mlb_id
+                                 ORDER BY h4.mlb_id
+                                 FOR XML PATH(''), TYPE).value('.', 'nvarchar(max)'), 1, 1, '') + ' '
+            ) AS participantes,            (SELECT STUFF(lista, LEN(lista) - CHARINDEX(',', REVERSE(lista)) + 1, 2, ' y ')
              FROM (SELECT STUFF((SELECT ', ' + h2.nombre
                                  FROM   #juegos j3
                                  INNER JOIN #huella h2 ON h2.retro_id = j3.PLAYER_ID
@@ -55,6 +63,7 @@ elegido AS (
 )
 SELECT  'lanzadores_equipo'                       AS tipo,
         '4+ lanzadores dominicanos en un mismo equipo' AS gesta,
+        e.participantes,
         'lanzador'                                AS rol,
         'completa'                                AS cobertura,
         407816                                    AS universo,

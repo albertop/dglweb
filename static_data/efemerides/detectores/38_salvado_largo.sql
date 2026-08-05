@@ -16,6 +16,7 @@
 -- =====================================================================================
 SELECT  'salvado_largo' AS tipo,
         'un salvado de 3+ entradas' AS gesta,
+        '' AS participantes,
         'lanzador' AS rol,
         'completa' AS cobertura,
         1 AS situar,

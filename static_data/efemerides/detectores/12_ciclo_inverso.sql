@@ -36,6 +36,7 @@ orden AS (
 )
 SELECT  'ciclo_inverso'                           AS tipo,
         'un ciclo inverso' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

@@ -49,6 +49,7 @@ edad AS (
 )
 SELECT  'debut_veterano' AS tipo,
         'un debut a los 30 años o más' AS gesta,
+        '' AS participantes,
         'persona' AS rol,
         'completa' AS cobertura,
         961 AS universo,

@@ -29,6 +29,7 @@ cierre AS (
 )
 SELECT  'ciclo_natural'                           AS tipo,
         'un ciclo natural' AS gesta,
+        '' AS participantes,
         'bateador'                                AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,

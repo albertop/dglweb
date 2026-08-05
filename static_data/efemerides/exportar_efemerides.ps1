@@ -31,8 +31,21 @@ $OutputPath = "$PSScriptRoot\..\csv\dgl_efemerides.csv"
 # Las columnas que TODO detector debe devolver. Se valida antes de usar nada: un detector al que le
 # falte una columna aborta la corrida entera en vez de colar filas mutiladas que nadie va a mirar
 # hasta que salgan mal en la página.
+# `participantes` — LOS OTROS DUEÑOS DE LA MISMA EFEMÉRIDE.
+#
+# Casi siempre va vacío: una efeméride es de un hombre. Pero las gestas COLECTIVAS —el jardín entero
+# dominicano, los seis en el terreno, los cinco lanzadores— son de tres, cuatro o doce a la vez, y el
+# contrato solo tiene un `mlb_id`.
+#
+# La salida NO es emitir una fila por cada uno. Eso arreglaría el perfil y rompería el calendario: el
+# 17 de septiembre de 1963 saldría tres veces la misma frase palabra por palabra. La efeméride del
+# día es UNA.
+#
+# Así que la fila sigue siendo una, atribuida al de más juegos de carrera, y acá viajan los `mlb_id`
+# de todos los demás separados por espacio. El calendario ignora la columna; el perfil la usa para
+# encontrar la efeméride de un jugador que no es el titular. Una efeméride, varios dueños.
 $CONTRATO = @(
-    'tipo', 'gesta', 'rol', 'cobertura', 'universo', 'plantilla', 'situar',
+    'tipo', 'gesta', 'rol', 'cobertura', 'universo', 'plantilla', 'situar', 'participantes',
     'mlb_id', 'nombre', 'fecha', 'temporada', 'game_id', 'event_id', 'game_type',
     'equipo', 'rival', 'en_casa', 'signo', 'magnitud', 'wpa_jugador', 'li_max', 'detalle',
     'equipo_nombre', 'rival_nombre', 'oponente'
@@ -498,7 +511,7 @@ Write-Host "Fusion: $antes hechos -> $($fusionados.Count) efemerides"
 $fechaISO = @{ Name = 'fecha'; Expression = { ([datetime]$_.fecha).ToString('yyyy-MM-dd') } }
 
 $columnas = @(
-    'tipo', 'gesta', 'etiquetas', 'rol', 'signo', 'cobertura',
+    'tipo', 'gesta', 'etiquetas', 'rol', 'signo', 'cobertura', 'participantes',
     'mlb_id', 'nombre', $fechaISO, 'mes', 'dia', 'temporada', 'anos',
     'game_id', 'event_id', 'game_type', 'equipo', 'equipo_nombre', 'rival', 'rival_nombre', 'en_casa', 'oponente',
     'magnitud', 'wpa_jugador', 'li_max', 'detalle',
@@ -644,6 +657,22 @@ if ($mudas) { $problemas += "$($mudas.Count) fila(s) sin titular" }
 # Una plantilla mal escrita deja el marcador crudo en el texto publicado.
 $crudas = @($fusionados | Where-Object { $_.titular -match '\{[a-z_]+\}' })
 if ($crudas) { $problemas += "$($crudas.Count) fila(s) con marcadores sin rellenar: $($crudas[0].titular)" }
+
+# UN ORDINAL DE ENTRADA SIN SU SUSTANTIVO deja la oración a media palabra. Pasó y se publicó:
+#
+#     «Conectó un jonrón dentro del parque contra Washington Nationals: corrió las cuatro bases,
+#      en el 3er.»
+#
+# El `CASE` que traduce el número de entrada devolvía «3er» a secas para las nueve primeras y
+# «inning 10» de la décima en adelante, así que solo se notaba en los juegos que no iban a extras.
+# Estaba copiado en SIETE detectores y en el prelude `_01_turnos.sql`, que alimenta a otros nueve.
+#
+# `1er`, `2do`, `3er`… solo aparecen como entradas, así que un ordinal pegado a un punto o a una coma
+# es siempre este fallo y nunca otra cosa.
+$colgadas = @($fusionados | Where-Object { $_.titular -match '\d(er|do|to|mo|vo|no)\s*[.,]' })
+if ($colgadas) {
+    $problemas += "$($colgadas.Count) fila(s) cortan la frase en el ordinal de la entrada: $($colgadas[0].titular)"
+}
 
 # UNA DESHONRA NUNCA DEBE GANARLE A UNA HAZAÑA. Es la razón de ser de la escala partida (4.5): la
 # rareza sola les daba lo mismo, porque ponchar 5 veces es tan raro como batear el ciclo.
