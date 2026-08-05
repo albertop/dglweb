@@ -63,7 +63,7 @@ def home(request: HttpRequest) -> HttpResponse:
     que contar `forloop` en el HTML.
     """
     from dglweb.articles.models import ArticlePage, para_tarjetas
-    from dglweb.stats import daily, mlb_leaders, scoreboard, ventana
+    from dglweb.stats import daily, efemerides, mlb_leaders, scoreboard, ventana
 
     cuantos = PORTADA_DESTACADO + PORTADA_RESTO + PORTADA_MOVIL_EXTRA
     # `para_tarjetas` y no un `select_related` propio: la portada usa la misma plantilla de tarjeta
@@ -77,6 +77,9 @@ def home(request: HttpRequest) -> HttpResponse:
         {
             "destacados": daily.portada(),
             "pizarra": scoreboard.del_dia(),
+            # Debajo de la pizarra: lo que pasa hoy y lo que pasó un día como hoy. `None` en los
+            # ocho días del año que no tienen ninguna, y entonces la plantilla no dibuja el panel.
+            "dia_como_hoy": efemerides.del_dia(),
             "lideres": mlb_leaders.portada(),
             # Los DOS widgets de racha en una sola clave, porque salen de la misma consulta y de los
             # mismos dos cortes. Pedirlos por separado abriría la puerta a que la portada enseñara un

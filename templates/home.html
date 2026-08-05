@@ -18,6 +18,14 @@
   <div class="mb-4">{% include "widgets/_pizarra.html" %}</div>
 
   {% comment %}
+    Y debajo, con el mismo ancho, la historia del mismo día. La pareja se lee sola: arriba lo que
+    pasa hoy en la liga, abajo lo que pasó un día como hoy. Va a ancho completo por lo mismo que la
+    pizarra —enseña dos efemérides a la vez y en media columna solo cabría una— y no porque haga
+    falta el sitio.
+  {% endcomment %}
+  <div class="mb-4">{% include "widgets/_dia_como_hoy.html" %}</div>
+
+  {% comment %}
     La franja de widgets, partida en dos mitades: la jornada de ayer a la izquierda y la carrera de
     la temporada a la derecha. Son dos horizontes distintos —un día contra cinco meses— y ponerlos
     lado a lado los deja comparables sin mezclarlos.
@@ -225,4 +233,5 @@
 <script src="{% static 'js/video.js' %}?v=1" defer></script>
 <script src="{% static 'js/pestanas.js' %}?v=1" defer></script>
 <script src="{% static 'js/lideres.js' %}?v=9" defer></script>
+<script src="{% static 'js/dia_como_hoy.js' %}?v=2" defer></script>
 {% endblock %}

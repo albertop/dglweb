@@ -1835,3 +1835,112 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
    noventa y nueve entradas de prosa son largas también con ratón. */
 .dgl-efem-de-mas { display: none; }
 #efem-lista.esta-desplegado .dgl-efem-de-mas { display: block; }
+
+/* ==========================================================================
+   «Un día como hoy» — el widget de portada, debajo de la pizarra
+   ========================================================================== */
+
+/* LAS DIECISÉIS TARJETAS SE APILAN EN LA MISMA FILA DE LA RETÍCULA, y todas ocupan sitio. Así el
+   panel mide lo que mide la MÁS ALTA y no cambia de alto al rotar: con `display:none` daba un salto
+   cada vez que pasaba de un cumpleaños de una línea a un walk-off de cuatro, y la portada entera se
+   movía debajo.
+
+   UNA COLUMNA EN MÓVIL Y DOS EN ESCRITORIO, que es de donde sale «una efeméride a la vez en el
+   teléfono». La cuenta de cuáles se ven la lleva `dia_como_hoy.js` con ESTA MISMA consulta de
+   768px; si los dos números se separan, el móvil enseña dos tarjetas una encima de la otra. */
+.dgl-dch { display: grid; grid-template-columns: 1fr; gap: .75rem; }
+.dgl-dch-caja {
+  grid-row: 1; grid-column: 1;
+  /* `visibility` y no `display`, para que la escondida siga midiendo. La transición es solo de
+     opacidad: el desvanecido cruzado exigiría capas con z-index y no aporta nada que se note. */
+  visibility: hidden; opacity: 0;
+  transition: opacity .35s ease;
+}
+.dgl-dch-caja.es-visible { visibility: visible; opacity: 1; }
+@media (min-width: 768px) {
+  .dgl-dch { grid-template-columns: 1fr 1fr; gap: 1rem; }
+  /* Impares a la izquierda y pares a la derecha, y así cada pantalla —tarjetas 1-2, 3-4, 5-6…— cae
+     siempre en las mismas dos celdas. */
+  .dgl-dch-caja:nth-child(odd) { grid-column: 1; }
+  .dgl-dch-caja:nth-child(even) { grid-column: 2; }
+}
+
+/* EL ESTADO SIN JAVASCRIPT, y por eso está en el CSS y no en el `.js`: la primera siempre, y la
+   segunda solo donde de verdad caben dos. Es exactamente lo que se vería con el script cargado, así
+   que no hay parpadeo cuando arranca — lo primero que hace es quitar estas dos clases. */
+.dgl-dch-caja.es-primera { visibility: visible; opacity: 1; }
+@media (min-width: 768px) {
+  .dgl-dch-caja.es-segunda { visibility: visible; opacity: 1; }
+}
+
+/* LA MISMA CAJA GRIS QUE LOS OTROS WIDGETS. Es literalmente el recuadro de `.dgl-destacado-caja`
+   —mismo borde, mismo radio, mismo fondo— para que la portada se lea como una sola cosa y no como
+   cuatro widgets de autores distintos. Panel blanco por fuera, caja gris por dentro. */
+.dgl-dch-caja {
+  min-width: 0;
+  border: 1px solid #dfe3e9; border-radius: .5rem; padding: .55rem .7rem;
+  background: var(--dgl-bg);
+}
+
+/* EL AÑO DELANTE DEL NOMBRE Y CON LA MISMA LETRA: «2009 - Alex Rodríguez». La línea entera comparte
+   tamaño, peso y color; lo único que distingue al nombre es que se puede pulsar. */
+.dgl-dch-cabeza {
+  font-weight: 700; font-size: .95rem; color: var(--dgl-navy);
+  margin-bottom: .25rem;
+}
+.dgl-dch-anio { font-variant-numeric: tabular-nums; }
+/* El nombre lo pone la plantilla porque el texto no lo dice: los titulares están escritos para ir
+   debajo de un nombre, y el del cumpleaños es literalmente «Cumple 70 años.». */
+.dgl-dch-nombre { color: inherit; text-decoration: none; }
+.dgl-dch-nombre:hover, .dgl-dch-nombre:focus-visible { text-decoration: underline; }
+
+.dgl-dch-titular { margin: 0; font-size: .9rem; line-height: 1.45; }
+/* La frase que sitúa va más apagada: es contexto, no la noticia. Igual que en el tab del perfil. */
+.dgl-dch-situacion { margin: .15rem 0 0; color: var(--dgl-muted); font-size: .8rem; line-height: 1.4; }
+
+/* Las deshonras se marcan y no se esconden — el mismo criterio que en el perfil. Casi nunca llegan
+   acá: su puntaje tiene techo 400 y el corte del día de temporada anda por 528. */
+.dgl-dch-caja.es-negativa { border-left: 3px solid var(--dgl-muted); }
+
+/* LOS CONTROLES: «Anterior» a la izquierda, «Próximo» a la derecha y los puntos en el medio. Con
+   dieciséis efemérides y una vuelta de dos minutos y medio, esperar a que regrese la que te
+   interesó no es una opción — de ahí que las flechas existan aunque rote sola. */
+.dgl-dch-controles {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  margin-top: .85rem;
+}
+/* «Anterior» y «Próximo» son `.dgl-pill`, el mismo control que las pestañas de Bateo y Pitcheo del
+   widget de líderes (dueño, 2026-08-04). Acá solo se les impide encogerse; el aspecto entero —fondo,
+   borde, radio, letra— viene de `.dgl-pill` para que un pill se vea igual en todo el sitio. */
+.dgl-dch-controles .dgl-pill { flex: 0 0 auto; font-size: .72rem; padding: .15rem .7rem; }
+
+.dgl-dch-puntos { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem; }
+.dgl-dch-punto {
+  width: .5rem; height: .5rem; padding: 0; border: 0; border-radius: 50%;
+  background: var(--dgl-line); cursor: pointer;
+  transition: background .2s ease, transform .2s ease;
+}
+.dgl-dch-punto.es-visible { background: var(--dgl-navy); transform: scale(1.25); }
+.dgl-dch-punto:hover { background: var(--dgl-muted); }
+
+/* EN MÓVIL, LA CUENTA EN VEZ DE LOS PUNTOS. Con una tarjeta a la vez son DIECISÉIS pantallas, y
+   dieciséis puntos de medio rem en un teléfono no se pulsan: o se falla el que se quiere o se
+   comen el ancho entero. «3 / 16» dice lo mismo y cabe. Al revés en escritorio, donde son ocho y
+   los puntos sí sirven para saltar directo. */
+.dgl-dch-cuenta { flex: 0 0 auto; color: var(--dgl-muted); font-size: .78rem; font-variant-numeric: tabular-nums; }
+.dgl-dch-controles .dgl-dch-puntos { display: none; }
+@media (min-width: 768px) {
+  .dgl-dch-controles .dgl-dch-puntos { display: flex; }
+  .dgl-dch-cuenta { display: none; }
+}
+
+/* QUIEN PIDIÓ QUE NADA SE MUEVA LAS VE LAS DIECISÉIS DE UNA VEZ. `dia_como_hoy.js` no arranca el
+   reloj con esta consulta activa, así que sin esto el widget se quedaría clavado en la primera y
+   las otras quince no habría forma de verlas. Los controles tampoco se destapan: ya no llevan a
+   ninguna parte. Es la misma cortesía que congela el cintillo. */
+@media (prefers-reduced-motion: reduce) {
+  .dgl-dch-caja {
+    grid-row: auto; grid-column: auto !important;
+    visibility: visible; opacity: 1; transition: none;
+  }
+}

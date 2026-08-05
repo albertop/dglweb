@@ -1,0 +1,98 @@
+{% load l10n %}{% comment %}
+«UN DÍA COMO HOY»: la historia dominicana del día del calendario, rotando.
+
+Va justo debajo de la pizarra y con su mismo ancho, y la pareja se lee sola: arriba lo que pasa hoy
+en la liga, debajo lo que pasó un día como hoy. Los datos los arma `stats/efemerides.del_dia()`.
+
+DOS EN ESCRITORIO Y UNA EN MÓVIL, y por eso acá NO hay pares. Las dieciséis tarjetas salen sueltas y
+en fila; cuántas se ven a la vez lo decide el ancho —el CSS las coloca en dos columnas o en una— y
+cuáles se ven lo decide `dia_como_hoy.js`. Armar los pares en el servidor era lo que había, y el
+teléfono no podía partirlos: la ventana tiene que poder medir dos o una, y eso solo se sabe en el
+navegador.
+
+TODAS SE PINTAN ACÁ, no solo las que se ven. La rotación es enseñar y esconder lo que ya está en la
+página: sin `fetch`, sin una consulta por vuelta y sin que el widget se quede en blanco si el
+JavaScript no llega a cargar — sin él se ven las primeras (dos o una, según el ancho, y de eso se
+encarga el CSS con `es-primera`/`es-segunda`) y los controles ni se dibujan.
+
+EL NOMBRE VA ARRIBA Y ENLAZADO porque el texto no lo dice. Los titulares están escritos para ir
+debajo de un nombre —el del cumpleaños es literalmente «Cumple 70 años.»— y quien lo pone es esta
+plantilla. El nombre sale de `nameList` a través del archivo, nunca de `player.full_name`.
+
+Parámetros: `dia_como_hoy`, del contexto de la portada. Se incluye SIN `only` porque no necesita
+nada más y la portada no tiene otra variable con ese nombre.
+{% endcomment %}
+{% if dia_como_hoy %}
+<section class="dgl-panel p-3" aria-labelledby="dch-titulo">
+  <div class="dgl-widget-cabecera d-flex align-items-center justify-content-between gap-2 mb-3">
+    {# `aria-hidden` en el icono: sin él un lector de pantalla anuncia «calendario Un día como hoy». #}
+    <h2 class="dgl-section-title mb-0" style="font-size:.95rem" id="dch-titulo">
+      <span class="dgl-widget-icono" aria-hidden="true">📅</span>Un día como hoy
+    </h2>
+    <time class="dgl-destacados-fecha" datetime="{{ dia_como_hoy.fecha|date:'m-d' }}">{{ dia_como_hoy.fecha|date:"j \d\e F" }}</time>
+  </div>
+
+  {% comment %}
+    `aria-live` NO, y a propósito. Esto rota solo, sin que nadie lo pida; anunciarlo interrumpiría al
+    lector de pantalla cada veinte segundos mientras la persona está leyendo otra cosa. Lo que sí se
+    hace es dejar las dieciséis en el árbol y esconderlas con `visibility`, no con `display`, para
+    que sigan midiendo y el panel no dé un salto de alto en cada vuelta.
+
+    Los topes de la ventana viajan acá porque el número vive en `stats/efemerides.py`, donde hay
+    pruebas que lo miran; el `.js` solo los aplica. `unlocalize` porque el español escribe el
+    separador de millares con punto y `parseInt("24.000")` devuelve 24.
+  {% endcomment %}
+  <div class="dgl-dch" id="dia-como-hoy"
+       data-min="{{ dia_como_hoy.minimo_ms|unlocalize }}" data-max="{{ dia_como_hoy.maximo_ms|unlocalize }}">
+    {% for t in dia_como_hoy.tarjetas %}
+      {% comment %}
+        `es-primera` y `es-segunda` son el estado SIN JavaScript: el CSS enseña la primera siempre y
+        la segunda solo a partir de 768px, que es exactamente lo que se vería con el script cargado.
+        En cuanto arranca, el `.js` las quita y pasa a mandar con `es-visible`.
+      {% endcomment %}
+      <article class="dgl-dch-caja{% if t.negativa %} es-negativa{% endif %}{% if forloop.counter == 1 %} es-primera{% elif forloop.counter == 2 %} es-segunda{% endif %}"
+               data-ms="{{ t.ms|unlocalize }}">
+        {% comment %}
+          EL AÑO DELANTE Y CON LA MISMA LETRA: «2009 - Alex Rodríguez» (decisión del dueño). Se lee
+          como una entrada de almanaque, que es lo que es. El año va FUERA del enlace porque no lleva
+          a ninguna parte: lo que se pulsa es el pelotero.
+        {% endcomment %}
+        <div class="dgl-dch-cabeza">
+          <span class="dgl-dch-anio">{{ t.anio }}</span> -
+          <a class="dgl-dch-nombre" href="{% url 'player_detail' t.player.slug %}">{{ t.nombre }}</a>
+        </div>
+        <p class="dgl-dch-titular">{{ t.titular }}</p>
+        {% if t.situacion %}<p class="dgl-dch-situacion">{{ t.situacion }}</p>{% endif %}
+      </article>
+    {% endfor %}
+  </div>
+
+  {% comment %}
+    LOS CONTROLES, que el dueño pidió el 2026-08-04: «aunque estén rotando solos, el user pueda
+    adelantarlos o atrasarlos». Con dieciséis efemérides y una vuelta de dos minutos y medio, esperar
+    a que vuelva la que te interesó no es una opción razonable.
+
+    NACEN `hidden` Y LOS DESTAPA EL JAVASCRIPT. Sin él no hay rotación, así que unas flechas que no
+    mueven nada serían un botón roto. Con `prefers-reduced-motion` tampoco se destapan: el CSS
+    enseña las dieciséis apiladas y ya no hay nada que adelantar.
+
+    LOS PUNTOS LOS DIBUJA EL `.js` Y NO ESTA PLANTILLA, porque cuántos hay depende del ancho: ocho
+    pantallas en escritorio y dieciséis en móvil. El servidor no puede saber cuál de los dos. En
+    móvil ni se dibujan —dieciséis puntos en un teléfono no se pulsan— y en su lugar va la cuenta.
+  {% endcomment %}
+  <div class="dgl-dch-controles" hidden>
+    {% comment %}
+      `dgl-pill`, el mismo control redondeado que las pestañas de Bateo y Pitcheo del widget de
+      líderes (decisión del dueño). El aspecto sale entero de allá: acá no se redefine ni el color ni
+      el radio, justamente para que un pill se vea igual en todo el sitio.
+
+      Sin `active`, que en un pill significa «esta es la pestaña en la que estás». Estos dos no son
+      un estado, son una acción: pulsarlos mueve y los deja como estaban.
+    {% endcomment %}
+    <button type="button" class="dgl-pill" data-dch-mover="-1">‹ Anterior</button>
+    <div class="dgl-dch-puntos" role="group" aria-label="Elegir efemérides"></div>
+    <span class="dgl-dch-cuenta" aria-hidden="true"></span>
+    <button type="button" class="dgl-pill" data-dch-mover="1">Próximo ›</button>
+  </div>
+</section>
+{% endif %}
