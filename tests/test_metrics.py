@@ -136,6 +136,26 @@ def test_seed_uses_judgment_for_columns_the_old_table_did_not_cover(seeded: None
 
 
 @pytest.mark.django_db
+def test_pitch_counts_are_floored_at_1989_like_the_batted_ball_columns(seeded: None) -> None:
+    """P/IP no se puede rankear antes de 1989: el conteo de lanzamientos está a medias, no ausente.
+
+    `Pitching.pitches` tiene filas desde 1974, pero hasta 1989 solo trae los juegos que alguien llegó
+    a anotar; las entradas, en cambio, están completas. El cociente divide un numerador parcial entre
+    un denominador entero y publicaba a Joaquín Andújar liderando 1976 con 6,67 lanzamientos por
+    entrada — imposible, porque no se sacan tres outs con seis lanzamientos. La liga anda por 16.
+    """
+    from dglweb.stats import derive
+
+    for column in ("pitches", "strikes", "pitches_per_inning", "pitches_per_pa"):
+        metric = Metric.objects.get(stat_group="pitching", column=column)
+        assert metric.available_from == derive.FIRST_STATCAST_SEASON, column
+
+    # Y no se contagia a lo que sí se cuenta entero desde siempre.
+    assert Metric.objects.get(stat_group="pitching", column="era").available_from is None
+    assert Metric.objects.get(stat_group="pitching", column="so").available_from is None
+
+
+@pytest.mark.django_db
 def test_seed_is_idempotent_and_preserves_edits(seeded: None) -> None:
     total = Metric.objects.count()
     metric = Metric.objects.get(stat_group="batting", column="hr")

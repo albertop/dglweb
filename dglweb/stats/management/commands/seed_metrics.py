@@ -310,6 +310,26 @@ _STATCAST_COLUMNS: frozenset[str] = frozenset(
 )
 
 _STATCAST_GROUPS: frozenset[str] = frozenset({"batting", "pitching"})
+
+# LOS CONTEOS DE LANZAMIENTOS, que comparten el año 1989 con los de arriba y NO son lo mismo. Van en
+# su propia lista porque el motivo es otro: no es que el dato no exista antes —`pitches` tiene filas
+# desde 1974— sino que está INCOMPLETO, y esa es la peor de las dos situaciones.
+#
+# Cómo se ve el destrozo: hasta 1989, `pitches` solo trae los juegos que alguien anotó, mientras que
+# las entradas están enteras. El cociente sale de dividir un numerador parcial entre un denominador
+# completo, y la tabla publicaba a Joaquín Andújar liderando 1976 con 6,67 lanzamientos por entrada
+# — un número imposible, porque no se sacan tres outs con seis lanzamientos. Hoy la liga anda por 16.
+#
+# Un dato que falta se nota; uno a medias se publica. Por eso el piso es de la métrica y no del
+# filtro: `build_leaders` no rankea nada por debajo de `available_from`.
+#
+# Es la misma regla del sitio: el conteo de lanzamientos solo es válido desde 1989.
+_PITCH_COUNT_COLUMNS: frozenset[str] = frozenset({"pitches", "strikes", "pitches_per_inning", "pitches_per_pa"})
+
+# Las dos juntas, que es lo que `available_from` acaba mirando. Se combinan acá y no se fusionan en
+# una sola constante para que cada una conserve su porqué: si mañana Statcast cambia de año, el de
+# los lanzamientos no tiene por qué moverse con él.
+_DESDE_1989: frozenset[str] = _STATCAST_COLUMNS | _PITCH_COUNT_COLUMNS
 # The coefficients gate on their OWN coverage (balls in play / swings), not PA/IP — otherwise an era
 # without batted-ball classification tops the board. Los cuatro pisos salen del MISMO ejercicio:
 # medir el BIP/swings de quien ya califica por el estándar oficial y quedarse en su mínimo redondeado
@@ -739,7 +759,7 @@ def _rows() -> list[dict[str, Any]]:
                     "qualifier_career": own_career,
                     "available_from": (
                         derive.FIRST_STATCAST_SEASON
-                        if group in _STATCAST_GROUPS and field.name in _STATCAST_COLUMNS
+                        if group in _STATCAST_GROUPS and field.name in _DESDE_1989
                         else None
                     ),
                     "abbrev": abbrev,
