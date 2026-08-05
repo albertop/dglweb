@@ -1,14 +1,16 @@
 """The public leaders page (/lideres/): board building, navigation, and the view."""
 
+from datetime import date, timedelta
 from typing import Any
 
 import pytest
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
 from dglweb.players.models import Player
 from dglweb.profiles.leaderboards import _TOP_RANK, leaders_context
-from dglweb.stats.models import Leader, Metric
+from dglweb.stats.models import Leader, Metric, SeasonDates
 from tests.test_players import _other_player
 
 
@@ -111,7 +113,8 @@ def test_season_scope_lists_years_newest_first_and_filters_the_board() -> None:
 
     ctx = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="1998")
 
-    assert [y["year"] for y in ctx["seasons"]] == [2000, 1998]  # más reciente primero
+    # «Todas» encabeza la lista y detrás van los años, del más reciente al más viejo.
+    assert [y["year"] for y in ctx["seasons"]] == ["todas", 2000, 1998]
     assert [(r["name"], r["value"]) for r in _best(ctx)] == [("Sammy Sosa", "66")]  # solo 1998
 
 
@@ -468,3 +471,445 @@ def test_un_conteo_solo_lleva_nota_si_tiene_tablero_de_ultimos() -> None:
 
     assert _qualifier_note(conteo, "carrera", has_worst=False) == ""
     assert _qualifier_note(conteo, "carrera", has_worst=True).startswith("Mínimo para entrar en Últimos:")
+
+
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+# «Todas»: las mejores temporadas INDIVIDUALES de la historia, no las de un año
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+def _todas(**cambios: str) -> dict[str, Any]:
+    base = {"group": "batting", "tab": "Estándar", "scope": "temporada", "metric_col": "hr", "season": "todas"}
+    return leaders_context(**(base | cambios))
+
+
+@pytest.mark.django_db
+def test_todas_ranks_seasons_of_different_years_against_each_other() -> None:
+    """El puesto guardado es de SU temporada: los 66 de Sosa en 1998 y los 24 de otro en 1972 son los
+    dos un `rank = 1`. Con «Todas» hay que comparar los valores, no los puestos."""
+    hr = _metric("batting", "hr", "HR", name_es="Jonrones")
+    sosa = _player(4, "d01", "Sammy Sosa")
+    ortiz = _player(5, "d02", "David Ortiz")
+    otro = _player(6, "d03", "Juan Nadie")
+    _leader(hr, sosa, 1, 66.0, season=1998, career=False)
+    _leader(hr, ortiz, 1, 54.0, season=2006, career=False)
+    _leader(hr, otro, 1, 24.0, season=1972, career=False)
+
+    filas = _best(_todas())
+
+    assert [(r["rank"], r["name"], r["season"], r["value"]) for r in filas] == [
+        (1, "Sammy Sosa", 1998, "66"),
+        (2, "David Ortiz", 2006, "54"),
+        (3, "Juan Nadie", 1972, "24"),
+    ]
+
+
+@pytest.mark.django_db
+def test_todas_lets_the_same_player_appear_more_than_once() -> None:
+    """La fila es un JUGADOR-TEMPORADA. Sosa está tres veces en las mejores de jonrones y es correcto."""
+    hr = _metric("batting", "hr", "HR")
+    sosa = _player(4, "d01", "Sammy Sosa")
+    for anio, valor in ((1998, 66.0), (2001, 64.0), (1999, 63.0)):
+        _leader(hr, sosa, 1, valor, season=anio, career=False)
+
+    filas = _best(_todas())
+
+    assert [(r["season"], r["value"]) for r in filas] == [(1998, "66"), (2001, "64"), (1999, "63")]
+
+
+@pytest.mark.django_db
+def test_todas_breaks_a_players_tie_with_himself_by_the_older_season() -> None:
+    """Dos temporadas del MISMO jugador con el mismo valor tenían la clave idéntica (QA-01, v21).
+
+    `sorted` es estable, así que el orden lo acababa decidiendo la base — y como «Todas» pinta el
+    año, la inestabilidad se veía en pantalla. La más vieja primero: la marca es de quien llegó antes.
+    """
+    hr = _metric("batting", "hr", "HR")
+    arod = _player(4, "d01", "Alex Rodríguez")
+    for anio in (2010, 2007, 2005):  # a propósito fuera de orden al insertar
+        _leader(hr, arod, 1, 54.0, season=anio, career=False)
+
+    filas = _best(_todas())
+
+    assert [r["season"] for r in filas] == [2005, 2007, 2010]
+    # Comparten puesto y cifra, pero el año se escribe en las tres: es lo único que las distingue.
+    assert [r["rank"] for r in filas] == [1, 1, 1]
+    assert [r["leads"] for r in filas] == [True, False, False]
+
+
+@pytest.mark.django_db
+def test_todas_orders_a_lower_is_better_metric_the_right_way_round() -> None:
+    """En efectividad la mejor temporada es la MÁS BAJA. Asumir `reverse=True` la ponía al final."""
+    era = Metric.objects.create(
+        stat_group="pitching",
+        column="era",
+        abbrev="ERA",
+        kind=Metric.Kind.RATE,
+        direction=Metric.Direction.LOWER,
+        best_season=True,
+        is_active=True,
+    )
+    martinez = _player(7, "d04", "Pedro Martínez")
+    marichal = _player(8, "d05", "Juan Marichal")
+    _leader(era, marichal, 1, 2.10, season=1969, career=False)
+    _leader(era, martinez, 1, 1.74, season=2000, career=False)
+
+    filas = _best(_todas(group="pitching", metric_col="era"))
+
+    assert [(r["name"], r["season"]) for r in filas] == [("Pedro Martínez", 2000), ("Juan Marichal", 1969)]
+
+
+@pytest.mark.django_db
+def test_todas_cuts_at_the_rank_and_keeps_the_whole_tie() -> None:
+    """Hasta el PUESTO, no a las N filas — el mismo criterio que el `rank__lte` de los demás tableros."""
+    hr = _metric("batting", "hr", "HR")
+    tope = _TOP_RANK["temporada"]
+    # Años sin recortar, que 1981, 1994 y 2020 no entran en «Todas» y desviarían la cuenta.
+    for i in range(tope - 1):
+        _leader(hr, _player(100 + i, f"e{i:02d}", f"Bateador {i}"), 1, 60.0 - i, season=2000 + i, career=False)
+    for i in range(3):
+        _leader(hr, _player(200 + i, f"f{i:02d}", f"Empatado {i}"), 1, 20.0, season=2010 + i, career=False)
+
+    filas = _best(_todas())
+
+    assert len(filas) == tope + 2  # los tres del último puesto entran completos
+    assert [r["rank"] for r in filas[-3:]] == [tope, tope, tope]
+
+
+@pytest.mark.django_db
+def test_todas_only_marks_the_first_row_of_a_tie_but_always_writes_the_year() -> None:
+    """Los empatados comparten puesto y cifra, pero NO el año: es lo único que los distingue."""
+    hr = _metric("batting", "hr", "HR")
+    for i, anio in enumerate((2006, 2007)):
+        _leader(hr, _player(300 + i, f"g{i}", f"Bateador {i}"), 1, 54.0, season=anio, career=False)
+
+    filas = _best(_todas())
+
+    assert [r["leads"] for r in filas] == [True, False]
+    assert all(r["tie"] for r in filas)
+    # El año se pinta en las dos: la plantilla no lo esconde detrás de `leads`.
+    assert [r["season"] for r in filas] == [2006, 2007]
+
+
+@pytest.mark.django_db
+def test_todas_dedupes_by_player_and_season_not_by_player_alone() -> None:
+    """Una gran temporada no puede borrarle a alguien una mala DISTINTA de la otra punta."""
+    # `rbi` y no `hr`: los jonrones ya no llevan tabla de Últimos en «Todas».
+    rbi = _metric("batting", "rbi", "RBI")
+    sosa = _player(4, "d01", "Sammy Sosa")
+    _leader(rbi, sosa, 1, 160.0, season=1998, career=False)
+    _worst_leader(rbi, sosa, 1, 20.0, season=2005, career=False)
+
+    ctx = _todas(metric_col="rbi")
+
+    assert [(r["season"], r["value"]) for r in _best(ctx)] == [(1998, "160")]
+    assert [(r["season"], r["value"]) for r in _worst(ctx)] == [(2005, "20")]
+
+
+@pytest.mark.django_db
+def test_todas_still_drops_the_very_same_season_from_the_other_end() -> None:
+    """Con pocos calificados las dos puntas se solapan; ahí manda la primera, igual que siempre."""
+    hr = _metric("batting", "hr", "HR")
+    sosa = _player(4, "d01", "Sammy Sosa")
+    _leader(hr, sosa, 1, 66.0, season=1998, career=False)
+    _worst_leader(hr, sosa, 1, 66.0, season=1998, career=False)
+
+    ctx = _todas()
+
+    assert [r["season"] for r in _best(ctx)] == [1998]
+    assert _worst(ctx) == []
+
+
+@pytest.mark.django_db
+def test_todas_swaps_the_seasons_played_column_for_the_year_one() -> None:
+    """Son excluyentes: «Temporadas» es de carrera y «Temporada» solo de «Todas»."""
+    hr = _metric("batting", "hr", "HR")
+    _leader(hr, _player(4, "d01", "Sammy Sosa"), 1, 66.0, season=1998, career=False)
+
+    todas = _todas()["board"]
+    una = leaders_context(
+        group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="1998"
+    )["board"]
+    carrera = leaders_context(group="batting", tab="Estándar", scope="carrera", metric_col="hr", season="")["board"]
+
+    assert (todas["shows_season"], todas["shows_seasons"]) == (True, False)
+    assert (una["shows_season"], una["shows_seasons"]) == (False, False)
+    assert (carrera["shows_season"], carrera["shows_seasons"]) == (False, True)
+
+
+@pytest.mark.django_db
+def test_todas_says_each_season_was_measured_against_its_own_floor() -> None:
+    """El umbral se recalcula cada año a partir de los juegos jugados: no hay UN número que escribir."""
+    from dglweb.profiles.leaderboards import _qualifier_note
+
+    tasa = _metric("batting", "avg", "AVG")
+    tasa.kind = Metric.Kind.RATE
+    tasa.qualifier_season = "PA>=502"
+    tasa.save()
+
+    nota = _qualifier_note(tasa, "temporada", has_worst=True, todas=True)
+
+    assert nota == (
+        "Cada temporada se midió contra su propio mínimo para calificar. "
+        "1981, 1994 y 2020 no están consideradas: son temporadas recortadas y no se comparan con una completa."
+    )
+    assert "502" not in nota
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("pedido", ["", "todas", "1899", "basura"])
+def test_por_temporada_opens_on_todas_and_not_on_the_newest_year(pedido: str) -> None:
+    """Abrir en 2026 convertía «Por temporada» en «los líderes de este año», que es otra pregunta.
+
+    Un año solo gana si existe de verdad: vacío, «todas» y cualquier basura caen todos en «Todas».
+    Antes un `?season=1899` aterrizaba en la temporada más reciente sin explicar por qué.
+    """
+    hr = _metric("batting", "hr", "HR")
+    sosa = _player(4, "d01", "Sammy Sosa")
+    _leader(hr, sosa, 1, 66.0, season=1998, career=False)
+    _leader(hr, sosa, 1, 50.0, season=2000, career=False)
+
+    ctx = _todas(season=pedido)
+
+    assert ctx["board"]["shows_season"] is True
+    assert ctx["board"]["scope_label"] == "todas las temporadas"
+    assert [r["season"] for r in _best(ctx)] == [1998, 2000]
+    assert [y["active"] for y in ctx["seasons"]] == [True, False, False]  # «Todas» marcada
+
+
+@pytest.mark.django_db
+def test_a_real_year_still_wins_over_the_default() -> None:
+    hr = _metric("batting", "hr", "HR")
+    sosa = _player(4, "d01", "Sammy Sosa")
+    _leader(hr, sosa, 1, 66.0, season=1998, career=False)
+    _leader(hr, sosa, 1, 50.0, season=2000, career=False)
+
+    ctx = _todas(season="2000")
+
+    assert ctx["board"]["shows_season"] is False
+    assert ctx["board"]["scope_label"] == "temporada 2000"
+    assert [r["value"] for r in _best(ctx)] == ["50"]
+
+
+@pytest.mark.django_db
+def test_todas_falls_back_to_the_newest_season_when_there_is_nothing_to_gather() -> None:
+    """Sin años no hay «Todas» que ofrecer, y el desplegable no se dibuja."""
+    _metric("batting", "hr", "HR")
+
+    ctx = _todas()
+
+    assert ctx["seasons"] == []
+    assert ctx["board"]["shows_season"] is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("corta", [1981, 1994, 2020])
+def test_todas_leaves_the_shortened_seasons_out_of_both_ends(corta: int) -> None:
+    """111, 117 y 60 juegos contra 162. No se comparan con una completa, ni por arriba ni por abajo.
+
+    El umbral se escala a los juegos disputados, así que colaban dos disparates a la vez: por abajo,
+    Raimel Tapia encabezando los Últimos de jonrones con 1 en 206 turnos de 2020; por arriba, un .351
+    en 196 turnos al lado del .366 de Rico Carty en 560.
+
+    Se usa una métrica de bateo que SÍ conserva su tabla de Últimos — `hr` ya no la lleva en «Todas».
+    """
+    rbi = _metric("batting", "rbi", "RBI")
+    _leader(rbi, _player(4, "d01", "Bateó Mucho"), 1, 40.0, season=2019, career=False)
+    _leader(rbi, _player(5, "d02", "Temporada Corta"), 1, 99.0, season=corta, career=False)
+    _worst_leader(rbi, _player(6, "d03", "Bateó Poco"), 1, 12.0, season=2019, career=False)
+    _worst_leader(rbi, _player(7, "d04", "Corta Y Floja"), 1, 1.0, season=corta, career=False)
+
+    ctx = _todas(metric_col="rbi")
+
+    assert [r["season"] for r in _best(ctx)] == [2019]
+    assert [r["season"] for r in _worst(ctx)] == [2019]
+
+
+@pytest.mark.django_db
+def test_1995_stays_in_because_its_cut_is_of_another_order() -> None:
+    """145 juegos de 162 mueve el umbral de 502 a unos 449: no cambia quién califica de verdad."""
+    rbi = _metric("batting", "rbi", "RBI")
+    _leader(rbi, _player(4, "d01", "Del 95"), 1, 90.0, season=1995, career=False)
+
+    assert [r["season"] for r in _best(_todas(metric_col="rbi"))] == [1995]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("grupo", "col"),
+    [
+        ("batting", "x3b"),
+        ("batting", "hr"),
+        ("batting", "sb"),
+        ("batting", "cs"),
+        ("batting", "ibb"),
+        ("batting", "hbp"),
+        ("batting", "sh"),
+        ("batting", "sf"),
+        ("pitching", "ibb"),
+        ("pitching", "hbp"),
+        ("pitching", "wp"),
+    ],
+)
+def test_these_counts_drop_their_tail_table_in_todas(grupo: str, col: str) -> None:
+    """«El que menos triples pegó» no es una marca, y juntando setenta años tampoco es una tabla.
+
+    Medido antes de la lista: 610 filas en triples con 143 empatadas en el primer puesto, 634 en
+    golpeados y 556 en atrapados robando; en pitcheo, 167 en descontrolados y 157 en intencionales.
+    El corte va HASTA EL PUESTO y un empate entra completo, así que el primer puesto arrastraba la
+    tabla entera debajo de un tablero de diez.
+    """
+    m = _metric(grupo, col, col.upper())
+    _leader(m, _player(4, "d01", "Arriba"), 1, 30.0, season=1998, career=False)
+    _worst_leader(m, _player(5, "d02", "Abajo"), 1, 1.0, season=1998, career=False)
+
+    # En «Todas» no hay tabla de Últimos…
+    assert _worst(_todas(group=grupo, metric_col=col)) == []
+    # …pero en una temporada suelta sí: ahí son diez filas y son el dato de ese año.
+    una = leaders_context(group=grupo, tab="Estándar", scope="temporada", metric_col=col, season="1998")
+    assert [r["value"] for r in _worst(una)] == ["1"]
+
+
+@pytest.mark.django_db
+def test_a_count_that_is_not_on_the_list_keeps_its_tail_in_todas() -> None:
+    """La lista es corta y explícita: lo que no está en ella no cambia de comportamiento."""
+    rbi = _metric("batting", "rbi", "RBI")
+    _leader(rbi, _player(4, "d01", "Arriba"), 1, 150.0, season=1998, career=False)
+    _worst_leader(rbi, _player(5, "d02", "Abajo"), 1, 17.0, season=1998, career=False)
+
+    assert [r["value"] for r in _worst(_todas(metric_col="rbi"))] == ["17"]
+
+
+@pytest.mark.django_db
+def test_pitching_keeps_its_tail_because_fewest_homers_allowed_is_a_feat() -> None:
+    """La lista es por (oficio, columna) y no por columna suelta, y esta es la razón."""
+    hr = _metric("pitching", "hr", "HR", name_es="Jonrones permitidos")
+    _leader(hr, _player(4, "d01", "Permitió Muchos"), 1, 40.0, season=1998, career=False)
+    _worst_leader(hr, _player(5, "d02", "Permitió Pocos"), 1, 3.0, season=1998, career=False)
+
+    ctx = _todas(group="pitching", metric_col="hr")
+
+    assert [r["value"] for r in _worst(ctx)] == ["3"]
+
+
+def _calendario(season: int, *, fin: date) -> None:
+    """La fila de `seasons_dates` que dice cuándo se acabó esa temporada."""
+    SeasonDates.objects.create(
+        season=season,
+        sports_id=SeasonDates.MLB,
+        season_start_date=date(season, 3, 26),
+        season_end_date=fin,
+    )
+
+
+@pytest.mark.django_db
+def test_todas_drops_the_season_in_progress_from_the_tail_only() -> None:
+    """Un total a medio jugar solo puede quedarse CORTO, así que solo ensucia una de las dos puntas.
+
+    Los 30 jonrones que alguien lleva en agosto son 30 de verdad y en la tabla de arriba no
+    desmerecen nada. En la de abajo ganarían «menos jonrones de la historia» por no haber terminado
+    de jugar — y el umbral no protege, porque la cascada lo escala a los juegos disputados: en agosto
+    pide 332 turnos donde en octubre pedirá 502.
+    """
+    hoy = timezone.localdate()
+    _calendario(hoy.year, fin=hoy + timedelta(days=60))  # en curso
+    _calendario(hoy.year - 1, fin=date(hoy.year - 1, 10, 1))  # terminada
+
+    rbi = _metric("batting", "rbi", "RBI")
+    _leader(rbi, _player(4, "d01", "Va Jugando"), 1, 130.0, season=hoy.year, career=False)
+    _leader(rbi, _player(5, "d02", "Ya Terminó"), 1, 120.0, season=hoy.year - 1, career=False)
+    # Otros dos, para que el dedup por (jugador, temporada) no se lleve las filas de abajo.
+    _worst_leader(rbi, _player(6, "d03", "Va Flojo"), 1, 20.0, season=hoy.year, career=False)
+    _worst_leader(rbi, _player(7, "d04", "Terminó Flojo"), 1, 29.0, season=hoy.year - 1, career=False)
+
+    ctx = _todas(metric_col="rbi")
+
+    # Arriba sí: 30 jonrones son 30, esté la temporada abierta o cerrada.
+    assert [r["season"] for r in _best(ctx)] == [hoy.year, hoy.year - 1]
+    # Abajo no: los 2 de la temporada en curso se irían al primer puesto sin haberla terminado.
+    assert [r["season"] for r in _worst(ctx)] == [hoy.year - 1]
+
+
+@pytest.mark.django_db
+def test_a_finished_season_stays_in_the_tail_the_day_after_it_ends() -> None:
+    """El corte es el mismo `HOLGURA_AL_PUBLICAR` del resto del sitio, no una regla nueva."""
+    hoy = timezone.localdate()
+    _calendario(hoy.year, fin=hoy - timedelta(days=5))  # se acabó hace cinco días
+
+    rbi = _metric("batting", "rbi", "RBI")
+    _worst_leader(rbi, _player(4, "d01", "Ya Terminó"), 1, 29.0, season=hoy.year, career=False)
+    _leader(rbi, _player(5, "d02", "Otro"), 1, 140.0, season=hoy.year, career=False)
+
+    assert [r["season"] for r in _worst(_todas(metric_col="rbi"))] == [hoy.year]
+
+
+@pytest.mark.django_db
+def test_without_a_calendar_row_nothing_is_dropped_from_the_tail() -> None:
+    """Sin fila en `seasons_dates` no se sabe si terminó, y callar es peor que tachar de más.
+
+    Es el mismo criterio que `temporada_terminada()`: sin calendario no se afirma nada.
+    """
+    rbi = _metric("batting", "rbi", "RBI")
+    _worst_leader(rbi, _player(4, "d01", "Sin Calendario"), 1, 29.0, season=1998, career=False)
+    _leader(rbi, _player(5, "d02", "Otro"), 1, 140.0, season=1998, career=False)
+
+    assert [r["season"] for r in _worst(_todas(metric_col="rbi"))] == [1998]
+
+
+@pytest.mark.django_db
+def test_2020_is_still_a_season_you_can_pick_on_its_own() -> None:
+    """Queda fuera de la mezcla, no del sitio: su tablero se lee entero contra su propia vara."""
+    hr = _metric("batting", "hr", "HR")
+    covid = _player(5, "d02", "Temporada Corta")
+    _leader(hr, covid, 1, 22.0, season=2020, career=False)
+
+    ctx = leaders_context(group="batting", tab="Estándar", scope="temporada", metric_col="hr", season="2020")
+
+    assert 2020 in [y["year"] for y in ctx["seasons"]]
+    assert [r["season"] for r in _best(ctx)] == [2020]
+    assert ctx["board"]["excluded"] == ""  # el aviso es solo de «Todas»
+
+
+@pytest.mark.django_db
+def test_todas_says_out_loud_which_season_it_dropped() -> None:
+    """Descartar una temporada entera en silencio deja a quien lee buscando por qué falta la suya.
+
+    Va PEGADO a la frase del umbral (dueño, 2026-08-04): «cada temporada se midió contra su propio
+    mínimo» a secas se lee como que están todas, y justamente hay una que no está.
+    """
+    rbi = _metric("batting", "rbi", "RBI")
+    _leader(rbi, _player(4, "d01", "Sammy Sosa"), 1, 160.0, season=1998, career=False)
+    _worst_leader(rbi, _player(5, "d02", "Otro"), 1, 30.0, season=1998, career=False)
+
+    board = _todas(metric_col="rbi")["board"]
+
+    assert board["qualifier"].endswith(
+        "1981, 1994 y 2020 no están consideradas: son temporadas recortadas y no se comparan con una completa."
+    )
+    assert board["excluded"] == ""  # no se repite
+
+
+@pytest.mark.django_db
+def test_the_notice_stands_alone_when_there_is_no_qualifier_sentence() -> None:
+    """Un conteo sin tablero de Últimos no lleva frase de umbral, y el aviso no puede quedarse sin sitio."""
+    hr = _metric("batting", "hr", "HR")
+    _leader(hr, _player(4, "d01", "Sammy Sosa"), 1, 66.0, season=1998, career=False)
+
+    board = _todas()["board"]
+
+    assert board["qualifier"] == ""
+    assert board["excluded"].startswith("1981, 1994 y 2020 no están consideradas")
+
+
+@pytest.mark.django_db
+def test_the_page_renders_the_year_column_when_todas_is_picked() -> None:
+    hr = _metric("batting", "hr", "HR", name_es="Jonrones")
+    _leader(hr, _player(4, "d01", "Sammy Sosa"), 1, 66.0, season=1998, career=False)
+
+    cuerpo = Client().get(reverse("leaders"), {"scope": "temporada", "m": "hr", "season": "todas"}).content.decode()
+
+    assert ">Temporada<" in cuerpo
+    assert ">Temporadas<" not in cuerpo
+    assert ">1998<" in cuerpo
+    # Y la opción encabeza el desplegable de Temporada.
+    assert ">Todas<" in cuerpo

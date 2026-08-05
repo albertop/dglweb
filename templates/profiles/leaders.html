@@ -138,7 +138,8 @@ muda y el usuario vuelve a hacer clic.
     <div>
       <label class="form-label dgl-control-label" for="season">Temporada</label>
       <select class="form-select form-select-sm dgl-control" id="season" data-ir>
-        {% for y in seasons %}<option value="{{ y.url }}"{% if y.active %} selected{% endif %}>{{ y.year }}</option>{% endfor %}
+        {# La primera es «Todas»: las mejores temporadas individuales de la historia, no las de un año. #}
+        {% for y in seasons %}<option value="{{ y.url }}"{% if y.active %} selected{% endif %}>{{ y.label }}</option>{% endfor %}
       </select>
     </div>
     {% endif %}
@@ -181,18 +182,33 @@ muda y el usuario vuelve a hacer clic.
         <section class="dgl-panel h-100">
           <div class="table-responsive">
             <table class="table table-sm table-striped mb-0 dgl-stats-table dgl-leaders-table">
-              <thead><tr><th class="dgl-mid dgl-rank-col">Pos</th><th>Jugador</th>{% if board.shows_seasons %}<th class="dgl-mid" title="Temporadas jugadas">Temporadas</th>{% endif %}<th class="dgl-mid">{{ board.abbr }}</th></tr></thead>
+              {% comment %}
+                La tercera columna es una de dos, nunca las dos: «Temporadas» (cuántas jugó) es una
+                lectura de carrera, y «Temporada» (en cuál fue) solo tiene sentido con «Todas», donde
+                cada fila es de un año distinto. Por construcción son excluyentes — una vive en
+                `scope=carrera` y la otra en `scope=temporada`— así que no pueden salir juntas y
+                leerse como un error de plural.
+              {% endcomment %}
+              <thead><tr><th class="dgl-mid dgl-rank-col">Pos</th><th>Jugador</th>{% if board.shows_seasons %}<th class="dgl-mid" title="Temporadas jugadas">Temporadas</th>{% elif board.shows_season %}<th class="dgl-mid" title="La temporada en que lo hizo">Temporada</th>{% endif %}<th class="dgl-mid">{{ board.abbr }}</th></tr></thead>
               <tbody>
                 {% for row in column.rows %}
                 {# En un empate solo la primera fila escribe el puesto y el valor; las demás los dejan en blanco. #}
                 <tr{% if row.active %} class="dgl-leader-active" title="Jugador activo: jugó la última temporada registrada"{% endif %}>
                   <td class="dgl-mid dgl-rank">{% if row.leads %}{{ row.rank }}{% endif %}</td>
                   <td class="dgl-leader-name"><a href="{% url 'player_detail' row.slug %}">{{ row.name }}</a>{% if row.partial %}<span class="dgl-partial" title="Debutó antes de que esta métrica se registrara: su total está incompleto">*</span>{% endif %}</td>
-                  {% if board.shows_seasons %}<td class="dgl-mid dgl-rank">{{ row.seasons }}</td>{% endif %}
+                  {% if board.shows_seasons %}<td class="dgl-mid dgl-rank">{{ row.seasons }}</td>
+                  {% elif board.shows_season %}<td class="dgl-mid dgl-rank">{{ row.season }}</td>{% endif %}
+                  {% comment %}
+                    El año se escribe SIEMPRE, también en las filas de un empate, y ahí se separa del
+                    puesto y del valor. Los que empatan comparten el número y la cifra —por eso van
+                    en blanco— pero no el año: dos temporadas de 54 jonrones son de años distintos, y
+                    dejar el segundo en blanco sería esconder justo el dato que las distingue.
+                  {% endcomment %}
                   <td class="dgl-mid dgl-leader-val">{% if row.leads %}{{ row.value }}{% endif %}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="4" class="dgl-meta p-3">Sin líderes para esta selección.</td></tr>
+                {# `colspan` calculado: la tercera columna existe o no según el alcance. #}
+                <tr><td colspan="{% if board.shows_seasons or board.shows_season %}4{% else %}3{% endif %}" class="dgl-meta p-3">Sin líderes para esta selección.</td></tr>
                 {% endfor %}
               </tbody>
             </table>
@@ -210,6 +226,12 @@ muda y el usuario vuelve a hacer clic.
     {% endcomment %}
     <p class="dgl-meta mt-4">
       {% if board.qualifier %}<span class="d-block">{{ board.qualifier }}</span>{% endif %}
+      {% comment %}
+        El aviso de 2020 va DENTRO de `qualifier`, que es donde se pidió. Esta línea es el respaldo
+        para cuando esa frase no existe —una métrica sin umbral y sin tablero de Últimos la deja
+        vacía— y entonces el aviso se quedaría sin sitio. Nunca salen las dos: lo decide el contexto.
+      {% endcomment %}
+      {% if board.excluded %}<span class="d-block">{{ board.excluded }}</span>{% endif %}
       {% if board.available_from %}<span class="d-block">Disponible desde {{ board.available_from }}.</span>{% endif %}
       {% if board.shows_partial %}<span class="d-block"><span class="dgl-partial">*</span> Debutó antes de {{ board.available_from }}: su total no cuenta las temporadas anteriores.</span>{% endif %}
       {% if board.shows_active %}<span class="d-block"><span class="dgl-active-swatch"></span> = jugador activo.</span>{% endif %}

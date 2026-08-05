@@ -106,6 +106,26 @@ def temporada_terminada(season: int, hoy: date | None = None, *, sports_id: int 
     return dia > fila.season_end_date + HOLGURA_AL_PUBLICAR
 
 
+def temporadas_sin_terminar(hoy: date | None = None, *, sports_id: int = MLB) -> set[int]:
+    """Todas las que todavía no se acabaron, de una sola consulta.
+
+    Es `temporada_terminada()` al revés y en lote. Existe porque hay quien tiene que descartar la
+    temporada en curso de una lista de SETENTA años —los líderes de «todas las temporadas»— y
+    preguntar una por una serían setenta consultas para tachar, casi siempre, una sola.
+
+    El corte es el mismo `HOLGURA_AL_PUBLICAR`, así que las dos funciones nunca pueden discrepar:
+    `temporada_terminada(x)` es `False` exactamente cuando `x` sale acá.
+
+    Devuelve también las FUTURAS, si el Backoffice ya cargó su calendario. Es correcto por la misma
+    razón: tampoco han terminado.
+    """
+    from dglweb.stats.models import SeasonDates
+
+    dia = hoy or timezone.localdate()
+    filas = SeasonDates.objects.filter(sports_id=sports_id, season_end_date__gte=dia - HOLGURA_AL_PUBLICAR)
+    return set(filas.values_list("season", flat=True))
+
+
 def se_publica(hoy: date | None = None, *, rampa: int = 0, sports_id: int = MLB) -> bool:
     """Si HOY un widget de temporada tiene derecho a dibujarse.
 

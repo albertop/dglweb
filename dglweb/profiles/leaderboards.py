@@ -22,7 +22,7 @@ from dglweb.profiles.metric_layout import (
     pretty_qualifier,
     qualifier_lookups,
 )
-from dglweb.stats import qualifier
+from dglweb.stats import qualifier, season_window
 from dglweb.stats.leaders import _POST_QUALIFIER
 from dglweb.stats.models import Batting, Fielding, Leader, Metric, Pitching
 
@@ -36,6 +36,84 @@ _CATCHER_DIVISION = "Receptor"
 # Octubre es su propio pill: otro tablero, no otra división de columnas.
 _POSTSEASON_DIVISION = "Postemporada"
 _SCOPES: list[tuple[str, str]] = [("carrera", "De por vida"), ("temporada", "Por temporada")]
+# El valor de `?season=` que pide TODAS las temporadas a la vez en vez de una sola: las mejores
+# temporadas individuales de la historia, no las mejores de 2026. Es una palabra y no un año vacío
+# porque `season=` sin valor ya significa otra cosa —`_link` borra las claves vacías— y porque en la
+# URL se lee solo.
+TODAS = "todas"
+
+# LAS TEMPORADAS RECORTADAS, QUE NO ENTRAN EN «Todas» (dueño, 2026-08-04). No se borran del sitio:
+# las tres siguen siendo opciones del desplegable y su tablero se lee entero. Lo que no se puede es
+# MEZCLARLAS con las demás.
+#
+# Los juegos que llegó a jugar un equipo, contra los 162 de una temporada normal:
+#
+#     1981   111   la huelga de mitad de temporada
+#     1994   117   la huelga que se llevó la Serie Mundial
+#     2020    60   la pandemia
+#
+# El problema es que la cascada de umbrales ESCALA el mínimo a los juegos disputados, que dentro de
+# su propia temporada es lo correcto y entre temporadas es un disparate. En 2020 el mínimo bajó a
+# 186 turnos donde una temporada normal pide 502, y así los Últimos de carreras empujadas de todos
+# los tiempos tenían SEIS de sus ocho primeras filas en 2020 —con 189, 195 y 206 turnos—, y en
+# jonrones encabezaba Raimel Tapia con 1 en 206. 1981 colaba a Rafael Ramírez con 342 turnos y a
+# Alfredo Griffin con 414; 1994, a Félix Fermín con 411.
+#
+# Tampoco es solo el extremo malo: el .351 de Juan Soto en 196 turnos aparecía entre los mejores
+# promedios de la historia, al lado del .366 de Rico Carty en 560. Por eso la temporada se descarta
+# ENTERA y no solo de una punta.
+#
+# 1995 NO ESTÁ, y se miró: son 145 juegos de 162, que mueve el umbral de 502 a unos 449. Es un
+# recorte de otro orden — no cambia quién califica de verdad.
+#
+# NO ES LA MISMA LISTA QUE LA DE `seed_qualifier_overrides`, y conviene no confundirlas. Aquella
+# cubre OCHO temporadas cortas —1956-1960 además de estas tres— porque su trabajo es escalar el
+# umbral, y para eso hasta un recorte pequeño cuenta. Esta es más corta a propósito: escalar el
+# umbral es correcto siempre, y MEZCLAR años solo se rompe cuando el recorte es brutal.
+_FUERA_DE_TODAS: frozenset[int] = frozenset({1981, 1994, 2020})
+
+# LAS QUE NO LLEVAN TABLA DE «Últimos» EN «Todas» (dueño, 2026-08-04), por `(oficio, columna)`.
+#
+# Son conteos donde UNO es un número perfectamente normal en una temporada completa y calificada, y
+# juntando setenta años el primer puesto se llena. Medido antes de esta lista:
+#
+#     3B    610 filas — 143 empatadas en 1        CS    556 filas —  83 empatadas
+#     HBP   634 filas —  88 empatadas             IBB   545 filas — 107 empatadas
+#     SB    368 filas —  54 empatadas             SH    333 filas —  77 empatadas
+#     SF    261 filas —  50 empatadas             HR    203 filas —  20 empatadas
+#
+# El problema no es solo que «el que menos triples pegó» no sea una marca: es que el corte va HASTA
+# EL PUESTO y un empate entra completo, así que 143 empatados en el primero arrastran la tabla
+# entera. Seiscientas filas debajo de un tablero de diez.
+#
+# EN PITCHEO PASA LO MISMO CON TRES (dueño, 2026-08-04), y por el mismo motivo:
+#
+#     IBB   157 filas — 37 empatadas en 1        WP    167 filas — 10 empatadas
+#     HBP   153 filas —  9 empatadas
+#
+# LA LISTA ES POR `(oficio, columna)` Y NO POR COLUMNA SUELTA, y `hr` es justo el caso que lo
+# explica: existe en los dos oficios y solo se descarta en uno. En un lanzador el jonrón es algo que
+# RECIBE, así que la métrica va al revés y su tabla de Últimos no es «menos» sino MÁS jonrones
+# permitidos —48, 40, 39— que es una lista corta y con sentido. `ibb` y `hbp`, en cambio, se
+# descartan en los dos: los reparte el lanzador, pero uno solo en toda una temporada es igual de
+# corriente lo mires desde donde lo mires.
+#
+# Y no toca la temporada suelta: en 1998 los menos triples SON el dato de 1998, y son diez filas.
+_SIN_ULTIMOS_EN_TODAS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("batting", "x3b"),  # Triples
+        ("batting", "hr"),  # Jonrones
+        ("batting", "sb"),  # Bases robadas
+        ("batting", "cs"),  # Atrapados robando
+        ("batting", "ibb"),  # Bases por bolas intencionales
+        ("batting", "hbp"),  # Golpeado por lanzamiento
+        ("batting", "sh"),  # Toques de sacrificio
+        ("batting", "sf"),  # Elevados de sacrificio
+        ("pitching", "ibb"),  # Boletos intencionales
+        ("pitching", "hbp"),  # Golpeados
+        ("pitching", "wp"),  # Lanzamientos descontrolados
+    }
+)
 # Hasta qué PUESTO llega cada tabla (no cuántas filas): un empate en el último entra completo, así que
 # un top-15 con tres empatados en el 15 muestra 17 filas. Vale para las dos puntas de un mismo
 # tablero. De por vida da para más (es el registro histórico); una temporada suelta se corta antes.
@@ -161,8 +239,42 @@ def _juegos_de_la_temporada(season: int) -> int | None:
     return maximo
 
 
+def _excluded_note(*, todas: bool) -> str:
+    """Qué temporadas se dejaron fuera de «Todas», y por qué. Vacía cuando no se dejó ninguna.
+
+    Se dice en la página. Una tabla que descarta una temporada entera sin avisar deja a quien la lee
+    buscando por qué no aparece la suya, y de paso oculta la única razón por la que el tablero es
+    comparable.
+
+    Normalmente esta frase va PEGADA a la del umbral, que es donde el dueño la pidió: «cada temporada
+    se midió contra su propio mínimo» a secas se lee como que están todas. Sale sola cuando esa otra
+    no existe — una métrica sin umbral y sin tablero de Últimos la deja vacía, y entonces el aviso
+    se quedaría sin sitio. Lo decide `leaders_context`.
+    """
+    if not todas or not _FUERA_DE_TODAS:
+        return ""
+    orden = sorted(_FUERA_DE_TODAS)
+    # «1981, 1994 y 2020», con la «y» final, que es como se escribe una lista en español.
+    anios = str(orden[0]) if len(orden) == 1 else ", ".join(str(a) for a in orden[:-1]) + f" y {orden[-1]}"
+    verbo = "no está considerada" if len(orden) == 1 else "no están consideradas"
+    return f"{anios} {verbo}: son temporadas recortadas y no se comparan con una completa."
+
+
+def _scope_label(scope: str, season: int | None, *, todas: bool) -> str:
+    """Cómo se llama lo que se está mirando, para el encabezado del tablero."""
+    if scope == "carrera":
+        return "de por vida"
+    return "todas las temporadas" if todas else f"temporada {season}"
+
+
 def _qualifier_note(
-    metric: Metric, scope: str, *, has_worst: bool, october: bool = False, season: int | None = None
+    metric: Metric,
+    scope: str,
+    *,
+    has_worst: bool,
+    october: bool = False,
+    season: int | None = None,
+    todas: bool = False,
 ) -> str:
     """La frase del pie que explica el umbral. Vacía cuando no hay ninguno.
 
@@ -179,6 +291,16 @@ def _qualifier_note(
     is_rate = metric.kind == Metric.Kind.RATE
     if not is_rate and not has_worst:
         return ""
+    # CON «TODAS» NO HAY UN NÚMERO QUE ESCRIBIR, y poner uno sería mentir. El umbral se recalcula
+    # cada año a partir de los juegos que se jugaron —en 2026 pide 332 turnos y en 2025 pedía 502, y
+    # en 2020 muchísimo menos— así que las filas de esta tabla no pasaron todas por la misma vara.
+    # Cada una calificó contra la de SU temporada, que es lo correcto y lo que dice la frase.
+    #
+    # Y LA SALVEDAD DE 2020 VA EN LA MISMA FRASE (dueño, 2026-08-04). «Cada temporada se midió contra
+    # su propio mínimo» a secas se lee como que están TODAS, y justamente hay una que no está.
+    if todas:
+        cual = "calificar" if is_rate else "entrar en Últimos"
+        return f"Cada temporada se midió contra su propio mínimo para {cual}. {_excluded_note(todas=True)}".strip()
     if october:
         season_floor, career_floor = _POST_QUALIFIER.get(metric.stat_group, ("", ""))
         formula = career_floor if scope == "carrera" else season_floor
@@ -299,22 +421,108 @@ def _real_ranks(
     return dict(board.values_list("player_id", "rank"))
 
 
+def _de_todos_los_tiempos(
+    candidatos: list[Leader], metric: Metric, tope: int, *, best: bool
+) -> list[tuple[Leader, int]]:
+    """Vuelve a rankear temporadas de años distintos entre sí, y corta en el puesto `tope`.
+
+    EL `rank` GUARDADO ES DE SU PROPIA TEMPORADA y acá no sirve para nada: los 66 jonrones de Sosa en
+    1998 y los 24 de alguien en 1972 son los dos un `rank = 1`. Para «Todas» hay que comparar los
+    VALORES, que es lo que hace esto.
+
+    FILTRAR ANTES POR EL TOP DE CADA TEMPORADA NO PIERDE A NADIE, y esa es la razón de que esto sea
+    barato. Si alguien no está entre los diez de su propio año es porque diez lo superaron ESE MISMO
+    año, y esos diez están todos guardados — así que tampoco puede estar entre los diez de la
+    historia. La punta histórica siempre es un subconjunto de la unión de las puntas anuales. Sin
+    eso habría que rankear cada temporada de cada jugador de todos los tiempos, y `dgl_leader` ni
+    siquiera las guarda: llega hasta el puesto 29.
+
+    HACIA DÓNDE SE ORDENA sale de la dirección de la métrica combinada con la punta que se pide. En
+    jonrones la mejor es la más alta y la peor la más baja; en efectividad es al revés, y por eso no
+    se puede asumir `reverse=True` para «mejores».
+
+    Empates a la manera del motor (`stats/leaders._dense_rank`): comparten puesto y el siguiente es
+    el que sigue, sin saltos. Y el corte es HASTA EL PUESTO, no a las N filas, igual que el
+    `rank__lte` de todos los demás tableros: tres empatados en el décimo entran los tres.
+    """
+    # EL DESEMPATE LLEVA EL AÑO DENTRO, y hace falta. Con solo (valor, nombre), las dos temporadas de
+    # un MISMO jugador que valen lo mismo —Alex Rodríguez con 54 en 2007 y en 2010— tienen la clave
+    # idéntica: `sorted` es estable, así que el orden lo acababa decidiendo la base de datos. Y como
+    # «Todas» PINTA el año, esa inestabilidad se veía en pantalla y se colaba en cualquier caché o
+    # comparación de pruebas (QA-01 del review v21).
+    #
+    # La más vieja primero, que es el criterio del sitio para un empate: la marca es de quien llegó
+    # antes. `player_id` cierra la clave por si dos homónimos empatan el mismo año.
+    descendente = (metric.direction == Metric.Direction.HIGHER) == best
+    ordenados = sorted(
+        candidatos,
+        key=lambda row: (
+            -row.value if descendente else row.value,
+            row.season or 0,
+            row.player.full_name,
+            row.player_id,
+        ),
+    )
+
+    puestos: list[tuple[Leader, int]] = []
+    rank = 0
+    anterior: float | None = None
+    for row in ordenados:
+        if row.value != anterior:
+            rank += 1
+            anterior = row.value
+        if rank > tope:
+            break
+        puestos.append((row, rank))
+    return puestos
+
+
 def _board_rows(
-    metric: Metric, scope: str, season: int | None, pos: str | None, *, best: bool = True, october: bool = False
+    metric: Metric,
+    scope: str,
+    season: int | None,
+    pos: str | None,
+    *,
+    best: bool = True,
+    october: bool = False,
+    todas: bool = False,
 ) -> list[dict[str, Any]]:
     """Un extremo del tablero: los `_TOP_RANK` puestos de una punta.
 
     `rank` sale acá tal cual lo guarda `dgl_leader`. Para la tabla de abajo eso es su propio puesto 1
     en el extremo —que escrito así se leería como un liderato, "1º en menos jonrones"— y lo reemplaza
     `_best_and_worst` por el puesto real del ranking.
+
+    Con `todas` el puesto NO es el guardado sino uno nuevo, calculado entre todas las temporadas de
+    todos los años. Ver `_de_todos_los_tiempos`.
     """
     flag = _board_flag(scope, best=best)
     board = Leader.objects.filter(metric=metric, board=flag, postseason=october, fielding_pos=pos)
     if scope == "temporada" and season is not None:
         board = board.filter(season=season)
-    leaders = list(
-        board.filter(rank__lte=_top_rank(scope, october)).order_by("rank", "player__full_name").select_related("player")
+    # La temporada corta no se compara con una completa. Solo estorba acá, al mezclar años; elegida
+    # a mano se lee entera. Ver `_FUERA_DE_TODAS`.
+    if todas:
+        board = board.exclude(season__in=_FUERA_DE_TODAS)
+    # Y LA TEMPORADA EN CURSO SE CAE DE ÚLTIMOS, PERO NO DE PRIMEROS (dueño, 2026-08-04). La asimetría
+    # no es un descuido: un total a medio jugar solo puede quedarse CORTO. Los 30 jonrones que alguien
+    # lleva en agosto son 30 de verdad y no desmerecen nada en la tabla de arriba; en la de abajo, en
+    # cambio, ganarían el primer puesto de «menos jonrones de la historia» por no haber terminado de
+    # jugar. El umbral tampoco protege: la cascada lo escala a los juegos disputados, así que en
+    # agosto pide 332 turnos donde en octubre pedirá 502.
+    if todas and not best:
+        board = board.exclude(season__in=season_window.temporadas_sin_terminar())
+    tope = _top_rank(scope, october)
+    candidatos = list(
+        board.filter(rank__lte=tope).order_by("rank", "player__full_name").select_related("player")
     )
+    # Con un año elegido el puesto guardado ES el puesto; con «Todas» hay que rehacerlo.
+    puestos = (
+        _de_todos_los_tiempos(candidatos, metric, tope, best=best)
+        if todas
+        else [(row, row.rank) for row in candidatos]
+    )
+    leaders = [row for row, _ in puestos]
     # El verde solo va en los tableros de por vida, que es donde separa a quien sigue jugando de quien
     # ya es historia. En uno de temporada no distingue nada: en la última todos jugaron ese año por
     # definición, y en una reciente casi todos siguen activos, así que se pinta la tabla entera.
@@ -327,16 +535,20 @@ def _board_rows(
     since = metric.available_from if scope == "carrera" else None
     return [
         {
-            "rank": row.rank,
+            "rank": rank,
             "name": row.player.full_name,
             "slug": row.player.slug,
             "player_id": row.player_id,
+            # EN QUÉ AÑO FUE. Solo lo pinta «Todas», donde cada fila es de una temporada distinta y
+            # sin el año la tabla no se entiende; con un año elegido es el mismo para todas y el
+            # rótulo del tablero ya lo dice.
+            "season": row.season,
             "active": row.player_id in active,  # jugó la última temporada registrada
             "seasons": span.get(row.player_id, (0, 0))[0],
             "partial": bool(since) and span.get(row.player_id, (0, since or 0))[1] < (since or 0),
             "value": _format(metric.stat_group, metric.column, row.value),
         }
-        for row in leaders
+        for row, rank in puestos
     ]
 
 
@@ -360,7 +572,7 @@ def _column_labels(metric: Metric, scope: str, october: bool) -> tuple[str, str]
 
 
 def _best_and_worst(
-    metric: Metric, scope: str, season: int | None, pos: str | None, *, october: bool = False
+    metric: Metric, scope: str, season: int | None, pos: str | None, *, october: bool = False, todas: bool = False
 ) -> list[dict[str, Any]]:
     """Las dos tablas paralelas: el tablero descendente a la izquierda y el ascendente a la derecha.
 
@@ -368,20 +580,47 @@ def _best_and_worst(
     manda la primera: el repetido se quita de la segunda. Si con eso la segunda se vacía —o la
     métrica no tiene ese tablero, como G/PA/AB— queda una sola columna.
     """
-    best = _write_rank_once(_board_rows(metric, scope, season, pos, best=True, october=october))
-    honored = {row["player_id"] for row in best}
+    best = _write_rank_once(_board_rows(metric, scope, season, pos, best=True, october=october, todas=todas))
+    # Hay conteos cuyo extremo bajo, juntando setenta años, no es una marca sino un empate de
+    # centenares. Se van sin consultar la otra punta siquiera. Ver `_SIN_ULTIMOS_EN_TODAS`.
+    if todas and (metric.stat_group, metric.column) in _SIN_ULTIMOS_EN_TODAS:
+        return _columnas(metric, scope, october, best, [])
+    # QUÉ ES «EL MISMO» CAMBIA CON «TODAS». En un tablero normal la fila es un jugador y basta con su
+    # id. En «Todas» la fila es un JUGADOR-TEMPORADA: Sammy Sosa sale tres veces en las mejores de
+    # jonrones, por 1998, 1999 y 2001. Deduplicar solo por jugador le borraría de la otra punta una
+    # temporada distinta que sí merece estar ahí.
+    def cual(row: dict[str, Any]) -> tuple[int, int | None]:
+        return (row["player_id"], row["season"] if todas else None)
+
+    honored = {cual(row) for row in best}
     tail = [
         row
-        for row in _board_rows(metric, scope, season, pos, best=False, october=october)
-        if row["player_id"] not in honored
+        for row in _board_rows(metric, scope, season, pos, best=False, october=october, todas=todas)
+        if cual(row) not in honored
     ]
+    if todas:
+        # ACÁ LA COLA SE QUEDA CON SU PROPIO PUESTO, y no es por descuido. El renumerado de abajo
+        # busca el puesto del jugador en el ranking DESCENDENTE, y el descendente de todos los
+        # tiempos no existe: `dgl_leader` solo guarda la punta de cada temporada (hasta el 29), así
+        # que la peor efectividad de la historia no tiene un puesto que buscar — habría que rankear
+        # todas las temporadas de todos los lanzadores de siempre, y esas filas no están.
+        #
+        # No deja el número ambiguo: la tabla se titula «Últimos» y el 1 se lee como «el primero de
+        # los últimos», que es lo que es.
+        return _columnas(metric, scope, october, best, _write_rank_once(tail))
     # La cola se publica con el puesto del ranking de arriba, no con el del tablero ascendente, y se
     # ordena por él: así el extremo queda de último y ningún número significa dos cosas distintas.
     real = _real_ranks(metric, scope, season, [row["player_id"] for row in tail], pos, october=october)
     for row in tail:
         row["rank"] = real.get(row["player_id"], row["rank"])
     tail.sort(key=lambda row: (row["rank"], row["name"]))
-    worst = _write_rank_once(tail)
+    return _columnas(metric, scope, october, best, _write_rank_once(tail))
+
+
+def _columnas(
+    metric: Metric, scope: str, october: bool, best: list[dict[str, Any]], worst: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Las dos tablas rotuladas, o una sola si la segunda quedó vacía tras el dedup."""
     top_label, bottom_label = _column_labels(metric, scope, october)
     columns = [{"label": top_label, "rows": best}]
     if worst:
@@ -414,12 +653,14 @@ def _empty_context(group: str, scope: str, pos: str | None) -> dict[str, Any]:
             "abbr": "",
             "direction": "",
             "qualifier": "",
+            "excluded": "",
             "available_from": None,
             "scope_label": "",
             "columns": [],
             "shows_active": False,
             "shows_partial": False,
             "shows_seasons": False,
+            "shows_season": False,
         },
         "group_label": dict(_GROUPS)[group],
         "scope_key": scope,
@@ -478,19 +719,42 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             metric=metric, board=Leader.Board.BEST_SEASON, postseason=october, fielding_pos=chosen_pos
         ).values_list("season", flat=True)
         season_years = sorted({year for year in years if year is not None}, reverse=True)
+    # «TODAS» ES UNA ELECCIÓN MÁS DE ESTE MISMO DESPLEGABLE, no otro alcance. Pide las mejores
+    # temporadas INDIVIDUALES de la historia —las 66 de Sosa en 1998 compitiendo contra las 54 de
+    # Ortiz en 2006— y por eso vive acá y no al lado de «De por vida», que suma la carrera entera.
+    #
+    # `chosen_season = None` con `todas = True` es lo que apaga el filtro por año; el puesto lo
+    # rehace `_de_todos_los_tiempos`, porque el guardado es de su propia temporada.
+    # Y ES LO QUE SALE POR DEFECTO (dueño, 2026-08-04). Antes abría en la temporada más reciente, y
+    # eso convertía «Por temporada» en «los líderes de 2026» — una foto de un año a medio jugar,
+    # cuando lo que la sección promete son las mejores temporadas que se han visto. Quien quiera un
+    # año concreto lo elige; el que no, ve la historia.
+    #
+    # Por eso el año solo gana si es uno de los que existen: vacío, «todas» o cualquier basura caen
+    # todos acá. Un `?season=1899` ya no aterriza en 2026 sin explicación.
+    todas = False
     chosen_season = None
     if season_years:
-        chosen_season = int(season) if season.isdigit() and int(season) in season_years else season_years[0]
+        if season.isdigit() and int(season) in season_years:
+            chosen_season = int(season)
+        else:
+            todas = True
 
     state = {
         "g": group,
         "d": tab,
         "scope": scope,
         "m": metric.column,
-        "season": str(chosen_season or ""),
+        "season": TODAS if todas else str(chosen_season or ""),
         "pos": chosen_pos or "",
     }
-    columns = _best_and_worst(metric, scope, chosen_season, chosen_pos, october=october)
+    columns = _best_and_worst(metric, scope, chosen_season, chosen_pos, october=october, todas=todas)
+    # La salvedad de 2020 va DENTRO de la frase del umbral, que es donde se pidió. Sola solo cuando
+    # esa frase no existe —una métrica sin umbral y sin tablero de Últimos la deja vacía— para que el
+    # aviso no se quede sin sitio. Ver `_excluded_note`.
+    nota = _qualifier_note(
+        metric, scope, has_worst=len(columns) > 1, october=october, season=chosen_season, todas=todas
+    )
 
     return {
         "groups": [
@@ -518,19 +782,31 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             }
             for m in tab_metrics
         ],
+        # «Todas» LA PRIMERA (dueño, 2026-08-04), y solo si hay años que juntar. La lista se sigue
+        # llamando `seasons` y cada entrada trae su `label`, para que la plantilla no tenga que saber
+        # que la primera es especial.
         "seasons": [
-            {"year": year, "active": year == chosen_season, "url": _link(state, season=str(year))}
-            for year in season_years
-        ],
+            {"year": TODAS, "label": "Todas", "active": todas, "url": _link(state, season=TODAS)},
+            *(
+                {
+                    "year": year,
+                    "label": str(year),
+                    "active": year == chosen_season,
+                    "url": _link(state, season=str(year)),
+                }
+                for year in season_years
+            ),
+        ]
+        if season_years
+        else [],
         "board": {
             "name": metric.name_es or metric.abbrev,
             "abbr": metric.abbrev,
             "direction": _direction_label(metric),
-            "qualifier": _qualifier_note(
-                metric, scope, has_worst=len(columns) > 1, october=october, season=chosen_season
-            ),
+            "qualifier": nota,
+            "excluded": "" if nota else _excluded_note(todas=todas),
             "available_from": metric.available_from,  # "disponible desde YYYY" cuando aplica (Statcast)
-            "scope_label": f"temporada {chosen_season}" if scope == "temporada" else "de por vida",
+            "scope_label": _scope_label(scope, chosen_season, todas=todas),
             "columns": columns,  # Mejores y (si existe y no quedó vacía tras el dedup) Peores
             # La leyenda del verde solo tiene sentido si alguna fila está marcada (no la hay en el
             # board de la última temporada, ni en uno viejo donde ya todos se retiraron).
@@ -539,6 +815,11 @@ def leaders_context(*, group: str, tab: str, scope: str, metric_col: str, season
             # La columna Temporadas es una lectura de carrera. En un tablero de temporada todos
             # jugaron ese año y punto: el dato no dice nada del puesto que se está mirando.
             "shows_seasons": scope == "carrera",
+            # Y EL AÑO SOLO EN «TODAS», que es el único tablero donde cada fila es de un año distinto
+            # y sin él la tabla no se entiende: «66» a secas no dice que fue 1998. Las dos columnas
+            # son excluyentes por construcción —una es de carrera y la otra de temporada— así que
+            # nunca aparecen «Temporadas» y «Temporada» juntas, que se leerían como un error.
+            "shows_season": todas,
         },
         "group_label": dict(_GROUPS)[group],
         "scope_key": scope,
