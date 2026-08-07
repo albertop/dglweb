@@ -49,6 +49,38 @@ postemporada (`GAME_TYPE='P'`).
 Eso elimina de un plumazo la parte cara del proyecto. No hay que derivar tablas de probabilidad de
 victoria ni calcular leverage: ya están, y son las mismas que usa el resto de la base.
 
+### 2.2. `dbo.r24Events` ES LA ÚNICA DEPENDENCIA CRÍTICA FUERA DE RETROSHEET
+
+Se auditó el 2026-08-05 a petición del dueño, cruzando todo `DGLv2` contra las familias `dbo.r24*` y
+`dbo.r288*`. El resultado, para que nadie tenga que repetirlo:
+
+**De todo ese universo, el sitio consume UNA sola tabla: `dbo.r24Events`.** Son 48 referencias en 20
+archivos, todas del exportador de efemérides. Ningún otro `dbo.r24*` —`r24Transitions`, `r24Values`,
+`r24WPAValues`, `r24Percentages`, `r24Events_PitchCount`, `r24_WOBA_Seasons`, `r24_WOBA_Factors`— se
+usa acá, y **ninguna `dbo.r288*` en absoluto**. Esas viven en `scripts/runExpectancy288/`, que es el
+pipeline que las CALCULA, no el sitio que las lee. `mlb-api` tampoco toca ninguna.
+
+**El alcance del daño si se cae es total, no parcial**, y conviene entender por qué:
+
+| quién la lee | qué se lleva por delante |
+| --- | --- |
+| `_00_comun.sql` | el prelude raíz — **la corrida entera** |
+| `_01_turnos.sql` | `#turnos`, y con él toda la familia de walk-offs (60-66), el turno clave y el grand slam contra dominicano |
+| 18 detectores | `04`, `05`, `12`, `18`, `19`, `55`, `65`, `67`, `68`, `71`, `72`, `73`, `96`, `97`, `98`, `99`, `104`, `105` |
+
+Como dos de los seis preludios la consultan, **si `r24Events` desaparece o cambia de forma la corrida
+aborta ahí y no sale ninguna de las 5.802 efemérides.** No se degrada enseñando menos: se cae entera.
+Es la diferencia con `scastPitch`, cuya ausencia solo vaciaría los detectores de cobertura parcial.
+
+**Lo que hay que preservar** son las cuatro columnas de las que cuelga todo: `WPA`, `WE`, `LI` y
+`CLUTCH_EVENT_BATTER`. Reorganizar el resto de la familia `r24*`/`r288*` no afecta a las efemérides
+**siempre que el pipeline siga dejando `r24Events` en pie y con esas columnas**.
+
+Sin verificar, y anotado como tal: el pipeline de `runExpectancy288` vuelca sus valores de carrera
+mediante `sp_retro_update_r24Events_PitchCount_with_run_values`, que escribe en
+`r24Events_PitchCount` — un nombre DISTINTO del que leemos. Si `r24Events` se alimenta de ahí o es
+otra tabla, no se comprobó. Antes de tocar ese pipeline conviene resolverlo.
+
 ### 2.6. SOLO TEMPORADA REGULAR. La postemporada no entra en ningún detector.
 
 Decisión del dueño (2026-08-04), y **salió de un error publicado**. El archivo decía:
