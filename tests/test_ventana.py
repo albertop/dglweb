@@ -508,7 +508,12 @@ def test_la_portada_calla_en_la_primera_quincena() -> None:
     )  # fmt: skip
     _guardar([(9.0, "bateo"), (-9.0, "bateo")])
 
-    assert ventana.portada() is None
+    # LA FECHA SE PASA, Y NO ES OPCIONAL. `HOY` es una constante fija —2026-07-31— así que la
+    # temporada de arriba arranca el 26 de julio; sin argumento, `portada()` compara contra el día de
+    # VERDAD, y en cuanto pasan quince días reales deja de ser primera quincena y el widget publica
+    # con todo derecho. La prueba pasaba el día que se escribió y reventaba sola más adelante: así se
+    # cayó el CI el 2026-08-08, sin que nadie tocara `ventana.py`.
+    assert ventana.portada(HOY) is None
 
 
 # ── Los bordes que encontró el review v16 ───────────────────────────────────────────────────────

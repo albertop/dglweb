@@ -1251,14 +1251,19 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    Desde la Fase 5 hay imágenes de verdad, y esto es lo que ocupa su sitio: mismas medidas, mismo
    recorte. `object-fit: cover` porque Wagtail ya sirve el archivo recortado a la proporción pedida,
    pero un `fill-` puede quedar un píxel corto y sin esto la imagen se deforma para cuadrar. */
-/* Una banda apaisada a todo el ancho, y a la MITAD de lo que medía: 130→65 en la retícula y 220→110
-   en el destacado. Decisión del dueño, y la razón es buena — lo que vende un artículo es el titular,
-   y una banda alta le comía el sitio al texto dentro de una tarjeta que mide lo que mide.
+/* Una banda apaisada a todo el ancho, y partida a la mitad DOS VECES: 130→65→33 en la retícula y
+   220→110→35 en el destacado. Las dos veces por lo mismo, y la segunda mirando el índice entero
+   (dueño, 2026-08-07): con seis tarjetas en pantalla, seis franjas azules altas cargan la página
+   antes de que se haya leído un solo titular. Lo que vende un artículo es el titular; la banda
+   acompaña, y a 33px acompaña sin pesar.
+
+   El recorte que pide la plantilla va al doble de estos números, que es lo que necesita una pantalla
+   retina — si se cambia uno hay que cambiar el otro, o la banda se ve blanda.
 
    `object-fit: cover` porque Wagtail ya sirve el archivo recortado a la proporción pedida, pero un
    `fill-` puede quedar un píxel corto y sin esto la imagen se deforma para cuadrar. */
-.dgl-thumb-img { display: block; width: 100%; height: 65px; object-fit: cover; }
-.dgl-art-destacado .dgl-thumb-img { height: 70px; }
+.dgl-thumb-img { display: block; width: 100%; height: 33px; object-fit: cover; }
+.dgl-art-destacado .dgl-thumb-img { height: 35px; }
 
 /* ---------- Un artículo ---------- */
 /* El ancho de la columna es la decisión de esta pantalla, y sale de dos fuerzas que tiran en contra.
