@@ -16,6 +16,18 @@ from tests.test_players import _other_player
 
 HOY = date(2026, 7, 31)
 
+# LA FECHA CON LA QUE SE LE PREGUNTA A `portada()`, Y NO ES UN CAPRICHO PASARLA.
+#
+# `portada()` sin argumento compara contra el reloj de VERDAD, así que una prueba que no se la pasa
+# no depende de sus datos sino del día en que se corre. Eso ya tumbó el CI una vez —el 2026-08-08,
+# sin que nadie tocara `ventana.py`— y tenía seis más esperando: la fixture `temporada` va del 26 de
+# marzo al 28 de septiembre de 2026, así que el 29 de septiembre las tres que afirman «sí se publica»
+# se caían solas, y las tres que afirman «no se publica» habrían empezado a pasar por el motivo
+# equivocado, que es peor: dejan de probar lo que dicen probar sin avisar.
+#
+# Cae dentro de la temporada de la fixture y pasada la primera quincena, que es el escenario normal.
+EN_PLENA_TEMPORADA = date(2026, 7, 31)
+
 
 def _jugador(pid: int, nombre: str, apellido: str) -> Player:
     return Player.todos.create(
@@ -129,7 +141,7 @@ def test_the_two_ends_come_from_the_same_cut(temporada: object) -> None:
     """Son las dos puntas de UNA distribución, no dos preguntas: se calculan a la vez."""
     _guardar([(float(v), "bateo") for v in range(-10, 11)])
 
-    foto = ventana.portada()
+    foto = ventana.portada(EN_PLENA_TEMPORADA)
 
     assert foto is not None
     assert foto["quemando"]["lista"][0].valor > foto["pasando"]["lista"][0].valor
@@ -145,13 +157,13 @@ def test_nobody_reaching_either_cut_draws_nothing(temporada: object) -> None:
     un sitio roto. Pasa de verdad en el receso."""
     _guardar([(0.5, "bateo"), (1.0, "bateo"), (-1.0, "pitcheo"), (0.0, "bateo")])
 
-    assert ventana.portada() is None
+    assert ventana.portada(EN_PLENA_TEMPORADA) is None
 
 
 @pytest.mark.django_db
 def test_nothing_stored_draws_nothing(temporada: object) -> None:
     """En pretemporada la tabla está vacía y la portada no puede dibujar un panel hueco."""
-    assert ventana.portada() is None
+    assert ventana.portada(EN_PLENA_TEMPORADA) is None
 
 
 @pytest.mark.django_db
@@ -163,7 +175,7 @@ def test_the_cut_is_the_fixed_league_one_and_not_one_derived_from_the_table(temp
     """
     _guardar([(1.0, "bateo"), (1.5, "bateo"), (2.1, "bateo"), (3.5, "bateo"), (5.0, "pitcheo")])
 
-    foto = ventana.portada()
+    foto = ventana.portada(EN_PLENA_TEMPORADA)
 
     assert foto is not None
     # Solo los que pasan su propio corte: +3,5 en bateo y +3,7 en pitcheo. Un percentil sobre estos
@@ -180,7 +192,7 @@ def test_each_office_is_judged_against_its_own_distribution(temporada: object) -
     """
     _guardar([(-2.0, "bateo"), (-2.0, "pitcheo")])
 
-    foto = ventana.portada()
+    foto = ventana.portada(EN_PLENA_TEMPORADA)
 
     assert foto is not None
     # El mismo valor: al lanzador le basta para estar mal (su corte es -1,3) y al bateador no (-2,6).
@@ -405,7 +417,7 @@ def test_each_pitching_role_is_judged_against_its_own_cut(temporada: object) -> 
             linea="x", valor=valor, juegos=5, oportunidades=10,
         )  # fmt: skip
 
-    foto = ventana.portada()
+    foto = ventana.portada(EN_PLENA_TEMPORADA)
 
     assert foto is not None
     # El mismo +4,0: al relevista le basta (su corte es 2,4) y al abridor no (5,7).
@@ -609,14 +621,21 @@ def test_el_relevista_puro_no_se_ve_afectado() -> None:
 def test_la_muestra_del_comando_usa_la_fecha_de_la_ventana(temporada: object) -> None:
     """QA-01 del v17. `--hasta` reproduce una foto vieja, y la muestra decidía con la fecha de HOY.
 
-    Con una ventana de la primera quincena, `portada()` sin fecha diría que sí se publica —porque hoy
-    estamos en julio— y con la fecha de la ventana dice que no. El comando existe para depurar: una
+    Con una ventana de la primera quincena, `portada()` con una fecha de temporada avanzada dice que
+    sí se publica, y con la fecha de la ventana dice que no. El comando existe para depurar: una
     señal falsa ahí manda a mirar donde no es.
+
+    LAS DOS FECHAS SE PASAN, ninguna sale del reloj. La primera decía `ventana.portada()` a secas,
+    apoyándose en que «hoy estamos en julio» — cierto el día que se escribió y falso el 29 de
+    septiembre, cuando la temporada de la fixture (del 26 de marzo al 28 de septiembre) se acaba y el
+    widget calla. Es la
+    misma bomba que tumbó el CI el 2026-08-08 en `test_la_portada_calla_en_la_primera_quincena`, y se
+    desactiva igual: el contraste es entre DOS fechas, así que las dos se eligen acá.
     """
     _guardar([(9.0, "bateo"), (-9.0, "bateo")])
     en_la_primera_quincena = date(2026, 4, 2)
 
-    assert ventana.portada() is not None, "hoy sí se publica"
+    assert ventana.portada(EN_PLENA_TEMPORADA) is not None, "el 31 de julio sí se publica"
     assert ventana.portada(en_la_primera_quincena) is None, "el 2 de abril no, y la muestra tiene que decirlo"
 
 
