@@ -23,13 +23,13 @@ imagen que no cargó.
       la proporción pedida en vez de deformar, y las dos son bandas apaisadas: el destacado más alta
       porque es más ancho. Lo que manda en una tarjeta de artículo es el titular; la banda acompaña.
 
-      ESTOS NÚMEROS SON EL DOBLE DEL ALTO EN CSS —33 y 35 px, ver `.dgl-thumb-img`— y ese doble es
+      ESTOS NÚMEROS SON EL DOBLE DEL ALTO EN CSS —40 y 43 px, ver `.dgl-thumb-img`— y ese doble es
       para las pantallas retina. Si se cambia el alto sin tocar el recorte, la banda se ve blanda.
     {% endcomment %}
     {% if destacado %}
-      {% image articulo.imagen fill-1200x70 class="dgl-thumb-img" alt=articulo.imagen.title %}
+      {% image articulo.imagen fill-1200x86 class="dgl-thumb-img" alt=articulo.imagen.title %}
     {% else %}
-      {% image articulo.imagen fill-640x66 class="dgl-thumb-img" alt=articulo.imagen.title %}
+      {% image articulo.imagen fill-640x80 class="dgl-thumb-img" alt=articulo.imagen.title %}
     {% endif %}
   {% endif %}
   <div class="cuerpo">
