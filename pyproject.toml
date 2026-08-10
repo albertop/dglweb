@@ -67,8 +67,27 @@ exclude = ["migrations/", "staticfiles/"]
 [tool.django-stubs]
 django_settings_module = "config.settings.dev"
 
+# Las librerías de terceros que no publican tipos. Sus quejas son sobre la librería, no sobre este
+# código, y no hay nada que arreglar de nuestro lado.
+#
+# `treebeard` y `modelsearch` SE AÑADIERON PORQUE TUMBARON EL CI (2026-08-10), y el porqué de que
+# aquí no se notara conviene dejarlo escrito: la imagen de Docker se construyó hace semanas y tiene
+# versiones donde esos paquetes sí traían el marcador `py.typed`; el runner hace `pip install` limpio
+# y se trae las de hoy, que no lo traen. O sea que `mypy .` daba verde en local y 21 errores en CI
+# sobre el mismo código, sin que nadie hubiera tocado nada.
+#
+# Los dos llegan por Wagtail —`Page` hereda de `treebeard.mp_tree`, y `modelsearch` es el buscador
+# que Wagtail 7 sacó a su propio paquete— así que entran por la misma puerta que `wagtail.*`.
 [[tool.mypy.overrides]]
-module = ["wagtail.*", "modelcluster.*", "taggit.*", "environ.*", "wagtail_footnotes.*"]
+module = [
+    "wagtail.*",
+    "modelcluster.*",
+    "taggit.*",
+    "environ.*",
+    "wagtail_footnotes.*",
+    "treebeard.*",
+    "modelsearch.*",
+]
 ignore_missing_imports = true
 
 # Wagtail no publica tipos, así que para mypy sus clases son `Any`. Heredar de `Page` —que es lo que

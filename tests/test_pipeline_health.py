@@ -839,6 +839,21 @@ def test_muchas_peticiones_a_la_vez_hacen_una_sola_llamada(monkeypatch: pytest.M
     for sufijo in ("", ":ultimo", ":sondeando"):
         compartida.delete(f"health:proxy{sufijo}")
 
+    # LA BARRERA ES LO QUE HACE QUE ESTO SEA UNA CARRERA DE VERDAD, y sin ella la prueba dependía de
+    # lo rápido que arrancaran los hilos.
+    #
+    # `Thread.start()` no es instantáneo: en una máquina con núcleos de sobra los 16 entran en unos
+    # milisegundos y todos caen dentro de los 0,3 s que dura el upstream falso, que es la ventana que
+    # se quiere probar. En un runner compartido de dos núcleos el arranque se estira, y si el último
+    # hilo entra DESPUÉS de que el primero ya soltó el cerrojo, coge el cerrojo él también y salen
+    # dos llamadas. La prueba fallaba diciendo «salieron 2, debería ser 1» — y no era un fallo del
+    # cerrojo sino de la prueba, que medía la velocidad de la máquina.
+    #
+    # Con la barrera los 16 esperan a estar todos listos y salen juntos, así que la separación entre
+    # el primero y el último pasa de «lo que tarde el planificador» a microsegundos. Los 0,3 s dejan
+    # de ser un número que hay que acertar.
+    salida = threading.Barrier(16)
+
     def pedir() -> None:
         """Cierra su conexión al terminar, y NO es un detalle de limpieza.
 
@@ -849,6 +864,7 @@ def test_muchas_peticiones_a_la_vez_hacen_una_sola_llamada(monkeypatch: pytest.M
         from django.db import connection
 
         try:
+            salida.wait(timeout=10)
             Client().get(reverse("proxy_health"))
         finally:
             connection.close()
