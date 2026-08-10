@@ -20,7 +20,7 @@ cero splits sin error, así que no hay que preguntarle al calendario si hubo pel
 
 CÓMO SE ORDENA
 --------------
-**Bateo: pesos lineales.** Cada evento vale lo que vale en carreras, según la matriz 2022-2025 del
+**Bateo: pesos lineales.** Cada evento vale lo que vale en carreras, según la matriz 2024-2025 del
 dueño (columna `average`). Sumar la jornada da el valor en carreras que el pelotero produjo — la
 misma lógica que hay detrás del wOBA, aplicada a un juego. Se prefiere a ordenar por remolcadas o
 anotadas porque esas dependen de quién estaba en base: premian la oportunidad, no la actuación.
@@ -174,29 +174,36 @@ Descripcion = Callable[[dict[str, Any]], str]
 # recibe como parámetro para que este módulo no tenga que saber nada del registro de corridas.
 Aviso = Callable[[str], None] | None
 
-# Valor en carreras de cada evento — matriz de pesos lineales 2022-2025, columna `average`, provista
-# por el dueño. Se copian tal cual, con todos sus decimales: redondearlos acá sería introducir un
-# criterio propio en un número que ya viene decidido.
+# Valor en carreras de cada evento — matriz de pesos lineales **2024-2025**, columna `average`,
+# provista por el dueño (`2024_2025_Linear_Weights.json`, 2026-08-07). Se copian tal cual, con todos
+# sus decimales: redondearlos acá sería introducir un criterio propio en un número que ya viene
+# decidido.
+#
+# SUSTITUYE A LA MATRIZ 2022-2025 y el cambio es pequeño en todo salvo en un sitio: el triple pasó de
+# 1,0354 a 1,0218 y el sencillo subió de 0,4671 a 0,4720. El resto se mueve en la tercera cifra. No
+# reordena a nadie por sí solo, pero los valores publicados cambian, así que las pruebas que fijan un
+# número exacto van contra `PESOS[...]` y no contra la constante escrita a mano — que es como hay que
+# escribirlas para que la próxima matriz no las rompa.
 PESOS: dict[str, float] = {
-    "out": -0.2706628521511171,  # out en juego (incluye elevados de sacrificio y toques)
-    "k": -0.27279957184505116,
-    "bb": 0.3260503399594458,
-    "ibb": 0.2121959272993923,  # el intencional vale menos: no lo ganó el bateador
-    "hbp": 0.3534316578542027,
-    "1b": 0.46710077393962235,
-    "2b": 0.766364884886978,
-    "3b": 1.0354271039388732,
-    "hr": 1.3890765661634175,
-    "sb": 0.1730862402850167,
-    "cs": -0.42172462878318934,
+    "out": -0.2700940433967196,  # out en juego (incluye elevados de sacrificio y toques)
+    "k": -0.27339562613568386,
+    "bb": 0.33066612165670933,
+    "ibb": 0.22013392872280546,  # el intencional vale menos: no lo ganó el bateador
+    "hbp": 0.3564065127331991,
+    "1b": 0.47199779257268093,
+    "2b": 0.7624346214376665,
+    "3b": 1.021805683830989,
+    "hr": 1.3895390412296236,
+    "sb": 0.16979018811854363,
+    "cs": -0.42326268796063693,
     # Estos dos solo los usa el pitcheo. Son del mismo archivo y de la misma columna, y entran porque
     # son cosa EXCLUSIVA del lanzador: nadie más lanza un wild pitch ni comete un balk.
     #
-    # No se incluye el «Passed ball» (+0,2535), que se le parece y también está en la matriz: ese es
-    # del receptor. Ni el «Error» (+0,4438), que es de la defensa. Cargárselos al lanzador sería
+    # No se incluye el «Passed ball» (+0,2470), que se le parece y también está en la matriz: ese es
+    # del receptor. Ni el «Error» (+0,4478), que es de la defensa. Cargárselos al lanzador sería
     # cobrarle el trabajo de otro.
-    "wp": 0.25720554229406084,
-    "bk": 0.25981152454177203,
+    "wp": 0.2559670601209641,
+    "bk": 0.25601677444834,
 }
 
 
