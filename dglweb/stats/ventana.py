@@ -351,23 +351,46 @@ def linea_de_bateo(stat: dict[str, Any], *, argumentada: bool = False) -> str:
     El resto de la línea es idéntico a la de la jornada, y a propósito: mismas siglas en inglés
     —RBI y no CI, ver `docs/AUTORIDAD.md`— y el mismo criterio de no escribir un cero.
     """
-    orden = ORDEN_PASANDO if argumentada else ORDEN_LECTURA
     partes: dict[str, str] = {}
+    cantidades: dict[str, int] = {}
     for clave, etiqueta in (("X2B", "2B"), ("X3B", "3B"), ("HR", "HR")):
         cantidad = int(_numero(stat, clave))
         if cantidad:
             partes[clave] = etiqueta if cantidad == 1 else f"{cantidad} {etiqueta}"
+            cantidades[clave] = cantidad
     for clave in ("RBI", "R", "BB", "IBB", "HBP", "SB", "CS", "K"):
         cantidad = int(_numero(stat, clave))
         if cantidad:
             partes[clave] = f"{cantidad} {clave}"
+            cantidades[clave] = cantidad
+
+    if argumentada:
+        # DE MAYOR A MENOR CANTIDAD (dueño, 2026-08-10), y no en el orden de lectura de siempre.
+        #
+        # La línea de abajo no está contando una actuación, está sosteniendo una acusación — y lo que
+        # la sostiene es lo que más veces pasó. En Machado son los quince ponches, que en el orden
+        # fijo salían de últimos y con la línea recortada podían no verse. Ordenados por cantidad
+        # encabezan justo detrás del promedio, que es donde el lector los va a buscar.
+        #
+        # NO SE HACE ARRIBA. «Quemando la liga» sí cuenta una actuación, y ahí el orden de lectura
+        # —extrabases, luego producción, luego paciencia— es el que hace que la línea se lea como una
+        # frase. Ver `ORDEN_LECTURA`.
+        #
+        # El empate se rompe por `ORDEN_PASANDO`, para que dos líneas con las mismas cifras salgan
+        # siempre iguales: un orden que baila entre corridas se lee como un error del sitio.
+        claves = sorted(
+            (clave for clave in ORDEN_PASANDO if clave in partes),
+            key=lambda clave: (-cantidades[clave], ORDEN_PASANDO.index(clave)),
+        )
+    else:
+        claves = [clave for clave in ORDEN_LECTURA if clave in partes]
 
     # Sin turnos al bate no hay promedio que enseñar, y `.000` sería una afirmación falsa: el que solo
     # recibió boletos no bateó mal, no bateó. Con el umbral de PA puesto no llega a pasar, pero esta
     # función también se llama desde el shell y desde las pruebas.
     promedio = str(stat.get("AVG") or "") if _numero(stat, "AB") else ""
     encabeza = [promedio] if promedio else []
-    return ", ".join(encabeza + [partes[clave] for clave in orden if clave in partes])
+    return ", ".join(encabeza + [partes[clave] for clave in claves])
 
 
 def linea_de_pitcheo(stat: dict[str, Any]) -> str:

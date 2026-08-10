@@ -400,6 +400,30 @@ def test_the_batter_qualifies_by_plate_appearances_per_team_game() -> None:
     assert ventana._califica({"PA": "30"}, "hitting", juegos=13) == ""
 
 
+def test_la_linea_de_pasando_encabeza_con_lo_que_mas_veces_paso() -> None:
+    """Abajo la línea sostiene una acusación, y lo que la sostiene es lo que más veces pasó.
+
+    Machado: los quince ponches son -4,10 carreras y en el orden de lectura de siempre salían de
+    últimos, donde el recorte del navegador se los podía comer. Arriba NO se ordena así: «Quemando la
+    liga» cuenta una actuación, y ahí el orden de lectura es el que hace que se lea como una frase.
+    """
+    machado = {"AVG": ".229", "AB": "48", "X2B": "2", "RBI": "7", "R": "6", "BB": "6", "K": "15", "CS": "1"}
+
+    assert ventana.linea_de_bateo(machado, argumentada=True) == ".229, 15 K, 6 BB, 2 2B, 1 CS"
+    assert ventana.linea_de_bateo(machado) == ".229, 2 2B, 7 RBI, 6 R, 6 BB"
+
+
+def test_un_empate_de_cantidades_sale_siempre_en_el_mismo_orden() -> None:
+    """Un orden que baila entre corridas se lee como un error del sitio."""
+    empatado = {"AVG": ".200", "AB": "40", "X2B": "3", "BB": "3", "K": "3", "SB": "3"}
+
+    primera = ventana.linea_de_bateo(empatado, argumentada=True)
+
+    assert primera == ventana.linea_de_bateo(dict(reversed(empatado.items())), argumentada=True)
+    # El desempate es `ORDEN_PASANDO`, no el orden en que vino el diccionario.
+    assert primera == ".200, 3 2B, 3 BB, 3 SB, 3 K"
+
+
 def test_el_relevista_que_dejo_de_lanzar_se_cae_solo() -> None:
     """El umbral del relevista se mide contra los juegos del equipo, y por eso caduca.
 
