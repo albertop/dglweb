@@ -400,6 +400,37 @@ def test_the_batter_qualifies_by_plate_appearances_per_team_game() -> None:
     assert ventana._califica({"PA": "30"}, "hitting", juegos=13) == ""
 
 
+def test_el_relevista_que_dejo_de_lanzar_se_cae_solo() -> None:
+    """El umbral del relevista se mide contra los juegos del equipo, y por eso caduca.
+
+    Lo vio el dueño mirando el widget: Ángel Chivilli seguía en «Pasando trabajo» el 10 de agosto con
+    su último juego el 3. Calificaba por APARICIONES —un conteo absoluto— así que sus cuatro salidas
+    del principio de la ventana valían los catorce días completos, y su valor congelado no podía
+    mejorar porque no estaba lanzando.
+
+    Con entradas por juego del equipo no hace falta preguntarle cuándo lanzó: el equipo sigue jugando,
+    el listón sube, y él se queda abajo sin que nadie tenga que sacarlo.
+    """
+    chivilli = {"GS": "0", "G": "4", "outsPitched": "12"}  # 4,0 IP, el caso real
+
+    # Con 10 juegos del equipo pide 4,0 y entra justo; con 12 pide 4,8 y ya no llega.
+    assert ventana._califica(chivilli, "pitching", juegos=10) == "relevista"
+    assert ventana._califica(chivilli, "pitching", juegos=12) == ""
+
+
+def test_el_cerrador_que_sigue_lanzando_se_queda() -> None:
+    """La razón de bajar el factor a 0,40: con 0,50 caían Doval y Seranthony.
+
+    Un cerrador puro hace una entrada por salida, así que seis salidas son seis entradas — y con
+    0,50 el listón quedaba justo ahí, sacando del widget al perfil más limpio del relevo moderno.
+    """
+    doval = {"GS": "0", "G": "5", "outsPitched": "15"}  # 5,0 IP en 5 salidas
+
+    assert ventana._califica(doval, "pitching", juegos=12) == "relevista"  # pide 4,8
+    # Y el que apenas subió sigue fuera, que es lo que el umbral existe para hacer.
+    assert ventana._califica({"GS": "0", "G": "2", "outsPitched": "6"}, "pitching", juegos=12) == ""
+
+
 @pytest.mark.django_db
 def test_each_pitching_role_is_judged_against_its_own_cut(temporada: object) -> None:
     """Un abridor y un relevista no son la misma población: medido sobre nueve ventanas, el p85 del
@@ -613,8 +644,13 @@ def test_el_opener_de_verdad_sigue_entrando() -> None:
 
 
 def test_el_relevista_puro_no_se_ve_afectado() -> None:
-    """`GS = 0` nunca puede fallar la comprobación de rol dominante."""
-    assert ventana._califica({"GS": "0", "G": "4", "outsPitched": "12"}, "pitching", juegos=13) == "relevista"
+    """`GS = 0` nunca puede fallar la comprobación de rol dominante.
+
+    Las entradas son 18 y no 12: desde que el umbral se mide en IP por juego del equipo (2026-08-10),
+    trece juegos piden 5,2 y un relevista con 4,0 ya no califica. Lo que esta prueba cuida es el rol,
+    no la cantidad, así que se le da cantidad de sobra para que no se cuelen los dos motivos en una.
+    """
+    assert ventana._califica({"GS": "0", "G": "6", "outsPitched": "18"}, "pitching", juegos=13) == "relevista"
 
 
 @pytest.mark.django_db

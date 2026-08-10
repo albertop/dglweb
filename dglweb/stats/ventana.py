@@ -25,7 +25,14 @@ TRES POBLACIONES Y NO DOS: BATEO, ABRIDOR Y RELEVISTA (SAB-01 del review v15)
 Cada una califica con su propia regla y se juzga contra su propio percentil. El abridor usa la regla
 oficial —1 IP por juego del equipo— y el relevista NO puede usarla: aplicada a catorce días deja
 fuera a los 288 relevistas de la liga, porque es la regla del título de efectividad y ese título es
-de abridores. Está contestado entero, con los números, en `APARICIONES_RELEVO`.
+de abridores. Al relevista se le pide la MISMA FORMA con otro factor: **0,4 IP por juego del equipo**
+(`IP_POR_JUEGO_RELEVO`), que ahí lleva la medición.
+
+LOS TRES UMBRALES SE MIDEN CONTRA LOS JUEGOS DEL EQUIPO, y eso no es simetría decorativa: es lo que
+hace que el jugador que deja de jugar desaparezca solo. Su numerador se congela y el denominador
+sigue creciendo, así que a los pocos días cae por debajo del listón sin que nadie tenga que
+preguntarle cuándo jugó por última vez. El relevista calificaba por apariciones —un conteo absoluto—
+y por eso se quedaba: es el fallo que arregló el 2026-08-10.
 
 EL CORTE ES EL DE LA LIGA, ES FIJO, Y ES POR CLASE (2026-07-31)
 ----------------------------------------------------------------
@@ -132,6 +139,48 @@ IP_POR_JUEGO = 1.0
 # decisión mirada dos veces.
 APARICIONES_RELEVO = 4
 
+# ...Y POR ESO MISMO SE CAMBIÓ POR ENTRADAS (dueño, 2026-08-10). El umbral de arriba queda como
+# historia; el que manda hoy es `IP_POR_JUEGO_RELEVO`.
+#
+# LO DESTAPÓ MIRANDO EL WIDGET: Ángel Chivilli seguía en «Pasando trabajo» el 10 de agosto con su
+# último juego el 3. El diagnóstico es que de los tres umbrales, el del relevista era el ÚNICO que no
+# caducaba:
+#
+#     bateo       3,1 PA x juegos del equipo    se cae solo
+#     abridor     1,0 IP x juegos del equipo    se cae solo
+#     relevista   4 apariciones                 se quedaba
+#
+# Los dos primeros se miden contra los juegos que el equipo lleva jugados, así que el que para congela
+# su numerador mientras el denominador sigue creciendo y a los pocos días queda por debajo del listón.
+# Es autocorrectivo sin que nadie lo diseñara así. Cuatro apariciones es un conteo absoluto: valían
+# los catorce días completos, se siguiera lanzando o no.
+#
+# Se probó primero añadir una condición de vigencia —«y al menos una salida en los últimos 7 días»—
+# y se descartó: arreglaba el síntoma con una regla nueva, una llamada más al proxy y un concepto que
+# los otros dos oficios no tienen. Darle la MISMA FORMA que a ellos arregla la causa.
+#
+# POR QUÉ 0,40 Y NO 0,50, que era la primera propuesta. Medido sobre la liga entera y cinco ventanas:
+#
+#     factor   pide (12 J)   relevistas MLB   de nuestros 20
+#      0,30       3,6 IP          214              19
+#      0,35       4,2 IP          171              17
+#      0,40       4,8 IP          139              17
+#      0,45       5,4 IP           89              11
+#      0,50       6,0 IP           72              10
+#
+# Con 0,50 caían Camilo Doval y Seranthony Domínguez, cerradores lanzando cada dos días: un cerrador
+# puro hace una entrada por salida, así que seis salidas son seis entradas y el listón estaba justo
+# ahí. Se llevaba al 61% del relevo de la liga y castigaba al perfil más limpio que existe.
+#
+# 0,40 saca a Chivilli (4 salidas, 4,0 IP) y los salva a todos ellos. Además cae en la parte ESTABLE
+# de la curva: entre 0,40 y 0,45 el censo se desploma de 139 a 89, así que 0,45 sería un número que
+# cambia de respuesta si la liga se mueve un poco, y 0,40 no.
+#
+# Lo que este umbral NO distingue: el que dejó de lanzar del que lanza seguido pero poco por salida.
+# Seranthony —5 salidas, 4,0 IP, 0,8 entradas por salida— cae igual que Chivilli. Es el precio de
+# medir volumen, y se aceptó a sabiendas por no meter una segunda regla.
+IP_POR_JUEGO_RELEVO = 0.40
+
 # LOS CORTES, EN CARRERAS SOBRE EL PROMEDIO. Seis constantes: p85 y p15 de cada una de las TRES clases
 # —bateo, abridor y relevista—, sacadas de LA LIGA ENTERA. Llegaron ahí en cuatro pasos, y los cuatro
 # dejaron algo aprendido.
@@ -209,6 +258,29 @@ CORTES = {
 # tarjeta; lo que se corte, sea lo que sea, sigue estando en el tooltip.
 ORDEN_LECTURA = ("X2B", "X3B", "HR", "RBI", "R", "SB", "BB")
 
+# LA LÍNEA DE «PASANDO TRABAJO» ES OTRA, y solo la de abajo (dueño, 2026-08-10).
+#
+# LO DESTAPÓ MANNY MACHADO: `.229, 2 2B, 7 RBI, 6 R, 6 BB` en trece juegos se lee como una quincena
+# normal, y el motor lo tenía en -2,98 carreras. Descompuesto, el argumento estaba entero fuera de la
+# tarjeta:
+#
+#     sencillos   9  +4,25      ponches       15  -4,10
+#     dobles      2  +1,52      outs en juego 23  -6,21
+#     boletos     6  +1,98      atrapado       1  -0,42
+#
+# La línea enseñaba **RBI y R, que NO entran en el cálculo** —dependen de quién estaba en base, y por
+# eso el valor no los usa— y callaba los **quince ponches**, que son lo que más pesa en su contra.
+# O sea que mostraba la mitad buena y ninguna de las dos cosas que producen el número. Acusar a
+# alguien y esconder el argumento es exactamente lo que esta línea existe para no hacer.
+#
+# Así que abajo se escriben LOS PARÁMETROS DEL CÁLCULO, que es lo que sostiene la acusación. Fuera
+# quedan RBI y R —no cuentan— y los OUTS EN JUEGO, que el dueño descartó por innecesarios: el
+# promedio ya dice que no conectó, y el número de outs no añade nada que se lea de un vistazo.
+#
+# ARRIBA NO SE TOCA. «Quemando la liga» celebra, y para celebrar RBI y R son lo que la gente quiere
+# ver; nadie pide que se justifique un elogio. La asimetría es deliberada.
+ORDEN_PASANDO = ("X2B", "X3B", "HR", "BB", "IBB", "HBP", "SB", "CS", "K")
+
 
 @dataclass(frozen=True)
 class Fila:
@@ -249,8 +321,11 @@ def _numero(stat: dict[str, Any], clave: str) -> float:
         return 0.0
 
 
-def linea_de_bateo(stat: dict[str, Any]) -> str:
+def linea_de_bateo(stat: dict[str, Any], *, argumentada: bool = False) -> str:
     """«.395, 2B, 6 HR, 9 RBI, 13 R» — la de catorce días, que NO se escribe como la de un juego.
+
+    Con `argumentada` escribe la versión de «Pasando trabajo», que cambia QUÉ estadísticas salen: las
+    que de verdad entran en el cálculo. Ver `ORDEN_PASANDO`, que lleva el caso que lo motivó.
 
     ABRE CON EL PROMEDIO, y llegar ahí costó dos vueltas que vale la pena dejar escritas.
 
@@ -276,12 +351,13 @@ def linea_de_bateo(stat: dict[str, Any]) -> str:
     El resto de la línea es idéntico a la de la jornada, y a propósito: mismas siglas en inglés
     —RBI y no CI, ver `docs/AUTORIDAD.md`— y el mismo criterio de no escribir un cero.
     """
+    orden = ORDEN_PASANDO if argumentada else ORDEN_LECTURA
     partes: dict[str, str] = {}
     for clave, etiqueta in (("X2B", "2B"), ("X3B", "3B"), ("HR", "HR")):
         cantidad = int(_numero(stat, clave))
         if cantidad:
             partes[clave] = etiqueta if cantidad == 1 else f"{cantidad} {etiqueta}"
-    for clave in ("RBI", "R", "BB", "SB"):
+    for clave in ("RBI", "R", "BB", "IBB", "HBP", "SB", "CS", "K"):
         cantidad = int(_numero(stat, clave))
         if cantidad:
             partes[clave] = f"{cantidad} {clave}"
@@ -291,7 +367,7 @@ def linea_de_bateo(stat: dict[str, Any]) -> str:
     # función también se llama desde el shell y desde las pruebas.
     promedio = str(stat.get("AVG") or "") if _numero(stat, "AB") else ""
     encabeza = [promedio] if promedio else []
-    return ", ".join(encabeza + [partes[clave] for clave in ORDEN_LECTURA if clave in partes])
+    return ", ".join(encabeza + [partes[clave] for clave in orden if clave in partes])
 
 
 def linea_de_pitcheo(stat: dict[str, Any]) -> str:
@@ -398,10 +474,11 @@ def _califica(stat: dict[str, Any], grupo: str, juegos: int) -> str:
 
     * **bateo**: 3,1 PA por juego del equipo. El qualifier de temporada, prorrateado.
     * **abridor**: 1,0 IP por juego del equipo. El mismo qualifier, y acá sí es la regla oficial.
-    * **relevista**: cuatro APARICIONES, no entradas. La regla de «1 IP por juego» es la del título
-      de efectividad y ese título es de abridores: aplicada a catorce días deja fuera a **los 288
-      relevistas de la liga**, no a algunos. El porqué completo, con los números, está en
-      `APARICIONES_RELEVO`.
+    * **relevista**: 0,4 IP por juego del equipo. La regla de «1 IP por juego» es la del título de
+      efectividad y ese título es de abridores: aplicada a catorce días deja fuera a **los 288
+      relevistas de la liga**, no a algunos. Así que se le baja el factor, no se le cambia la forma —
+      y esa forma es lo que hace que el que deja de lanzar se caiga solo. El porqué del 0,4, con la
+      medición de cinco ventanas, está en `IP_POR_JUEGO_RELEVO`.
     """
     # SIN DENOMINADOR NO CALIFICA NADIE (DEV-01 del review v16). `juegos` en cero no significa «el
     # equipo no jugó»: significa que la consulta de bateo vino vacía y no sabemos cuánto se jugó.
@@ -447,7 +524,9 @@ def _califica(stat: dict[str, Any], grupo: str, juegos: int) -> str:
         return "abridor"
     if _numero(stat, "GS") * 2 >= _numero(stat, "G"):
         return ""
-    return "relevista" if _numero(stat, "G") >= APARICIONES_RELEVO else ""
+    # ENTRADAS POR JUEGO DEL EQUIPO, igual que los otros dos oficios: es lo que hace que el que deja
+    # de lanzar se caiga solo. Ver `IP_POR_JUEGO_RELEVO`.
+    return "relevista" if _oportunidades(stat, "IP") >= IP_POR_JUEGO_RELEVO * juegos else ""
 
 
 def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[dict[str, Any]]:
@@ -497,6 +576,21 @@ def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[di
             if not clase:
                 continue
 
+            valor = valorar(stat)
+            # LA LÍNEA SE ELIGE ACÁ PORQUE ACÁ YA SE SABE EN QUÉ PUNTA CAE. El bateador que va camino
+            # de «Pasando trabajo» lleva la línea que ARGUMENTA —los parámetros del cálculo, ver
+            # `ORDEN_PASANDO`— y todos los demás la de siempre.
+            #
+            # Se decide al construir y no al pintar porque `portada()` lee de la tabla y ahí el `stat`
+            # crudo ya no existe: reconstruirlo pediría guardar diez columnas más. El corte es una
+            # constante, así que la respuesta es la misma en los dos sitios. Si alguien cambia
+            # `CORTES` sin reconstruir, la línea se desfasa hasta la corrida siguiente — que es dentro
+            # de menos de una hora.
+            if grupo == "hitting" and valor <= CORTES[clase][1]:
+                linea = linea_de_bateo(stat, argumentada=True)
+            else:
+                linea = describir(stat)
+
             salida.append(
                 {
                     "player_id": jugador_id,
@@ -512,8 +606,8 @@ def calcular(client: MlbProxyClient, universo: set[int], hasta: date) -> list[di
                     # corrida entera con un error de base: la línea más larga que se puede construir
                     # —promedio y las siete estadísticas con dos cifras cada una— ronda los 50
                     # caracteres, así que este corte no llega a activarse. Hay una prueba que lo fija.
-                    "linea": describir(stat)[:160],
-                    "valor": valorar(stat),
+                    "linea": linea[:160],
+                    "valor": valor,
                     "juegos": int(_numero(stat, "G")),
                     # Lo que se comparó con el umbral de SU clase: PA, entradas o apariciones. Es el
                     # único dato que permite comprobar después por qué alguien entró o quedó fuera.
