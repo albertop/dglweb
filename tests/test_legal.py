@@ -388,22 +388,29 @@ def test_sin_analitica_la_csp_se_queda_estricta() -> None:
 
 
 @pytest.mark.django_db
-def test_la_privacidad_nombra_a_quien_procesa_las_visitas(client: Client, settings: Any) -> None:
-    """Lo que la ley pide y lo que el código no puede inventar: el nombre de quien trata los datos.
+def test_la_privacidad_ya_no_detalla_la_medicion_ni_los_videos(client: Client, settings: Any) -> None:
+    """El dueño quitó esos dos apartados el 2026-08-10. La prueba cambia de sentido, no desaparece.
 
-    Va contra las constantes de `core/legal.py` y no contra un texto escrito a mano en la plantilla,
-    porque el día que se cambie de herramienta hay que cambiar el documento en el mismo commit.
+    ANTES exigía lo contrario —que la privacidad nombrara a quien trata las visitas y explicara cómo
+    quedarse fuera— y era lo correcto mientras el texto estuvo. Se deja dada la vuelta y no borrada
+    para que quede el rastro: si mañana alguien reintroduce los apartados, esto lo dice.
+
+    ⚠️ ESTO NO ES SOLO MAQUETACIÓN. Mientras `ANALITICA_URL` y `ANALITICA_ID` estén puestos en
+    producción, el sitio sigue mandando cada visita a Umami y la política de privacidad ya no lo
+    declara — ni tampoco los registros del servidor ni los marcos de video de YouTube y Streamable,
+    que siguen cargándose. Es una decisión del dueño y está tomada; queda anotado acá porque es lo
+    único de este cambio que no se ve mirando la página.
     """
     for clave, valor in ANALITICA.items():
         setattr(settings, clave, valor)
 
     html = client.get(reverse("legal", args=["privacidad"])).content.decode()
 
-    assert legal.ANALITICA in html
-    assert legal.ANALITICA_EMPRESA in html
-    # Una frase que no se parte en la plantilla: la primera versión buscaba «no rastrear» y fallaba
-    # por el salto de línea del HTML, no por faltar el texto.
-    assert "bloqueador de rastreadores" in html, "hay que decirle a la gente cómo quedarse fuera"
+    assert "La medición de visitas" not in html
+    assert "bloqueador de rastreadores" not in html
+    assert "<h3>Los videos</h3>" not in html
+    # Lo que SÍ se queda: la página existe, se entiende y sigue afirmando lo de las cookies.
+    assert "no instala ninguna cookie" in html
 
 
 @pytest.mark.django_db

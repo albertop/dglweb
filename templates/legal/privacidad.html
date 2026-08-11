@@ -31,66 +31,6 @@ commit que el cambio. Un aviso de privacidad que va por detrás del código es p
   contenidos.
 </p>
 
-<h3>La medición de visitas</h3>
-<p>
-  Necesitamos saber cuánta gente entra y qué se lee, o escribiríamos a ciegas. Para eso usamos
-  <b>{{ legal.ANALITICA }}</b>, un servicio de {{ legal.ANALITICA_EMPRESA }}, elegido justamente por
-  ser de los que <b>no ponen cookies y no construyen un perfil</b> de quien visita. No usamos Google
-  Analytics.
-</p>
-<p>Cada vez que abres una página, ese servicio recibe:</p>
-<ul>
-  <li><b>La dirección visitada</b> y el título de la página.</li>
-  <li><b>De dónde llegaste</b>: el enlace o buscador que te trajo, si lo hay.</li>
-  <li><b>Datos del navegador</b>: idioma y tamaño de la pantalla.</li>
-  <li><b>Tu dirección IP</b>, que la ve por fuerza al recibir la petición.</li>
-</ul>
-<p>
-  Lo que <b>no</b> pasa: no se guarda nada en tu navegador, no se te asigna un identificador que
-  sobreviva de una visita a otra y no se cruza esta información con ninguna otra. La IP no se
-  almacena tal cual: el servicio la convierte en un identificador de sesión que caduca solo y no
-  permite reconocerte al día siguiente. Por eso este sitio no necesita pedirte permiso con un cartel
-  — lo explica la <a href="{% url 'legal' 'cookies' %}">política de cookies</a>.
-</p>
-<p>
-  {{ legal.ANALITICA_EMPRESA }} trata esos datos <b>por cuenta nuestra</b> y no puede usarlos para
-  otra cosa. Sus servidores están fuera de la {{ legal.PAIS }}, así que esa información sale del país.
-</p>
-<p>
-  <b>Si prefieres no ser contado</b>, cualquier bloqueador de rastreadores lo impide, y el modo «no
-  rastrear» de tu navegador también. No perderás nada del sitio: la medición no cambia lo que ves.
-</p>
-
-<h3>Los videos</h3>
-<p>
-  <b>Esta conexión con un tercero la decides tú:</b> los videos de jugadas los sirven los
-  servidores de las Grandes Ligas. Al pulsar el televisorcito de una jugada, tu navegador se conecta
-  a MLB para traer ese clip y ellos ven tu IP, como en cualquier visita a un sitio suyo. Está
-  explicado también en la <a href="{% url 'legal' 'cookies' %}">política de cookies</a>.
-</p>
-<p>
-  <b>Los videos dentro de un artículo funcionan distinto, y conviene que lo sepas:</b> ese
-  marco lo carga tu navegador <b>al abrir la página</b>, sin que tengas que pulsar nada. Los sirven
-  YouTube o Streamable —por donde MLB reparte sus clips incrustables— y ven tu dirección IP desde ese
-  momento.
-</p>
-<p>
-  Los de YouTube se incrustan desde <b>youtube-nocookie.com</b>, el dominio que ofrecen para no dejar cookies
-  de seguimiento mientras no le des al play. No elimina la conexión —eso solo lo haría no poner el
-  video— pero evita que te quede un identificador puesto por haber leído un artículo.
-</p>
-<p>Lo que sí queda registrado, por el simple hecho de que un servidor atienda una petición:</p>
-<ul>
-  <li><b>Dirección IP</b> desde la que se conecta el navegador.</li>
-  <li><b>Fecha y hora</b> de la petición.</li>
-  <li><b>Página pedida</b>, incluido —si usaste el buscador— el texto que escribiste en él.</li>
-  <li><b>Tipo de navegador y sistema operativo</b>, y la página desde la que llegaste, si la hay.</li>
-</ul>
-<p>
-  Esos registros los usamos para que el sitio funcione y para detectar abusos o fallos, y se borran a
-  los <b>{{ legal.DIAS_DE_REGISTROS }} días</b>. No se cruzan con ninguna otra información ni se usan
-  para construir un perfil tuyo.
-</p>
 
 <h2>Cookies</h2>
 <p>
