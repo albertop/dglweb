@@ -11,6 +11,14 @@ Que midan igual no es cosmético: si el hueco cambiara de alto al activar la pub
 probaría en desarrollo con unas medidas y saldría a producción con otras. El alto lo fija el CSS
 (`.dgl-ad-leader`, `.dgl-ad-torre`…) y acá no se toca.
 {% endcomment %}
+{% comment %}
+  LA PUERTA DE `ANUNCIOS_VISIBLES`. El tag manda `visible` SIEMPRE —`True` o `False`, nunca ausente—
+  para que esto sea un `{% if %}` normal y no una comprobación de si la variable existe.
+
+  Con la publicidad apagada no se dibuja NADA: ni marco, ni recuadro de maqueta, ni un `div` vacío.
+  Lo que no está en el HTML no se pide al servidor y no cuenta impresión.
+{% endcomment %}
+{% if visible %}
 {% if url %}
   {% comment %}
     `loading="lazy"` para que un anuncio del pie no compita con el contenido que la persona vino a
@@ -55,4 +63,5 @@ probaría en desarrollo con unas medidas y saldría a producción con otras. El 
           title="Publicidad"></iframe>
 {% else %}
   <div class="dgl-ad {{ clase }}">Espacio publicitario · {{ ancho }}×{{ alto }}</div>
+{% endif %}
 {% endif %}

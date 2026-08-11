@@ -124,9 +124,18 @@
           Dos artículos y no tres: el carril se queda con 324px del contenedor, así que acá entran dos
           celdas de ~300px justas. Con tres, el último caería solo en una segunda fila.
         {% endcomment %}
-        <div class="row g-3 mt-4" id="portada-articulos">
+        {% comment %}
+          DOS COLUMNAS CON ANUNCIO, TRES SIN ÉL. Al esconder el carril de 300x600 la columna hermana
+          —`col-12 col-lg`, sin número— se ensancha sola al contenedor entero, y dos celdas de
+          `col-md-6` pasarían de ~300px a ~550px: tarjetas del doble de anchas que no dicen el doble.
+          Con `col-lg-4` vuelven al tamaño de siempre y entra una tercera.
+
+          Y esa tercera no se inventa: son los `articulos_de_mas` que la vista ya manda y que hoy solo
+          se ven al pulsar el botón del móvil. Ver abajo.
+        {% endcomment %}
+        <div class="row g-3 mt-4{% if not anuncios_visibles %} sin-anuncios{% endif %}" id="portada-articulos">
           {% for otro in articulos %}
-            <div class="col-md-6">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
+            <div class="col-md-6{% if not anuncios_visibles %} col-lg-4{% endif %}">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
           {% endfor %}
           {% comment %}
             LOS TRES DEL BOTÓN DE MÓVIL. Van dentro de esta misma rejilla y no en un bloque aparte
@@ -135,9 +144,20 @@
             `dgl-art-de-mas` los esconde SIEMPRE en escritorio —ahí «Ver más artículos» sigue llevando
             al índice, y tres tarjetas más estirarían la fila que sostiene el anuncio de 300x600— y en
             móvil los esconde hasta que se pulsa el botón. Ver `site.css`.
+
+            SIN PUBLICIDAD SE PUBLICAN EN ESCRITORIO, y la razón es literalmente la que acaba de
+            leerse: solo se escondían ahí para no estirar la fila que sostenía el anuncio de 600px.
+            Sin ese anuncio la restricción no existe y el hueco del carril se llena con artículos de
+            verdad en vez de con aire.
+
+            LA CLASE SE QUEDA PUESTA Y LO DECIDE EL CSS, que fue el segundo intento. El primero la
+            quitaba desde acá y rompía el móvil: ahí `dgl-art-de-mas` no es una restricción del
+            anuncio —que en teléfono nunca existió— sino el pliegue que hace útil al botón «Ver 3
+            más». Sin la clase, el botón revelaba algo que ya estaba a la vista. El escritorio es lo
+            único que cambia, así que el cambio va donde se distingue el escritorio: en un media query.
           {% endcomment %}
           {% for otro in articulos_de_mas %}
-            <div class="col-md-6 dgl-art-de-mas">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
+            <div class="col-md-6{% if not anuncios_visibles %} col-lg-4{% endif %} dgl-art-de-mas">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
           {% endfor %}
         </div>
       {% endif %}
@@ -157,6 +177,16 @@
       alto del anuncio no había recorrido por donde deslizarse, así que no hacía nada. Un `sticky` sin
       margen es solo una promesa en el HTML.
     {% endcomment %}
+    {% comment %}
+      LA COLUMNA ENTERA, no solo el anuncio. `dgl-col-300` le fija 300px + gutter desde 992px, así que
+      dejarla puesta con el hueco apagado reservaría el carril y volvería a dejar el blanco que se
+      venía a quitar. Al quitarla, la hermana `col-12 col-lg` se ensancha sola al contenedor: es lo
+      que hace que los artículos pasen a tres columnas sin tocar nada más.
+
+      El `{% anuncio_rango %}` de dentro NO SE TOCA — se apaga solo, desde el tag. Sigue escrito acá
+      para que la integración con Revive se lea en la plantilla y vuelva con el flag.
+    {% endcomment %}
+    {% if anuncios_visibles %}
     <div class="col-12 dgl-col-300 d-none d-lg-flex align-items-center">
       {% comment %}
         SOLO DESDE 992px, y el rango lo declara la etiqueta — no basta con `d-none`. Un `iframe` oculto
@@ -169,6 +199,7 @@
       {% endcomment %}
       {% anuncio_rango 3 300 600 minimo=992 clase="dgl-ad-torre" %}
     </div>
+    {% endif %}
   </div>
 
   {% comment %}

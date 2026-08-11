@@ -59,6 +59,23 @@ def analitica(request: HttpRequest) -> dict[str, Any]:
     return {"analitica": {"url": settings.ANALITICA_URL, "id": settings.ANALITICA_ID}}
 
 
+def anuncios(request: HttpRequest) -> dict[str, Any]:
+    """`anuncios_visibles` — si hoy se dibujan los huecos de publicidad.
+
+    Va de procesador de contexto y no de etiqueta por dos motivos. Uno: lo necesitan las plantillas
+    de los marcos, que se incluyen desde seis páginas distintas, y una etiqueta habría que cargarla
+    en las seis. Dos, y este es el que importa: **la portada cambia de rejilla** cuando no hay
+    publicidad —el carril de 300x600 desaparece y los artículos pasan a tres columnas— así que la
+    bandera no la consulta solo el hueco, la consulta el layout.
+
+    NO CONFUNDIR CON `ADSERVER_URL`, que dice DÓNDE está Revive. Esta dice si se enseña. El porqué de
+    que sean dos ajustes y no uno está escrito en `config/settings/base.py`.
+    """
+    from django.conf import settings
+
+    return {"anuncios_visibles": bool(settings.ANUNCIOS_VISIBLES)}
+
+
 def redes(request: HttpRequest) -> dict[str, Any]:
     """`X_USUARIO`, la cuenta del sitio en X. La usan el pie y la tarjeta social, o sea todas las páginas.
 

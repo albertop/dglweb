@@ -62,6 +62,15 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       ADSERVER_URL: ${ADSERVER_URL:-}
+      # SI SE ENSEÑA PUBLICIDAD, que es otra pregunta. `ADSERVER_URL` dice DÓNDE está Revive; esto
+      # dice si hoy se dibujan los huecos. Ponerlo en `false` los esconde sin perder la integración:
+      # Revive sigue configurado, vigilado por `/health/adserver` y permitido por la CSP.
+      #
+      # NO APAGAR VACIANDO `ADSERVER_URL`: eso dispara la alarma del monitor (503) y saca a Revive de
+      # la CSP hasta el próximo reinicio. El porqué completo, en `config/settings/base.py`.
+      #
+      # Sin declararlo vale `true`, o sea el comportamiento de siempre.
+      ANUNCIOS_VISIBLES: ${ANUNCIOS_VISIBLES:-true}
     volumes:
       - /srv/dglweb-datos/media:/app/media
       - /srv/dglweb-datos/uploads:/app/uploads

@@ -251,6 +251,47 @@ Se renombran durante la instalación. Es el único punto de este documento que n
 
 ---
 
+## Los DOS interruptores, y por qué no son uno
+
+> **El cómo se hace está en `PUBLICIDAD_APAGADA.md`**, con los comandos, lo que desaparece y lo que
+> no. Acá va el resumen y el porqué.
+
+
+Añadido el 2026-08-10, cuando el dueño pidió esconder los huecos mientras llegan los primeros
+anunciantes — repitiendo dos veces que **no se perdiera la integración con Revive**.
+
+| ajuste | qué contesta | por defecto |
+| --- | --- | --- |
+| `ADSERVER_URL` | ¿dónde está Revive? | vacío (apagado en desarrollo) |
+| `ANUNCIOS_VISIBLES` | ¿enseñamos publicidad hoy? | `true` |
+
+**Para esconder la publicidad se usa el segundo.** Se pone `ANUNCIOS_VISIBLES=false` en el entorno del
+stack y ya: no se dibuja ni un `<iframe>` ni un recuadro de maqueta en las seis páginas. Volver a
+encenderla es cambiarlo a `true` — no hay HTML que tocar, los dieciséis huecos siguen escritos con su
+zona en las plantillas.
+
+**NO SE APAGA VACIANDO `ADSERVER_URL`**, y es el error fácil. Rompe tres cosas a la vez:
+
+1. `/health/adserver` responde **503 en producción** sin esa URL, así que despertarías al monitor
+   externo por una decisión editorial. Ver `core/views.py`.
+2. La CSP deja de permitir el origen de Revive en `frame-src`, y **se calcula una sola vez al
+   arrancar** (`core/csp.py`): volver a encenderlo exigiría reiniciar el contenedor, y mientras tanto
+   los anuncios se bloquearían en silencio.
+3. Los huecos pasarían a dibujar el recuadro rayado que dice «Espacio publicitario», que anuncia que
+   falta algo — justo lo contrario de lo que se pedía.
+
+**Y NO SE ESCONDE CON CSS.** Un marco con `display:none` se sigue pidiendo al servidor y cuenta la
+impresión: las estadísticas del anunciante contarían anuncios que nadie vio. Está medido y escrito en
+el docstring de `anuncios_horizontal` — la primera versión del hueco adaptable dibujaba tres marcos y
+ocultaba dos, y **los tres pedían su anuncio**. Lo que no se dibuja no se pide.
+
+**La portada cambia de rejilla cuando no hay publicidad.** Al desaparecer el carril de 300×600 los
+artículos pasan de dos columnas a tres (`col-lg-4`) y se publican las tres tarjetas que en escritorio
+estaban escondidas — solo se escondían para no estirar la fila que sostenía ese anuncio. El hueco se
+llena con artículos, no con aire. Lo cubre `tests/test_anuncios_apagados.py`.
+
+---
+
 ## Lo que hay que recordar cuando esté funcionando
 
 **La CSP lo va a bloquear en silencio.** El sitio manda `script-src 'self'` desde el 2026-07-27, así

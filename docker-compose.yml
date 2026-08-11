@@ -37,6 +37,12 @@ services:
       # never from this file.
       MLB_PROXY_URL: ${MLB_PROXY_URL:-http://10.0.0.39:3002}
       MLB_PROXY_API_KEY: ${MLB_PROXY_API_KEY:-}
+      # SI SE ENSEÑAN LOS HUECOS DE PUBLICIDAD. En dev el efecto visible es el recuadro rayado de
+      # maqueta —acá no hay `ADSERVER_URL`— así que ponerlo en `false` sirve justo para ver cómo
+      # queda la portada sin publicidad: tres columnas de artículos en vez del carril de 300x600.
+      #
+      # Se cambia en `.env` y se recrea el servicio. Ver `docs/ADSERVER.md`.
+      ANUNCIOS_VISIBLES: ${ANUNCIOS_VISIBLES:-true}
     volumes:
       # Los CSV de datos de apoyo: en el VPS se dejan acá y se suben desde el Backoffice.
       - dglweb_uploads:/app/uploads

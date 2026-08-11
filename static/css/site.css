@@ -441,6 +441,22 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   .dgl-solo-angosta { display: block; }
   #portada-articulos.esta-desplegado .dgl-art-de-mas { display: block; }
 }
+
+/* SIN PUBLICIDAD, LAS TRES SE PUBLICAN EN ESCRITORIO. La razón por la que se escondían es la que
+   está escrita ahí arriba —estirarían la fila que justifica el anuncio de 300x600— y sin ese anuncio
+   deja de existir. El carril libera 324px, los artículos pasan a tres columnas (`col-lg-4`, lo pone
+   `home.html`) y estas tres son las que llenan la fila que queda.
+
+   `.sin-anuncios` la pone la portada cuando `ANUNCIOS_VISIBLES` está apagado.
+
+   VA EN UN MEDIA QUERY Y NO QUITANDO LA CLASE DESDE LA PLANTILLA, que fue el primer intento y rompía
+   el móvil: ahí `dgl-art-de-mas` no tiene nada que ver con el anuncio —en teléfono nunca hubo carril—
+   sino que es el pliegue que hace útil al botón «Ver 3 más». Sin la clase, el botón revelaba algo que
+   ya estaba a la vista. Lo único que cambia es el escritorio, así que el cambio vive donde el
+   escritorio se distingue. */
+@media (min-width: 992px) {
+  #portada-articulos.sin-anuncios .dgl-art-de-mas { display: block; }
+}
 .dgl-destacado-quien .nombre {
   min-width: 0; font-weight: 700; font-size: .84rem; color: var(--dgl-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

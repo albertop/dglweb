@@ -102,6 +102,9 @@ TEMPLATES = [
                 # `X_USUARIO`, la cuenta del sitio en X: la usan el pie y el `twitter:site` de la
                 # tarjeta social, así que tampoco puede depender de cada vista.
                 "dglweb.core.context_processors.redes",
+                # `anuncios_visibles`. No solo lo miran los huecos: la portada cambia de rejilla
+                # cuando no hay publicidad, así que la bandera tiene que llegar a todas las páginas.
+                "dglweb.core.context_processors.anuncios",
             ],
         },
     },
@@ -326,6 +329,30 @@ ANALITICA_ENVIO_URL = env.str("ANALITICA_ENVIO_URL", default=_envio_por_defecto(
 # `script-src`: el anuncio va en un `iframe` y el servidor NUNCA ejecuta código en nuestras páginas.
 # Ver `docs/ADSERVER.md`.
 ADSERVER_URL = env.str("ADSERVER_URL", default="").rstrip("/")
+
+# SI LOS HUECOS SE DIBUJAN O NO. Nada que ver con el ajuste de arriba, y por eso son dos.
+#
+# `ADSERVER_URL` contesta «¿dónde está Revive?». Esto contesta «¿enseñamos publicidad hoy?». Se
+# separaron el 2026-08-10, cuando el dueño pidió esconder los huecos mientras llegan los primeros
+# anunciantes: el sitio ya está integrado y no se quería perder nada de eso, solo dejar de enseñar
+# espacios en blanco.
+#
+# APAGAR VACIANDO `ADSERVER_URL` HABRÍA SIDO EL ERROR FÁCIL, y rompe tres cosas a la vez:
+#
+#   1. `/health/adserver` responde 503 en producción sin esa URL (`core/views.py`), así que se
+#      dispararía la alarma del monitor externo por una decisión editorial.
+#   2. La CSP deja de permitir el origen de Revive en `frame-src` (`core/csp.py`), y como la política
+#      se calcula UNA VEZ al arrancar, volver a encenderlo exigiría reiniciar el contenedor.
+#   3. Los huecos pasarían a dibujar el recuadro rayado de maqueta —«Espacio publicitario»— que es
+#      justo lo contrario de lo que se pedía.
+#
+# Con este ajuste Revive sigue configurado, vigilado y permitido; lo único que cambia es si se pinta
+# el `<iframe>`. Y no se pinta EN ABSOLUTO, no se esconde con CSS: un marco escondido se sigue
+# pidiendo al servidor y cuenta la impresión, o sea que ensuciaría las estadísticas del anunciante
+# con anuncios que nadie vio.
+#
+# Por defecto ENCENDIDO: el comportamiento de siempre, y apagar es un acto explícito.
+ANUNCIOS_VISIBLES = env.bool("ANUNCIOS_VISIBLES", default=True)
 
 # La cuenta del sitio en X. Va como ajuste y no escrita a mano porque la usan TRES sitios —el pie, el
 # `twitter:site` de la tarjeta social y el `via=` del botón de compartir— y un usuario que cambia en

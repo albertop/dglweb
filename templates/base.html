@@ -256,7 +256,17 @@
         un `<img>` roto pone el icono de imagen partida en el pie de TODAS las páginas. El nombre y
         el usuario van en texto de verdad, así que la ficha se entiende igual sin el logo.
       {% endcomment %}
-      <div class="col-6 col-md-3"><h6 id="pie-agencia">Gestionado por</h6>
+      <div class="col-6 col-md-3">
+        {% comment %}
+          LA MISMA BANDERA QUE ESCONDE LOS HUECOS (dueño, 2026-08-10). Adcio Media es la agencia de
+          publicidad del sitio, así que mientras no se enseñe publicidad su crédito tampoco: dejarlo
+          es la única pista que quedaría de que acá hay un negocio publicitario montado.
+
+          SE ESCONDE EL BLOQUE, NO LA COLUMNA. Debajo vive «Síguenos», que no tiene nada que ver con
+          los anuncios y no se puede llevar por delante. Vuelve solo con `ANUNCIOS_VISIBLES=true`.
+        {% endcomment %}
+        {% if anuncios_visibles %}
+        <h6 id="pie-agencia">Gestionado por</h6>
         <a class="dgl-agencia" href="https://www.instagram.com/adciomediard/"
            target="_blank" rel="noopener" aria-label="Adcio Media en Instagram (@adciomediard)">
           <span class="dgl-agencia-logo" aria-hidden="true"></span>
@@ -265,6 +275,7 @@
             <span class="dgl-agencia-ig">@adciomediard</span>
           </span>
         </a>
+        {% endif %}
         {% comment %}
           LA CUENTA DEL SITIO, en esta columna y con SU PROPIO encabezado.
 

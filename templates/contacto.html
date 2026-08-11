@@ -92,12 +92,22 @@ estadísticas, y al final la publicidad, que llega poco pero importa.
       sitio existe por ese tipo de cosas.
     </p>
 
+    {% comment %}
+      LA MISMA BANDERA QUE ESCONDE LOS HUECOS ESCONDE ESTO (dueño, 2026-08-10), y no es un extra: es
+      lo que hace coherente el apagado. Ofrecer espacios publicitarios en una página donde no se ve
+      ni un anuncio deja al visitante —y al anunciante que llega a preguntar— con dos mensajes que se
+      contradicen.
+
+      Vuelve sola con `ANUNCIOS_VISIBLES=true`, igual que los huecos. Ver `docs/ADSERVER.md`.
+    {% endcomment %}
+    {% if anuncios_visibles %}
     <h2>Publicidad</h2>
     <p>
       El sitio lo gestiona <b>Adcio Media</b>. Para espacios publicitarios, escribe al mismo correo o
       por Instagram a
       <a href="https://www.instagram.com/adciomediard/" target="_blank" rel="noopener">@adciomediard</a>.
     </p>
+    {% endif %}
 
     <h2>Prensa y uso de contenido</h2>
     <p>

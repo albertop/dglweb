@@ -2,8 +2,9 @@
 
 POR QUÉ UNA ETIQUETA Y NO EL CÓDIGO PEGADO EN CADA PLANTILLA
 ------------------------------------------------------------
-Son TRECE huecos repartidos por seis plantillas. Pegar la etiqueta del servidor en cada uno significa
-que cambiar de proveedor —o corregir un parámetro— es trece ediciones, y basta olvidar una para dejar
+Son DIECISÉIS huecos repartidos por seis plantillas —medidos en `tests/test_anuncios_apagados.py`,
+que los cuenta; el «trece» que decía acá se quedó viejo—. Pegar la etiqueta del servidor en cada uno significa
+que cambiar de proveedor —o corregir un parámetro— son dieciséis ediciones, y basta olvidar una para dejar
 un hueco muerto que nadie nota hasta que el anunciante pregunta por sus impresiones.
 
 POR QUÉ UN `iframe` Y NO LA ETIQUETA DE JAVASCRIPT QUE SUGIERE REVIVE
@@ -44,6 +45,23 @@ from django.conf import settings
 register = template.Library()
 
 
+def _apagado() -> dict[str, Any]:
+    """El contexto de un hueco que hoy no se enseña. Las dos plantillas de marco no dibujan nada.
+
+    `visible: False` Y NO UN `{% if %}` EN CADA PÁGINA. Son dieciséis huecos en seis plantillas: apagarlos
+    desde arriba obligaría a envolver los dieciséis, y el primero que alguien añadiera nacería encendido.
+    Acá la puerta es una y la cruzan todos.
+
+    Y SE APAGA DEVOLVIENDO NADA, no escondiendo con CSS. Un marco con `display:none` se sigue pidiendo
+    al servidor y cuenta la impresión, así que las estadísticas del anunciante contarían anuncios que
+    nadie vio. Lo que no se dibuja no se pide.
+
+    Los tags SIGUEN EN LAS PLANTILLAS, que es lo que pidió el dueño: la integración no se toca, solo
+    deja de enseñarse. `ANUNCIOS_VISIBLES=true` la devuelve entera sin tocar una línea de HTML.
+    """
+    return {"visible": False}
+
+
 @register.inclusion_tag("widgets/_anuncio.html")
 def anuncio(zona: int, ancho: int, alto: int, clase: str = "") -> dict[str, Any]:
     """Un hueco de publicidad. `zona` es el identificador que Revive le dio.
@@ -52,14 +70,17 @@ def anuncio(zona: int, ancho: int, alto: int, clase: str = "") -> dict[str, Any]
     Ese es el comportamiento correcto en desarrollo: nadie quiere contar impresiones de sí mismo
     recargando la portada, y un hueco en blanco parecería un fallo de maquetación.
     """
+    if not settings.ANUNCIOS_VISIBLES:
+        return _apagado()
     origen = settings.ADSERVER_URL
     if not origen:
-        return {"url": "", "ancho": ancho, "alto": alto, "clase": clase}
+        return {"visible": True, "url": "", "ancho": ancho, "alto": alto, "clase": clase}
 
     # `token_hex` y no `random`: no hace falta que sea impredecible, pero el generador criptográfico
     # está en la biblioteca estándar y evita tener que explicar por qué un `random` sin sembrar es
     # suficiente. Cuesta microsegundos.
     return {
+        "visible": True,
         "url": f"{origen}/www/pauta/dgl-m.php?cb={secrets.token_hex(6)}&zoneid={zona}",
         "ancho": ancho,
         "alto": alto,
@@ -116,6 +137,8 @@ def anuncio_horizontal(z970: int, z728: int, z320: int, clase: str = "") -> dict
     si los tres compartieran una, el informe no podría decir cuántas veces salió en móvil y cuántas en
     escritorio. Son formatos distintos y se venden a precios distintos.
     """
+    if not settings.ANUNCIOS_VISIBLES:
+        return _apagado()
     origen = settings.ADSERVER_URL
     opciones: list[dict[str, Any]] = []
     for (ancho, alto, minimo), zona in zip(TAMANOS_HORIZONTALES, (z970, z728, z320), strict=True):
@@ -129,6 +152,7 @@ def anuncio_horizontal(z970: int, z728: int, z320: int, clase: str = "") -> dict
     # `separators` sin espacios: este JSON viaja dentro de un atributo y se repite en dos huecos por
     # página. Los espacios serían bytes que no dicen nada.
     return {
+        "visible": True,
         "opciones": json.dumps(opciones, separators=(",", ":")),
         "hay_servidor": bool(origen),
         "clase": clase,
@@ -158,6 +182,8 @@ def anuncio_rango(
         maximo=991    solo por debajo de `lg`  (móvil y tablet en vertical)
         minimo=992    solo desde `lg`          (escritorio y tablet en horizontal)
     """
+    if not settings.ANUNCIOS_VISIBLES:
+        return _apagado()
     origen = settings.ADSERVER_URL
     opcion: dict[str, Any] = {"min": minimo, "ancho": ancho, "alto": alto}
     if maximo:
@@ -165,6 +191,7 @@ def anuncio_rango(
     if origen:
         opcion["url"] = f"{origen}/www/pauta/dgl-m.php?cb={secrets.token_hex(6)}&zoneid={zona}"
     return {
+        "visible": True,
         "opciones": json.dumps([opcion], separators=(",", ":")),
         "hay_servidor": bool(origen),
         "clase": clase,

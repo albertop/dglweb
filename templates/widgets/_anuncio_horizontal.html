@@ -16,6 +16,15 @@ NO SE USA `_anuncio.html`, y esta vez la duplicación está justificada: ese otr
 puesto por el servidor, y este nace vacío a propósito. Compartir plantilla obligaría a un `{% if %}`
 que haría dudar de cuál de los dos comportamientos aplica en cada sitio.
 {% endcomment %}
+{% comment %}
+  LA PUERTA DE `ANUNCIOS_VISIBLES`. El tag manda `visible` SIEMPRE —`True` o `False`, nunca ausente—
+  para que esto sea un `{% if %}` normal y no una comprobación de si la variable existe.
+
+  Con la publicidad apagada no se dibuja NADA: ni marco, ni recuadro de maqueta. Y acá importa el
+  doble, porque este marco lleva `dgl-ad-leader`, que reserva 90px de alto en escritorio: dejar el
+  elemento y esconderlo con CSS habría dejado el hueco en blanco que se venía a quitar.
+{% endcomment %}
+{% if visible %}
 {% if hay_servidor %}
   {% comment %}
     El `sandbox` impide que una creatividad de tercero se lleve al lector con `top.location`. Va
@@ -67,4 +76,5 @@ que haría dudar de cuál de los dos comportamientos aplica en cada sitio.
     mismo CSS— así que el diseño se prueba en desarrollo con las medidas de producción.
   {% endcomment %}
   <div class="dgl-ad dgl-ad-leader {{ clase }}">Espacio publicitario</div>
+{% endif %}
 {% endif %}
