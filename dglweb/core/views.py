@@ -3,6 +3,7 @@ import secrets
 from datetime import timedelta
 from typing import Any, Protocol
 
+from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -37,6 +38,21 @@ PORTADA_RESTO = 2
 # estirarían y romperían esa cuenta.
 PORTADA_MOVIL_EXTRA = 3
 
+# CUÁNTOS SE PIDEN CUANDO NO HAY PUBLICIDAD (dueño, 2026-08-10). Ver `docs/PUBLICIDAD_APAGADA.md`.
+#
+# Sin el carril de 300x600 la portada cambia de forma: arriba van DOS destacados al 50 % —a banda
+# completa uno solo se veía desangelado, con media tarjeta vacía— y debajo los demás en tres columnas.
+#
+# El número sale de que las filas cuadren. Con los seis de siempre, dos arriba dejan cuatro abajo: una
+# fila de tres y un huérfano. Con ocho quedan dos filas de tres exactas, sin huecos.
+#
+#     con publicidad     1 destacado + 2 al lado + carril      = 3 visibles en escritorio
+#     sin publicidad     2 destacados al 50 % + 3 + 3          = 8
+#
+# Y no es «pedir de más»: son artículos que ya existen y que hoy están escondidos detrás del enlace al
+# índice. El hueco que deja el anuncio se llena con contenido, que era el encargo.
+PORTADA_SIN_ANUNCIOS = 8
+
 # Los jobs que corren cada hora y alimentan módulos que el visitante VE. Se vigilan aparte del
 # refresco diario porque fallan distinto: el diario se nota al día siguiente, y estos dejan la
 # portada enseñando dato viejo con cara de fresco. Ver `_horarios_atrasados()`.
@@ -65,12 +81,18 @@ def home(request: HttpRequest) -> HttpResponse:
     from dglweb.articles.models import ArticlePage, para_tarjetas
     from dglweb.stats import daily, efemerides, mlb_leaders, scoreboard, ventana
 
-    cuantos = PORTADA_DESTACADO + PORTADA_RESTO + PORTADA_MOVIL_EXTRA
+    # SIN PUBLICIDAD CABEN MÁS, y hacen falta para que las filas cuadren. Ver `PORTADA_SIN_ANUNCIOS`.
+    con_anuncios = bool(settings.ANUNCIOS_VISIBLES)
+    cuantos = (
+        PORTADA_DESTACADO + PORTADA_RESTO + PORTADA_MOVIL_EXTRA if con_anuncios else PORTADA_SIN_ANUNCIOS
+    )
     # `para_tarjetas` y no un `select_related` propio: la portada usa la misma plantilla de tarjeta
     # que el índice, así que tiene que traer lo mismo. Ver su docstring.
     # `-fijado` primero, igual que el índice: es lo que deja al dueño elegir qué encabeza la portada
     # sin tener que retocar la fecha del artículo. Ver `ArticlePage.fijado`.
     articulos = list(para_tarjetas(ArticlePage.objects.live()).order_by("-fijado", "-fecha", "-pk")[:cuantos])
+    # ARRIBA VAN DOS AL 50 % CUANDO NO HAY PUBLICIDAD, y uno cuando la hay. El resto baja a la rejilla.
+    arriba = PORTADA_DESTACADO if con_anuncios else 2
     return render(
         request,
         "home.html",
@@ -86,10 +108,16 @@ def home(request: HttpRequest) -> HttpResponse:
             # p80 de una corrida y un p20 de otra.
             "rachas": ventana.portada(),
             "articulo": articulos[0] if articulos else None,
-            "articulos": articulos[PORTADA_DESTACADO : PORTADA_DESTACADO + PORTADA_RESTO],
+            # EL SEGUNDO DE ARRIBA, solo sin publicidad. `None` con publicidad, y la plantilla no
+            # dibuja la segunda columna: con el carril puesto no hay sitio para dos destacados.
+            "articulo_par": articulos[1] if not con_anuncios and len(articulos) > 1 else None,
+            "articulos": articulos[arriba : arriba + PORTADA_RESTO] if con_anuncios else articulos[arriba:],
             # Los del botón de móvil. Vacío si no hay más, y entonces el botón no se dibuja: un
             # control que no despliega nada es peor que no tenerlo — promete contenido que no existe.
-            "articulos_de_mas": articulos[PORTADA_DESTACADO + PORTADA_RESTO :],
+            #
+            # Sin publicidad no hay «de más»: todos entran en la rejilla de tres columnas, así que el
+            # botón del móvil desaparece y «Ver más artículos» vuelve a ser solo el enlace al índice.
+            "articulos_de_mas": articulos[arriba + PORTADA_RESTO :] if con_anuncios else [],
             "indice": _url_del_indice(),
         },
     )

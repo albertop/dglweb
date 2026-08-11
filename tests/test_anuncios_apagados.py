@@ -106,7 +106,11 @@ def test_las_tres_tarjetas_escondidas_se_marcan_para_salir_en_escritorio() -> No
         cuerpo = Client().get("/").content.decode()
 
     assert "sin-anuncios" in cuerpo
-    assert "dgl-art-de-mas" in cuerpo  # la clase sigue puesta: el móvil no cambia
+    # YA NO HAY «DE MÁS» SIN PUBLICIDAD, y esta prueba cambió con el layout del 2026-08-10: la vista
+    # pide ocho artículos y TODOS entran en pantalla —dos destacados al 50 % arriba y seis en tres
+    # columnas—, así que no queda nada detrás del botón del móvil. La clase solo se dibuja cuando hay
+    # publicidad, que es cuando existe la restricción que la justificaba.
+    assert "dgl-art-de-mas" not in cuerpo
 
 
 @pytest.mark.django_db

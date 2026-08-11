@@ -108,9 +108,35 @@
     pidiera. Se dejó creada un rato «por si acaso» y eso fue peor: una zona que no pide ninguna
     plantilla solo sirve para que dentro de tres meses nadie sepa si está rota o si sobra.
   {% endcomment %}
+  {% comment %}
+    DOS DESTACADOS AL 50 % CUANDO NO HAY PUBLICIDAD (dueño, 2026-08-10). Con el carril quitado, la
+    columna del destacado se ensancha al contenedor entero y uno solo se veía desangelado: el titular
+    no llenaba la banda y quedaba media tarjeta de aire a la derecha.
+
+    VAN EN SU PROPIA FILA y no dentro de la rejilla de abajo porque son DESTACADOS: llevan
+    `destacado=True`, que les da titular más grande y banda más alta. Metidos en las tres columnas se
+    igualarían con el resto y la portada perdería su jerarquía.
+
+    Con publicidad esta fila no existe: `articulo_par` llega `None` desde la vista, el destacado se
+    queda donde siempre —a la izquierda del carril— y no cambia nada.
+  {% endcomment %}
+  {% if articulo_par %}
+    <div class="row g-4 mb-4">
+      <div class="col-12 col-lg-6">
+        {% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}
+      </div>
+      <div class="col-12 col-lg-6">
+        {% include "articles/_tarjeta.html" with articulo=articulo_par destacado=True only %}
+      </div>
+    </div>
+  {% endif %}
+
   <div class="row g-4 mb-4">
     <div class="col-12 col-lg">
-      {% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}
+      {# Con dos destacados arriba, este ya se dibujó allí y acá solo va la rejilla. #}
+      {% if not articulo_par %}
+        {% include "articles/_tarjeta.html" with articulo=articulo destacado=True only %}
+      {% endif %}
 
       {% if articulos %}
         {% comment %}

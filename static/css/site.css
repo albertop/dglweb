@@ -404,23 +404,26 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
    en los dos porque un hijo flex no baja de su ancho de contenido sin él, y sin eso el nombre
    empujaría al icono fuera de la caja en vez de recortarse. */
 .dgl-destacado-nombre { display: flex; align-items: center; gap: .3rem; min-width: 0; }
-/* EL NOMBRE COMPLETO EN MÓVIL Y EL ABREVIADO EN ESCRITORIO (dueño, 2026-08-01).
+/* EL NOMBRE COMPLETO EN LAS DOS PANTALLAS (dueño, 2026-08-10).
 
-   Suena al revés y es por lo mismo que el logo del equipo: la rejilla es `minmax(250px, 1fr)`, así
-   que en un teléfono arma UNA columna de ~350px y en escritorio DOS de ~260. La caja es más ancha en
-   el teléfono, y ahí «Fernando Tatis Jr.» cabe donde en escritorio solo cabe «F. Tatis Jr.».
+   ESTO ESTUVO PARTIDO Y YA NO HACE FALTA. La versión anterior enseñaba el nombre largo en móvil y el
+   abreviado en escritorio, que suena al revés hasta que se mira el ancho: la rejilla es
+   `minmax(250px, 1fr)`, así que un teléfono arma UNA columna de ~350px y el escritorio DOS de ~260.
+   La caja era más ancha en el teléfono, y ahí «Fernando Tatis Jr.» cabía donde en escritorio solo
+   cabía «F. Tatis Jr.».
 
-   Los dos vienen en el HTML y acá se elige, porque el servidor no sabe de qué ancho es la pantalla.
-   El corte es el `lg` de siempre — entre 768 y 991 la caja mide ~365px, todavía más que en
-   escritorio, así que el nombre largo también le sirve.
+   Lo que cambió es que **estos tres paneles ya no llevan el logo del equipo**. Ese icono se comía el
+   ancho que ahora sobra, así que el nombre completo entra también en escritorio y no hay motivo para
+   seguir abreviando a nadie.
 
-   Solo aplica a los tres paneles que usan `.dgl-destacado-nombre`: destacados y las dos rachas. El de
-   líderes tiene su propia anatomía y no lo pidió el dueño. */
-.dgl-nombre-largo { display: none; }
-@media (max-width: 991.98px) {
-  .dgl-nombre-corto { display: none; }
-  .dgl-nombre-largo { display: inline; }
-}
+   Se dejan las DOS variantes en el HTML a propósito, aunque hoy solo se pinte una: el día que algo
+   vuelva a estrechar la caja, esto es una regla de CSS y no una plantilla que hay que rehacer.
+
+   Solo aplica a los tres paneles que usan `.dgl-destacado-nombre`: destacados y las dos rachas. El
+   top 10 de la liga tiene su propia anatomía y ahí el nombre completo NO cabe — el dueño lo dejó
+   dicho expresamente. */
+.dgl-nombre-corto { display: none; }
+.dgl-nombre-largo { display: inline; }
 
 /* «VER MÁS ARTÍCULOS»: UN ENLACE EN ESCRITORIO, UN DESPLIEGUE EN EL TELÉFONO (dueño, 2026-08-01).
 
