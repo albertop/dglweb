@@ -260,7 +260,11 @@
   {% endcomment %}
   {% if indice %}
     <div class="text-center my-4 dgl-solo-ancha">
-      <a href="{{ indice }}" class="btn btn-outline-primary btn-sm px-4">Ver más artículos</a>
+      {% comment %}
+        El mismo estilo que su gemelo del móvil y que los «Ver más» de los widgets: el sitio no tiene
+        más botones con marco, y este era el último. Ver `dgl-lideres-mas` en `site.css`.
+      {% endcomment %}
+      <a href="{{ indice }}" class="dgl-lideres-mas">Ver más artículos</a>
     </div>
   {% endif %}
   {% if articulos_de_mas %}
