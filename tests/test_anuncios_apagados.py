@@ -106,11 +106,66 @@ def test_las_tres_tarjetas_escondidas_se_marcan_para_salir_en_escritorio() -> No
         cuerpo = Client().get("/").content.decode()
 
     assert "sin-anuncios" in cuerpo
-    # YA NO HAY «DE MÁS» SIN PUBLICIDAD, y esta prueba cambió con el layout del 2026-08-10: la vista
-    # pide ocho artículos y TODOS entran en pantalla —dos destacados al 50 % arriba y seis en tres
-    # columnas—, así que no queda nada detrás del botón del móvil. La clase solo se dibuja cuando hay
-    # publicidad, que es cuando existe la restricción que la justificaba.
-    assert "dgl-art-de-mas" not in cuerpo
+    # LA CLASE SIGUE PUESTA, y esta línea llegó a decir lo contrario. Es el bug que el dueño cazó en
+    # el celular: yo había vaciado `articulos_de_mas` sin publicidad, así que el pliegue del móvil
+    # desapareció y salían los ocho artículos de golpe. Y esta prueba, escrita a la vez que el fallo,
+    # lo daba por bueno — que es cómo un error se queda a vivir.
+    #
+    # Sin publicidad la clase se queda y lo que cambia es el CSS: `.sin-anuncios` la revela en
+    # escritorio. En móvil sigue siendo el pliegue de siempre.
+    assert "dgl-art-de-mas" in cuerpo
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("con_anuncios", [True, False])
+def test_el_telefono_conserva_su_pliegue_y_su_boton(con_anuncios: bool) -> None:
+    """EL PLIEGUE DEL MÓVIL NO DEPENDE DE LA PUBLICIDAD, y confundir los dos cortes ya rompió esto.
+
+    En una columna de teléfono, ocho tarjetas son ocho pantallas. Por eso existe «Ver más artículos»:
+    enseña unas cuantas y el resto se despliega. Eso vale con publicidad y sin ella — el carril de
+    300x600 nunca existió en un móvil, así que apagarlo no cambia nada ahí.
+
+    Lo que la publicidad SÍ cambia es el escritorio, y eso lo resuelve `.sin-anuncios` en el CSS.
+
+    QUÉ FALLÓ (2026-08-10): la vista dejaba `articulos_de_mas` vacío sin publicidad, metiendo los
+    ocho en la rejilla. En escritorio se veía perfecto y en el teléfono el botón desapareció, con
+    todos los artículos desplegados y la portada tres veces más larga. Lo vio el dueño mirando el
+    celular; ninguna prueba lo miraba, y la que tocaba el tema afirmaba lo contrario.
+    """
+    indice = _indice_de_articulos()
+    for n in range(10):
+        _articulo(indice, f"Articulo {n}")
+
+    with ENCENDIDO if con_anuncios else APAGADO:
+        respuesta = Client().get("/")
+    cuerpo = respuesta.content.decode()
+
+    # Queda contenido detrás del pliegue…
+    assert respuesta.context["articulos_de_mas"], "sin esto el botón del móvil no se dibuja"
+    assert "dgl-art-de-mas" in cuerpo
+    # …y el control que lo despliega existe y apunta a la rejilla.
+    assert 'data-desplegar="#portada-articulos"' in cuerpo
+    assert "Ver más artículos" in cuerpo
+
+
+@pytest.mark.django_db
+def test_sin_publicidad_las_filas_de_escritorio_cuadran() -> None:
+    """Tres columnas piden múltiplos de tres, o la última fila deja huérfanos.
+
+    Con dos destacados arriba y seis en la rejilla salen dos filas exactas. El reparto entre lo que
+    se ve y lo que espera al botón también va de tres en tres, así que al desplegar en el móvil se
+    revela una fila entera y no un trozo.
+    """
+    indice = _indice_de_articulos()
+    for n in range(10):
+        _articulo(indice, f"Articulo {n}")
+
+    with APAGADO:
+        respuesta = Client().get("/")
+
+    assert respuesta.context["articulo"] and respuesta.context["articulo_par"]  # los dos de arriba
+    assert len(respuesta.context["articulos"]) == 3
+    assert len(respuesta.context["articulos_de_mas"]) == 3
 
 
 @pytest.mark.django_db

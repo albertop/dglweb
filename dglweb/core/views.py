@@ -53,6 +53,21 @@ PORTADA_MOVIL_EXTRA = 3
 # índice. El hueco que deja el anuncio se llena con contenido, que era el encargo.
 PORTADA_SIN_ANUNCIOS = 8
 
+
+def _visibles(con_anuncios: bool) -> int:
+    """Cuántas tarjetas de la rejilla se ven en un TELÉFONO antes de pulsar «Ver más».
+
+    Con publicidad son dos, que es lo de siempre. Sin publicidad, tres: la rejilla de escritorio va a
+    tres columnas, así que partir seis en 3 + 3 deja dos filas exactas arriba y dos abajo, y el botón
+    revela una fila entera en vez de dejar un huérfano.
+
+    ESTE NÚMERO ES DEL MÓVIL Y SOLO DEL MÓVIL. En escritorio se ven las seis pase lo que pase: sin
+    publicidad las de abajo las revela `.sin-anuncios` desde el CSS, y con publicidad no existen
+    porque el carril de 300x600 no deja sitio. Confundir los dos cortes fue el error de la primera
+    versión, que dejó al teléfono sin botón y con los ocho artículos desplegados.
+    """
+    return PORTADA_RESTO if con_anuncios else 3
+
 # Los jobs que corren cada hora y alimentan módulos que el visitante VE. Se vigilan aparte del
 # refresco diario porque fallan distinto: el diario se nota al día siguiente, y estos dejan la
 # portada enseñando dato viejo con cara de fresco. Ver `_horarios_atrasados()`.
@@ -111,13 +126,22 @@ def home(request: HttpRequest) -> HttpResponse:
             # EL SEGUNDO DE ARRIBA, solo sin publicidad. `None` con publicidad, y la plantilla no
             # dibuja la segunda columna: con el carril puesto no hay sitio para dos destacados.
             "articulo_par": articulos[1] if not con_anuncios and len(articulos) > 1 else None,
-            "articulos": articulos[arriba : arriba + PORTADA_RESTO] if con_anuncios else articulos[arriba:],
+            # LOS QUE SE VEN SIN PULSAR NADA. El corte es el del TELÉFONO, no el del escritorio: en
+            # escritorio se ven todos igual —el CSS revela los de abajo cuando no hay publicidad— así
+            # que lo único que decide este número es cuántos hay antes del pliegue en un móvil.
+            "articulos": articulos[arriba : arriba + _visibles(con_anuncios)],
             # Los del botón de móvil. Vacío si no hay más, y entonces el botón no se dibuja: un
             # control que no despliega nada es peor que no tenerlo — promete contenido que no existe.
             #
-            # Sin publicidad no hay «de más»: todos entran en la rejilla de tres columnas, así que el
-            # botón del móvil desaparece y «Ver más artículos» vuelve a ser solo el enlace al índice.
-            "articulos_de_mas": articulos[arriba + PORTADA_RESTO :] if con_anuncios else [],
+            # SIN PUBLICIDAD SIGUE HABIENDO «DE MÁS», y hubo una versión donde no: se metían los ocho
+            # en la rejilla y esta lista quedaba vacía. En escritorio se veía bien y en el teléfono
+            # desapareció el botón «Ver 3 más» — todos los artículos de golpe, la portada tres veces
+            # más larga. Lo cazó el dueño mirando el celular.
+            #
+            # El pliegue del móvil no tiene nada que ver con la publicidad: existe porque en una
+            # columna de un teléfono ocho tarjetas son ocho pantallas. Lo que la publicidad cambia es
+            # el ESCRITORIO, y eso ya lo resuelve `.sin-anuncios` en el CSS.
+            "articulos_de_mas": articulos[arriba + _visibles(con_anuncios) :],
             "indice": _url_del_indice(),
         },
     )
