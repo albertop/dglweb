@@ -5,9 +5,16 @@
 {% block nav_home_current %}aria-current="page"{% endblock %}
 
 {% block content %}
+{% comment %}
+  EL CONTENEDOR TAMBIÉN SE VA, no solo el anuncio. El tag apagado no dibuja nada, pero este `div`
+  seguiría ahí con su `mt-3`: un contenedor vacío con margen es espacio en blanco, que es justo lo
+  que se venía a quitar. Vale para los dos huecos horizontales de esta página y para el del móvil.
+{% endcomment %}
+{% if anuncios_visibles %}
 <div class="container mt-3">
   {% anuncio_horizontal 1 16 17 %}
 </div>
+{% endif %}
 
 <main class="container my-4">
   {% comment %}
@@ -69,9 +76,11 @@
     El rango va en la etiqueta y no solo en `d-lg-none` por lo mismo que el carril: un marco oculto
     carga igual, y este contaría una impresión en cada visita de escritorio.
   {% endcomment %}
+  {% if anuncios_visibles %}
   <div class="d-lg-none mb-4">
     {% anuncio_rango 40 320 50 maximo=991 clase="dgl-ad-leader" %}
   </div>
+  {% endif %}
 
   {% comment %}
     Desde la Fase 5 los artículos son páginas de Wagtail y no las tarjetas de muestra que había acá
@@ -158,8 +167,14 @@
 
           Y esa tercera no se inventa: son los `articulos_de_mas` que la vista ya manda y que hoy solo
           se ven al pulsar el botón del móvil. Ver abajo.
+
+          Y EL `mt-4` SOLO CUANDO EL DESTACADO ESTÁ JUSTO ENCIMA. Ese aire existe para separar el
+          destacado de la rejilla, y con dos destacados el destacado ya no está en esta columna: está
+          en su propia fila, que cierra con `mb-4`. Los dos márgenes se sumaban y dejaban 3rem de
+          hueco — el dueño lo vio en el teléfono, entre el segundo artículo y el tercero, que es
+          justo donde caía la costura.
         {% endcomment %}
-        <div class="row g-3 mt-4{% if not anuncios_visibles %} sin-anuncios{% endif %}" id="portada-articulos">
+        <div class="row g-3{% if not articulo_par %} mt-4{% endif %}{% if not anuncios_visibles %} sin-anuncios{% endif %}" id="portada-articulos">
           {% for otro in articulos %}
             <div class="col-md-6{% if not anuncios_visibles %} col-lg-4{% endif %}">{% include "articles/_tarjeta.html" with articulo=otro only %}</div>
           {% endfor %}
