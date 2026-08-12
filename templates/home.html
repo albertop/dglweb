@@ -283,14 +283,48 @@
       `<button>`: el despliegue es todo lo que puede ofrecer.
     {% endcomment %}
     <div class="text-center my-4 dgl-solo-angosta">
+      {% comment %}
+        EL ESTILO DEL SITIO Y NO EL BOTÓN DE BOOTSTRAP (dueño, 2026-08-11), por dos motivos que
+        resultaron ser el mismo.
+
+        El primero: los «Ver más» de los widgets —destacados, líderes, rachas— son `dgl-lideres-mas`,
+        texto azul plano que se subraya al pasar. Este era el único con marco y relleno, y desentonaba.
+
+        El segundo lo vio el dueño en el teléfono: **después de pulsarlo se quedaba con fondo azul**.
+        Es `btn-outline-primary:hover`, que rellena — y en una pantalla táctil el `:hover` se queda
+        pegado tras el toque hasta que se toca otra cosa. Un control que cambia de aspecto y no vuelve
+        parece encendido, o roto.
+
+        `dgl-lideres-mas` no tiene fondo en ningún estado, así que el problema no puede volver.
+      {% endcomment %}
       {% if indice %}
-        <a href="{{ indice }}" class="btn btn-outline-primary btn-sm px-4"
+        <a href="{{ indice }}" class="dgl-lideres-mas"
            data-desplegar="#portada-articulos" aria-controls="portada-articulos"
            aria-expanded="false">Ver más artículos</a>
       {% else %}
-        <button type="button" class="btn btn-outline-primary btn-sm px-4"
+        <button type="button" class="dgl-lideres-mas"
                 data-desplegar="#portada-articulos" aria-controls="portada-articulos"
                 aria-expanded="false">Ver más artículos</button>
+      {% endif %}
+
+      {% comment %}
+        LA SALIDA AL ÍNDICE, QUE EN EL TELÉFONO NO EXISTÍA (dueño, 2026-08-11).
+
+        El enlace de arriba SÍ apunta al índice, pero en móvil `site.js` le hace `preventDefault()` y
+        lo convierte en desplegable. O sea que una vez desplegados los ocho artículos, desde la
+        portada no había forma de llegar al resto: el botón se quedaba en «Ver menos» y los demás
+        artículos del sitio no tenían puerta. En escritorio nunca pasó, porque ahí el enlace no se
+        intercepta.
+
+        SOLO APARECE UNA VEZ DESPLEGADO, y por eso lo dibuja el CSS y no un `{% if %}`: el servidor no
+        sabe si la persona ya pulsó. Sin desplegar sobra —el botón de arriba ya ofrece más artículos—
+        y ofrecer dos caminos a la vez para lo mismo es ruido.
+
+        Y va SIN `data-desplegar`, que es lo que lo deja navegar de verdad: `site.js` solo intercepta
+        los que llevan ese atributo.
+      {% endcomment %}
+      {% if indice %}
+        <a href="{{ indice }}" class="dgl-al-indice">Ver todos los artículos</a>
       {% endif %}
     </div>
   {% endif %}

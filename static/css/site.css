@@ -445,6 +445,41 @@ a.dgl-article-title:hover { color: var(--dgl-blue); text-decoration: none; }
   #portada-articulos.esta-desplegado .dgl-art-de-mas { display: block; }
 }
 
+/* LA SALIDA AL ÍNDICE DESDE EL TELÉFONO, que no existía.
+
+   El botón de arriba apunta al índice, pero en móvil `site.js` le hace `preventDefault()` para
+   desplegar las tarjetas. Desplegadas las ocho, el botón se queda en «Ver menos» y desde la portada
+   no había puerta al resto de los artículos. Este enlace la abre.
+
+   SOLO CUANDO YA ESTÁ DESPLEGADO. Sin desplegar sobra: el botón de arriba ya ofrece más artículos, y
+   dos caminos simultáneos para lo mismo son ruido.
+
+   `:has()` PORQUE EL ENLACE NO ES HIJO NI HERMANO de la rejilla — vive en el bloque del botón, dos
+   niveles fuera— así que no hay combinador que llegue. Se mira desde arriba: «el cuerpo que contiene
+   una rejilla desplegada». Si algún navegador viejo no lo soporta, el enlace simplemente no aparece
+   y todo queda como estaba: es una mejora, no un requisito. */
+/* `dgl-lideres-mas` nació como `<button>` y este es un `<a>`: sin esto hereda el subrayado y el color
+   de enlace del navegador, y deja de parecerse a sus hermanos de los widgets. */
+a.dgl-lideres-mas { text-decoration: none; }
+a.dgl-lideres-mas:hover { text-decoration: underline; }
+
+/* EL BUSCADOR, FUERA DEL MENÚ EN EL TELÉFONO. Sale del `collapse` para no quedar detrás de la
+   hamburguesa, y acá se le da la línea entera: `.navbar` envuelve por defecto, así que la marca y el
+   botón de menú se quedan arriba y la caja de búsqueda cae debajo, a todo el ancho. En escritorio no
+   aplica nada de esto y sigue en línea con la navegación, donde siempre estuvo. */
+@media (max-width: 991.98px) {
+  .dgl-buscador-nav { width: 100%; max-width: none !important; }
+}
+
+.dgl-al-indice { display: none; }
+@media (max-width: 991.98px) {
+  body:has(#portada-articulos.esta-desplegado) .dgl-al-indice {
+    display: inline-block; margin-top: .9rem;
+    color: var(--dgl-blue); font-size: .86rem; text-decoration: none;
+  }
+  body:has(#portada-articulos.esta-desplegado) .dgl-al-indice:hover { text-decoration: underline; }
+}
+
 /* SIN PUBLICIDAD, LAS TRES SE PUBLICAN EN ESCRITORIO. La razón por la que se escondían es la que
    está escrita ahí arriba —estirarían la fila que justifica el anuncio de 300x600— y sin ese anuncio
    deja de existir. El carril libera 324px, los artículos pasan a tres columnas (`col-lg-4`, lo pone

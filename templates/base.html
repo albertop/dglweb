@@ -101,7 +101,7 @@
     O sea que olvidarlo no rompe el sitio publicado: rompe la revisión del dueño, que es donde se
     decide si algo sale o no. No es menos grave por eso.
   {% endcomment %}
-  <link href="{% static 'css/site.css' %}?v=150" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=152" rel="stylesheet">
   {% if analitica %}{% comment %}
     Umami: cuántas visitas y por dónde llegaron. Es el ÚNICO tercero que carga el sitio público, y
     por eso está declarado en tres sitios que tienen que decir lo mismo — acá, en la CSP y en la
@@ -141,21 +141,32 @@
               aria-controls="nav" aria-expanded="false" aria-label="Abrir el menú">
         <span class="navbar-toggler-icon" style="filter:invert(1)"></span>
       </button>
-      <div class="collapse navbar-collapse" id="nav">
-        {% comment %}
+      {% comment %}
+        EL BUSCADOR VA FUERA DEL `collapse` (dueño, 2026-08-11). Estaba dentro, y eso en un teléfono
+        lo escondía detrás del botón de hamburguesa: para buscar un pelotero había que abrir el menú
+        primero. En escritorio nunca se notó porque ahí el `collapse` está siempre desplegado.
+
+        Buscar por nombre es la acción más frecuente del sitio y no puede costar dos toques.
+
         La misma caja que la de /jugadores/: el JS se monta solo por `data-buscador`. Y como es un
         formulario de verdad con su `action`, pulsar Enter sin elegir sugerencia lleva a la página de
         resultados — que es también lo que pasa si el script no carga.
-        {% endcomment %}
-        <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width:340px" method="get"
-              action="{% url 'players_index' %}" role="search" aria-label="Buscar jugador">
-          <label class="visually-hidden" for="buscar">Buscar jugador</label>
-          <div class="position-relative flex-grow-1">
-            <input class="form-control form-control-sm dgl-buscador-header" id="buscar" name="q" type="search"
-                   placeholder="🔎 Buscar jugador…"
-                   data-buscador="{% url 'players_suggest' %}" data-minimo="2">
-          </div>
-        </form>
+
+        VA DESPUÉS DEL BOTÓN DE MENÚ en el HTML, no antes, y eso decide cómo se reparte en el
+        teléfono: `.navbar` envuelve por defecto, así que marca y hamburguesa se quedan en la primera
+        línea y el buscador cae entero en la segunda. Puesto antes, se habría metido entre los dos y
+        habría dejado las tres cosas apretadas en una sola línea.
+      {% endcomment %}
+      <form class="d-flex ms-lg-3 my-2 my-lg-0 flex-grow-1 dgl-buscador-nav" style="max-width:340px" method="get"
+            action="{% url 'players_index' %}" role="search" aria-label="Buscar jugador">
+        <label class="visually-hidden" for="buscar">Buscar jugador</label>
+        <div class="position-relative flex-grow-1">
+          <input class="form-control form-control-sm dgl-buscador-header" id="buscar" name="q" type="search"
+                 placeholder="🔎 Buscar jugador…"
+                 data-buscador="{% url 'players_suggest' %}" data-minimo="2">
+        </div>
+      </form>
+      <div class="collapse navbar-collapse" id="nav">
         <ul class="navbar-nav ms-auto align-items-lg-center">
           {% comment %}
             El home en un plato, que es el símbolo del juego y el único ítem del menú que no necesita

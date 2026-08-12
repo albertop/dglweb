@@ -149,6 +149,38 @@ def test_el_telefono_conserva_su_pliegue_y_su_boton(con_anuncios: bool) -> None:
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("con_anuncios", [True, False])
+def test_el_telefono_tiene_una_salida_al_indice(con_anuncios: bool) -> None:
+    """Desplegadas las tarjetas, desde la portada no se podía llegar al resto de los artículos.
+
+    El botón «Ver más artículos» apunta al índice, pero en móvil `site.js` le hace `preventDefault()`
+    para desplegar. Una vez desplegado se queda en «Ver menos» y los demás artículos del sitio no
+    tenían puerta desde la portada. En escritorio nunca pasó: ahí el enlace no se intercepta.
+
+    El enlace nuevo va SIN `data-desplegar`, que es lo que lo deja navegar de verdad — `site.js` solo
+    intercepta los que llevan ese atributo. Lo enseña el CSS cuando la rejilla está desplegada.
+    """
+    indice = _indice_de_articulos()
+    for n in range(10):
+        _articulo(indice, f"Articulo {n}")
+
+    with ENCENDIDO if con_anuncios else APAGADO:
+        cuerpo = Client().get("/").content.decode()
+
+    assert "dgl-al-indice" in cuerpo
+    assert "Ver todos los artículos" in cuerpo
+    # Y NO LO INTERCEPTA NADIE: si alguien le pusiera `data-desplegar`, volvería a ser un desplegable
+    # y el teléfono se quedaría otra vez sin salida.
+    #
+    # Se recorta SU etiqueta y no un trozo a ojo alrededor: el primer intento cogía 200 caracteres
+    # hacia atrás y se llevaba por delante el botón anterior, que sí lleva el atributo. La prueba
+    # fallaba señalando al enlace correcto.
+    fin = cuerpo.index("Ver todos los artículos")
+    etiqueta = cuerpo[cuerpo.rindex("<a", 0, fin) : fin]
+    assert "data-desplegar" not in etiqueta
+
+
+@pytest.mark.django_db
 def test_sin_publicidad_las_filas_de_escritorio_cuadran() -> None:
     """Tres columnas piden múltiplos de tres, o la última fila deja huérfanos.
 
