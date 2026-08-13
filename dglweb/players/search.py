@@ -85,7 +85,9 @@ class Resultados:
         return max(0, self.total - len(self.items))
 
 
-def buscar(consulta: str, limite: int | None = LIMITE_SUGERENCIAS) -> Resultados:
+def buscar(
+    consulta: str, limite: int | None = LIMITE_SUGERENCIAS, *, desde_1956: bool = False, oficio: str = ""
+) -> Resultados:
     """Los jugadores cuyo nombre contiene `consulta`, ordenados por qué tan bien encaja.
 
     El orden sale de una sola consulta, y son dos escalones:
@@ -105,6 +107,28 @@ def buscar(consulta: str, limite: int | None = LIMITE_SUGERENCIAS) -> Resultados
         return Resultados(items=[], total=0)
 
     encontrados = _rankeado(aguja)
+    if desde_1956:
+        # EL BUSCADOR DEL COMPARADOR NO OFRECE A LAS LIGAS NEGRAS (dueño, 2026-08-13). Sus números no
+        # son comparables con los de Grandes Ligas y el WAR ni siquiera existe para ellos, así que
+        # elegirlos solo lleva a un error. El corte es el mismo que usa `comparador.universo`.
+        #
+        # ES UNA OPCIÓN Y NO EL COMPORTAMIENTO NORMAL: la caja del encabezado, que está en todas las
+        # páginas, TIENE que seguir encontrando a Tetelo Vargas y a Horacio Martínez. Son parte del
+        # sitio; lo que no son es comparables.
+        from dglweb.stats.leaders import FIRST_SEASON
+
+        encontrados = encontrados.filter(debut_date__year__gte=FIRST_SEASON)
+
+    # EL OFICIO LO PIDE EL PASO 1 DEL ASISTENTE, y es lo que hace que el buscador del paso 2 sea
+    # «inteligente»: quien dijo «bateadores» no puede tropezarse con Pedro Martínez. `Player.pos` ya
+    # distingue abridor de relevista (ver `players/positions.py`), así que no hace falta nada nuevo.
+    #
+    # Un oficio desconocido NO filtra, en vez de vaciar la lista: un parámetro con una errata dejaría
+    # el buscador mudo sin decir por qué.
+    if oficio == "batting":
+        encontrados = encontrados.exclude(pos__in=["P", "SP", "RP"])
+    elif oficio in ("SP", "RP"):
+        encontrados = encontrados.filter(pos=oficio)
     # `count()` sobre el queryset ya filtrado: una consulta más, sin traer las filas. Es lo que
     # permite decir cuántos quedaron fuera en vez de recortar y callar.
     total = encontrados.count()

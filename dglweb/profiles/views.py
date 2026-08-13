@@ -234,7 +234,12 @@ def players_suggest(request: HttpRequest) -> JsonResponse:
     desplegable recorta en silencio y quien busca «jose» —sesenta y ocho coincidencias— concluye que
     los otros cincuenta y ocho no están en la base.
     """
-    hallazgo = search.buscar(request.GET.get("q") or "")
+    # `universo=comparador` lo pide el generador de comparaciones y solo él: ver `search.buscar`.
+    hallazgo = search.buscar(
+        request.GET.get("q") or "",
+        desde_1956=request.GET.get("universo") == "comparador",
+        oficio=request.GET.get("oficio") or "",
+    )
     return JsonResponse(
         {
             "results": [s.to_dict() for s in hallazgo.items],

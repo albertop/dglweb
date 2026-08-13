@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static %}{% comment %}
+El asistente que arma la comparación: seis pasos, una pregunta cada uno.
+
+POR QUÉ UN ASISTENTE Y NO UN FORMULARIO. Hubo un formulario de una pantalla y el dueño lo rechazó:
+obligaba a entender las tres modalidades, los dos buscadores y el umbral antes de elegir nada.
+Preguntando de una en una, además, cada paso puede usar lo contestado en el anterior — el buscador del
+paso 2 solo ofrece bateadores si en el 1 dijiste «bateadores».
+
+TODO LO YA CONTESTADO VIAJA EN CAMPOS OCULTOS, y por eso el formulario entero se reenvía en cada paso.
+Es lo que hace que «atrás» funcione y que recargar no pierda nada: el estado está en la URL, no en la
+sesión ni en memoria del navegador.
+
+LA VALIDACIÓN LA HACE EL SERVIDOR, siempre. Acá no se decide nada.
+{% endcomment %}
+
+{% block title %}Comparar peloteros — Dominicanos en Grandes Ligas{% endblock %}
+{% block meta %}<meta name="description" content="Compara dos peloteros dominicanos por carrera, por una temporada o por sus mejores años, con el puesto histórico de cada cifra.">{% endblock %}
+
+{% block content %}
+<main class="container my-4">
+  {% comment %}
+    EL TÍTULO NO SE VE (dueño): con el asistente sobra, porque cada paso ya dice qué está preguntando
+    y el encabezado solo empujaba la pregunta fuera de la primera pantalla.
+
+    Pero SIGUE EXISTIENDO, escondido. Una página sin `h1` deja al lector de pantalla sin saber dónde
+    ha caído —los pasos son preguntas, no el nombre de la página— y a Google sin encabezado que
+    indexar. `visually-hidden` es la clase que el sitio ya usa para esto.
+  {% endcomment %}
+  <h1 class="visually-hidden">Comparar peloteros</h1>
+
+  {% comment %}
+    El contador es una lista ordenada de verdad, no un adorno: un lector de pantalla anuncia «paso 3
+    de 6» sin que haya que escribirlo aparte. `aria-current` marca en cuál estamos.
+  {% endcomment %}
+  <ol class="dgl-wiz-pasos" aria-label="Progreso">
+    {% for n in pasos_lista %}
+      <li class="{% if n == paso %}es-actual{% elif n < paso %}es-hecho{% endif %}"
+          {% if n == paso %}aria-current="step"{% endif %}>{{ n }}</li>
+    {% endfor %}
+  </ol>
+
+  {% comment %}
+    El resumen necesita más ancho que las preguntas: son pares etiqueta-valor y a 34rem se parten en dos
+    líneas cada uno. `es-resumen` lo ensancha solo en el último paso, sin tocar los otros cinco.
+  {% endcomment %}
+  <form method="get" action="" class="dgl-wiz{% if paso == pasos %} es-resumen{% endif %}" id="cmp-form">
+    {% comment %}
+      Lo contestado hasta ahora. Se reenvía TODO en cada paso —también lo de pasos posteriores al
+      actual, si se retrocedió— para que volver a avanzar no obligue a repetirlo. El servidor descarta
+      lo que deje de tener sentido: cambiar el oficio en el paso 1 invalida a los dos peloteros, y de
+      eso se encarga `_primero_incompleto`.
+
+      Los campos del paso ACTUAL no se repiten acá; los pinta el paso y llegan por su propio `name`.
+    {% endcomment %}
+    {% for campo, valor in ocultos %}
+      {% comment %}
+        EL `id` NO ES DECORATIVO: `comparador.js` busca el slug del pelotero por `getElementById` para
+        saber de quién pedir los años. Sin él los desplegables de temporada salen vacíos y no hay nada
+        en pantalla que explique por qué.
+      {% endcomment %}
+      <input type="hidden" name="{{ campo }}" id="{{ campo }}" value="{{ valor }}">
+    {% endfor %}
+
+    {% if paso == 1 %}
+      <fieldset class="dgl-wiz-paso">
+        <legend class="dgl-wiz-titulo">¿Qué quieres comparar?</legend>
+        {% comment %}
+          ABRIDORES Y RELEVISTAS VAN SEPARADOS aunque compartan las quince métricas de pitcheo: es lo
+          que permite que el buscador del paso siguiente no mezcle a Pedro Martínez con Fernando
+          Rodney. `Player.pos` ya los distingue — ver `players/positions.py`.
+        {% endcomment %}
+        {% for valor, rotulo in oficios %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="oficio" id="of-{{ valor }}" value="{{ valor }}"
+                   {% if estado.oficio == valor %}checked{% endif %} required>
+            <label class="form-check-label" for="of-{{ valor }}">{{ rotulo }}</label>
+          </div>
+        {% endfor %}
+      </fieldset>
+
+    {% elif paso == 2 or paso == 3 %}
+      {% comment %}
+        Los dos pasos de pelotero son el mismo bloque. `campo` decide a cuál de los dos se escribe, y
+        el buscador lleva el oficio del paso 1 para no ofrecer a quien no toca.
+      {% endcomment %}
+      {% if paso == 2 %}
+        {% include "profiles/_cmp_lado.html" with campo="uno" rotulo="Selecciona el primer pelotero" slug=estado.uno nombre=nombres.uno %}
+      {% else %}
+        {% include "profiles/_cmp_lado.html" with campo="otro" rotulo="Selecciona el segundo pelotero" slug=estado.otro nombre=nombres.otro %}
+      {% endif %}
+
+    {% elif paso == 4 %}
+      <fieldset class="dgl-wiz-paso">
+        <legend class="dgl-wiz-titulo">¿Qué quieres comparar de ellos?</legend>
+        {% for valor, rotulo in modalidades %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="modo" id="modo-{{ valor }}" value="{{ valor }}"
+                   {% if estado.modo == valor or not estado.modo and valor == "carrera" %}checked{% endif %} required>
+            <label class="form-check-label" for="modo-{{ valor }}">{{ rotulo }}</label>
+          </div>
+        {% endfor %}
+      </fieldset>
+
+    {% elif paso == 5 %}
+      <fieldset class="dgl-wiz-paso">
+        {% if estado.modo == "mejores" %}
+          <legend class="dgl-wiz-titulo">¿Cuántas temporadas?</legend>
+          <select class="form-select dgl-control dgl-cmp-num" id="cuantas" name="cuantas">
+            {% for n in rango %}
+              <option value="{{ n }}" {% if estado.cuantas == n|stringformat:"s" %}selected{% endif %}>{{ n }} temporada{{ n|pluralize:"s" }}</option>
+            {% endfor %}
+          </select>
+          {% comment %}
+            EL AVISO DEL UMBRAL va donde tiene efecto: decide qué años entran y cuántos «tiene» cada
+            pelotero, que es de lo que habla el error cuando alguien pide siete y hay cinco.
+          {% endcomment %}
+          <p class="dgl-cmp-aviso">Para nosotros una temporada es la de al menos
+             <strong>{{ minimo }} {{ unidad }}</strong>. Los años más cortos no cuentan ni para la
+             comparación ni para el ranking.</p>
+        {% else %}
+          <legend class="dgl-wiz-titulo">¿Qué temporada de cada uno?</legend>
+          {% comment %}
+            DESPLEGABLES Y NO CAJAS DE AÑO: solo ofrecen años que existen Y que cuentan como temporada,
+            así que el camino equivocado deja de estar disponible. Los llena `comparador.js` pidiendo
+            los años de cada pelotero, porque dependen de quién sea. Los `input` ocultos con el slug
+            están arriba, y son los que el script mira.
+          {% endcomment %}
+          <div class="row g-3">
+            {% for campo, quien, elegido in anios_campos %}
+              <div class="col-sm-6">
+                <label class="form-label dgl-wiz-quien" for="anio_{{ campo }}">{{ quien }}</label>
+                <select class="form-select dgl-control dgl-cmp-num" id="anio_{{ campo }}" name="anio_{{ campo }}"
+                        data-anios="{% url 'comparador_temporadas' %}" data-elegido="{{ campo }}"
+                        data-elegido-valor="{{ elegido }}" disabled></select>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </fieldset>
+
+    {% else %}
+      <div class="dgl-wiz-paso">
+        <h2 class="dgl-wiz-titulo">Esto es lo que vas a generar</h2>
+        {% comment %}
+          EL RESUMEN VA EN CASTELLANO y no en jerga de parámetros: es la última oportunidad de que
+          alguien vea que pidió otra cosa. Una lista de definiciones porque son pares de etiqueta y
+          valor.
+        {% endcomment %}
+        <dl class="dgl-wiz-resumen">
+          {% for etiqueta, valor in resumen %}
+            <dt>{{ etiqueta }}</dt><dd>{{ valor }}</dd>
+          {% endfor %}
+        </dl>
+      </div>
+    {% endif %}
+
+    {% comment %}
+      ATRÁS Y SIGUIENTE EN TODOS LOS PASOS (dueño). Los dos son botones de envío del mismo formulario
+      —no enlaces— para que lo elegido en la pantalla actual viaje también al retroceder: quien vuelve
+      atrás y avanza otra vez se encuentra lo suyo puesto, no borrado.
+
+      El de atrás lleva `formnovalidate` porque volver no exige haber contestado. Sin eso el navegador
+      se niega a retroceder desde un paso con un campo obligatorio vacío, que es justo cuando más falta
+      hace.
+    {% endcomment %}
+    <div class="dgl-wiz-botones">
+      {% if paso > 1 %}
+        <button class="btn btn-outline-secondary" type="submit" name="paso" value="{{ anterior }}"
+                formnovalidate>Atrás</button>
+      {% endif %}
+      {% if paso < pasos %}
+        <button class="btn btn-primary" type="submit" name="paso" value="{{ siguiente }}">Siguiente</button>
+      {% else %}
+        <button class="btn btn-primary dgl-cmp-boton" type="submit" name="comparar" value="1">Generar la tarjeta</button>
+      {% endif %}
+    </div>
+
+    {% comment %}
+      Los errores van debajo de los botones, que es donde queda mirando quien acaba de pulsar. No son
+      «campo obligatorio»: son frases que explican qué pedir en su lugar, así que hay que leerlas.
+    {% endcomment %}
+    {% if errores %}
+      <div class="alert alert-warning dgl-cmp-errores mt-3" role="alert" tabindex="-1" id="errores">
+        {% for error in errores %}<p class="mb-0">{{ error }}</p>{% endfor %}
+      </div>
+    {% endif %}
+  </form>
+</main>
+{% endblock %}
+
+{% comment %}
+  `buscador.js` NO se carga acá: `base.html` ya lo sirve en todas las páginas. Cargarlo dos veces lo
+  ejecuta dos veces y acaba con DOS desplegables sobre la misma caja — al elegir se cierra uno y el
+  otro se queda a la vista. Costó encontrarlo.
+{% endcomment %}
+{% block extra_js %}<script src="{% static 'js/comparador.js' %}?v=2" defer></script>{% endblock %}

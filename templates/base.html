@@ -101,7 +101,7 @@
     O sea que olvidarlo no rompe el sitio publicado: rompe la revisión del dueño, que es donde se
     decide si algo sale o no. No es menos grave por eso.
   {% endcomment %}
-  <link href="{% static 'css/site.css' %}?v=153" rel="stylesheet">
+  <link href="{% static 'css/site.css' %}?v=161" rel="stylesheet">
   {% if analitica %}{% comment %}
     Umami: cuántas visitas y por dónde llegaron. Es el ÚNICO tercero que carga el sitio público, y
     por eso está declarado en tres sitios que tienen que decir lo mismo — acá, en la CSP y en la
@@ -184,6 +184,7 @@
             <span class="visually-hidden">Inicio</span></a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'leaders' %}">Líderes</a></li>
           <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'players_index' %}">Jugadores</a></li>
+          <li class="nav-item"><a class="nav-link dgl-navlink" href="{% url 'comparador' %}">Comparar</a></li>
           {% comment %}
             La URL sale del árbol de Wagtail (ver `articles/context_processors.py`) y no de una ruta
             fija: desde la Fase 5 la página la sirve el CMS y el editor puede moverla o renombrarla.
@@ -326,6 +327,7 @@
           {% if indice_articulos %}<li><a href="{{ indice_articulos }}">Artículos</a></li>{% endif %}
           <li><a href="{% url 'leaders' %}">Líderes</a></li>
           <li><a href="{% url 'players_index' %}">Jugadores</a></li>
+          <li><a href="{% url 'comparador' %}">Comparar</a></li>
           <li><a href="{% url 'contacto' %}">Contáctanos</a></li></ul>
       </div>
       <div class="col-6 col-md-3"><h6 id="pie-legal">Legal</h6>
@@ -356,7 +358,7 @@
 </footer>
 
 <script src="{% static 'vendor/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'js/buscador.js' %}?v=3" defer></script>
+<script src="{% static 'js/buscador.js' %}?v=4" defer></script>
 {% comment %}
   Va acá y no en un bloque de página porque el cintillo está en la cabecera, o sea en todas. Lo único
   que hace es ajustar la duración de la animación a lo que mida la tira, para que la VELOCIDAD sea

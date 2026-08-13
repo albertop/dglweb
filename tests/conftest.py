@@ -39,3 +39,16 @@ def cache_limpio() -> Any:
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture
+def catalogo(db: None) -> None:
+    """Las métricas que el comparador pide. Sin ellas devuelve celdas vacías y no prueba nada.
+
+    VIVE ACÁ Y NO EN UN MÓDULO DE PRUEBAS porque lo usan dos: el del cálculo y el del asistente.
+    Reexportarlo con un `import` hacía que `ruff` viera una redefinición en cada test que lo pide
+    —diecinueve— y ese ruido tapaba errores de verdad en la misma corrida.
+    """
+    from django.core.management import call_command
+
+    call_command("seed_metrics")

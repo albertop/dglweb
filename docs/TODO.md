@@ -3,6 +3,48 @@
 Lista de pendientes que van surgiendo sobre la marcha. (Ítems de decisión / afinado, no el
 roadmap de fases — eso está en `BUILD_PLAN.md`.)
 
+## Cerrado: el W-L de carrera nunca estuvo mal (abierto 2026-08-11, cerrado 2026-08-13)
+
+**No había ningún bug.** Este issue afirmaba que tres fuentes no cuadraban en el récord de Fernando
+Rodney. Investigado a fondo: **las tres afirmaciones eran mediciones mal hechas**, y las tres del
+mismo modo — consultar una tabla sin filtrar por la columna que la discrimina.
+
+| lo que decía el issue | lo que pasaba de verdad |
+| --- | --- |
+| `PitchingCareer` da 15-30, «lo que ve el perfil» | 15-30 es su récord **con Detroit**. La tabla tiene 14 filas suyas y un campo `level` las separa en TEAM / LEAGUE / **TOTAL**. La fila TOTAL dice 48-71. `views.py` y `_group_context` filtran bien: **el perfil nunca publicó un número equivocado**. |
+| El tablero guarda 1.000 | Es su récord de **postemporada**: 1-0 en octubre da 1.000, y es correcto. `dgl_leader` guarda los dos mundos en la misma tabla y los separa `postseason`. El tablero de temporada regular lo encabeza Pedro Martínez con .687, seguido de Marichal con .639. |
+| Falta el umbral de `win_pct` | `qualifier_career` estaba vacío, pero **vacío significa heredar el del grupo**, que es `IP>=1000`. Nunca faltó. |
+
+**Lo que sí se verificó, y vale más que el issue:** una auditoría de las dos tablas de carrera contra
+la suma de sus temporadas —colapsadas con `season_totals()`— sobre **toda la base**: 870 bateadores y
+566 lanzadores, 16 columnas acumulables cada uno. Todas cuadran, ninguna sin fila TOTAL. Y
+`dgl_leader` no tiene **ni un solo duplicado** en sus 409.359 filas cuando la clave incluye
+`postseason`.
+
+### La lección, que es lo único que hay que conservar de acá
+
+**Estas tablas guardan varios universos y los separan con una columna.** Consultarlas sin ella no da
+un error: da un número creíble que responde a otra pregunta.
+
+    PitchingCareer / BattingCareer   →  `level` (TEAM · LEAGUE · TOTAL)
+    Leader                           →  `postseason` (y `fielding_pos`, y `board`)
+    Batting / Pitching               →  las repartidas entre clubes traen fila por equipo MÁS la
+                                        combinada `XXX`; hay que colapsar con `season_totals()`
+
+El issue original nació de olvidar la primera. Al investigarlo se repitió el mismo fallo con la
+segunda —dos veces— y llegó a producir un diagnóstico de «8.321 filas duplicadas» que no existían.
+Ninguna de las dos veces hubo síntoma: los números salían plausibles.
+
+Hay pruebas que lo fijan en `tests/test_comparador.py`
+(`test_octubre_y_temporada_regular_son_dos_tableros`).
+
+### Pendiente de verdad, y es lo único
+
+**La comparación de octubre contra temporada regular en la misma página.** El comparador ya no la
+puede hacer —lee solo `Batting`/`Pitching`, con prueba que lo fija— pero conviene revisar que
+`/lideres/` nunca enseñe un tablero de postemporada sin decirlo. El código filtra por `postseason` en
+sus cinco consultas, así que no debería; falta comprobarlo en pantalla.
+
 ## Hecho: tab de Fildeo
 
 **Construido y en producción.** `FieldingTab` está en el registro con su `_fielding_context` propio

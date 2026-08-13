@@ -2005,3 +2005,76 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
     visibility: visible; opacity: 1; transition: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────────────────────
+   EL COMPARADOR: el generador (/comparar/) y la tarjeta (/comparar/a/vs/b/modo/).
+
+   LA TARJETA IMITA AL PNG A PROPÓSITO — métrica al centro, valores flanqueándola, ganador teñido.
+   Mucha gente llega acá desde una imagen compartida por WhatsApp, y si la página no se parece a lo
+   que vieron, parece que pincharon en el sitio equivocado.
+   ───────────────────────────────────────────────────────────────────────────────────────────── */
+.dgl-cmp-form { max-width: 60rem; }
+.dgl-cmp-lado { background: var(--dgl-card); border: 1px solid var(--dgl-line); border-radius: .5rem; padding: 1rem; }
+.dgl-cmp-sub { margin: .5rem 0 0 1.75rem; }          /* alineado con el texto del radio, no con su bolita */
+.dgl-cmp-anio { margin-top: .75rem; }
+/* Los dos desplegables del asistente. 8rem truncaba «7 temporadas» dejando ver «7 tempor…», y en
+   móvil el de años tampoco respiraba: se le da ancho de contenido con un suelo cómodo. */
+.dgl-cmp-num { min-width: 12rem; max-width: 100%; width: auto; }
+.dgl-cmp-aviso { color: var(--dgl-muted); font-size: .875rem; margin: .5rem 0 0; }
+.dgl-cmp-boton { min-width: 12rem; }
+.dgl-cmp-errores { border-left: 4px solid var(--dgl-red); }
+.dgl-cmp-errores:focus { outline: 2px solid var(--dgl-blue); outline-offset: 2px; }
+
+/* LA PÁGINA DE RESULTADO ES LA IMAGEN. Hubo una tabla en HTML y se quitó (dueño, 2026-08-13): lo que
+   la gente comparte es el PNG, así que la página enseña ese PNG y no una segunda versión del mismo
+   dato. Por eso acá solo queda cómo se encuadra la imagen y cómo se reparte. */
+/* EL ANCHO LO MANDA EL ALTO DE LA VENTANA y no el de la pantalla, que es lo contrario de lo habitual.
+   La tarjeta es 4:5 —más alta que ancha— así que en un monitor apaisado el límite nunca es el ancho:
+   a 34rem se sale por abajo y hay que hacer scroll para ver el pie, que es donde va la marca. Con
+   `min()` la imagen se encoge hasta caber entera en la altura disponible. El 0,8 descuenta el
+   encabezado, los botones y los márgenes. */
+.dgl-cmp { max-width: min(34rem, 80vh * 0.8); margin: 0 auto; }
+@media (max-width: 575.98px) {
+  /* En el móvil manda el ancho otra vez: la pantalla es vertical y la tarjeta cabe de sobra. */
+  .dgl-cmp { max-width: 100%; }
+}
+/* `height:auto` con las medidas reales en el HTML: el navegador reserva el hueco 4:5 antes de que la
+   imagen llegue, y la página no da el salto al cargarla. */
+.dgl-cmp-tarjeta { width: 100%; height: auto; border-radius: .5rem; box-shadow: 0 1px 6px rgb(0 0 0 / .18); }
+.dgl-cmp-otra { margin-top: 1.25rem; text-align: center; }
+
+/* EL ASISTENTE DEL COMPARADOR: seis pasos, una pregunta cada uno. */
+.dgl-wiz { max-width: 34rem; }
+.dgl-wiz-paso { margin-bottom: 1rem; }
+.dgl-wiz-titulo { font-size: 1.25rem; font-weight: 700; color: var(--dgl-ink); margin-bottom: .75rem; }
+.dgl-wiz-botones { display: flex; gap: .75rem; margin-top: 1.5rem; }
+/* «Siguiente» primero en el DOM sería mejor para el teclado, pero «Atrás» va antes visualmente porque
+   es donde la gente lo busca. `order` los recoloca sin cambiar el orden de tabulación. */
+.dgl-wiz-botones .btn { min-width: 8rem; }
+.dgl-wiz-pasos { display: flex; gap: .4rem; list-style: none; padding: 0; margin: 0 0 1.25rem; }
+.dgl-wiz-pasos li {
+  width: 1.9rem; height: 1.9rem; border-radius: 50%; display: grid; place-items: center;
+  font-size: .8125rem; font-weight: 700; color: var(--dgl-muted);
+  background: var(--dgl-card); border: 1px solid var(--dgl-line);
+}
+.dgl-wiz-pasos .es-hecho { background: var(--dgl-line); color: var(--dgl-ink); }
+.dgl-wiz-pasos .es-actual { background: var(--dgl-blue); border-color: var(--dgl-blue); color: #fff; }
+.dgl-wiz-resumen { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; margin: 0; }
+.dgl-wiz-resumen dt { color: var(--dgl-muted); font-size: .875rem; }
+.dgl-wiz-resumen dd { margin: 0; font-weight: 600; }
+/* El nombre sobre cada desplegable de temporada. Más grande que un rótulo de campo normal (dueño):
+   acá el nombre no etiqueta un dato, ES la pregunta —de quién es este año— y compite con el
+   desplegable, que ya va a cuerpo de control. */
+.dgl-wiz-quien { font-size: 1.0625rem; font-weight: 700; color: var(--dgl-ink); margin-bottom: .35rem; }
+/* El último paso enseña el resumen, que es más ancho que cualquier pregunta. */
+.dgl-wiz.es-resumen { max-width: 46rem; }
+/* `max-content` en la primera columna: la etiqueta manda su ancho y cada fila cabe en una línea.
+   Con `auto` el navegador repartía y partía «Temporada de Pedro Martínez» en dos. */
+.dgl-wiz-resumen { grid-template-columns: max-content 1fr; }
+.dgl-wiz-resumen dt, .dgl-wiz-resumen dd { white-space: nowrap; }
+@media (max-width: 575.98px) {
+  /* En el móvil no cabe en dos columnas: se apila etiqueta sobre valor, que sigue leyéndose. */
+  .dgl-wiz-resumen { grid-template-columns: 1fr; gap: 0 0; }
+  .dgl-wiz-resumen dd { margin-bottom: .6rem; }
+  .dgl-wiz-resumen dt, .dgl-wiz-resumen dd { white-space: normal; }
+}

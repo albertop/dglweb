@@ -1,0 +1,28 @@
+{% load static %}{% comment %}
+Un lado del generador: la caja de nombre y el slug oculto. Se incluye dos veces desde
+`generador.html`, que le pasa `campo`, `rotulo`, `slug` y `nombre`.
+
+QUÉ VIAJA Y QUÉ SE VE. Lo que el servidor lee es el campo oculto con el slug; la caja de texto es
+solo la forma de encontrarlo. Están separados a propósito: escribir «Soto» no identifica a nadie —hay
+varios— y hacer que el servidor adivine sería justo lo que no queremos, que el sitio decida por el
+usuario sin que él entienda qué pasó.
+
+EL AÑO NO ESTÁ ACÁ (dueño): vive debajo de su casilla de modalidad, junto a los demás parámetros, y no
+colgando de la ficha del pelotero. Un parámetro que solo existe en una modalidad se lee mejor dentro
+de ella.
+
+SIN JAVASCRIPT la caja de texto no hace nada y el campo oculto se queda vacío, así que el servidor
+responde «falta elegir el pelotero». Se pierde la comodidad, no la corrección.
+{% endcomment %}
+<div class="dgl-wiz-paso">
+  <div class="dgl-cmp-lado">
+    <label class="form-label dgl-control-label" for="q-{{ campo }}">{{ rotulo }}</label>
+    <div class="position-relative">
+      <input class="form-control dgl-control" type="search" id="q-{{ campo }}" value="{{ nombre }}"
+             placeholder="Escribe un nombre o apellido…" autocomplete="off"
+             data-buscador="{% url 'players_suggest' %}?universo=comparador&amp;oficio={{ estado.oficio }}"
+             data-minimo="2" data-elige="{{ campo }}">
+    </div>
+    <input type="hidden" name="{{ campo }}" id="{{ campo }}" value="{{ slug }}">
+  </div>
+</div>

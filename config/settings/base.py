@@ -210,6 +210,16 @@ MEDIA_URL = "/media/"
 # faltara, `/ready` lo diría con un 503 antes de recibir tráfico.
 COMPARTIDA = "compartida"
 
+# LAS IMÁGENES VAN EN SU PROPIA TABLA, y no por orden sino por TAMAÑO (2026-08-13). Las tarjetas del
+# comparador pesan 200 KB, y Django las serializa en base64 antes de guardarlas: unos 270 KB por fila,
+# contra los 34 KB que va midiendo todo lo demás junto.
+#
+# EL PROBLEMA NO ES EL ESPACIO SINO EL DESALOJO. `MAX_ENTRIES` se aplica por tabla, así que metiendo
+# las imágenes en la compartida un puñado de tarjetas expulsaría las entradas de la pizarra —baratas
+# de guardar y leídas en TODAS las páginas— para dejar sitio a un PNG que quizá nadie vuelva a pedir.
+# Separarlas deja que cada una se llene y se purgue a su ritmo.
+IMAGENES = "imagenes"
+
 CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
     COMPARTIDA: {
@@ -218,6 +228,14 @@ CACHES = {
         # 300 es el defecto y se queda corto en cuanto entren más entradas compartidas. Mil de este
         # tamaño son unos pocos megas en una tabla que se limpia sola.
         "OPTIONS": {"MAX_ENTRIES": 1000},
+    },
+    IMAGENES: {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "dgl_cache_imagenes",
+        # DOSCIENTAS TARJETAS son unos 55 MB de tabla, que es lo que estoy dispuesto a gastar para
+        # que la ruta más cara del sitio no se recalcule. Cabe de sobra la cola larga de
+        # comparaciones que se comparten; el resto se repinta y se vuelve a guardar.
+        "OPTIONS": {"MAX_ENTRIES": 200},
     },
 }
 

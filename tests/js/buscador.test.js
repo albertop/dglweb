@@ -299,3 +299,136 @@ describe("las respuestas que llegan tarde — FE-01 del review v11", () => {
     expect(lista.classList.contains("d-none")).toBe(false);
   });
 });
+
+/* EL MODO SELECTOR — el que usa el generador de comparaciones.
+ *
+ * ESTAS PRUEBAS NACEN DE UN FALLO REAL. La primera versión añadió la rama que rellena el campo
+ * oculto pero se olvidó de poner el slug en el `<li>`, así que elegir un pelotero no hacía NADA: la
+ * caja se quedaba igual y el formulario mandaba vacío. No se ve leyendo el código —la rama está, y
+ * parece completa— y en pantalla parece que el click no llegó.
+ *
+ * Las tres cosas que se protegen son las tres formas de mentirle al servidor:
+ *   elegir no anota      → el formulario manda vacío y el servidor dice «falta un pelotero».
+ *   reescribir no borra  → la caja dice «Pujols» y el formulario manda Soto. La peor de las tres.
+ *   «ver todos» navega   → se pierde el formulario a medio llenar.
+ */
+describe("el modo selector", () => {
+  async function selector(respuesta = RESPUESTA) {
+    document.body.innerHTML = `
+      <form id="cmp-form" action="/comparar/">
+        <div class="position-relative">
+          <input id="q-uno" data-buscador="/api/sugerencias/" data-minimo="2" data-elige="uno">
+        </div>
+        <input type="hidden" id="uno" name="uno" value="">
+      </form>`;
+
+    global.fetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve(respuesta) }));
+    new Function(FUENTE)();
+
+    const caja = document.getElementById("q-uno");
+    caja.value = "so";
+    caja.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(200);
+
+    return { caja, oculto: document.getElementById("uno"), lista: document.querySelector(".dgl-sugerencias") };
+  }
+
+  const elegir = (lista, i) =>
+    lista.children[i].dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+
+  it("anota el slug y escribe el nombre, sin navegar", async () => {
+    const { caja, oculto, lista } = await selector();
+
+    elegir(lista, 0);
+
+    expect(oculto.value).toBe("juan-soto-665742");
+    expect(caja.value).toBe("Juan Soto");
+    expect(window.location.href).toBe("");
+    expect(lista.classList.contains("d-none")).toBe(true);
+  });
+
+  it("avisa al formulario con un evento que burbujea", async () => {
+    const { oculto, lista } = await selector();
+    const oido = vi.fn();
+    document.getElementById("cmp-form").addEventListener("change", oido);
+
+    elegir(lista, 1);
+
+    expect(oido).toHaveBeenCalled();
+    expect(oculto.value).toBe("pedro-martinez-118377");
+  });
+
+  it("deshace la elección en cuanto se toca el texto", async () => {
+    const { caja, oculto, lista } = await selector();
+    elegir(lista, 0);
+
+    caja.value = "Juan Soto pero borrando";
+    caja.dispatchEvent(new Event("input"));
+
+    expect(oculto.value).toBe("", "la caja y el campo oculto no pueden decir cosas distintas");
+  });
+
+  it("con Enter sobre una resaltada elige, no navega", async () => {
+    const { caja, oculto, lista } = await selector();
+
+    pulsar(caja, "ArrowDown");
+    pulsar(caja, "Enter");
+
+    expect(oculto.value).toBe("juan-soto-665742");
+    expect(window.location.href).toBe("");
+    expect(lista).toBeTruthy();
+  });
+
+  it("no ofrece salir de la página cuando hay resultados de más", async () => {
+    const { lista } = await selector({ ...RESPUESTA, hidden: 58 });
+
+    const mas = lista.querySelector(".dgl-sugerencias-mas");
+    expect(mas.textContent).toContain("58 más");
+    expect(mas.dataset.url).toBeUndefined();
+
+    mas.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    expect(window.location.href).toBe("");
+  });
+
+  it("sin data-elige sigue navegando al perfil, como en el resto del sitio", async () => {
+    const { lista } = await buscador();
+
+    lista.children[0].dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+
+    expect(window.location.href).toBe("/jugador/juan-soto-665742/");
+  });
+});
+
+/* EL ENDPOINT PUEDE TRAER PARÁMETROS PROPIOS.
+ *
+ * El buscador del comparador apunta a `…/buscar/?universo=comparador` para no ofrecer a los que
+ * debutaron antes de 1956. Con un `?` fijo la URL salía `?universo=comparador?q=soto`, que el
+ * servidor lee como UN parámetro con la consulta pegada dentro: la búsqueda no filtra nada y el
+ * desplegable se queda vacío sin decir por qué.
+ */
+describe("la URL de las sugerencias", () => {
+  async function pedir(endpoint) {
+    document.body.innerHTML = `
+      <form><div class="position-relative">
+        <input id="buscar" name="q" data-buscador="${endpoint}" data-minimo="2">
+      </div></form>`;
+    global.fetch = vi.fn(() => Promise.resolve({ json: () => Promise.resolve(RESPUESTA) }));
+    new Function(FUENTE)();
+
+    const caja = document.getElementById("buscar");
+    caja.value = "soto";
+    caja.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(200);
+    return global.fetch.mock.calls[0][0];
+  }
+
+  it("usa ? cuando el endpoint no trae ninguno", async () => {
+    expect(await pedir("/jugadores/buscar/")).toBe("/jugadores/buscar/?q=soto");
+  });
+
+  it("usa & cuando el endpoint ya trae uno", async () => {
+    expect(await pedir("/jugadores/buscar/?universo=comparador")).toBe(
+      "/jugadores/buscar/?universo=comparador&q=soto"
+    );
+  });
+});

@@ -12,6 +12,56 @@ Todo lo de acá se corre **en el VPS**, salvo donde diga otra cosa.
 
 Lo que ya está en `main` y todavía no vive en producción. **Al desplegar, se comprueba y se borra de
 esta lista.**
+### El comparador de peloteros
+
+Trae más piezas que un cambio normal: **una migración, tipografías nuevas dentro del paquete, dos
+archivos de JavaScript, una tabla de caché y metadatos de Open Graph**. La checklist existe para que
+esas piezas dejen de vivir solo en la cabeza de quien las construyó.
+
+**1. La migración crea la tabla de caché de imágenes.** Si falta, la primera petición de una tarjeta
+revienta — y `/ready` lo diría antes con un 503.
+
+```bash
+docker exec dglweb-web-live python manage.py migrate
+```
+
+**2. El asistente carga y camina.** Seis pasos; el que importa probar es el 1, porque filtra a los
+demás:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://dominicanosengrandesligas.com/comparar/
+```
+
+En el navegador: elegir «Lanzadores relevistas», comprobar que el buscador **no** ofrece a Marichal, y
+llegar hasta el resumen.
+
+**3. Las dos imágenes se sirven.** La vertical es la que se comparte como fichero; la apaisada es la
+que ven las redes al pegar el enlace. Son distintas y se piden aparte:
+
+```bash
+curl -s -o /dev/null -w "vertical %{http_code} %{size_download}\n" "https://dominicanosengrandesligas.com/comparar/juan-marichal-118283/vs/pedro-martinez-118377/carrera/tarjeta.png"
+curl -s -o /dev/null -w "previa   %{http_code} %{size_download}\n" "https://dominicanosengrandesligas.com/comparar/juan-marichal-118283/vs/pedro-martinez-118377/carrera/tarjeta.png?previa=1"
+```
+
+Si la vertical sale y la previa no, lo más probable es que falte una tipografía en la imagen: las tres
+TTF viven en `dglweb/stats/fuentes/` y viajan con el paquete, no con los estáticos.
+
+**4. Un abridor contra un relevista responde 404**, que es una decisión de dominio y no un fallo — se
+rankean en poblaciones distintas. Ver `docs/COMPARADOR.md` §3:
+
+```bash
+curl -s -o /dev/null -w "%{http_code} (se espera 404)\n" "https://dominicanosengrandesligas.com/comparar/juan-marichal-118283/vs/fernando-rodney-407845/carrera/"
+```
+
+**5. Si el despliegue cambia el DISEÑO de la tarjeta, hay que limpiar la caché de imágenes.** La
+invalidación automática es por versión de los DATOS: cambiar el dibujo no cambia ni la carga ni los
+ids, así que la clave sigue siendo la misma y circulan hasta seis horas tarjetas con el formato
+anterior. Pasó dos veces en desarrollo y las dos pareció que el cambio no había entrado.
+
+```bash
+docker exec dglweb-web-live python manage.py shell -c "from django.conf import settings; from django.core.cache import caches; caches[settings.IMAGENES].clear(); print('limpia')"
+```
+
 
 ### 1.2026.2 — etiqueta de entorno en los avisos
 

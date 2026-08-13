@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load static compartir %}{% comment %}
+La página de resultado del comparador: LA TARJETA Y CÓMO REPARTIRLA.
+
+NO HAY TABLA EN HTML (dueño, 2026-08-13). La hubo y se quitó. Lo que la gente comparte es una imagen,
+así que la página enseña exactamente esa imagen y no una segunda versión del mismo dato: dos
+representaciones del mismo resultado acaban divergiendo, y la que circula por WhatsApp es la que
+nadie puede corregir.
+
+LA IMAGEN NO ES DECORACIÓN, ES EL CONTENIDO, así que su `alt` tiene que contarla entera. Quien no la
+ve necesita saber quiénes se comparan, bajo qué modalidad y con qué números — por eso el texto
+alternativo se arma en la vista con las cifras, y no dice «tarjeta comparativa».
+{% endcomment %}
+
+{% block title %}{{ lados.0.player.full_name }} vs. {{ lados.1.player.full_name }} — Dominicanos en Grandes Ligas{% endblock %}
+{% block meta %}<meta name="description" content="{{ lados.0.player.full_name }} contra {{ lados.1.player.full_name }}: {{ rotulo }}, con el puesto histórico de cada cifra entre los dominicanos.">{% endblock %}
+
+{% comment %}
+  LA TARJETA ES LA IMAGEN SOCIAL DE LA PÁGINA. Sin esto, quien pega el enlace en WhatsApp o X recibe
+  la miniatura genérica del sitio: el enlace se comparte y la comparación no se ve. Con esto, pegar el
+  enlace YA enseña la tarjeta, que es la mitad del feature.
+
+  Va en 1080x1350 porque es lo que mide de verdad; mentir en estas medidas hace que el previsualizador
+  reserve un hueco de otra forma y recorte.
+{% endcomment %}
+{% block og_tipo %}article{% endblock %}
+{% block og_titulo %}{{ lados.0.player.full_name }} vs. {{ lados.1.player.full_name }}{% endblock %}
+{% block og_descripcion %}{{ rotulo }}, con el puesto histórico de cada cifra entre los dominicanos.{% endblock %}
+{% block og_imagen %}{{ request.scheme }}://{{ request.get_host }}{{ url_previa }}{% endblock %}
+{% block og_imagen_ancho %}1200{% endblock %}
+{% block og_imagen_alto %}630{% endblock %}
+{% block og_imagen_alt %}{{ alt }}{% endblock %}
+
+{% block content %}
+<main class="container my-4">
+  <div class="dgl-cmp" data-png="{{ url_png }}" data-nombre="{{ nombre_archivo }}">
+
+    <img class="dgl-cmp-tarjeta" src="{{ url_png }}" alt="{{ alt }}" width="1080" height="1350">
+
+{% comment %}
+      LA ÚNICA FILA DE BOTONES (dueño, 2026-08-13). Había encima dos botones grandes —«Compartir la
+      imagen» y «Descargar»— y sobraban: esta fila ya está y es la que interesa.
+
+      QUÉ MANDA CADA UNO, que no es lo mismo:
+
+        Compartir…            EL PNG. `comparador_compartir.js` le engancha el fichero, así que la
+                              hoja del sistema lo ofrece a WhatsApp, Instagram o donde sea. Solo
+                              aparece en los móviles: es donde existe esa API.
+        WhatsApp, X, Facebook  EL ENLACE. Sus URLs solo aceptan texto — no hay forma de adjuntar una
+                              imagen por ahí. Como la página declara la tarjeta en `og:image`, lo que
+                              se ve al pegarlo es la tarjeta, y el enlace además deja rehacer la
+                              comparación con otros parámetros.
+    {% endcomment %}
+    {% compartir request.path titulo_compartir que="esta comparación" %}
+
+    <p class="dgl-cmp-otra">
+      <a href="{% url 'comparador' %}">Hacer otra comparación</a>
+    </p>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/compartir.js' %}?v=1" defer></script>
+<script src="{% static 'js/comparador_compartir.js' %}?v=2" defer></script>{% endblock %}

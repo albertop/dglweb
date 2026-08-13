@@ -70,9 +70,25 @@
       enVuelo = null;
     }
 
+    // MODO SELECTOR. Con `data-elige="id-de-un-campo-oculto"` la caja deja de ser un atajo de
+    // navegación y pasa a ser un campo de formulario: elegir no lleva al perfil, deja al pelotero
+    // anotado y el foco donde estaba. Es lo que necesita el generador de comparaciones, que pide DOS
+    // peloteros y no puede permitirse que el primero te saque de la página.
+    var destino = caja.dataset.elige ? document.getElementById(caja.dataset.elige) : null;
+
     function ir(i) {
       var li = lista.children[i];
-      if (li) window.location.href = li.dataset.url;
+      if (!li) return;
+      if (!destino) {
+        window.location.href = li.dataset.url;
+        return;
+      }
+      destino.value = li.dataset.slug || "";
+      caja.value = li.dataset.nombre || caja.value;
+      cerrar();
+      // Para que el formulario pueda reaccionar —habilitar el botón, pedir los años de ese pelotero—
+      // sin espiar el input. `bubbles` porque quien escucha es el <form>, no el campo.
+      destino.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     function pintar(datos) {
@@ -89,6 +105,10 @@
         li.setAttribute("role", "option");
         li.setAttribute("aria-selected", "false");
         li.dataset.url = "/jugador/" + r.slug + "/";
+        // El slug y el nombre viajan aparte de la URL porque el modo selector los necesita sueltos:
+        // uno va al campo oculto —es lo que lee el servidor— y el otro a la caja visible.
+        li.dataset.slug = r.slug;
+        li.dataset.nombre = r.name;
 
         var nombre = document.createElement("span");
         nombre.className = "nombre";
@@ -114,12 +134,19 @@
       if (datos.hidden > 0) {
         var mas = document.createElement("li");
         mas.className = "dgl-sugerencias-mas";
-        mas.dataset.url = paginaDeResultados(caja.value.trim());
-        mas.textContent = "y " + datos.hidden + " más — ver todos";
-        mas.addEventListener("mousedown", function (e) {
-          e.preventDefault();
-          window.location.href = mas.dataset.url;
-        });
+        if (destino) {
+          // EN MODO SELECTOR NO SE OFRECE SALIR. «Ver todos» lleva a /jugadores/ y se llevaría por
+          // delante el formulario a medio llenar — el otro pelotero, la modalidad, el número. El
+          // aviso de que hay más sí se queda: recortar en silencio es lo que no se puede hacer.
+          mas.textContent = "y " + datos.hidden + " más — escribe algo más para acotar";
+        } else {
+          mas.dataset.url = paginaDeResultados(caja.value.trim());
+          mas.textContent = "y " + datos.hidden + " más — ver todos";
+          mas.addEventListener("mousedown", function (e) {
+            e.preventDefault();
+            window.location.href = mas.dataset.url;
+          });
+        }
         lista.appendChild(mas);
       }
 
@@ -153,6 +180,10 @@
     caja.addEventListener("input", function () {
       var texto = caja.value.trim();
       sincronizarSeccion(); // antes del corte por longitud: vaciar la caja también la esconde
+      // EN MODO SELECTOR, TOCAR EL TEXTO DESHACE LA ELECCIÓN. Si no, quien elige a Soto y luego
+      // escribe «Pujols» encima sin elegirlo de la lista manda a Soto: la caja diría una cosa y el
+      // formulario otra, que es la peor forma de equivocarse.
+      if (destino) destino.value = "";
       clearTimeout(espera);
       if (texto.length < minimo) {
         cerrar();
@@ -161,7 +192,10 @@
       espera = setTimeout(function () {
         var mio = {};
         enVuelo = mio;
-        fetch(endpoint + "?q=" + encodeURIComponent(texto))
+        // El separador depende de si el endpoint ya trae parámetros: el buscador del comparador
+        // apunta a `…/buscar/?universo=comparador`, y un `?` fijo lo dejaría en `?universo=…?q=…`,
+        // que el servidor lee como un solo parámetro con la consulta pegada dentro.
+        fetch(endpoint + (endpoint.indexOf("?") >= 0 ? "&" : "?") + "q=" + encodeURIComponent(texto))
           .then(function (r) {
             return r.json();
           })
