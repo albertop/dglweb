@@ -2040,7 +2040,10 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
 }
 /* `height:auto` con las medidas reales en el HTML: el navegador reserva el hueco 4:5 antes de que la
    imagen llegue, y la página no da el salto al cargarla. */
-.dgl-cmp-tarjeta { width: 100%; height: auto; border-radius: .5rem; box-shadow: 0 1px 6px rgb(0 0 0 / .18); }
+.dgl-cmp-tarjeta { width: 100%; height: auto; border-radius: .5rem; box-shadow: 0 1px 6px rgb(0 0 0 / .18); display: block; }
+/* LOS BOTONES SE SEPARAN DE LA TARJETA CON UNA LÍNEA (dueño): pegados, la fila de iconos se leía como
+   parte de la imagen, y no lo es — la imagen es el resultado y los botones son lo que se hace con él. */
+.dgl-cmp .dgl-compartir { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--dgl-line); }
 .dgl-cmp-otra { margin-top: 1.25rem; text-align: center; }
 
 /* EL ASISTENTE DEL COMPARADOR: seis pasos, una pregunta cada uno. */

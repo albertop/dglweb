@@ -51,7 +51,7 @@ alternativo se arma en la vista con las cifras, y no dice «tarjeta comparativa�
                               se ve al pegarlo es la tarjeta, y el enlace además deja rehacer la
                               comparación con otros parámetros.
     {% endcomment %}
-    {% compartir request.path titulo_compartir que="esta comparación" %}
+    {% compartir request.path titulo_compartir que="esta comparación" redes=False descarga=url_png %}
 
     <p class="dgl-cmp-otra">
       <a href="{% url 'comparador' %}">Hacer otra comparación</a>

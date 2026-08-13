@@ -245,7 +245,13 @@ muda y el usuario vuelve a hacer clic.
       compartir «Líderes» a secas no le dice nada a quien lo recibe.
     {% endcomment %}
     {% with texto="Líderes dominicanos en "|add:board.name %}
-      {% compartir request.get_full_path texto que="esta lista de líderes" %}
+      {% comment %}
+        SIN LOS TRES BOTONES DE RED (dueño, 2026-08-13), igual que en la tarjeta del comparador:
+        «Compartir…» abre la hoja del sistema, que ya lleva a WhatsApp, X y a lo que la persona tenga
+        instalado, y lo hace mejor que tres enlaces fijos. Acá no hay descarga porque no hay fichero:
+        lo que se comparte es la página.
+      {% endcomment %}
+      {% compartir request.get_full_path texto que="esta lista de líderes" redes=False %}
     {% endwith %}
   </div>
   </div>

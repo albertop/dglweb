@@ -35,7 +35,15 @@ register = template.Library()
 
 
 @register.inclusion_tag("widgets/_compartir.html", takes_context=True)
-def compartir(context: dict[str, Any], url: str, titulo: str, clase: str = "", que: str = "") -> dict[str, Any]:
+def compartir(
+    context: dict[str, Any],
+    url: str,
+    titulo: str,
+    clase: str = "",
+    que: str = "",
+    redes: bool = True,
+    descarga: str = "",
+) -> dict[str, Any]:
     """Los botones para compartir `url`, que puede venir relativa.
 
     `titulo` es lo que se escribe en el mensaje. En un artículo, su titular; en un perfil debería ser
@@ -69,4 +77,12 @@ def compartir(context: dict[str, Any], url: str, titulo: str, clase: str = "", q
         "texto_url": quote(titulo, safe=""),
         "clase": clase,
         "etiqueta": f"Compartir {que}".strip(),
+        # LOS TRES BOTONES DE RED SON OPCIONALES desde la tarjeta del comparador (dueño, 2026-08-13):
+        # allí «Compartir…» manda el FICHERO —la imagen entera— y WhatsApp, X y Facebook mandan el
+        # enlace, que la red dibuja como una tarjetita pequeña. Teniendo lo primero, lo segundo es una
+        # versión peor de lo mismo. En un artículo no hay fichero que mandar y los tres siguen siendo
+        # el camino, así que el valor por defecto no cambia.
+        "redes": redes,
+        # La URL de descarga, si quien llama tiene un archivo que ofrecer. Vacía en todo lo demás.
+        "descarga": descarga,
     }
