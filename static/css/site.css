@@ -2081,3 +2081,16 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
   .dgl-wiz-resumen dd { margin-bottom: .6rem; }
   .dgl-wiz-resumen dt, .dgl-wiz-resumen dd { white-space: normal; }
 }
+
+/* ANTERIOR / SIGUIENTE del panel «Lo más reciente». Es una lista lateral con su propia paginación,
+   independiente de la retícula de al lado, y el control tiene que verse como lo que es: un pie
+   discreto, no una llamada a la acción. */
+.dgl-top-paginacion {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  margin-top: .75rem; padding-top: .6rem; border-top: 1px solid var(--dgl-line);
+  font-size: .8125rem;
+}
+/* Las flechas sin destino se quedan como marca de posición apagada: sin ellas el par «Anteriores /
+   Siguientes» salta de lado a lado al cambiar de página, y el ojo pierde el control de vista. */
+.dgl-top-paginacion span[aria-hidden] { color: var(--dgl-line); }
+.dgl-top-cuenta { color: var(--dgl-muted); font-variant-numeric: tabular-nums; }

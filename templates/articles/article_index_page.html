@@ -159,11 +159,38 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
       {% if recientes %}
         <section class="dgl-panel dgl-panel-reciente p-3 mb-3 d-none d-lg-block">
           <h2 class="dgl-section-title mb-2" style="font-size:.95rem" id="mas-reciente">Lo más reciente</h2>
-          <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-reciente">
+          {% comment %}
+            `start` numera de verdad: en la página dos el primero es el DOCE, no el uno. Sin él, el
+            panel diría que un artículo de hace un mes es el más reciente.
+          {% endcomment %}
+          <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-reciente" start="{{ recientes_desde }}">
             {% for articulo in recientes %}
               <li><a href="{{ articulo.url }}">{{ articulo.title }}</a></li>
             {% endfor %}
           </ol>
+
+          {% comment %}
+            ANTERIOR Y SIGUIENTE, y solo si hay a dónde ir (dueño, 2026-08-13). Con once o menos no se
+            dibuja nada: un control que no lleva a ninguna parte es ruido.
+
+            SON ENLACES, no botones: cada página del panel es una dirección que se puede compartir y a
+            la que el «atrás» del navegador vuelve. Y llevan `#mas-reciente` para que al pulsar no se
+            salte al principio de la página — el panel está a media altura.
+
+            `page` viaja con ellos porque las dos listas son independientes: pasar de página en el
+            panel no puede mover la retícula de al lado.
+          {% endcomment %}
+          {% if recientes_pagina.has_other_pages %}
+            <nav class="dgl-top-paginacion" aria-label="Más recientes">
+              {% if recientes_pagina.has_previous %}
+                <a href="?recientes={{ recientes_pagina.previous_page_number }}#mas-reciente" rel="prev">← Anteriores</a>
+              {% else %}<span aria-hidden="true">←</span>{% endif %}
+              <span class="dgl-top-cuenta">{{ recientes_pagina.number }} de {{ recientes_pagina.paginator.num_pages }}</span>
+              {% if recientes_pagina.has_next %}
+                <a href="?recientes={{ recientes_pagina.next_page_number }}#mas-reciente" rel="next">Siguientes →</a>
+              {% else %}<span aria-hidden="true">→</span>{% endif %}
+            </nav>
+          {% endif %}
         </section>
       {% endif %}
       {% for articulo in lateral %}

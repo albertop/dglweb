@@ -75,6 +75,17 @@ INICIALES = DESTACADO + RETICULA + LATERAL
 # botón quedaba muerto sin JavaScript. Ahora cada página trae lo suyo y los enlaces son enlaces.
 POR_PAGINA = 12
 
+# Cuántos caben en el panel lateral de «Lo más reciente». ONCE (dueño, 2026-08-13): es lo que entra en
+# el alto de la columna sin que el panel crezca más que la retícula de al lado.
+#
+# Y CON PAGINACIÓN PROPIA, porque con más de once la lista se cortaba en seco y no había forma de ver
+# los siguientes sin bajar a la retícula, que es otra cosa: la retícula ordena por decisión editorial
+# —el fijado manda— y este panel es cronología pura.
+#
+# Va por su propio parámetro, `?recientes=`, y no por `?page=`: son dos listas independientes en la
+# misma pantalla, y compartir el número movería las dos a la vez.
+RECIENTES = 11
+
 
 @register_snippet
 # El `ignore` es por Wagtail y no por este código: `ArticlePage` hereda de `Page`, que para mypy es
@@ -296,11 +307,42 @@ class ArticleIndexPage(Page):
             # Cronológico de verdad, sin el fijado arriba: el panel se llama «Lo más reciente» y un
             # artículo de hace tres semanas encabezándolo sería mentira. El fijado ya manda en la
             # retícula de al lado, que es donde esa decisión editorial tiene sentido.
-            contexto["recientes"] = self.articulos().order_by("-fecha", "-pk")[:10]
+            contexto.update(self._panel_reciente(request))
         else:
             contexto["destacado"] = None
             contexto["resto"] = en_pagina
         return contexto
+
+    def _panel_reciente(self, request: HttpRequest) -> dict[str, Any]:
+        """El panel de «Lo más reciente», paginado de once en once.
+
+        SALE DE LO PUBLICADO SIN FILTRAR, y eso no cambia: si filtrara con la retícula repetiría
+        exactamente lo mismo dos veces en la misma pantalla.
+
+        CRONOLÓGICO DE VERDAD, sin el fijado arriba: el panel se llama «Lo más reciente» y un artículo
+        de hace tres semanas encabezándolo sería mentira. El fijado ya manda en la retícula de al lado,
+        que es donde esa decisión editorial tiene sentido.
+
+        PAGINA POR SU CUENTA con `?recientes=`. Son dos listas independientes en la misma pantalla, así
+        que compartir `?page=` movería las dos a la vez y el lector no entendería por qué.
+
+        `start` es lo que hace honesta la numeración: en la página dos el primero es el número DOCE, no
+        el uno. Sin eso el panel diría que el artículo de hace un mes es el más reciente.
+        """
+        from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+
+        paginador = Paginator(self.articulos().order_by("-fecha", "-pk"), RECIENTES)
+        try:
+            pagina = paginador.page(request.GET.get("recientes") or 1)
+        except (PageNotAnInteger, EmptyPage):
+            # Un número inventado cae a la primera en vez de dar error: es un panel lateral, no la
+            # página que la persona vino a ver.
+            pagina = paginador.page(1)
+        return {
+            "recientes": list(pagina.object_list),
+            "recientes_pagina": pagina,
+            "recientes_desde": pagina.start_index(),
+        }
 
 
 class ArticlePage(Page):

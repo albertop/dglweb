@@ -1263,3 +1263,94 @@ def test_sin_imagen_la_tarjeta_social_usa_la_lamina(indice: ArticleIndexPage, cl
     html = client.get(articulo.url).content.decode()
 
     assert "og-default" in _og_imagen(html)
+
+
+# ── el panel «Lo más reciente», paginado de once en once ────────────────────────────────────────
+#
+# ES UNA LISTA INDEPENDIENTE de la retícula, en la misma pantalla: la retícula ordena por decisión
+# editorial —el fijado manda arriba— y el panel es cronología pura. Lo que se prueba acá es que las
+# dos no se pisen y que la numeración no mienta.
+
+
+@pytest.mark.django_db
+def test_el_panel_trae_once(indice: ArticleIndexPage) -> None:
+    """Once es lo que cabe en el alto de la columna sin que el panel crezca más que la retícula."""
+    from dglweb.articles import models
+
+    _muchos(indice, 20)
+
+    contexto = indice.get_context(RequestFactory().get(indice.url))
+
+    assert len(contexto["recientes"]) == models.RECIENTES == 11
+
+
+@pytest.mark.django_db
+def test_con_once_o_menos_no_hay_control(indice: ArticleIndexPage) -> None:
+    """Un control que no lleva a ninguna parte es ruido, así que no se dibuja."""
+    _muchos(indice, 11)
+
+    contexto = indice.get_context(RequestFactory().get(indice.url))
+
+    assert contexto["recientes_pagina"].has_other_pages() is False
+    assert len(contexto["recientes"]) == 11
+
+
+@pytest.mark.django_db
+def test_la_segunda_pagina_del_panel_sigue_numerando(indice: ArticleIndexPage) -> None:
+    """En la página dos el primero es el DOCE, no el uno.
+
+    Sin `start`, el panel diría que un artículo de hace un mes es el más reciente — y se llama «Lo más
+    reciente», así que sería mentira en el único sitio donde no puede serlo.
+    """
+    _muchos(indice, 20)
+
+    contexto = indice.get_context(RequestFactory().get(indice.url, {"recientes": "2"}))
+
+    assert contexto["recientes_desde"] == 12
+    assert len(contexto["recientes"]) == 9, "los que sobran de los veinte"
+    assert contexto["recientes_pagina"].has_previous() is True
+    assert contexto["recientes_pagina"].has_next() is False
+
+
+@pytest.mark.django_db
+def test_el_panel_pagina_sin_mover_la_reticula(indice: ArticleIndexPage) -> None:
+    """Son dos listas en la misma pantalla y cada una con su parámetro.
+
+    Compartir `?page=` movería las dos a la vez, y el lector no entendería por qué al pedir «los
+    siguientes once» le cambia también la retícula de al lado.
+    """
+    from dglweb.articles import models
+
+    _muchos(indice, 30)
+
+    quieto = indice.get_context(RequestFactory().get(indice.url))
+    movido = indice.get_context(RequestFactory().get(indice.url, {"recientes": "2"}))
+
+    assert movido["recientes"] != quieto["recientes"], "el panel sí se mueve"
+    assert movido["pagina"].number == quieto["pagina"].number == 1, "la retícula no"
+    assert movido["destacado"] == quieto["destacado"]
+    assert len(movido["pagina"].object_list) == models.POR_PAGINA
+
+
+@pytest.mark.django_db
+def test_un_numero_inventado_cae_a_la_primera(indice: ArticleIndexPage) -> None:
+    """Es un panel lateral, no la página que la persona vino a ver: no puede dar error."""
+    _muchos(indice, 20)
+
+    for basura in ("99", "cero", "-1", ""):
+        contexto = indice.get_context(RequestFactory().get(indice.url, {"recientes": basura}))
+        assert contexto["recientes_pagina"].number == 1, f"con {basura!r}"
+
+
+@pytest.mark.django_db
+def test_el_panel_es_cronologico_aunque_haya_fijado(indice: ArticleIndexPage) -> None:
+    """El fijado manda en la retícula, no acá. El panel se llama «Lo más reciente» y lo cumple."""
+    _muchos(indice, 15)
+    viejo = ArticlePage.objects.live().order_by("fecha").first()
+    assert viejo is not None
+    viejo.fijado = True
+    viejo.save()
+
+    contexto = indice.get_context(RequestFactory().get(indice.url))
+
+    assert contexto["recientes"][0] != viejo, "un artículo de hace semanas no encabeza «lo más reciente»"
