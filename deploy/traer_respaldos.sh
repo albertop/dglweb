@@ -156,7 +156,22 @@ fi
 # semanales son las que cubren «llevo tiempo con esto mal y no me di cuenta».
 todas=$(ls -1d 20*/ 2>/dev/null | tr -d / | sort -r)
 i=0
-declare -A semana_vista
+# EL CONTADOR EXISTE PORQUE `${#semana_vista[@]}` NO SE PUEDE USAR ACÁ (2026-08-12).
+#
+# Con `set -u`, un array asociativo VACÍO cuenta como NO ASIGNADO: `declare -A` lo declara pero no lo
+# crea hasta que recibe su primer elemento, así que preguntarle el tamaño mata el script con
+# «semana_vista: unbound variable». Leer un elemento sí está a salvo, y por eso el `:-` del `if`
+# bastaba y el `${#...}` de al lado no.
+#
+# ESTUVO DOCE DÍAS SIN DAR LA CARA, y conviene saber por qué: el cuerpo del bucle solo se alcanza a
+# partir de la copia número quince —antes lo salta el `continue` de las diarias—, así que el fallo
+# esperó a que la carpeta se llenara. Lo mismo puede pasarle a cualquier cosa que se escriba aquí
+# dentro: no se ejecuta hasta que hay más de `$DIARIOS` copias.
+#
+# No se pierde nada: `rm -rf` va DESPUÉS del `if`, así que al morir en la comparación no llegó a
+# borrar ninguna.
+semanas=0
+declare -A semana_vista=()
 for carpeta in $todas; do
     i=$((i + 1))
     [ "$i" -le "$DIARIOS" ] && continue
@@ -164,8 +179,9 @@ for carpeta in $todas; do
     # Fuera de las diarias, se conserva UNA por semana ISO. `%G-%V` y no `%Y-%V`: a fin de año, la
     # semana 1 puede pertenecer al año siguiente, y con `%Y` dos semanas distintas colisionarían.
     sem=$(date -d "${carpeta%%_*}" +%G-%V 2>/dev/null || echo "?")
-    if [ -z "${semana_vista[$sem]:-}" ] && [ "${#semana_vista[@]}" -lt "$SEMANALES" ]; then
+    if [ -z "${semana_vista[$sem]:-}" ] && [ "$semanas" -lt "$SEMANALES" ]; then
         semana_vista[$sem]=1
+        semanas=$((semanas + 1))
         continue
     fi
     rm -rf "${DESTINO:?}/$carpeta"

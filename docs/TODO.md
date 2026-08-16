@@ -3,6 +3,28 @@
 Lista de pendientes que van surgiendo sobre la marcha. (Ítems de decisión / afinado, no el
 roadmap de fases — eso está en `BUILD_PLAN.md`.)
 
+## La efeméride de blanqueadas dice una redundancia (2026-08-13)
+
+El motor está publicando esta frase:
+
+> Es uno de los 51 dominicanos con **una blanqueada en juego completo**. Para él fue la 37ª de sus 52
+> veces.
+
+**Todas las blanqueadas son juegos completos**, por definición: una blanqueada exige que el mismo
+lanzador se lleve el juego entero sin permitir carreras. Si sale del montículo antes del último out,
+lo que hay es una blanqueada **combinada**, que es del equipo y no suya, y no cuenta como `SHO` en su
+línea individual.
+
+O sea que «en juego completo» no añade nada — describe una condición que ya está dentro de la palabra
+que la precede. A un lector de béisbol le suena a que existe otro tipo de blanqueada, y no existe.
+
+**Qué hay que decidir al arreglarlo**, porque no es solo borrar tres palabras: el conteo de la frase
+—«51 dominicanos», «52 veces»— sale de una consulta que hay que mirar. Si esa consulta está cruzando
+`SHO` con `CG` para calcular los 51, el número es correcto pero redundante; si estuviera contando otra
+cosa, el número también estaría mal. Comprobar antes de tocar el texto.
+
+Y de paso mirar si el mismo giro se repite en otras plantillas de efeméride: la frase huele a copiada.
+
 ## Cerrado: el W-L de carrera nunca estuvo mal (abierto 2026-08-11, cerrado 2026-08-13)
 
 **No había ningún bug.** Este issue afirmaba que tres fuentes no cuadraban en el récord de Fernando
