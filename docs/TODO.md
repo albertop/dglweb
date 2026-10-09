@@ -24,9 +24,15 @@ contra los juegos del equipo (p90 de la liga), así que en octubre el de un equi
 calificar solo, igual que el que deja de jugar en julio. Las rachas se rehacen enteras cada hora: no
 hace falta rellenar nada al desplegar.
 
-**Al desplegar**: hoy entra solo con el job horario, pero AYER NO: el refresco de las 4:30 ya la
-dejó en `SUCCESS` con cero filas, y el horario la suelta en cuanto ve esa fila. Hay que rehacerla a
-mano con `--fecha`, o el widget enseña solo hoy. Está en `docs/PRUEBAS_DESPLIEGUE.md`.
+**Desplegado en la `1.2026.33` y comprobado en producción (2026-10-09).** Dos cosas del despliegue
+que vale la pena recordar si algo así se repite:
+
+* **La jornada de ayer hubo que rehacerla a mano** (`build_daily_standouts --fecha`): el refresco de
+  las 4:30 ya la había dejado en `SUCCESS` con cero filas, y el job horario la suelta en cuanto ve
+  esa fila. Hoy entró sola.
+* **Las rachas no cambian al desplegar, sino en la siguiente corrida horaria** (minuto 10). La portada
+  lee la foto que dejó la versión anterior hasta que el job la reemplaza; para no esperar, se corre
+  `build_window_standouts` a mano.
 
 ## Hecho: la efeméride de blanqueadas decía una redundancia (abierto y cerrado 2026-08-13)
 
