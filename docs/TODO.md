@@ -3,7 +3,15 @@
 Lista de pendientes que van surgiendo sobre la marcha. (Ítems de decisión / afinado, no el
 roadmap de fases — eso está en `BUILD_PLAN.md`.)
 
-## La efeméride de blanqueadas dice una redundancia (2026-08-13)
+## Hecho: la efeméride de blanqueadas decía una redundancia (abierto y cerrado 2026-08-13)
+
+**Corregido en `32_blanqueada.sql`**: la gesta pasa a «una blanqueada» y la plantilla a «Blanqueó a
+{rival_nombre}: {detalle}.». **El conteo estaba bien**: el detector filtra solo por `P_SHO >= 1`, sin
+cruzar con `P_CG`, así que «51 dominicanos» y «52 veces» cuentan blanqueadas y nada más. El giro no se
+repetía en otras plantillas: `cg90`, `cg_1hit`, `cg_extra` y `cg_dominante` dicen «juego completo»
+porque ahí el juego completo ES la gesta. **Se ve en el sitio cuando se regenere y se cargue el CSV.**
+
+Lo que decía el apunte:
 
 El motor está publicando esta frase:
 
