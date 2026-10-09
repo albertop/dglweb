@@ -13,7 +13,7 @@ Todo lo de acá se corre **en el VPS**, salvo donde diga otra cosa.
 Lo que ya está en `main` y todavía no vive en producción. **Al desplegar, se comprueba y se borra de
 esta lista.**
 
-### «Destacados ayer y hoy» en postemporada
+### «Destacados ayer y hoy» y las rachas en postemporada
 
 Estaba congelado en el 27-09 porque solo pedía serie regular. Sin migraciones. Después de desplegar,
 rehacer AYER —el refresco de la madrugada la guardó vacía y nada vuelve a mirarla—:
@@ -27,6 +27,9 @@ docker exec dglweb-web-live python manage.py build_daily_standouts --fecha $(dat
 - [ ] La portada enseña la jornada de ayer y, según van cerrando, los juegos de hoy por arriba.
 - [ ] En el Backoffice, las corridas de `build_daily_standouts` ya no salen con 0 filas los días con
       juegos.
+- [ ] «Quemando la liga» y «Pasando trabajo» vuelven a moverse en la siguiente corrida horaria de
+      `build_window_standouts` — se rehacen enteras, no hay nada que rellenar. Una línea de lanzador
+      con juegos de septiembre y de octubre enseña las entradas sumadas bien (`12.1`, nunca `11.4`).
 ### El comparador de peloteros
 
 Trae más piezas que un cambio normal: **una migración, tipografías nuevas dentro del paquete, dos

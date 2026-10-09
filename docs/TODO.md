@@ -3,9 +3,9 @@
 Lista de pendientes que van surgiendo sobre la marcha. (Ítems de decisión / afinado, no el
 roadmap de fases — eso está en `BUILD_PLAN.md`.)
 
-## Hecho: «Destacados ayer y hoy» se congeló al empezar la postemporada (2026-10-09)
+## Hecho: «Destacados ayer y hoy» y las rachas se congelaron al empezar la postemporada (2026-10-09)
 
-**El síntoma**: el widget se quedó en el 27-09-2026, último día de la serie regular. **La causa**:
+**El síntoma**: los widgets se quedaron en el 27-09-2026, último día de la serie regular. **La causa**:
 `daily.splits()` pedía `byDateRange` sin `gameType`, y sin él el statsapi devuelve SOLO serie
 regular. En octubre cada consulta volvía vacía; el comando lo tomaba por un día sin pelota —fila en
 `SUCCESS` con 0 filas, semáforo en verde— y `portada()` seguía enseñando la última jornada guardada.
@@ -15,9 +15,14 @@ regular se piden las cuatro rondas (`F`, `D`, `L`, `W`) y se juntan; la frontera
 `seasons_dates` (`daily.tipos_de_juego`). De rebote se arregla la pizarra, que usa la misma función
 para saber quién de los nuestros vio acción.
 
-**Lo que NO se tocó, a propósito**: las dos rachas de «últimos 14 días» (`ventana._splits`) tienen el
-mismo hueco —tampoco mandan `gameType`— y siguen congeladas en octubre. Ahí mezclar una ventana que
-cruza de septiembre a octubre es una decisión aparte, y queda pendiente del dueño.
+**Las rachas de «últimos 14 días» también** (`ventana._splits`, mismo día, dueño): tenían el mismo
+hueco. Una ventana a caballo entre septiembre y octubre trae al mismo pelotero en dos pedazos —uno
+por tipo de juego— y `ventana._juntar` los suma en una línea: los conteos se suman, el promedio y las
+entradas se recalculan (`outsPitched`, nunca la notación «6.2»), y las demás tasas del proxy se
+descartan porque sumadas mentirían. Consecuencia que conviene saber: el umbral sigue midiéndose
+contra los juegos del equipo (p90 de la liga), así que en octubre el de un equipo eliminado deja de
+calificar solo, igual que el que deja de jugar en julio. Las rachas se rehacen enteras cada hora: no
+hace falta rellenar nada al desplegar.
 
 **Al desplegar**: hoy entra solo con el job horario, pero AYER NO: el refresco de las 4:30 ya la
 dejó en `SUCCESS` con cero filas, y el horario la suelta en cuanto ve esa fila. Hay que rehacerla a

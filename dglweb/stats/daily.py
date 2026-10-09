@@ -543,28 +543,39 @@ def splits(client: MlbProxyClient, grupo: str, dia: date) -> list[dict[str, Any]
     return salida
 
 
-def tipos_de_juego(dia: date) -> tuple[str, ...]:
-    """Los `gameType` que se juegan ese día: la serie regular, o las cuatro rondas de octubre.
+def tipos_de_juego(desde: date, hasta: date | None = None) -> tuple[str, ...]:
+    """Los `gameType` que se juegan entre esas fechas: la serie regular, las cuatro rondas, o ambas.
 
-    Un día es de una cosa o de la otra, así que la serie regular cuesta una llamada como siempre y
+    Un DÍA es de una cosa o de la otra, así que la serie regular cuesta una llamada como siempre y
     solo octubre paga cuatro. Las cuatro y no la ronda del día porque se solapan: la divisional de una
     liga puede ir a un quinto juego el mismo día que la otra abre su serie de campeonato.
+
+    Un RANGO —la ventana de las rachas— puede caer a caballo, y entonces son las cinco. Juntar los
+    pedazos de un mismo pelotero lo hace quien pide el rango; ver `ventana._juntar`.
 
     La frontera sale del calendario (`seasons_dates`), con la misma degradación que
     `season_window._apertura()`: sin fecha de postemporada, el día después del fin de la regular. Sin
     ninguna de las dos no se sabe dónde empieza octubre y se pregunta lo de siempre — el
     comportamiento que había antes, no una suposición nueva.
     """
+    fin = hasta or desde
+    octubre = _inicio_de_la_postemporada(fin.year)
+    if octubre is None:
+        return _REGULAR
+    return (_REGULAR if desde < octubre else ()) + (_POSTEMPORADA if fin >= octubre else ())
+
+
+def _inicio_de_la_postemporada(temporada: int) -> date | None:
     from dglweb.stats.models import SeasonDates
 
-    fila = SeasonDates.objects.filter(sports_id=season_window.MLB, season=dia.year).first()
+    fila = SeasonDates.objects.filter(sports_id=season_window.MLB, season=temporada).first()
     if fila is None:
-        return _REGULAR
+        return None
     if fila.post_season_start_date:
-        return _POSTEMPORADA if dia >= fila.post_season_start_date else _REGULAR
+        return fila.post_season_start_date
     if fila.reg_season_end_date:
-        return _POSTEMPORADA if dia > fila.reg_season_end_date else _REGULAR
-    return _REGULAR
+        return fila.reg_season_end_date + timedelta(days=1)
+    return None
 
 
 def _actuaciones(
