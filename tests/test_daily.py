@@ -1150,3 +1150,99 @@ def test_la_regla_de_los_turnos_no_se_le_aplica_al_pitcheo() -> None:
 
     assert daily.por_que_no_cuadra(salida, "pitching") == ""
     assert daily.por_que_no_cuadra(salida, "hitting")
+
+
+# ── La postemporada entra igual que la serie regular (dueño, 2026-10-09) ───────────────────────────
+
+
+class _ProxyQueAnota:
+    """Anota el `gameType` de cada consulta del día y contesta un split por cada una."""
+
+    def __init__(self) -> None:
+        self.tipos: list[str | None] = []
+
+    def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        tipo = (params or {}).get("gameType")
+        self.tipos.append(tipo)
+        return {"stats": [{"splits": [{"player": {"id": len(self.tipos)}, "stat": {}, "gameType": tipo}]}]}
+
+
+@pytest.fixture
+def calendario_2026(db: None) -> SeasonDates:
+    return SeasonDates.objects.create(
+        season=2026,
+        sports_id=MLB,
+        season_start_date=date(2026, 3, 26),
+        reg_season_end_date=date(2026, 9, 27),
+        post_season_start_date=date(2026, 9, 29),
+        season_end_date=date(2026, 11, 5),
+        is_active=True,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("calendario_2026")
+class TestLosTiposDeJuego:
+    """`byDateRange` sin `gameType` es SOLO serie regular: el widget se congeló el 27-09 por eso."""
+
+    def test_pide_solo_la_regular_en_un_dia_de_la_regular(self) -> None:
+        proxy = _ProxyQueAnota()
+
+        daily.splits(cast("Any", proxy), "hitting", date(2026, 9, 27))
+
+        assert proxy.tipos == ["R"]
+
+    def test_pide_las_cuatro_rondas_en_un_dia_de_octubre(self) -> None:
+        proxy = _ProxyQueAnota()
+
+        resultado = daily.splits(cast("Any", proxy), "hitting", date(2026, 10, 5))
+
+        assert sorted(t or "" for t in proxy.tipos) == ["D", "F", "L", "W"]
+        assert len(resultado) == 4  # un split por ronda, juntos en la misma lista
+
+    def test_sin_fecha_de_postemporada_manda_el_fin_de_la_regular(self, calendario_2026: SeasonDates) -> None:
+        calendario_2026.post_season_start_date = None
+        calendario_2026.save()
+        proxy = _ProxyQueAnota()
+
+        daily.splits(cast("Any", proxy), "pitching", date(2026, 9, 28))
+
+        assert sorted(t or "" for t in proxy.tipos) == ["D", "F", "L", "W"]
+
+
+@pytest.mark.django_db
+def test_sin_calendario_se_queda_en_la_regular() -> None:
+    """Sin fechas no se sabe dónde empieza octubre: se pregunta lo de siempre, una sola vez."""
+    proxy = _ProxyQueAnota()
+
+    daily.splits(cast("Any", proxy), "hitting", date(2026, 10, 5))
+
+    assert proxy.tipos == ["R"]
+
+
+class _ProxyDeOctubre:
+    """Solo contesta con datos a la Serie Mundial; las demás rondas y la regular vienen vacías."""
+
+    def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if path == "/api/v1/teams":
+            return {"teams": [{"id": 135, "teamCode": "sdn"}]}
+        if (params or {}).get("gameType") != "W":
+            return {"stats": [{"splits": []}]}
+        bateando = (params or {}).get("group") == "hitting"
+        stat = _bateo(AB=4, H=3, X2B=1, HR=1, RBI=4) if bateando else _pitcheo(outsPitched=21, K=9, IP="7.0")
+        return {
+            "stats": [{"splits": [{"player": {"id": 1, "fullName": "Jugador 1"}, "team": {"id": 135}, "stat": stat}]}]
+        }
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("calendario_2026")
+def test_el_comando_guarda_una_jornada_de_postemporada(monkeypatch: pytest.MonkeyPatch) -> None:
+    _jugador(1)
+    monkeypatch.setattr(
+        "dglweb.stats.management.commands.build_daily_standouts.build_client", lambda: _ProxyDeOctubre()
+    )
+
+    call_command("build_daily_standouts", "--fecha", "2026-10-05")
+
+    assert DailyStandout.objects.filter(fecha=date(2026, 10, 5)).count() == 2

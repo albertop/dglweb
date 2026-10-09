@@ -3,6 +3,26 @@
 Lista de pendientes que van surgiendo sobre la marcha. (Ítems de decisión / afinado, no el
 roadmap de fases — eso está en `BUILD_PLAN.md`.)
 
+## Hecho: «Destacados ayer y hoy» se congeló al empezar la postemporada (2026-10-09)
+
+**El síntoma**: el widget se quedó en el 27-09-2026, último día de la serie regular. **La causa**:
+`daily.splits()` pedía `byDateRange` sin `gameType`, y sin él el statsapi devuelve SOLO serie
+regular. En octubre cada consulta volvía vacía; el comando lo tomaba por un día sin pelota —fila en
+`SUCCESS` con 0 filas, semáforo en verde— y `portada()` seguía enseñando la última jornada guardada.
+
+**El arreglo**: la postemporada entra con el mismo comportamiento que la regular (dueño). Fuera de la
+regular se piden las cuatro rondas (`F`, `D`, `L`, `W`) y se juntan; la frontera sale de
+`seasons_dates` (`daily.tipos_de_juego`). De rebote se arregla la pizarra, que usa la misma función
+para saber quién de los nuestros vio acción.
+
+**Lo que NO se tocó, a propósito**: las dos rachas de «últimos 14 días» (`ventana._splits`) tienen el
+mismo hueco —tampoco mandan `gameType`— y siguen congeladas en octubre. Ahí mezclar una ventana que
+cruza de septiembre a octubre es una decisión aparte, y queda pendiente del dueño.
+
+**Al desplegar**: hoy entra solo con el job horario, pero AYER NO: el refresco de las 4:30 ya la
+dejó en `SUCCESS` con cero filas, y el horario la suelta en cuanto ve esa fila. Hay que rehacerla a
+mano con `--fecha`, o el widget enseña solo hoy. Está en `docs/PRUEBAS_DESPLIEGUE.md`.
+
 ## Hecho: la efeméride de blanqueadas decía una redundancia (abierto y cerrado 2026-08-13)
 
 **Corregido en `32_blanqueada.sql`**: la gesta pasa a «una blanqueada» y la plantilla a «Blanqueó a
