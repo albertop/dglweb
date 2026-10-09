@@ -18,6 +18,10 @@ liga en una sola llamada por oficio. Dos llamadas, menos de un segundo, y el rec
 una intersección en memoria — el mismo patrón que el refresco diario. Un día sin juegos devuelve
 cero splits sin error, así que no hay que preguntarle al calendario si hubo pelota.
 
+**En octubre son ocho y no dos**: una por oficio y por ronda, porque sin `gameType` la consulta solo
+devuelve serie regular. La postemporada entra con el mismo trato —mismo piso, misma lista, sin
+marca aparte— por decisión del dueño (2026-10-09). Ver `tipos_de_juego`.
+
 CÓMO SE ORDENA
 --------------
 **Bateo: pesos lineales.** Cada evento vale lo que vale en carreras, según la matriz 2024-2025 del
@@ -60,6 +64,11 @@ from dglweb.stats._download import fetch_team_codes
 logger = logging.getLogger(__name__)
 
 _LIMITE = 8000
+
+# Los `gameType` del statsapi. Las rondas son las mismas de `batting_post_source.ROUNDS`: comodín,
+# divisional, campeonato y Serie Mundial.
+_REGULAR = ("R",)
+_POSTEMPORADA = ("F", "D", "L", "W")
 
 # EL PISO PARA LLAMARSE DESTACADO. Decisión del dueño (2026-07-27), medida sobre 14 jornadas reales.
 #
@@ -505,24 +514,68 @@ def linea_de_pitcheo(stat: dict[str, Any]) -> str:
 
 
 def splits(client: MlbProxyClient, grupo: str, dia: date) -> list[dict[str, Any]]:
-    """Toda la liga en ese día, en una llamada. Sin juegos devuelve lista vacía, no error.
+    """Toda la liga en ese día. Sin juegos devuelve lista vacía, no error.
 
     Pública porque la pizarra la usa para saber quién vio acción: es la misma pregunta y no tiene
     sentido que existan dos formas distintas de hacerla.
+
+    UNA LLAMADA POR TIPO DE JUEGO, porque `byDateRange` sin `gameType` es SOLO serie regular. Así se
+    congeló el widget el 27-09-2026: en octubre cada consulta volvía vacía, el comando lo tomaba por
+    un día sin pelota y la portada seguía enseñando la última jornada de septiembre. La postemporada
+    entra con el mismo trato que la regular (dueño, 2026-10-09); ver `tipos_de_juego`.
     """
-    payload = client.get(
-        "/api/v1/stats",
-        {
-            "stats": "byDateRange",
-            "group": grupo,
-            "season": dia.year,
-            "startDate": dia.isoformat(),
-            "endDate": dia.isoformat(),
-            "playerPool": "All",
-            "limit": _LIMITE,
-        },
-    )
-    return [split for bloque in (payload.get("stats") or []) for split in (bloque.get("splits") or [])]
+    salida: list[dict[str, Any]] = []
+    for tipo in tipos_de_juego(dia):
+        payload = client.get(
+            "/api/v1/stats",
+            {
+                "stats": "byDateRange",
+                "group": grupo,
+                "gameType": tipo,
+                "season": dia.year,
+                "startDate": dia.isoformat(),
+                "endDate": dia.isoformat(),
+                "playerPool": "All",
+                "limit": _LIMITE,
+            },
+        )
+        salida += [split for bloque in (payload.get("stats") or []) for split in (bloque.get("splits") or [])]
+    return salida
+
+
+def tipos_de_juego(desde: date, hasta: date | None = None) -> tuple[str, ...]:
+    """Los `gameType` que se juegan entre esas fechas: la serie regular, las cuatro rondas, o ambas.
+
+    Un DÍA es de una cosa o de la otra, así que la serie regular cuesta una llamada como siempre y
+    solo octubre paga cuatro. Las cuatro y no la ronda del día porque se solapan: la divisional de una
+    liga puede ir a un quinto juego el mismo día que la otra abre su serie de campeonato.
+
+    Un RANGO —la ventana de las rachas— puede caer a caballo, y entonces son las cinco. Juntar los
+    pedazos de un mismo pelotero lo hace quien pide el rango; ver `ventana._juntar`.
+
+    La frontera sale del calendario (`seasons_dates`), con la misma degradación que
+    `season_window._apertura()`: sin fecha de postemporada, el día después del fin de la regular. Sin
+    ninguna de las dos no se sabe dónde empieza octubre y se pregunta lo de siempre — el
+    comportamiento que había antes, no una suposición nueva.
+    """
+    fin = hasta or desde
+    octubre = _inicio_de_la_postemporada(fin.year)
+    if octubre is None:
+        return _REGULAR
+    return (_REGULAR if desde < octubre else ()) + (_POSTEMPORADA if fin >= octubre else ())
+
+
+def _inicio_de_la_postemporada(temporada: int) -> date | None:
+    from dglweb.stats.models import SeasonDates
+
+    fila = SeasonDates.objects.filter(sports_id=season_window.MLB, season=temporada).first()
+    if fila is None:
+        return None
+    if fila.post_season_start_date:
+        return fila.post_season_start_date
+    if fila.reg_season_end_date:
+        return fila.reg_season_end_date + timedelta(days=1)
+    return None
 
 
 def _actuaciones(

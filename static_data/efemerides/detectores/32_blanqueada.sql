@@ -1,20 +1,26 @@
 ﻿-- =====================================================================================
--- Blanqueada en juego completo. Medido: 271 veces. Rareza 333.
+-- Blanqueada. Medido: 271 veces. Rareza 333.
 --
--- Es de los tres que más volumen mueven (2,34 por temporada). Entra igual: una blanqueada completa
--- es una gesta reconocible, y su puntaje bajo la deja donde debe estar.
+-- Es de los tres que más volumen mueven (2,34 por temporada). Entra igual: es una gesta
+-- reconocible, y su puntaje bajo la deja donde debe estar.
+--
+-- NO SE ESCRIBE «EN JUEGO COMPLETO», y no es un descuido. Toda blanqueada lo es por definición: el
+-- `SHO` individual exige que el mismo lanzador se lleve el juego entero sin permitir carreras. Si
+-- sale antes del último out, la blanqueada es COMBINADA, es del equipo y no suma `SHO` a nadie. El
+-- añadido sugiere que existe otra clase de blanqueada individual, y no existe (docs/TODO.md,
+-- 2026-08-13). El filtro es solo `P_SHO`, sin cruzar con `P_CG`: no hace falta.
 --
 -- Sale de `#juegos`, que arma el preludio `_00_comun.sql`: la línea de cada dominicano en cada
 -- juego, con equipo, rival, abridor y WPA ya resueltos. Ver docs/EFEMERIDES.md 8.0.
 -- =====================================================================================
 SELECT  'blanqueada'                                   AS tipo,
-        'una blanqueada en juego completo' AS gesta,
+        'una blanqueada' AS gesta,
         '' AS participantes,
         'lanzador'                                    AS rol,
         'completa'                                AS cobertura,
         1                                         AS situar,
         288826                                 AS universo,
-        'Blanqueó a {rival_nombre} en juego completo: {detalle}.'                              AS plantilla,
+        'Blanqueó a {rival_nombre}: {detalle}.'                                                AS plantilla,
         j.mlb_id, j.nombre, j.fecha, j.temporada, j.game_id,
         0                                         AS event_id,
         j.game_type, j.equipo, j.rival, j.en_casa,

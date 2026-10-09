@@ -423,25 +423,77 @@ def linea_de_pitcheo(stat: dict[str, Any]) -> str:
 
 
 def _splits(client: MlbProxyClient, grupo: str, desde: date, hasta: date) -> list[dict[str, Any]]:
-    """Toda la liga acumulada en el rango, en una llamada.
+    """Toda la liga acumulada en el rango, un split por pelotero y equipo.
 
     Es `daily.splits` con dos fechas distintas en vez de la misma dos veces. No se reusa aquella
     porque su firma pide un solo día y ensancharla obligaría a tocar a sus tres llamadores —la
     pizarra entre ellos— para un parámetro que solo necesita este módulo.
+
+    UNA LLAMADA POR TIPO DE JUEGO, por lo mismo que allá: `byDateRange` sin `gameType` es SOLO serie
+    regular, y las rachas se congelaron el 27-09-2026 por eso. La postemporada cuenta igual que la
+    regular (dueño, 2026-10-09). Una ventana a caballo trae al mismo pelotero en dos pedazos, y
+    `_juntar` los vuelve uno: catorce días son catorce días, se jueguen en septiembre o en octubre.
     """
-    payload = client.get(
-        "/api/v1/stats",
-        {
-            "stats": "byDateRange",
-            "group": grupo,
-            "season": hasta.year,
-            "startDate": desde.isoformat(),
-            "endDate": hasta.isoformat(),
-            "playerPool": "All",
-            "limit": 2000,
-        },
-    )
-    return [split for bloque in (payload.get("stats") or []) for split in (bloque.get("splits") or [])]
+    from dglweb.stats import daily
+
+    pedazos: list[dict[str, Any]] = []
+    for tipo in daily.tipos_de_juego(desde, hasta):
+        payload = client.get(
+            "/api/v1/stats",
+            {
+                "stats": "byDateRange",
+                "group": grupo,
+                "gameType": tipo,
+                "season": hasta.year,
+                "startDate": desde.isoformat(),
+                "endDate": hasta.isoformat(),
+                "playerPool": "All",
+                "limit": 2000,
+            },
+        )
+        pedazos += [split for bloque in (payload.get("stats") or []) for split in (bloque.get("splits") or [])]
+    return _juntar(pedazos)
+
+
+def _juntar(pedazos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Un split por (pelotero, equipo), sumando los que llegaron partidos por tipo de juego.
+
+    La clave lleva el equipo porque así venían ya antes: el que cambió de club en la ventana trae una
+    línea por club, y eso no es asunto de este arreglo. El que llegó entero no se toca.
+    """
+    por_clave: dict[tuple[Any, Any], list[dict[str, Any]]] = {}
+    for split in pedazos:
+        clave = ((split.get("player") or {}).get("id"), (split.get("team") or {}).get("id"))
+        por_clave.setdefault(clave, []).append(split)
+    return [grupo[0] if len(grupo) == 1 else _sumar(grupo) for grupo in por_clave.values()]
+
+
+def _sumar(pedazos: list[dict[str, Any]]) -> dict[str, Any]:
+    """Los pedazos de un mismo pelotero, en una sola línea.
+
+    SE SUMAN SOLO LOS CONTEOS —los campos que vienen como entero— y se RECALCULAN las dos cifras que
+    se leen de una línea ya armada: el promedio (H/AB) y las entradas (desde `outsPitched`). Las demás
+    tasas del proxy (OBP, ERA…) SE DESCARTAN: sumarlas daría un número falso con cara de dato, y nadie
+    acá las lee. Las entradas nunca se suman en su notación: «6.2» + «5.2» no son 11.4 sino 12.1.
+    """
+    stats = [pedazo.get("stat") or {} for pedazo in pedazos]
+    total: dict[str, Any] = {}
+    for campo in dict.fromkeys(campo for stat in stats for campo in stat):
+        valores = [stat[campo] for stat in stats if campo in stat]
+        if all(_es_entero(valor) for valor in valores):
+            total[campo] = sum(int(valor) for valor in valores)
+    if "outsPitched" in total:
+        total["IP"] = f"{total['outsPitched'] // 3}.{total['outsPitched'] % 3}"
+    if total.get("AB"):
+        total["AVG"] = f"{total.get('H', 0) / total['AB']:.3f}".removeprefix("0")
+    return {**pedazos[0], "stat": total}
+
+
+def _es_entero(valor: object) -> bool:
+    """La API manda los conteos como entero o como cadena de dígitos («17»); las tasas llevan punto."""
+    if isinstance(valor, bool):
+        return False
+    return isinstance(valor, int) or (isinstance(valor, str) and valor.lstrip("-").isdigit())
 
 
 def _oportunidades(stat: dict[str, Any], campo: str) -> float:

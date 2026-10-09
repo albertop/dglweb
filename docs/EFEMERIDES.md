@@ -644,7 +644,7 @@ el exportador la recalcula en cada corrida.
 | `k12` | 12+ ponches en un juego | 137 | 366 |
 | `salvado_largo` | un salvado de 3+ entradas | 146 | 363 |
 | `hits5` | 5+ hits en un juego | 153 | 360 |
-| `blanqueada` | una blanqueada en juego completo | 271 | 333 |
+| `blanqueada` | una blanqueada | 271 | 333 |
 | `cs3` ⚠️ | 3+ veces atrapado robando en un juego | 1 | **300** |
 | `gidp3` ⚠️ | 3+ dobles matanzas bateadas en un juego | 10 | **245** |
 | `sombrero_platino` ⚠️ | 5 ponches en un juego | 20 | **229** |

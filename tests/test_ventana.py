@@ -794,3 +794,98 @@ def test_sin_calendario_de_esa_temporada_no_se_afirma_que_termino() -> None:
     from dglweb.stats import season_window
 
     assert season_window.temporada_terminada(1998, date(2026, 8, 1)) is False
+
+
+# ── La postemporada entra en la ventana (dueño, 2026-10-09) ───────────────────────────────────────
+
+
+class _ProxyPorTipo:
+    """Contesta según el `gameType` pedido y anota qué se pidió."""
+
+    def __init__(self, por_tipo: dict[str, list[dict[str, object]]]) -> None:
+        self.por_tipo = por_tipo
+        self.tipos: list[object] = []
+
+    def get(self, path: str, params: dict[str, object] | None = None) -> dict[str, object]:
+        tipo = (params or {}).get("gameType")
+        self.tipos.append(tipo)
+        return {"stats": [{"splits": self.por_tipo.get(str(tipo), [])}]}
+
+
+@pytest.fixture
+def calendario_2026(db: None) -> object:
+    from dglweb.stats.models import SeasonDates
+    from dglweb.stats.season_window import MLB
+
+    return SeasonDates.objects.create(
+        season=2026, sports_id=MLB, season_start_date=date(2026, 3, 26),
+        reg_season_end_date=date(2026, 9, 27), post_season_start_date=date(2026, 9, 29),
+        season_end_date=date(2026, 11, 5), is_active=True,
+    )  # fmt: skip
+
+
+def _split(pid: int, equipo: int, **stat: object) -> dict[str, object]:
+    return {"player": {"id": pid}, "team": {"id": equipo}, "stat": stat}
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("calendario_2026")
+class TestLaVentanaCruzaAOctubre:
+    """`byDateRange` sin `gameType` es SOLO serie regular: las rachas se congelaron el 27-09 por eso."""
+
+    def test_dentro_de_la_regular_pide_una_sola_vez(self) -> None:
+        proxy = _ProxyPorTipo({})
+
+        ventana._splits(proxy, "hitting", date(2026, 9, 1), date(2026, 9, 14))  # type: ignore[arg-type]
+
+        assert proxy.tipos == ["R"]
+
+    def test_toda_en_octubre_pide_solo_las_rondas(self) -> None:
+        proxy = _ProxyPorTipo({})
+
+        ventana._splits(proxy, "hitting", date(2026, 10, 1), date(2026, 10, 14))  # type: ignore[arg-type]
+
+        assert sorted(str(t) for t in proxy.tipos) == ["D", "F", "L", "W"]
+
+    def test_a_caballo_suma_los_dos_pedazos_del_mismo_pelotero(self) -> None:
+        proxy = _ProxyPorTipo(
+            {
+                "R": [_split(1, 135, G="5", PA="20", AB="18", H="6", HR="1", outsPitched="0", AVG=".333")],
+                "D": [_split(1, 135, G="3", PA="12", AB="12", H="3", HR="2", outsPitched="0", AVG=".250")],
+            }
+        )
+
+        splits = ventana._splits(proxy, "hitting", date(2026, 9, 22), date(2026, 10, 5))  # type: ignore[arg-type]
+
+        assert sorted(str(t) for t in proxy.tipos) == ["D", "F", "L", "R", "W"]
+        assert len(splits) == 1
+        stat = splits[0]["stat"]
+        assert (stat["G"], stat["PA"], stat["AB"], stat["H"], stat["HR"]) == (8, 32, 30, 9, 3)
+        assert stat["AVG"] == ".300"  # recalculado: 9/30, no la suma de .333 y .250
+
+    def test_las_entradas_se_suman_en_outs_y_no_en_notacion(self) -> None:
+        proxy = _ProxyPorTipo(
+            {
+                "R": [_split(7, 135, G="2", GS="2", outsPitched="20", IP="6.2", ER="2", K="7", BB="1")],
+                "L": [_split(7, 135, G="1", GS="1", outsPitched="17", IP="5.2", ER="1", K="6", BB="2")],
+            }
+        )
+
+        splits = ventana._splits(proxy, "pitching", date(2026, 9, 22), date(2026, 10, 5))  # type: ignore[arg-type]
+
+        stat = splits[0]["stat"]
+        assert stat["outsPitched"] == 37
+        assert stat["IP"] == "12.1"  # 37 outs, no 6.2 + 5.2 = 11.4
+        assert ventana.linea_de_pitcheo(stat) == "12.1 IP, 3 ER, 13 K, 3 BB"
+
+    def test_los_que_solo_jugaron_un_pedazo_no_se_tocan(self) -> None:
+        proxy = _ProxyPorTipo(
+            {
+                "R": [_split(1, 135, G="5", PA="20", AB="18", H="6", AVG=".333")],
+                "W": [_split(2, 147, G="4", PA="16", AB="15", H="5", AVG=".333")],
+            }
+        )
+
+        splits = ventana._splits(proxy, "hitting", date(2026, 9, 22), date(2026, 10, 5))  # type: ignore[arg-type]
+
+        assert sorted(s["player"]["id"] for s in splits) == [1, 2]
