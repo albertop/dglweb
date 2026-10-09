@@ -115,7 +115,7 @@ donde se lea. Hoy no está escrito en ningún lado salvo acá.
 
 **Los tres puntos de resiliencia están hechos.** Lo que queda ya no es infraestructura:
 
-    1. Los 8–12 artículos semilla        ← lo único que de verdad falta
+    1. ~~Los 8–12 artículos semilla~~    CERRADO por el dueño (2026-10-09), ver «Contenido»
     2. La prueba de restauración         octubre de 2026
     3. fail2ban en modo aviso            unos días de observación
     4. Identidad de corrida en IngestRun no urgente, pide migración
@@ -982,8 +982,8 @@ en esta lista. Ninguna bloquea el lanzamiento; las tres son de la Fase 8 y la 9.
 > sustos de hoy —el CSS en 404 y las zonas de anuncio— fueron de esos.
 ## Contenido
 
-- [ ] Escribir los 8–12 artículos semilla (cuello de botella — **ya no está bloqueado**: el CMS
-      quedó utilizable el 2026-07-27).
+- [x] ~~Escribir los 8–12 artículos semilla~~ **CERRADO por el dueño (2026-10-09).** Era el cuello de
+      botella del lanzamiento; el CMS quedó utilizable el 2026-07-27.
 
 ## Cloudflare — CON UN REQUISITO PREVIO QUE NO ES OPCIONAL (revisado el 2026-07-30)
 
