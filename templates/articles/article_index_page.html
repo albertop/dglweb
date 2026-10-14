@@ -157,21 +157,32 @@ Sin widget de líderes, a diferencia de la portada y de /lideres/: acá el lecto
         eso era una barra lateral. Con los dos artículos publicados hoy la repetición es del 100%.
       {% endcomment %}
       {% if recientes %}
-        <section class="dgl-panel dgl-panel-reciente p-3 mb-3 d-none d-lg-block">
+        <section class="dgl-panel dgl-panel-reciente p-3 mb-3 d-none d-lg-flex flex-column">
           <h2 class="dgl-section-title mb-2" style="font-size:.95rem" id="mas-reciente">Lo más reciente</h2>
           {% comment %}
-            `start` numera de verdad: en la página dos el primero es el DOCE, no el uno. Sin él, el
-            panel diría que un artículo de hace un mes es el más reciente.
+            LA NUMERACIÓN, DOS VECES Y LAS DOS HACEN FALTA. En la página dos el primero es el ONCE, no
+            el uno: si no, el panel diría que un artículo de hace un mes es el más reciente.
+
+            `start` es para el lector de pantalla y para quien copie la lista. Pero los números que SE
+            VEN los pinta `.dgl-top li::before` con un contador de CSS, y ese contador ignora `start`:
+            arranca en cero en cada `<ol>`. Con solo `start` la página dos decía 1, 2, 3… y así se
+            publicó. El `counter-reset` lo arranca donde toca — en el anterior al primero, porque cada
+            `li` suma uno antes de pintarse.
           {% endcomment %}
-          <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-reciente" start="{{ recientes_desde }}">
+          <ol class="list-unstyled dgl-top mb-0" aria-labelledby="mas-reciente" start="{{ recientes_desde }}" style="counter-reset: leidos {{ recientes_desde|add:"-1" }}">
             {% for articulo in recientes %}
               <li><a href="{{ articulo.url }}">{{ articulo.title }}</a></li>
             {% endfor %}
           </ol>
 
           {% comment %}
-            ANTERIOR Y SIGUIENTE, y solo si hay a dónde ir (dueño, 2026-08-13). Con once o menos no se
+            ANTERIOR Y SIGUIENTE, y solo si hay a dónde ir (dueño, 2026-08-13). Con diez o menos no se
             dibuja nada: un control que no lleva a ninguna parte es ruido.
+
+            VA FIJO AL PIE DEL PANEL (`.dgl-panel-reciente` en `site.css`). Estaba debajo de la lista,
+            dentro de un panel de alto fijo con `overflow: hidden`, y con títulos largos la lista lo
+            empujaba fuera del corte: la página uno lo enseñaba y la dos ya no. Ahora la lista se corta
+            antes que el control — y con diez títulos de dos líneas no llega a cortarse.
 
             SON ENLACES, no botones: cada página del panel es una dirección que se puede compartir y a
             la que el «atrás» del navegador vuelve. Y llevan `#mas-reciente` para que al pulsar no se

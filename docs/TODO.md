@@ -24,9 +24,15 @@ contra los juegos del equipo (p90 de la liga), así que en octubre el de un equi
 calificar solo, igual que el que deja de jugar en julio. Las rachas se rehacen enteras cada hora: no
 hace falta rellenar nada al desplegar.
 
-**Al desplegar**: hoy entra solo con el job horario, pero AYER NO: el refresco de las 4:30 ya la
-dejó en `SUCCESS` con cero filas, y el horario la suelta en cuanto ve esa fila. Hay que rehacerla a
-mano con `--fecha`, o el widget enseña solo hoy. Está en `docs/PRUEBAS_DESPLIEGUE.md`.
+**Desplegado en la `1.2026.33` y comprobado en producción (2026-10-09).** Dos cosas del despliegue
+que vale la pena recordar si algo así se repite:
+
+* **La jornada de ayer hubo que rehacerla a mano** (`build_daily_standouts --fecha`): el refresco de
+  las 4:30 ya la había dejado en `SUCCESS` con cero filas, y el job horario la suelta en cuanto ve
+  esa fila. Hoy entró sola.
+* **Las rachas no cambian al desplegar, sino en la siguiente corrida horaria** (minuto 10). La portada
+  lee la foto que dejó la versión anterior hasta que el job la reemplaza; para no esperar, se corre
+  `build_window_standouts` a mano.
 
 ## Hecho: la efeméride de blanqueadas decía una redundancia (abierto y cerrado 2026-08-13)
 
@@ -1821,21 +1827,6 @@ Ver `docs/reviews/code_review_v4.md`. Evaluados uno a uno; mi acuerdo/decisión:
   del 25 de marzo al 28 de septiembre — unas 550 llamadas al proxy que ya no se hacen. Si la fecha
   falta caen al fin de la serie regular, y si tampoco está, a la apertura: se degrada hacia correr y
   nunca hacia callar, y el motivo del salto dice qué fecha se usó.
-
-### Esperando dato, no código
-
-- [ ] **Reactivar el tab Salarios del perfil.** **Decisión del dueño (2026-07-26): queda apagado por un buen rato — no se hará por ahora.** El código no se toca: sigue construido, probado y fuera de `REGISTRY`. No hace falta volver a evaluarlo hasta que la vista `v_dglweb_salaries` mejore de verdad, y quien la mejore será el dueño. Está construido, probado y **apagado a propósito**
-  (línea comentada en `profiles/tabs.REGISTRY`). La fuente no da la talla: `dom_salaries` trae 1.385
-  filas para 343 jugadores en sesenta temporadas, 2025 tiene 12 filas, y al dominicano mejor pagado
-  de la historia le falta el registro — el máximo de todo el archivo es Luis Castillo con 24,15
-  millones en 2024, cuando Soto cobró ~31 ese mismo año. Con esa cobertura el tab no informa,
-  desinforma: un perfil que muestra tres de las doce temporadas que el pelotero cobró se lee como su
-  historial completo, y el footer de advertencia no deshace esa lectura. **Bloqueado por la vista
-  `v_dglweb_salaries`**, que el dueño está mejorando; cuando el dato esté, se descomenta una línea.
-  Hay un test que fija el apagado para que volver sea una decisión y no un descuido.
-  **Del review v6 (SAB-03), que confirma la decisión**: al reactivarlo, rotular la tabla como
-  «salarios conocidos en DGL» y no como historial de carrera — y exigir antes una métrica de
-  cobertura por temporada, no solo la impresión de que mejoró.
 
 ### Aceptados, menor prioridad
 
