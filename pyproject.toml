@@ -1,6 +1,6 @@
 [project]
 name = "dglweb"
-version = "1.2026.33"
+version = "1.2026.34"
 description = "Dominicanos en Grandes Ligas — website (Django + Wagtail)."
 requires-python = ">=3.13"
 
