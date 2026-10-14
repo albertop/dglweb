@@ -37,7 +37,6 @@ from dglweb.stats.models import (
     BattingCareer,
     BattingPost,
     CareerLevel,
-    DomSalary,
     Efemeride,
     Fielding,
     FieldingCareer,
@@ -961,50 +960,6 @@ class PuestosTab(PlayerTab):
         return _puestos_context(player)
 
 
-def _money(monto: int | None) -> str:
-    """En dólares completos y con separador de miles. Sin decimales: no los tiene el dato."""
-    return f"${monto:,}" if monto is not None else "—"
-
-
-class SalariesTab(PlayerTab):
-    """Lo que cobró, por temporada y equipo.
-
-    Es el primer tab que se alimenta de un dataset de apoyo (`dom_salaries`) y no del proxy. Por eso
-    `applies_to` importa más que en los otros: la cobertura de la fuente es floja —343 jugadores en
-    60 temporadas— así que en la mayoría de los perfiles el tab simplemente no existe. Un tab vacío
-    sería peor que ninguno.
-
-    Una fila por (temporada, equipo), que es el grano de la tabla: un traspaso a mitad de año son dos
-    filas legítimas y las dos se muestran. El total las suma todas.
-    """
-
-    key = "salarios"
-    label = "Salarios"
-    template = "profiles/tabs/salarios.html"
-    base_order = 50  # después de Puestos
-
-    def applies_to(self, player: Player) -> bool:
-        return DomSalary.objects.filter(player_id=player.player_id).exists()
-
-    def context(self, player: Player) -> dict[str, Any]:
-        filas = DomSalary.objects.filter(player_id=player.player_id).order_by("season", "team_id")
-        return {
-            "rows": [
-                {
-                    "season": fila.season,
-                    "team": fila.team_id,
-                    "league": fila.league_id,
-                    "salary": _money(fila.salary),
-                }
-                for fila in filas
-            ],
-            # Se suma acá y no con un `aggregate`: las filas ya están en memoria y sumar None no
-            # existe — un salario sin registrar no baja el total, simplemente no lo sube.
-            "total": _money(sum(fila.salary or 0 for fila in filas)),
-            "seasons": len({fila.season for fila in filas}),
-        }
-
-
 class EfemeridesTab(PlayerTab):
     """Lo que hizo un día como hoy: su carrera contada en hechos fechados, del más nuevo al más viejo.
 
@@ -1039,7 +994,7 @@ class EfemeridesTab(PlayerTab):
     key = "efemerides"
     label = "Efemérides"
     template = "profiles/tabs/efemerides.html"
-    base_order = 60  # después de Puestos (40) y del hueco que deja Salarios (50)
+    base_order = 60  # después de Puestos (40)
 
     # EL CUMPLEAÑOS NO ENTRA, y es lo único que se excluye.
     #
@@ -1128,27 +1083,6 @@ REGISTRY: list[PlayerTab] = [
     FieldingTab(),
     PuestosTab(),
     EfemeridesTab(),
-    # ─── Salarios: DESHABILITADO A PROPÓSITO ────────────────────────────────────────────────────
-    # SalariesTab(),
-    #
-    # El tab está terminado y probado, pero no se publica porque la fuente todavía no da la talla.
-    # Lo que se midió al cargar `dom_salaries` (1.385 filas, 343 jugadores, 1961-2025):
-    #
-    #   * Al dominicano mejor pagado de la historia le falta el registro. El máximo de SESENTA
-    #     temporadas es Luis Castillo con 24,15 millones en 2024 — y ese mismo año Juan Soto cobró
-    #     alrededor de 31 millones y Manny Machado más de 32.
-    #   * 2025 trae 12 filas y 2024 trae 72, cuando en una temporada normal hay bastante más de cien
-    #     dominicanos en rosters de Grandes Ligas.
-    #
-    # Con esa cobertura, el tab no informa: desinforma. Un perfil que muestra tres temporadas de las
-    # doce que el pelotero cobró se lee como su historial salarial completo, y el footer de
-    # advertencia no alcanza para deshacer esa lectura — el lector ve una tabla y le cree.
-    #
-    # NO se borra el código: el dueño está trabajando en mejorar la cobertura del lado de DGL, y
-    # cuando la vista `v_dglweb_salaries` traiga el dato completo esto se reactiva descomentando esta
-    # línea. Los tests siguen ejercitando la clase, así que no se va a podrir mientras espera; hay uno
-    # que además fija que HOY no aparece, para que reactivarlo sea una decisión y no un descuido.
-    # ────────────────────────────────────────────────────────────────────────────────────────────
 ]  # append new tabs here
 
 

@@ -1522,12 +1522,27 @@ a.dgl-kicker:hover { color: var(--dgl-red); text-decoration: underline; }
    misma altura que la segunda fila de la izquierda y las dos columnas cierran juntas.
 
    La cuenta se hace con las variables y no con un 624 escrito a mano: si mañana la tarjeta mide
-   otra cosa, esto la sigue solo. `overflow: hidden` por si la lista trae diez titulares largos —
-   antes que romper la rejilla, se corta. */
+   otra cosa, esto la sigue solo.
+
+   LO QUE NO CABE SE CORTA, PERO NUNCA EL CONTROL (dueño, 2026-10-14). Con la lista y el control uno
+   detrás del otro dentro del mismo `overflow: hidden`, once titulares largos empujaban el control
+   fuera del corte: la página uno enseñaba «1 de 3» y la dos ya no tenía control. Ahora es una
+   columna flexible —`d-lg-flex flex-column` en la plantilla, porque el `d-lg-block` de Bootstrap
+   va con `!important` y aquí no se le gana— donde la lista cede y el control no.
+
+   Y PARA QUE LA LISTA NO TENGA QUE CEDER: cada titular a DOS LÍNEAS como mucho, y diez por página
+   (`articles.models.RECIENTES`). Medido en Chromium a 1024, 1280 y 1440px con diez titulares de
+   tres líneas: caben. El recorte de la lista queda como red, no como mecanismo. */
 .dgl-panel-reciente {
   height: calc(var(--dgl-art-alto) * 2 + var(--dgl-art-hueco));
   overflow: hidden;
 }
+.dgl-panel-reciente .dgl-top { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.dgl-panel-reciente .dgl-top a {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden;
+}
+.dgl-panel-reciente .dgl-top-paginacion { flex: none; }
 
 /* ---------- El cintillo de movimientos de roster ---------- */
 /* Se desliza sin depender de JavaScript: una animación sobre la tira, que lleva la lista dos veces

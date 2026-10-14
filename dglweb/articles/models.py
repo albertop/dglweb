@@ -75,16 +75,22 @@ INICIALES = DESTACADO + RETICULA + LATERAL
 # botón quedaba muerto sin JavaScript. Ahora cada página trae lo suyo y los enlaces son enlaces.
 POR_PAGINA = 12
 
-# Cuántos caben en el panel lateral de «Lo más reciente». ONCE (dueño, 2026-08-13): es lo que entra en
-# el alto de la columna sin que el panel crezca más que la retícula de al lado.
+# Cuántos caben en el panel lateral de «Lo más reciente». DIEZ (dueño, 2026-10-14), con cada título a
+# DOS LÍNEAS como mucho — las dos decisiones van juntas y son las que hacen que quepan.
 #
-# Y CON PAGINACIÓN PROPIA, porque con más de once la lista se cortaba en seco y no había forma de ver
+# Eran once, y cabían solo con títulos cortos. El panel tiene alto fijo —para cerrar a la misma
+# altura que la retícula— y con títulos de tres líneas la lista crecía hasta 850px contra 624: el
+# corte se llevaba los últimos artículos Y el control de paginación, que estaba debajo. Así se
+# publicó: «1 de 3» y «Siguientes» en la primera, y en la segunda el control desaparecía. Medido en
+# Chromium a 1024, 1280 y 1440px: diez de dos líneas caben siempre; once no.
+#
+# Y CON PAGINACIÓN PROPIA, porque con más de diez la lista se cortaba en seco y no había forma de ver
 # los siguientes sin bajar a la retícula, que es otra cosa: la retícula ordena por decisión editorial
 # —el fijado manda— y este panel es cronología pura.
 #
 # Va por su propio parámetro, `?recientes=`, y no por `?page=`: son dos listas independientes en la
 # misma pantalla, y compartir el número movería las dos a la vez.
-RECIENTES = 11
+RECIENTES = 10
 
 
 @register_snippet
@@ -314,7 +320,7 @@ class ArticleIndexPage(Page):
         return contexto
 
     def _panel_reciente(self, request: HttpRequest) -> dict[str, Any]:
-        """El panel de «Lo más reciente», paginado de once en once.
+        """El panel de «Lo más reciente», paginado de diez en diez.
 
         SALE DE LO PUBLICADO SIN FILTRAR, y eso no cambia: si filtrara con la retícula repetiría
         exactamente lo mismo dos veces en la misma pantalla.
@@ -326,8 +332,9 @@ class ArticleIndexPage(Page):
         PAGINA POR SU CUENTA con `?recientes=`. Son dos listas independientes en la misma pantalla, así
         que compartir `?page=` movería las dos a la vez y el lector no entendería por qué.
 
-        `start` es lo que hace honesta la numeración: en la página dos el primero es el número DOCE, no
-        el uno. Sin eso el panel diría que el artículo de hace un mes es el más reciente.
+        `recientes_desde` es lo que hace honesta la numeración: en la página dos el primero es el número
+        ONCE, no el uno. Sin eso el panel diría que el artículo de hace un mes es el más reciente. La
+        plantilla lo usa para arrancar el contador de CSS, que es quien pinta los números.
         """
         from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 

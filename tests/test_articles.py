@@ -1273,31 +1273,36 @@ def test_sin_imagen_la_tarjeta_social_usa_la_lamina(indice: ArticleIndexPage, cl
 
 
 @pytest.mark.django_db
-def test_el_panel_trae_once(indice: ArticleIndexPage) -> None:
-    """Once es lo que cabe en el alto de la columna sin que el panel crezca más que la retícula."""
+def test_el_panel_trae_diez(indice: ArticleIndexPage) -> None:
+    """Diez es lo que cabe en el alto de la columna con cada título a dos líneas como mucho.
+
+    Eran once, y cabían solo con títulos cortos: con títulos de dos o tres líneas la lista crecía más
+    que el panel —que tiene alto fijo— y el corte se llevaba los últimos artículos Y el control de
+    paginación (dueño, 2026-10-14). Medido en Chromium: diez de dos líneas caben a cualquier ancho.
+    """
     from dglweb.articles import models
 
     _muchos(indice, 20)
 
     contexto = indice.get_context(RequestFactory().get(indice.url))
 
-    assert len(contexto["recientes"]) == models.RECIENTES == 11
+    assert len(contexto["recientes"]) == models.RECIENTES == 10
 
 
 @pytest.mark.django_db
-def test_con_once_o_menos_no_hay_control(indice: ArticleIndexPage) -> None:
+def test_con_diez_o_menos_no_hay_control(indice: ArticleIndexPage) -> None:
     """Un control que no lleva a ninguna parte es ruido, así que no se dibuja."""
-    _muchos(indice, 11)
+    _muchos(indice, 10)
 
     contexto = indice.get_context(RequestFactory().get(indice.url))
 
     assert contexto["recientes_pagina"].has_other_pages() is False
-    assert len(contexto["recientes"]) == 11
+    assert len(contexto["recientes"]) == 10
 
 
 @pytest.mark.django_db
 def test_la_segunda_pagina_del_panel_sigue_numerando(indice: ArticleIndexPage) -> None:
-    """En la página dos el primero es el DOCE, no el uno.
+    """En la página dos el primero es el ONCE, no el uno.
 
     Sin `start`, el panel diría que un artículo de hace un mes es el más reciente — y se llama «Lo más
     reciente», así que sería mentira en el único sitio donde no puede serlo.
@@ -1306,8 +1311,8 @@ def test_la_segunda_pagina_del_panel_sigue_numerando(indice: ArticleIndexPage) -
 
     contexto = indice.get_context(RequestFactory().get(indice.url, {"recientes": "2"}))
 
-    assert contexto["recientes_desde"] == 12
-    assert len(contexto["recientes"]) == 9, "los que sobran de los veinte"
+    assert contexto["recientes_desde"] == 11
+    assert len(contexto["recientes"]) == 10, "los que sobran de los veinte"
     assert contexto["recientes_pagina"].has_previous() is True
     assert contexto["recientes_pagina"].has_next() is False
 
@@ -1317,7 +1322,7 @@ def test_el_panel_pagina_sin_mover_la_reticula(indice: ArticleIndexPage) -> None
     """Son dos listas en la misma pantalla y cada una con su parámetro.
 
     Compartir `?page=` movería las dos a la vez, y el lector no entendería por qué al pedir «los
-    siguientes once» le cambia también la retícula de al lado.
+    siguientes diez» le cambia también la retícula de al lado.
     """
     from dglweb.articles import models
 
@@ -1330,6 +1335,24 @@ def test_el_panel_pagina_sin_mover_la_reticula(indice: ArticleIndexPage) -> None
     assert movido["pagina"].number == quieto["pagina"].number == 1, "la retícula no"
     assert movido["destacado"] == quieto["destacado"]
     assert len(movido["pagina"].object_list) == models.POR_PAGINA
+
+
+@pytest.mark.django_db
+def test_la_segunda_pagina_se_pinta_numerando_desde_el_once(indice: ArticleIndexPage, client: Client) -> None:
+    """El `start` del `<ol>` no basta: los números los dibuja un contador de CSS, no la lista.
+
+    `.dgl-top li::before` escribe `counter(leidos)`, y ese contador arranca en cero en cada `<ol>`
+    haga lo que haga `start` — que solo mueve la numeración nativa, escondida por `list-unstyled`.
+    Así se publicó: la página dos decía 1, 2, 3… con el `start` correcto puesto. La prueba de arriba
+    mira el contexto y por eso no lo vio; esta mira lo que se manda al navegador.
+    """
+    _muchos(indice, 20)
+
+    segunda = client.get(indice.url, {"recientes": "2"}).content.decode()
+    primera = client.get(indice.url).content.decode()
+
+    assert 'style="counter-reset: leidos 10"' in segunda, "el primero que se pinta es el 11"
+    assert 'style="counter-reset: leidos 0"' in primera
 
 
 @pytest.mark.django_db
